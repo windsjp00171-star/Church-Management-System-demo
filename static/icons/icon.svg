@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="110" fill="#06C755"/>
+  <!-- 十字架 -->
+  <rect x="224" y="110" width="64" height="292" rx="14" fill="white"/>
+  <rect x="110" y="210" width="292" height="64" rx="14" fill="white"/>
+</svg>

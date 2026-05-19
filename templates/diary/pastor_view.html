@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- 查閱 Banner（含成員切換） -->
+<div class="pastor-banner">
+  <div class="pastor-banner-inner">
+    <div>
+      <div class="pastor-banner-label">📖 正在查閱</div>
+      <div class="pastor-banner-name">{{ owner_name }} 的靈修記錄</div>
+    </div>
+    <a href="{{ url_for('diary.index') }}" class="pastor-back-btn">← 回自己的頁面</a>
+  </div>
+
+  {% if all_owners and all_owners|length > 0 %}
+  <div class="pastor-banner-divider"></div>
+  <div class="pastor-switch-hint">點選頭像切換成員 →</div>
+  <div class="pastor-member-switcher-wrap">
+    <div class="pastor-member-switcher">
+      {% for o in all_owners %}
+        <a
+          href="{{ url_for('diary.pastor_view', owner_uid=o.line_user_id) }}"
+          class="pastor-member-chip {% if o.line_user_id == owner_uid %}active{% endif %}"
+          title="{{ o.display_name or '（未命名）' }}"
+        >
+          {% if o.picture_url %}
+            <img src="{{ o.picture_url }}" alt="">
+          {% else %}
+            <div class="pastor-member-avatar-placeholder"></div>
+          {% endif %}
+          <span>{{ o.display_name or "（未命名）" }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<section class="calendar-card">
+  <div class="calendar-header">
+    <a href="{{ url_for('diary.pastor_view', owner_uid=owner_uid, month=prev_month) }}">← 上一月</a>
+    <div class="calendar-title">{{ calendar_year }} 年 {{ calendar_month }} 月</div>
+    <a href="{{ url_for('diary.pastor_view', owner_uid=owner_uid, month=next_month) }}">下一月 →</a>
+  </div>
+
+  <div class="calendar-grid">
+    <div class="calendar-weekday">日</div>
+    <div class="calendar-weekday">一</div>
+    <div class="calendar-weekday">二</div>
+    <div class="calendar-weekday">三</div>
+    <div class="calendar-weekday">四</div>
+    <div class="calendar-weekday">五</div>
+    <div class="calendar-weekday">六</div>
+    {% for _ in range(first_day_offset) %}
+      <div></div>
+    {% endfor %}
+    {% for d in calendar_days %}
+      {% if d.is_future %}
+        <div class="calendar-day {{ d.status }}" title="{{ d.date }}">{{ d.day }}</div>
+      {% else %}
+        <a
+          href="{{ url_for('diary.pastor_view', owner_uid=owner_uid, d=d.date, month=calendar_year ~ '-' ~ '%02d'|format(calendar_month)) }}"
+          class="calendar-day {{ d.status }}"
+          title="{{ d.date }}"
+        >
+          {{ d.day }}
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="legend">
+    <span class="dot unwritten"></span>未寫
+    <span class="dot written"></span>已寫
+    <span class="dot future"></span>未到
+    <span class="dot selected"></span>選擇中
+  </div>
+</section>
+
+<section class="scripture-card">
+  <h2>當日讀經</h2>
+
+  {% if plan %}
+    {% if book_bg %}
+      <div class="book-bg">{{ book_bg }}</div>
+    {% endif %}
+
+    <div class="scripture-ref">
+      <strong>{{ plan.book }} {{ plan.range }}</strong>
+    </div>
+
+    <div class="scripture-content">
+      {% if verses %}
+        {% for v in verses %}
+          <p>{{ v }}</p>
+        {% endfor %}
+      {% else %}
+        <p class="muted">（找不到經文內容）</p>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="scripture-content">
+      <p class="muted">（此日尚未設定讀經進度）</p>
+    </div>
+  {% endif %}
+</section>
+
+<section class="diary-card">
+  <h2>靈修內容</h2>
+  <div class="diary-date">日期：{{ entry_date }}</div>
+
+  {% if completed %}
+    <textarea readonly class="diary-textarea">{{ content }}</textarea>
+  {% else %}
+    <div class="muted">（此日尚未書寫或尚未鎖定）</div>
+    <textarea readonly class="diary-textarea" style="opacity:0.75;">{{ content }}</textarea>
+  {% endif %}
+</section>
+
+{% endblock %}

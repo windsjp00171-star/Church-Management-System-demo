@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>外部報名 — {{ event.title }}</title>
+    <style>
+        :root {
+            --green: #06C755;
+            --red: #e53935;
+            --border: #e0e0e0;
+            --radius: 8px;
+            --surface: #fafafa;
+            --text-1: #222;
+        }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: sans-serif;
+            background: #f0f4f0;
+            min-height: 100vh;
+            padding: 24px 16px 48px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 28px 22px;
+            max-width: 480px;
+            margin: 0 auto;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .event-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #222;
+            margin-bottom: 4px;
+        }
+        .event-meta {
+            font-size: 0.82rem;
+            color: #888;
+            margin-bottom: 24px;
+            line-height: 1.8;
+        }
+        .section-title {
+            font-size: 0.85rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 16px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+        .field-wrapper { margin-bottom: 16px; }
+        label.field-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--text-1);
+            font-size: 0.9rem;
+        }
+        input[type=text], input[type=number], input[type=date], textarea, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+            box-sizing: border-box;
+        }
+        textarea { resize: vertical; min-height: 80px; }
+        .radio-opt, .check-opt {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            cursor: pointer;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            background: var(--surface);
+            margin-bottom: 6px;
+        }
+        .radio-opt input, .check-opt input {
+            width: 17px; height: 17px;
+            accent-color: var(--green);
+            flex-shrink: 0;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 14px;
+            background: var(--green);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 8px;
+        }
+        .btn-submit:disabled { background: #ccc; cursor: not-allowed; }
+        #error-msg {
+            display: none;
+            color: var(--red);
+            background: #ffebee;
+            padding: 10px 16px;
+            border-radius: var(--radius);
+            margin-bottom: 16px;
+            font-size: 0.875rem;
+        }
+        #success-card { display: none; text-align: center; }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 16px;
+            font-size: 0.85rem;
+            color: #888;
+            cursor: pointer;
+        }
+        .back-link:hover { color: #555; }
+    </style>
+</head>
+<body>
+    {% if closed %}
+    <div class="card" style="text-align:center;">
+        <div style="font-size:3rem; margin-bottom:16px;">🔒</div>
+        <div style="font-size:1.15rem; font-weight:bold; color:#222; margin-bottom:10px;">報名已關閉</div>
+        <div style="font-size:0.9rem; color:#888; line-height:1.7;">此活動的報名時間已結束或尚未開放，<br>如有疑問請聯繫主辦單位。</div>
+    </div>
+    {% else %}
+    <div class="card" id="form-card">
+        <div class="event-name">{{ event.title }}</div>
+        <div class="event-meta">
+            {% if event.event_start %}📅 {{ event.event_start[:10] }}{% endif %}
+            {% if event.location %}&nbsp;·&nbsp;📍 {{ event.location }}{% endif %}
+        </div>
+
+        <div class="section-title">外部朋友報名表</div>
+
+        <!-- 姓名必填 -->
+        <div class="field-wrapper">
+            <label class="field-label">姓名 <span style="color:var(--red);">*</span></label>
+            <input type="text" id="guest-name" placeholder="請輸入您的姓名">
+        </div>
+
+        <!-- 自訂欄位 -->
+        {% for field in fields %}
+        <div class="field-wrapper"
+             data-condition="{{ field.condition_json or '' }}"
+             data-field-type="{{ field.field_type }}"
+             data-field-id="{{ field.id }}"
+             {% if field.is_required %}data-required="true"{% endif %}>
+            <label class="field-label">
+                {{ field.label }}
+                {% if field.is_required %}<span style="color:var(--red);">*</span>{% endif %}
+            </label>
+
+            {% if field.field_type == 'radio' %}
+                {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+                <label class="radio-opt">
+                    <input type="radio" name="field_{{ field.id }}" value="{{ opt.strip() }}"
+                        onchange="evaluateConditions()">
+                    <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                </label>
+                {% endfor %}
+                {% if field.options and '__other__' in field.options %}
+                <label class="radio-opt" style="flex-wrap:wrap;">
+                    <input type="radio" name="field_{{ field.id }}" value="__other__"
+                        onchange="evaluateConditions(); toggleOtherText(this)">
+                    <span style="font-size:0.9rem;">其他（請填寫）</span>
+                    <input type="text" class="other-text"
+                        style="display:none; padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.9rem; min-width:160px; flex:1; margin-top:6px;"
+                        placeholder="請說明...">
+                </label>
+                {% endif %}
+
+            {% elif field.field_type == 'checkbox' %}
+                {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+                <label class="check-opt">
+                    <input type="checkbox" value="{{ opt.strip() }}"
+                        style="width:17px; height:17px; accent-color:var(--green); flex-shrink:0;">
+                    <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                </label>
+                {% endfor %}
+                {% if field.options and '__other__' in field.options %}
+                <label class="check-opt" style="flex-wrap:wrap;">
+                    <input type="checkbox" value="__other__"
+                        onchange="toggleOtherText(this)"
+                        style="width:17px; height:17px; accent-color:var(--green); flex-shrink:0;">
+                    <span style="font-size:0.9rem;">其他（請填寫）</span>
+                    <input type="text" class="other-text"
+                        style="display:none; padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.9rem; min-width:160px; flex:1; margin-top:6px;"
+                        placeholder="請說明...">
+                </label>
+                {% endif %}
+
+            {% elif field.field_type == 'textarea' %}
+                <textarea data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    placeholder="{{ field.label }}"></textarea>
+
+            {% elif field.field_type == 'select' %}
+                <select data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    onchange="evaluateConditions()">
+                    <option value="">請選擇...</option>
+                    {% for opt in field.options.split('\n') if field.options and opt.strip() %}
+                    <option value="{{ opt.strip() }}">{{ opt.strip() }}</option>
+                    {% endfor %}
+                </select>
+
+            {% elif field.field_type == 'number' %}
+                <input type="number" data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    placeholder="{{ field.label }}">
+
+            {% elif field.field_type == 'date' %}
+                <input type="date" data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}>
+
+            {% else %}
+                <input type="text" data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    placeholder="{{ field.label }}">
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <p style="font-size:0.78rem; color:#aaa; margin-bottom:12px;">本表單所收集之個人資料僅供本次活動行政作業使用，不另作他用。</p>
+        <div id="error-msg"></div>
+        <button class="btn-submit" onclick="submitExternal()">確認報名</button>
+        <span class="back-link" onclick="history.back()">← 返回</span>
+    </div>
+
+    <div class="card" id="success-card" style="display:none; text-align:center; padding:40px 24px;">
+        <div style="font-size:3.5rem; margin-bottom:16px;">🎉</div>
+        <div class="success-title" style="font-size:1.2rem; font-weight:bold; color:#222; margin-bottom:8px;">報名成功！</div>
+        <div class="success-desc" style="font-size:0.9rem; color:#666; line-height:1.7;">
+            感謝你的報名，活動當天記得出席簽到喔！
+        </div>
+    </div>
+
+    <div id="gospel-invite" style="display:none; margin-top:16px;">
+        <div style="background:linear-gradient(135deg,#fff8ec,#fef3e2); border:1px solid #f5d9a8; border-radius:20px; padding:28px 24px; text-align:center;">
+            <div style="font-size:2.2rem; margin-bottom:12px;">✝️</div>
+            <div style="font-size:1rem; font-weight:800; color:#7a4a1a; margin-bottom:8px;">對信仰有些好奇嗎？</div>
+            <div style="font-size:0.88rem; color:#a0713a; line-height:1.7; margin-bottom:20px;">
+                我們整理了幾個常見的信仰問題與解答，<br>歡迎你來看看、留下你的想法。
+            </div>
+            <a href="/gospel" style="display:inline-block; background:#c07a2a; color:#fff; text-decoration:none; padding:11px 28px; border-radius:30px; font-size:0.9rem; font-weight:700; letter-spacing:0.5px;">
+                認識信仰 →
+            </a>
+        </div>
+    </div>
+
+    <script>
+        const eventId = {{ event.id | tojson }};
+
+        function toggleOtherText(el) {
+            const otherInput = el.closest('label').querySelector('.other-text');
+            if (!otherInput) return;
+            otherInput.style.display = el.checked ? 'block' : 'none';
+        }
+
+        function evaluateConditions() {
+            document.querySelectorAll('.field-wrapper[data-condition]').forEach(wrapper => {
+                const condStr = wrapper.dataset.condition;
+                if (!condStr) return;
+                try {
+                    const cond = JSON.parse(condStr);
+                    if (!cond || !cond.trigger_field_id || !cond.trigger_value) return;
+                    const triggerWrapper = document.querySelector(`.field-wrapper[data-field-id="${cond.trigger_field_id}"]`);
+                    if (!triggerWrapper) return;
+                    let triggerVal = '';
+                    const sel = triggerWrapper.querySelector('select');
+                    if (sel) { triggerVal = sel.value; }
+                    else {
+                        const radio = triggerWrapper.querySelector(`input[type=radio]:checked`);
+                        if (radio) triggerVal = radio.value;
+                    }
+                    wrapper.style.display = (triggerVal === cond.trigger_value) ? 'block' : 'none';
+                } catch(e) {}
+            });
+        }
+
+        function collectAnswers() {
+            const answers = [];
+            document.querySelectorAll('.field-wrapper[data-field-id]').forEach(wrapper => {
+                if (wrapper.style.display === 'none') return;
+                const fid = wrapper.dataset.fieldId;
+                const ftype = wrapper.dataset.fieldType;
+                let answer = '';
+
+                if (ftype === 'radio') {
+                    const checked = wrapper.querySelector('input[type=radio]:checked');
+                    if (checked) {
+                        if (checked.value === '__other__') {
+                            const t = checked.closest('label').querySelector('.other-text');
+                            answer = t ? t.value.trim() : '';
+                        } else { answer = checked.value; }
+                    }
+                } else if (ftype === 'checkbox') {
+                    const vals = [];
+                    wrapper.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
+                        if (cb.value === '__other__') {
+                            const t = cb.closest('label').querySelector('.other-text');
+                            if (t && t.value.trim()) vals.push(t.value.trim());
+                        } else { vals.push(cb.value); }
+                    });
+                    answer = vals.join(', ');
+                } else {
+                    const el = wrapper.querySelector(`[data-field-id="${fid}"]`);
+                    if (el) answer = el.value.trim();
+                }
+
+                answers.push({ field_id: fid, answer });
+            });
+            return answers;
+        }
+
+        function submitExternal() {
+            const guestName = document.getElementById('guest-name').value.trim();
+            if (!guestName) {
+                showError('請填寫姓名');
+                return;
+            }
+
+            // 必填檢查
+            let missing = false;
+            document.querySelectorAll('.field-wrapper[data-required="true"]').forEach(wrapper => {
+                if (wrapper.style.display === 'none') return;
+                const fid = wrapper.dataset.fieldId;
+                const ftype = wrapper.dataset.fieldType;
+                let filled = false;
+                if (ftype === 'radio') filled = !!wrapper.querySelector('input[type=radio]:checked');
+                else if (ftype === 'checkbox') filled = wrapper.querySelectorAll('input[type=checkbox]:checked').length > 0;
+                else {
+                    const el = wrapper.querySelector(`[data-field-id="${fid}"]`);
+                    filled = el && el.value.trim() !== '';
+                }
+                if (!filled) missing = true;
+            });
+
+            if (missing) {
+                showError('請填寫所有必填欄位');
+                return;
+            }
+
+            const btn = document.querySelector('.btn-submit');
+            btn.disabled = true;
+            btn.textContent = '提交中...';
+
+            fetch(`/event/${eventId}/external-register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    guest_name: guestName,
+                    answers: collectAnswers(),
+                }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    document.getElementById('form-card').style.display = 'none';
+                    const sc = document.getElementById('success-card');
+                    sc.style.display = 'block';
+                    if (data.waitlisted) {
+                        sc.querySelector('.success-title').textContent = '已加入候補！';
+                        sc.querySelector('.success-desc').textContent = '你已成功加入候補名單，有名額空出時將由工作人員通知你。';
+                    }
+                    setTimeout(() => {
+                        const gi = document.getElementById('gospel-invite');
+                        gi.style.display = 'block';
+                        gi.style.opacity = '0';
+                        gi.style.transform = 'translateY(16px)';
+                        gi.style.transition = 'opacity .5s, transform .5s';
+                        requestAnimationFrame(() => {
+                            gi.style.opacity = '1';
+                            gi.style.transform = 'translateY(0)';
+                        });
+                    }, 800);
+                } else {
+                    showError(data.error || '報名失敗，請再試一次');
+                    btn.disabled = false;
+                    btn.textContent = '確認報名';
+                }
+            })
+            .catch(() => {
+                showError('網路錯誤，請再試一次');
+                btn.disabled = false;
+                btn.textContent = '確認報名';
+            });
+        }
+
+        function showError(msg) {
+            const el = document.getElementById('error-msg');
+            el.style.display = 'block';
+            el.style.color = '#e53935';
+            el.style.background = '#ffebee';
+            el.style.padding = '10px 16px';
+            el.style.borderRadius = '8px';
+            el.style.marginBottom = '12px';
+            el.textContent = msg;
+        }
+
+        evaluateConditions();
+    </script>
+    {% endif %}
+</body>
+</html>

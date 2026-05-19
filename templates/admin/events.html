@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}活動管理{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <a href="/admin" class="breadcrumb">← 返回後台</a>
+        <div class="page-title">🎉 活動管理</div>
+    </div>
+    <a href="/admin/events/new" class="btn btn-primary">＋ 建立活動</a>
+</div>
+
+{% if events %}
+
+{# 收集所有不重複的 group_tag 供篩選用 #}
+{% set all_tags = [] %}
+{% for event in events %}
+    {% if event.group_tag and event.group_tag not in all_tags %}
+        {% set _ = all_tags.append(event.group_tag) %}
+    {% endif %}
+{% endfor %}
+
+{% if all_tags %}
+<!-- 小組篩選列 -->
+<div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; align-items:center;">
+    <span style="font-size:0.85rem; color:#888;">篩選小組：</span>
+    <button onclick="filterGroup('')" id="filter-all"
+        style="padding:5px 14px; border-radius:20px; border:none; cursor:pointer; font-size:0.85rem;
+               background:#333; color:white;">全部</button>
+    {% for tag in all_tags %}
+    <button onclick="filterGroup('{{ tag }}')" id="filter-{{ loop.index }}"
+        style="padding:5px 14px; border-radius:20px; border:1px solid #ddd; cursor:pointer; font-size:0.85rem;
+               background:white; color:#555;">{{ tag }}</button>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 活動列表 -->
+<div id="eventList">
+{% for event in events %}
+<div class="event-card" data-group="{{ event.group_tag or '' }}"
+    style="background:var(--surface); border-radius:var(--radius-lg); padding:18px 22px; margin-bottom:12px; box-shadow:var(--shadow-sm); border:1px solid var(--border);">
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <!-- 活動資訊 -->
+      <div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+            <h3 style="margin:0;">{{ event.title }}</h3>
+            {% if event.effective_open %}
+            <span style="padding:3px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;
+                background:#e8f5e9; color:#2e7d32;">報名開放</span>
+            {% elif event.open_reason == 'expired' %}
+            <span style="padding:3px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;
+                background:#fff3e0; color:#e65100;">已截止</span>
+            {% elif event.open_reason == 'not_yet' %}
+            <span style="padding:3px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;
+                background:#e3f2fd; color:#1565c0;">尚未開始</span>
+            {% else %}
+            <span style="padding:3px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;
+                background:#ffebee; color:#c62828;">報名關閉</span>
+            {% endif %}
+            {% if event.group_tag %}
+            <span style="padding:3px 10px; border-radius:20px; font-size:0.8rem;
+                         background:#e3f2fd; color:#1565c0;">
+                {{ event.group_tag }}
+            </span>
+            {% endif %}
+        </div>
+        <p style="color:#666; font-size:0.9rem; margin:0;">
+            📍 {{ event.location or '未設定' }} ．
+            🕐 {{ event.event_start| taipei_time if event.event_start else '時間未設定' }}
+            {% if event.capacity %}．👥 上限 {{ event.capacity }} 人{% endif %}
+            {% if event.fee %}．💰 {{ event.fee }} 元{% endif %}
+        </p>
+      </div>
+      <!-- 操作按鈕（自動換行，手機友善）-->
+      {% set can_manage = is_super_admin or not event.created_by or event.created_by == current_user_id %}
+      <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <a href="/admin/events/{{ event.id }}/registrations"
+               style="padding:8px 18px; background:#1d6fe5; color:white; border-radius:6px; text-decoration:none;
+                      font-size:0.88rem; font-weight:700; white-space:nowrap; box-shadow:0 2px 6px rgba(29,111,229,0.3);">
+                👥 報名名單
+            </a>
+            <a href="/admin/events/{{ event.id }}/reg-qrcode"
+               style="padding:6px 14px; background:#e8f5e9; color:#1b5e20; border-radius:6px; text-decoration:none; font-size:0.85rem;">
+                📲 報名 QR
+            </a>
+            {% if event.checkin_enabled %}
+            <a href="/admin/events/{{ event.id }}/qrcode"
+               style="padding:6px 14px; background:#fff3e0; color:#e65100; border-radius:6px; text-decoration:none; font-size:0.85rem;">
+                📱 簽到 QR
+            </a>
+            {% endif %}
+            {% if can_manage %}
+            <a href="/admin/events/{{ event.id }}/edit"
+               style="padding:6px 14px; background:#e3f2fd; color:#1565c0; border-radius:6px; text-decoration:none; font-size:0.85rem;">
+                編輯
+            </a>
+            <button onclick="toggleEvent('{{ event.id }}', this)"
+                style="padding:6px 14px; border:none; cursor:pointer; border-radius:6px; font-size:0.85rem;
+                       background:{{ '#ffebee' if event.is_open else '#e8f5e9' }};
+                       color:{{ '#c62828' if event.is_open else '#2e7d32' }};"
+                title="{{ '目前因截止時間自動關閉，手動開放可覆蓋' if event.open_reason == 'expired' else '' }}">
+                {{ '關閉報名' if event.is_open else '開放報名' }}{% if event.open_reason == 'expired' %} ↺{% endif %}
+            </button>
+            <button onclick="cloneEvent('{{ event.id }}')"
+                style="padding:6px 14px; background:#f3e5f5; color:#6a1b9a; border:none; cursor:pointer; border-radius:6px; font-size:0.85rem;">
+                複製
+            </button>
+            <button onclick="deleteEvent('{{ event.id }}', this)"
+                style="padding:6px 14px; background:#f5f5f5; color:#999; border:none; cursor:pointer; border-radius:6px; font-size:0.85rem;">
+                刪除
+            </button>
+            {% else %}
+            <button onclick="cloneEvent('{{ event.id }}')"
+                style="padding:6px 14px; background:#f3e5f5; color:#6a1b9a; border:none; cursor:pointer; border-radius:6px; font-size:0.85rem;">
+                複製
+            </button>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div style="text-align:center; padding:60px 0; color:#999;">
+    <div style="font-size:3rem;">📭</div>
+    <p style="margin-top:12px;">還沒有任何活動，點「建立活動」開始吧！</p>
+</div>
+{% endif %}
+
+<script>
+let currentGroup = '';
+
+function filterGroup(tag) {
+    currentGroup = tag;
+
+    // 更新篩選按鈕樣式
+    document.querySelectorAll('[id^="filter-"]').forEach(btn => {
+        btn.style.background = 'white';
+        btn.style.color = '#555';
+        btn.style.border = '1px solid #ddd';
+    });
+    const activeBtn = tag === '' ? document.getElementById('filter-all')
+        : [...document.querySelectorAll('[id^="filter-"]')].find(b => b.textContent.trim() === tag);
+    if (activeBtn) {
+        activeBtn.style.background = '#333';
+        activeBtn.style.color = 'white';
+        activeBtn.style.border = '1px solid #333';
+    }
+
+    // 顯示/隱藏活動卡片
+    document.querySelectorAll('.event-card').forEach(card => {
+        const cardGroup = card.dataset.group || '';
+        card.style.display = (!tag || cardGroup === tag) ? '' : 'none';
+    });
+}
+
+function cloneEvent(eventId) {
+    if (!confirm('複製這個活動嗎？\n日期會清空，報名預設關閉，請複製後再去編輯。')) return;
+    fetch(`/admin/events/${eventId}/clone`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                window.location.href = `/admin/events/${data.new_id}/edit`;
+            } else {
+                alert(data.error || '複製失敗');
+            }
+        });
+}
+
+function toggleEvent(eventId, btn) {
+    btn.disabled = true;
+    fetch(`/admin/events/${eventId}/toggle`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { alert(data.error); btn.disabled = false; return; }
+            location.reload();
+        });
+}
+
+function deleteEvent(eventId, btn) {
+    if (!confirm('確定要刪除這個活動嗎？報名資料也會一併刪除！')) return;
+    btn.disabled = true;
+    fetch(`/admin/events/${eventId}/delete`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.error) { alert(data.error); btn.disabled = false; return; }
+            location.reload();
+        });
+}
+</script>
+{% endblock %}

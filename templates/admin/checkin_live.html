@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block title %}即時簽到狀況 - {{ event.title }}{% endblock %}
+{% block content %}
+
+<!-- 頁首 -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/events/{{ event.id }}/registrations" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回報名名單</a>
+        <h2 style="margin-top:6px;">🟢 即時簽到狀況</h2>
+        <p style="color:#555; margin-top:4px;">{{ event.title }}</p>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <span id="refresh-indicator" style="font-size:0.8rem; color:#aaa;">更新中...</span>
+        <button onclick="toggleAutoRefresh()" id="toggle-btn"
+            style="padding:8px 18px; background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+            ⏸ 暫停更新
+        </button>
+        {% if event.party_animation %}
+        <a href="/admin/events/{{ event.id }}/checkin-display" target="_blank"
+            style="padding:8px 18px; background:#fdf4ff; color:#7e22ce; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold; border:1px solid #e9d5ff;">
+            🎉 現場展示
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ===== 協助代簽 ===== -->
+<div style="background:#e8f5e9; border-radius:12px; padding:18px 20px; margin-bottom:20px; border:1px solid #a5d6a7;">
+    <div style="font-weight:bold; color:#2e7d32; margin-bottom:10px;">🙋 協助代簽</div>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <input id="proxy-search" type="text" placeholder="輸入會友姓名搜尋..."
+            oninput="proxySearch(this.value)"
+            style="flex:1; padding:10px 14px; border:1px solid #c8e6c9; border-radius:8px; font-size:0.95rem; outline:none;">
+        <button onclick="proxySearch(document.getElementById('proxy-search').value)"
+            style="padding:10px 18px; background:#06C755; color:white; border:none; border-radius:8px; font-size:0.9rem; font-weight:bold; cursor:pointer; white-space:nowrap;">
+            搜尋
+        </button>
+    </div>
+    <div id="proxy-results" style="margin-top:10px;"></div>
+</div>
+
+<!-- 統計卡 -->
+<div id="stats-area" style="display:grid; grid-template-columns:repeat(3,1fr); gap:16px; margin-bottom:24px;">
+    <!-- 由 JS 填入 -->
+</div>
+
+<!-- 進度條 -->
+<div style="background:white; border-radius:12px; padding:18px 20px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <span style="font-size:0.9rem; color:#555;">報到進度</span>
+        <span id="progress-text" style="font-weight:bold; color:#2e7d32;">—</span>
+    </div>
+    <div style="background:#e0e0e0; border-radius:10px; height:12px; overflow:hidden;">
+        <div id="progress-bar" style="background:#06C755; height:100%; width:0%; transition:width 0.5s ease;"></div>
+    </div>
+</div>
+
+<!-- 兩欄：已簽到 / 尚未簽到 -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+
+    <!-- 已簽到 -->
+    <div style="background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); overflow:hidden;">
+        <div style="background:#06C755; color:white; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold;">✅ 已簽到</span>
+            <span id="checked-badge" style="background:rgba(255,255,255,0.25); padding:2px 12px; border-radius:20px; font-weight:bold;">0</span>
+        </div>
+        <div id="checked-list" style="padding:8px 0; max-height:60vh; overflow-y:auto;">
+            <!-- 由 JS 填入 -->
+        </div>
+    </div>
+
+    <!-- 尚未簽到 -->
+    <div style="background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); overflow:hidden;">
+        <div style="background:#757575; color:white; padding:14px 18px; display:flex; justify-content:space-between; align-items:center;">
+            <span style="font-weight:bold;">⏳ 尚未簽到</span>
+            <span id="waiting-badge" style="background:rgba(255,255,255,0.25); padding:2px 12px; border-radius:20px; font-weight:bold;">0</span>
+        </div>
+        <div id="waiting-list" style="padding:8px 0; max-height:60vh; overflow-y:auto;">
+            <!-- 由 JS 填入 -->
+        </div>
+    </div>
+</div>
+
+<script>
+let autoRefresh = true;
+let refreshTimer = null;
+const EVENT_ID = '{{ event.id }}';
+
+function fetchData() {
+    fetch(`/admin/events/${EVENT_ID}/checkin-live/data`)
+        .then(res => res.json())
+        .then(data => {
+            renderStats(data);
+            renderList('checked-list', data.checked, true);
+            renderList('waiting-list', data.waiting, false);
+            document.getElementById('checked-badge').textContent = data.checked_count;
+            document.getElementById('waiting-badge').textContent = data.waiting_count;
+
+            // 進度條
+            const pct = data.total > 0 ? Math.round(data.checked_count / data.total * 100) : 0;
+            document.getElementById('progress-bar').style.width = pct + '%';
+            document.getElementById('progress-text').textContent =
+                `${data.checked_count} / ${data.total} 人（${pct}%）`;
+
+            // 更新時間
+            const now = new Date();
+            const hhmm = now.getHours().toString().padStart(2,'0') + ':' +
+                         now.getMinutes().toString().padStart(2,'0') + ':' +
+                         now.getSeconds().toString().padStart(2,'0');
+            document.getElementById('refresh-indicator').textContent = `上次更新 ${hhmm}`;
+        })
+        .catch(() => {
+            document.getElementById('refresh-indicator').textContent = '更新失敗，重試中...';
+        });
+}
+
+function renderStats(data) {
+    const pct = data.total > 0 ? Math.round(data.checked_count / data.total * 100) : 0;
+    const statsArea = document.getElementById('stats-area');
+    statsArea.innerHTML = `
+        <div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#333;">${data.total}</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:4px;">總報名人數</div>
+        </div>
+        <div style="background:#e8f5e9; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#2e7d32;">${data.checked_count}</div>
+            <div style="color:#555; font-size:0.85rem; margin-top:4px;">已簽到</div>
+        </div>
+        <div style="background:#f5f5f5; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center;">
+            <div style="font-size:2rem; font-weight:bold; color:#555;">${data.waiting_count}</div>
+            <div style="color:#888; font-size:0.85rem; margin-top:4px;">尚未到場</div>
+        </div>
+    `;
+}
+
+function renderList(containerId, items, isChecked) {
+    const el = document.getElementById(containerId);
+    if (!items.length) {
+        el.innerHTML = `<div style="text-align:center; padding:24px; color:#bbb; font-size:0.9rem;">${isChecked ? '尚無人簽到' : '全員到齊！'}</div>`;
+        return;
+    }
+    el.innerHTML = items.map(item => {
+        // 小組標籤
+        const tags = Array.isArray(item.group_tags) ? item.group_tags : [];
+        const tagHtml = tags.length
+            ? tags.map(t => `<span style="display:inline-block; background:#e3f2fd; color:#1565c0; border-radius:20px; padding:1px 8px; font-size:0.7rem; margin-right:3px;">${escapeHtml(t)}</span>`).join('')
+            : '';
+
+        return `
+        <div style="display:flex; align-items:center; gap:10px; padding:10px 16px; border-bottom:1px solid #f5f5f5;">
+            ${item.picture_url
+                ? `<img src="${item.picture_url}" style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+                : `<div style="width:32px;height:32px;border-radius:50%;background:#e0e0e0;flex-shrink:0;"></div>`
+            }
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:500; font-size:0.9rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                    ${escapeHtml(item.display_name)}
+                </div>
+                <div style="margin-top:2px;">
+                    ${tagHtml}
+                    ${item.status === 'walk_in'
+                        ? `<span style="display:inline-block; background:#fff3e0; color:#e65100; border-radius:20px; padding:1px 8px; font-size:0.7rem;">現場到場</span>`
+                        : ''
+                    }
+                </div>
+            </div>
+            ${item.created_at
+                ? `<div style="font-size:0.75rem; color:#bbb; flex-shrink:0;">${item.created_at}</div>`
+                : ''
+            }
+        </div>`;
+    }).join('');
+}
+
+function escapeHtml(str) {
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+// 別名，供代簽搜尋結果使用
+const esc = escapeHtml;
+
+// ===== 協助代簽 =====
+let searchTimer = null;
+
+function proxySearch(q) {
+    clearTimeout(searchTimer);
+    const el = document.getElementById('proxy-results');
+    if (!q.trim()) { el.innerHTML = ''; return; }
+    searchTimer = setTimeout(() => {
+        fetch(`/admin/events/{{ event.id }}/checkin-live/search?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(results => {
+                if (!results.length) {
+                    el.innerHTML = '<p style="color:#888; font-size:0.9rem; margin:6px 0;">找不到符合的會友</p>';
+                    return;
+                }
+                el.innerHTML = results.map(p => `
+                    <div style="display:flex; align-items:center; gap:12px; padding:10px 14px;
+                                background:white; border-radius:8px; margin-bottom:6px;
+                                border:1px solid ${p.checked_in ? '#c8e6c9' : '#e0e0e0'};">
+                        ${p.picture_url ? `<img src="${p.picture_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">` : '<div style="width:36px;height:36px;border-radius:50%;background:#eee;flex-shrink:0;"></div>'}
+                        <div style="flex:1; font-weight:bold; font-size:0.95rem;">${esc(p.name)}</div>
+                        ${p.checked_in
+                            ? '<span style="color:#2e7d32; font-size:0.85rem; font-weight:bold;">✅ 已簽到</span>'
+                            : `<button onclick="proxyCheckin('${p.user_id}', ${p.reg_id ? `'${p.reg_id}'` : 'null'}, this)"
+                                style="padding:7px 16px; background:#06C755; color:white; border:none;
+                                       border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:bold; white-space:nowrap;">
+                                代為簽到
+                               </button>`
+                        }
+                    </div>`).join('');
+            });
+    }, 300);
+}
+
+function proxyCheckin(userId, regId, btn) {
+    btn.disabled = true;
+    btn.textContent = '簽到中...';
+    fetch(`/admin/events/{{ event.id }}/proxy-checkin`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, reg_id: regId || null })
+    })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                const row = btn.closest('div');
+                btn.outerHTML = '<span style="color:#2e7d32; font-size:0.85rem; font-weight:bold;">✅ 已簽到</span>';
+                fetchData();
+            } else {
+                btn.disabled = false;
+                btn.textContent = '代為簽到';
+                alert(d.error || '簽到失敗');
+            }
+        });
+}
+
+function toggleAutoRefresh() {
+    autoRefresh = !autoRefresh;
+    const btn = document.getElementById('toggle-btn');
+    if (autoRefresh) {
+        btn.textContent = '⏸ 暫停更新';
+        btn.style.background = '#e8f5e9';
+        btn.style.color = '#2e7d32';
+        startTimer();
+        fetchData();
+    } else {
+        btn.textContent = '▶ 繼續更新';
+        btn.style.background = '#fff3e0';
+        btn.style.color = '#e65100';
+        clearInterval(refreshTimer);
+        document.getElementById('refresh-indicator').textContent = '已暫停自動更新';
+    }
+}
+
+function startTimer() {
+    clearInterval(refreshTimer);
+    refreshTimer = setInterval(() => {
+        if (autoRefresh) fetchData();
+    }, 10000); // 每 10 秒更新一次
+}
+
+// 初始載入
+fetchData();
+startTimer();
+</script>
+
+{% endblock %}

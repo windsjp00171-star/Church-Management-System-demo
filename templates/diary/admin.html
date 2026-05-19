@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="diary-card">
+  <h2>上傳讀經進度（plan.xlsx）</h2>
+  <p class="muted">會直接覆蓋根目錄的 plan.xlsx。欄位必須是：date / book / range</p>
+
+  <form method="post" action="{{ url_for('diary.admin_upload_plan') }}" enctype="multipart/form-data" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+    <input type="file" name="plan_file" accept=".xlsx" required>
+    <button type="submit" class="primary-btn">上傳並覆蓋</button>
+  </form>
+</section>
+
+<section class="diary-card">
+  <h2>白名單管理（牧者 / 小組長）</h2>
+  <p class="muted">從「已登入過{{ app_name }}」的使用者清單中勾選。白名單預設為空。</p>
+
+  {% if users and users|length > 0 %}
+    <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
+      {% for u in users %}
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid rgba(0,0,0,0.06); padding-top:10px;">
+          <div style="display:flex; align-items:center; gap:10px;">
+            {% if u.picture_url %}
+              <img src="{{ u.picture_url }}" alt="" style="width:36px; height:36px; border-radius:50%;">
+            {% endif %}
+            <div>
+              <div style="font-weight:600;">{{ u.display_name or "（未命名）" }}</div>
+              <div class="muted" style="font-size:12px;">{{ u.line_user_id }}</div>
+            </div>
+          </div>
+
+          <div>
+            {% if pastor_ids.get(u.line_user_id) %}
+              <form method="post" action="{{ url_for('diary.admin_update_whitelist') }}">
+                <input type="hidden" name="target_uid" value="{{ u.line_user_id }}">
+                <button class="secondary-btn" type="submit" name="action" value="remove">移除白名單</button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('diary.admin_update_whitelist') }}">
+                <input type="hidden" name="target_uid" value="{{ u.line_user_id }}">
+                <button class="primary-btn" type="submit" name="action" value="add">加入白名單</button>
+              </form>
+            {% endif %}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <p class="muted">目前 users 表沒有資料（代表還沒有人登入過）。</p>
+  {% endif %}
+</section>
+
+{% endblock %}

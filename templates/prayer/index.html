@@ -1,0 +1,1104 @@
+{% extends "base.html" %}
+{% block title %}代禱麥田{% endblock %}
+
+{% block content %}
+
+{#── 麥穗成長階段 SVG 圖示 macro ────────────────────────────────────────── #}
+{% macro wheat_svg(label, glow=false, size=72) %}
+{% set stage_imgs = {'種子': 'wheat-stage-1-seed.jpg', '發芽': 'wheat-stage-2-sprout.jpg', '生長': 'wheat-stage-3-grow.jpg', '成熟': 'wheat-stage-4-mature.jpg', '蒙應允': 'wheat-stage-5-answered.jpg'} %}
+<img class="wc-stage-img{% if glow %} glow{% endif %}"
+     src="{{ url_for('static', filename='img/' + stage_imgs.get(label, 'wheat-stage-1-seed.jpg')) }}"
+     style="width:{{ size }}px; height:{{ size }}px;"
+     alt="{{ label }}">
+{% endmacro %}
+
+<style>
+/* ── 進場動畫 ───────────────────────────────────── */
+@keyframes portalSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.pa {
+    animation: portalSlideUp 0.45s cubic-bezier(0.22,1,0.36,1) both;
+    animation-delay: var(--d, 0ms);
+}
+
+/* ── 麥田整體背景 ───────────────────────────────── */
+.wheat-world {
+    min-height: 100vh;
+    background: #4A8ABE;
+    margin: -28px -16px 0;
+    padding: 28px 0 80px;
+    position: relative;
+    overflow: hidden;
+}
+
+/* 固定式麥田場景背景 */
+.wheat-bg-fixed {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+}
+.wheat-bg-fixed::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    height: 22%;
+    background: linear-gradient(to bottom, transparent, rgba(80,45,0,0.82));
+    pointer-events: none;
+    z-index: 2;
+}
+.wheat-bg-fixed svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* 麥穗成長圖示 */
+.wc-stage-img {
+    display: block;
+    margin: 0 auto 10px;
+    border-radius: 12px;
+    object-fit: cover;
+    filter: drop-shadow(0 3px 6px rgba(120,60,0,0.25));
+}
+.wc-stage-img.glow {
+    filter: drop-shadow(0 0 10px rgba(255,200,0,0.7)) drop-shadow(0 3px 8px rgba(150,80,0,0.3));
+    animation: svgGlowPulse 2.2s ease-in-out infinite;
+}
+@keyframes svgGlowPulse {
+    0%, 100% { filter: drop-shadow(0 0 6px rgba(255,200,0,0.5)) drop-shadow(0 3px 6px rgba(150,80,0,0.25)); }
+    50%       { filter: drop-shadow(0 0 16px rgba(255,210,0,0.85)) drop-shadow(0 4px 10px rgba(150,80,0,0.35)); }
+}
+.wheat-icon.glow .wc-stage-img {
+    filter: drop-shadow(0 0 5px rgba(255,200,0,0.7));
+    animation: svgGlowPulse 2.2s ease-in-out infinite;
+}
+
+/* 風中粒子 */
+.wind-particle {
+    position: absolute;
+    border-radius: 50%;
+    background: rgba(255,210,80,0.55);
+    pointer-events: none;
+    z-index: 0;
+    animation: windDrift linear forwards;
+}
+@keyframes windDrift {
+    0%   { transform: translateY(0) translateX(0) rotate(0deg);     opacity: 0; }
+    12%  { opacity: 0.7; }
+    88%  { opacity: 0.25; }
+    100% { transform: translateY(-260px) translateX(90px) rotate(200deg); opacity: 0; }
+}
+
+/* 麥浪搖曳 */
+@keyframes wheatSway {
+    0%, 100% { transform: translateY(0) rotate(0deg); }
+    30%      { transform: translateY(-4px) rotate(0.5deg); }
+    70%      { transform: translateY(2px) rotate(-0.4deg); }
+}
+
+/* ── 頁首區塊 ───────────────────────────────────── */
+.wheat-page-header {
+    padding: 36px 20px 20px;
+    position: relative;
+    z-index: 1;
+    text-align: center;
+    margin: 0 12px;
+    background: rgba(255,248,225,0.55);
+    border-radius: 24px;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    border: 1px solid rgba(255,220,130,0.45);
+    box-shadow: 0 4px 24px rgba(100,60,0,0.12);
+}
+.wheat-breadcrumb {
+    font-size: 0.75rem;
+    color: #5c3a00;
+    margin-bottom: 4px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.6);
+}
+.wheat-breadcrumb a {
+    color: #5c3a00;
+    text-decoration: none;
+}
+.wheat-page-title {
+    font-size: 1.75rem;
+    font-weight: 800;
+    color: #3d2200;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+    margin: 0 0 4px;
+    text-shadow: 0 1px 4px rgba(255,255,255,0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+.wheat-page-title svg {
+    color: #b45309;
+    flex-shrink: 0;
+}
+.wheat-page-subtitle {
+    font-size: 0.88rem;
+    color: #6b3a00;
+    font-weight: 600;
+    margin: 0 0 12px;
+    text-shadow: 0 1px 0 rgba(255,255,255,0.5);
+}
+.wheat-scripture {
+    margin: 12px auto 0;
+    max-width: 340px;
+    font-size: 0.82rem;
+    color: #5c3200;
+    font-style: italic;
+    line-height: 1.8;
+    letter-spacing: 0.02em;
+    font-weight: 500;
+}
+.wheat-scripture span {
+    font-style: normal;
+    font-size: 0.75rem;
+    opacity: 0.8;
+}
+
+/* ── 篩選 Tab ───────────────────────────────────── */
+.wheat-tabs {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin: 20px 20px 0;
+    position: relative;
+    z-index: 1;
+    flex-wrap: wrap;
+}
+.wheat-tab {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 7px 18px;
+    border-radius: 20px;
+    border: 1.5px solid rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.22);
+    color: #5c3a00;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all 0.2s;
+    backdrop-filter: blur(4px);
+}
+.wheat-tab:hover, .wheat-tab.active {
+    background: rgba(255,255,255,0.68);
+    border-color: #c49535;
+    color: #3d2200;
+}
+.wheat-tab svg { opacity: 0.75; }
+
+/* ── 發出代禱按鈕 ───────────────────────────────── */
+.wheat-new-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 18px auto 0;
+    padding: 11px 28px;
+    background: linear-gradient(135deg, #e8a020, #c47800);
+    color: white;
+    border: none;
+    border-radius: 30px;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 4px 16px rgba(180,100,0,0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+    position: relative;
+    z-index: 1;
+    letter-spacing: 0.5px;
+}
+.wheat-new-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(180,100,0,0.45);
+}
+
+/* ── 代禱卡片容器 ───────────────────────────────── */
+.wheat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    max-width: 1100px;
+    margin: 28px auto 0;
+    padding: 0 20px;
+    position: relative;
+    z-index: 1;
+}
+
+/* ── 單張代禱卡片（外層 wrapper） ───────────────── */
+.wheat-card {
+    position: relative;
+    animation: swayIn 0.5s ease both;
+}
+@keyframes swayIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── 翻牌容器 ───────────────────────────────────── */
+.wheat-card-flipper {
+    perspective: 1000px;
+    height: 250px;
+}
+.wc-inner {
+    position: relative;
+    width: 100%; height: 100%;
+    transition: transform 0.6s cubic-bezier(.4,0,.2,1);
+    transform-style: preserve-3d;
+}
+.wheat-card.flipped .wc-inner {
+    transform: rotateY(180deg);
+}
+
+/* ── 正面 / 背面共用 ───────────────────────────── */
+.wc-front, .wc-back {
+    position: absolute;
+    inset: 0;
+    border-radius: 16px;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    backdrop-filter: blur(6px);
+}
+
+/* ── 正面 ───────────────────────────────────────── */
+.wc-front {
+    background: rgba(255,248,220,0.82);
+    border: 1.5px solid rgba(212,168,67,0.4);
+    box-shadow: 0 4px 20px rgba(150,90,0,0.15);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 20px;
+    cursor: pointer;
+    transition: box-shadow 0.2s;
+}
+.wc-front:hover {
+    box-shadow: 0 8px 28px rgba(150,90,0,0.25);
+}
+.wc-stage-emoji {
+    font-size: 3rem;
+    line-height: 1;
+    margin-bottom: 10px;
+    filter: drop-shadow(0 2px 4px rgba(150,80,0,0.3));
+}
+.wc-stage-emoji.glow { animation: glowPulse 2s infinite; }
+.wc-stage-label {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: #fff8e1;
+    margin-bottom: 6px;
+    letter-spacing: 0.05em;
+    text-shadow: 0 1px 6px rgba(0,0,0,0.7);
+}
+.wc-category {
+    font-size: 0.75rem;
+    color: #fff3c0;
+    background: rgba(0,0,0,0.35);
+    padding: 2px 10px;
+    border-radius: 10px;
+    margin-bottom: 12px;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+.wc-hint {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.72rem;
+    color: #ffe9a0;
+    opacity: 0.9;
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6);
+}
+
+/* ── 背面 ───────────────────────────────────────── */
+.wc-back {
+    background: rgba(255,248,220,0.96);
+    border: 1.5px solid rgba(212,168,67,0.5);
+    box-shadow: 0 4px 20px rgba(150,90,0,0.18);
+    transform: rotateY(180deg);
+    padding: 14px 16px 10px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+.wc-close {
+    align-self: center;
+    background: rgba(212,168,67,0.15);
+    border: 1px solid rgba(180,120,0,0.2);
+    color: #9a6830;
+    font-size: 0.78rem;
+    cursor: pointer;
+    padding: 5px 18px;
+    border-radius: 20px;
+    margin-top: 10px;
+    transition: background 0.15s;
+}
+.wc-close:hover { background: rgba(212,168,67,0.3); color: #5c3a00; }
+
+/* 蒙應允特效 */
+.wheat-card.answered .wc-front {
+    background: rgba(255,252,200,0.95);
+    border-color: #e8c020;
+    box-shadow: 0 4px 24px rgba(220,170,0,0.35), 0 0 0 2px rgba(232,192,32,0.2);
+}
+.wheat-card.answered .wc-back {
+    background: rgba(255,252,215,0.98);
+    border-color: #e8c020;
+}
+
+/* ── 卡片頂部 ───────────────────────────────────── */
+.card-top {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.wheat-icon {
+    font-size: 1.3rem;
+    line-height: 1;
+    flex-shrink: 0;
+    filter: drop-shadow(0 1px 2px rgba(150,80,0,0.3));
+    transition: transform 0.3s;
+}
+.wheat-card:hover .wheat-icon { transform: rotate(-5deg) scale(1.1); }
+.wheat-icon.glow { animation: glowPulse 2s infinite; }
+@keyframes glowPulse {
+    0%, 100% { filter: drop-shadow(0 0 4px rgba(255,200,0,0.6)); }
+    50%       { filter: drop-shadow(0 0 12px rgba(255,200,0,0.9)); }
+}
+.card-author { flex: 1; min-width: 0; }
+.author-name {
+    font-weight: 700;
+    font-size: 0.88rem;
+    color: #4a2800;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.author-meta {
+    font-size: 0.75rem;
+    color: #9a7040;
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: wrap;
+    margin-top: 2px;
+}
+.category-badge { font-size: 0.72rem; color: #8a6030; }
+
+/* ── 卡片內文 ───────────────────────────────────── */
+.card-title {
+    font-size: 0.97rem;
+    font-weight: 700;
+    color: #3a2000;
+    margin: 0 0 6px;
+    line-height: 1.4;
+}
+.card-content {
+    font-size: 0.86rem;
+    color: #6b4820;
+    line-height: 1.6;
+    margin: 0 0 12px;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* ── 表情回應列 ─────────────────────────────────── */
+.reaction-row {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+    align-items: center;
+}
+.reaction-btn {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    padding: 3px 9px;
+    border-radius: 14px;
+    border: 1.5px solid rgba(180,120,0,0.2);
+    background: rgba(255,240,190,0.5);
+    cursor: pointer;
+    font-size: 0.88rem;
+    color: #5a3800;
+    font-weight: 600;
+    transition: all 0.15s;
+    line-height: 1;
+}
+.reaction-btn:hover {
+    background: rgba(255,220,100,0.6);
+    border-color: rgba(180,120,0,0.4);
+    transform: scale(1.08);
+}
+.reaction-btn.reacted {
+    background: rgba(255,210,50,0.45);
+    border-color: #c49000;
+    color: #3a2000;
+}
+.reaction-count { font-size: 0.76rem; min-width: 12px; }
+
+/* ── 卡片底部 ───────────────────────────────────── */
+.card-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 4px;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+.comment-toggle {
+    background: none;
+    border: none;
+    color: #8a5c20;
+    font-size: 0.82rem;
+    cursor: pointer;
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.comment-toggle:hover { color: #3a2000; }
+.card-actions { display: flex; gap: 6px; }
+.card-action-btn {
+    background: none;
+    border: none;
+    font-size: 0.75rem;
+    color: #b09060;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 10px;
+    transition: background 0.15s;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+.card-action-btn:hover { background: rgba(180,120,0,0.12); color: #5c3a00; }
+.card-action-btn.answered-btn { color: #b58800; }
+.card-action-btn.delete-btn { color: #c06040; }
+
+/* ── 留言區 ─────────────────────────────────────── */
+.comment-area {
+    display: none;
+    margin-top: 12px;
+    border-top: 1px solid rgba(180,130,0,0.2);
+    padding-top: 12px;
+}
+.comment-item {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    align-items: flex-start;
+}
+.comment-avatar {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    object-fit: cover;
+    flex-shrink: 0;
+    background: #e8c56a;
+}
+.comment-avatar-placeholder {
+    width: 26px; height: 26px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #e8c56a, #c49535);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.7rem;
+    color: white;
+    font-weight: bold;
+}
+.comment-bubble {
+    background: rgba(255,244,200,0.7);
+    border-radius: 12px;
+    padding: 7px 11px;
+    flex: 1;
+}
+.comment-author { font-size: 0.75rem; font-weight: 700; color: #5c3a00; margin-bottom: 2px; }
+.comment-text   { font-size: 0.85rem; color: #4a2800; line-height: 1.5; }
+
+/* 留言輸入框 */
+.comment-input-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+    align-items: flex-end;
+}
+.comment-input {
+    flex: 1;
+    padding: 8px 12px;
+    border: 1.5px solid rgba(180,130,0,0.3);
+    border-radius: 12px;
+    font-size: 0.88rem;
+    background: rgba(255,248,220,0.8);
+    color: #3a2000;
+    resize: none;
+    outline: none;
+    font-family: inherit;
+    min-height: 36px;
+    max-height: 100px;
+}
+.comment-input:focus { border-color: #c49535; }
+
+/* 送出留言按鈕沿用設計系統但保留暖色 */
+.comment-send-btn {
+    padding: 8px 14px;
+    background: linear-gradient(135deg, #e8a020, #c47800);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: opacity 0.15s;
+}
+.comment-send-btn:hover { opacity: 0.85; }
+
+.anon-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.75rem;
+    color: #8a6030;
+    margin-top: 5px;
+    cursor: pointer;
+}
+
+/* ── 空狀態 ─────────────────────────────────────── */
+.wheat-empty {
+    text-align: center;
+    padding: 60px 20px;
+    color: #8a6030;
+    position: relative;
+    z-index: 1;
+}
+.wheat-empty .empty-icon {
+    width: 56px; height: 56px;
+    margin: 0 auto 16px;
+    background: rgba(255,248,220,0.7);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #c49535;
+}
+.wheat-empty p { font-size: 0.95rem; margin: 0; }
+</style>
+
+<div class="wheat-world">
+
+<!-- ── 麥田影片背景 ───────────────────────────────── -->
+<div class="wheat-bg-fixed" aria-hidden="true">
+    <video autoplay loop muted playsinline
+           style="width:100%;height:100%;object-fit:cover;object-position:center center;">
+        <source src="{{ url_for('static', filename='wheat-bg.mp4') }}" type="video/mp4">
+    </video>
+</div>
+
+    <!-- 頁首 -->
+    <div class="wheat-page-header pa" style="--d:0ms">
+        <div class="wheat-breadcrumb">
+            <a href="/">首頁</a> › 代禱麥田
+        </div>
+        <h1 class="wheat-page-title">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
+            </svg>
+            代禱麥田
+        </h1>
+        <p class="wheat-page-subtitle">有天的看顧，有地的承載</p>
+        <p class="wheat-scripture">
+            「一粒麥子不落在地裡死了，仍舊是一粒；<br>
+            若是死了，就結出許多子粒來。」<br>
+            <span>— 約翰福音 12:24</span>
+        </p>
+    </div>
+
+    <!-- 篩選 Tab -->
+    <div class="wheat-tabs pa" style="--d:60ms">
+        <a href="/prayer?status=active"
+           class="wheat-tab {% if status_filter == 'active' %}active{% endif %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            代禱中
+        </a>
+        <a href="/prayer?status=answered"
+           class="wheat-tab {% if status_filter == 'answered' %}active{% endif %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            蒙應允
+        </a>
+        <a href="/prayer?status=all"
+           class="wheat-tab {% if status_filter == 'all' %}active{% endif %}">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+            全部
+        </a>
+    </div>
+
+    <!-- 發出代禱按鈕 -->
+    <div style="text-align:center; position:relative; z-index:1;" class="pa" style="--d:100ms">
+        <button class="wheat-new-btn" onclick="openNewPrayer()">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            發出代禱
+        </button>
+    </div>
+
+    <!-- 代禱卡片牆 -->
+    {% if prayers %}
+    <div class="wheat-grid pa" style="--d:140ms" id="wheat-grid">
+        {% for p in prayers %}
+        <div class="wheat-card {% if p.status == 'answered' %}answered{% endif %}" id="card-{{ p.id }}">
+
+            <!-- 翻牌容器 -->
+            <div class="wheat-card-flipper">
+                <div class="wc-inner">
+
+                    <!-- 正面 -->
+                    <div class="wc-front" onclick="flipCard('{{ p.id }}')">
+                        <div class="wc-stage-svg-wrap" id="front-svg-{{ p.id }}">
+                            {{ wheat_svg(p.stage.label, p.stage.glow, 68) }}
+                        </div>
+                        <div class="wc-stage-label">{{ p.stage.label }}</div>
+                        <div class="wc-category">{{ p.category_label }}</div>
+                        <div class="wc-hint">
+                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+                            點我看代禱
+                        </div>
+                    </div>
+
+                    <!-- 背面 -->
+                    <div class="wc-back" onclick="flipCard('{{ p.id }}')" style="cursor:pointer;">
+                        <!-- 作者資訊 -->
+                        <div class="card-top">
+                            <div class="wheat-icon" id="back-svg-{{ p.id }}">{{ wheat_svg(p.stage.label, p.stage.glow, 28) }}</div>
+                            <div class="card-author">
+                                <div class="author-name">
+                                    {% if p.is_anonymous %}
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#9a7040;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                                    {% elif p.picture_url %}
+                                    <img src="{{ p.picture_url }}" style="width:16px;height:16px;border-radius:50%;object-fit:cover;">
+                                    {% endif %}
+                                    {{ p.display_name }}
+                                </div>
+                                <div class="author-meta">
+                                    <span class="category-badge">{{ p.category_label }}</span>
+                                    <span>{{ p.created_at[:10] if p.created_at else '' }}</span>
+                                </div>
+                            </div>
+                            {% if p.status == 'answered' %}
+                            <span class="badge badge-orange" style="font-size:0.7rem; flex-shrink:0;">蒙應允</span>
+                            {% else %}
+                            <span class="badge badge-gray" style="font-size:0.7rem; flex-shrink:0;">代禱中</span>
+                            {% endif %}
+                        </div>
+
+                        <!-- 標題 + 內文 -->
+                        <div class="card-title">{{ p.title }}</div>
+                        {% if p.content %}
+                        <div class="card-content">{{ p.content }}</div>
+                        {% endif %}
+
+                        <!-- 表情回應列 -->
+                        <div class="reaction-row" id="reactions-{{ p.id }}" style="margin-top:auto; padding-top:6px;">
+                            {% for e in emojis %}
+                            <button class="reaction-btn {% if e in p.my_reactions %}reacted{% endif %}"
+                                data-prayer="{{ p.id }}" data-emoji="{{ e }}"
+                                onclick="event.stopPropagation(); toggleReact('{{ p.id }}', '{{ e }}', this)">
+                                {{ e }}<span class="reaction-count"></span>
+                            </button>
+                            {% endfor %}
+                        </div>
+
+                        <!-- 底部：留言 + 動作 -->
+                        <div class="card-footer" style="margin-top:6px;">
+                            <button class="comment-toggle" onclick="event.stopPropagation(); toggleComments('{{ p.id }}', this)">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                                <span id="cnt-{{ p.id }}">{{ p.comment_count }}</span> 則回應
+                            </button>
+                            <div class="card-actions">
+                                {% if p.is_mine and p.status == 'active' %}
+                                <button class="card-action-btn answered-btn" onclick="event.stopPropagation(); markAnswered('{{ p.id }}', this)">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                                    蒙應允
+                                </button>
+                                {% endif %}
+                                {% if p.is_mine or is_super_admin or session.get('is_admin') %}
+                                <button class="card-action-btn delete-btn" onclick="event.stopPropagation(); deletePrayer('{{ p.id }}', this)">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- 翻回提示 -->
+                        <div style="text-align:center; margin-top:8px; opacity:0.3; font-size:0.68rem; color:#7a4e00; pointer-events:none;">
+                            點空白處翻回
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <!-- 留言展開區 -->
+            <div class="comment-area" id="comments-{{ p.id }}">
+                <div id="comment-list-{{ p.id }}"></div>
+                <div class="comment-input-row">
+                    <textarea class="comment-input" id="cinput-{{ p.id }}" rows="1"
+                        placeholder="為這個代禱回應..."
+                        oninput="autoResize(this)"
+                        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendComment('{{ p.id }}');}"></textarea>
+                    <button class="comment-send-btn" onclick="sendComment('{{ p.id }}')">送出</button>
+                </div>
+                <label class="anon-checkbox">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <input type="checkbox" id="canon-{{ p.id }}"> 匿名回應
+                </label>
+            </div>
+
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="wheat-empty pa" style="--d:120ms">
+        <div class="empty-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+        </div>
+        <p>還沒有代禱事項<br>成為第一個播下種子的人</p>
+    </div>
+    {% endif %}
+
+</div><!-- end wheat-world -->
+
+
+<!-- ══════════════════════════════════════════════════
+     發出代禱 Modal
+══════════════════════════════════════════════════ -->
+<div id="new-overlay" onclick="closeNewPrayer()"
+    style="display:none; position:fixed; inset:0; background:rgba(80,40,0,0.45); z-index:9000; backdrop-filter:blur(3px);"></div>
+
+<div id="new-panel"
+    style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+           width:min(500px,94vw); background:linear-gradient(160deg,#fffcf0,#fff8dc);
+           border-radius:20px; z-index:9001; padding:28px 24px;
+           box-shadow:0 20px 60px rgba(120,60,0,0.3); border:1.5px solid rgba(212,168,67,0.4);">
+
+    <div style="text-align:center; margin-bottom:20px;">
+        <div style="width:48px; height:48px; background:rgba(234,179,8,0.15); border-radius:12px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; color:#b45309;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+        </div>
+        <h3 style="margin:0 0 4px; color:#3a2000; font-size:1.1rem; font-weight:800;">發出代禱</h3>
+        <p style="color:#9a7040; font-size:0.82rem; margin:0;">把你的需要交托給神，讓弟兄姊妹一起守望</p>
+    </div>
+
+    <div style="margin-bottom:14px;">
+        <label class="form-label" style="color:#5c3a00;">
+            代禱標題 <span style="color:#c06040;">*</span>
+        </label>
+        <input id="new-title" type="text" maxlength="60"
+            placeholder="簡短描述你的代禱需求..."
+            class="form-input"
+            style="background:rgba(255,248,220,0.7); border-color:rgba(180,130,0,0.3); color:#3a2000;">
+    </div>
+
+    <div style="margin-bottom:14px;">
+        <label class="form-label" style="color:#5c3a00;">詳細內容（選填）</label>
+        <textarea id="new-content" rows="3"
+            placeholder="可以補充更多情況讓大家更了解如何代禱..."
+            class="form-input"
+            style="background:rgba(255,248,220,0.7); border-color:rgba(180,130,0,0.3); color:#3a2000; resize:vertical; min-height:72px;"></textarea>
+    </div>
+
+    <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:140px;">
+            <label class="form-label" style="color:#5c3a00;">類別</label>
+            <select id="new-category"
+                class="form-input"
+                style="background:rgba(255,248,220,0.7); border-color:rgba(180,130,0,0.3); color:#3a2000;">
+                {% for k, v in categories.items() %}
+                <option value="{{ k }}">{{ v }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div style="display:flex; align-items:flex-end; padding-bottom:2px;">
+            <label style="display:flex; align-items:center; gap:7px; cursor:pointer; font-size:0.88rem; color:#5c3a00; font-weight:600;">
+                <input type="checkbox" id="new-anon" style="width:16px; height:16px; accent-color:#c47800;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#9a7040;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                匿名發出
+            </label>
+        </div>
+    </div>
+
+    <div id="new-error" style="color:#c06040; font-size:0.83rem; margin-bottom:10px; min-height:18px;"></div>
+
+    <div style="display:flex; gap:10px;">
+        <button onclick="submitNewPrayer()"
+            class="btn btn-primary"
+            style="flex:1; background:linear-gradient(135deg,#e8a020,#c47800); border-color:transparent; box-shadow:0 4px 12px rgba(180,100,0,0.3); font-size:0.95rem; gap:8px; display:flex; align-items:center; justify-content:center;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
+            播下這粒種子
+        </button>
+        <button onclick="closeNewPrayer()" class="btn btn-secondary">取消</button>
+    </div>
+</div>
+
+
+<script>
+const PRAYER_EMOJIS = {{ emojis | tojson }};
+
+// ── 麥穗成長圖示（JS 版，供 AJAX 後更新用） ───────────────
+const STAGE_IMGS = {
+    '種子':  '/static/img/wheat-stage-1-seed.jpg',
+    '發芽':  '/static/img/wheat-stage-2-sprout.jpg',
+    '生長':  '/static/img/wheat-stage-3-grow.jpg',
+    '成熟':  '/static/img/wheat-stage-4-mature.jpg',
+    '蒙應允': '/static/img/wheat-stage-5-answered.jpg',
+};
+function getStageSVG(label, glow, size) {
+    size = size || 68;
+    const glowClass = glow ? ' glow' : '';
+    const src = STAGE_IMGS[label] || STAGE_IMGS['種子'];
+    return `<img class="wc-stage-img${glowClass}" src="${src}" style="width:${size}px;height:${size}px;border-radius:12px;object-fit:cover;" alt="${label}">`;
+}
+
+// ── Modal 開關 ────────────────────────────────
+function openNewPrayer() {
+    document.getElementById('new-overlay').style.display = 'block';
+    document.getElementById('new-panel').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('new-title').focus(), 100);
+}
+function closeNewPrayer() {
+    document.getElementById('new-overlay').style.display = 'none';
+    document.getElementById('new-panel').style.display = 'none';
+    document.body.style.overflow = '';
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNewPrayer(); });
+
+// ── 發出代禱 ────────────────────────────────
+function submitNewPrayer() {
+    const title    = document.getElementById('new-title').value.trim();
+    const content  = document.getElementById('new-content').value.trim();
+    const category = document.getElementById('new-category').value;
+    const anon     = document.getElementById('new-anon').checked;
+    const errEl    = document.getElementById('new-error');
+
+    if (!title) { errEl.textContent = '請填寫代禱標題'; return; }
+    errEl.textContent = '';
+
+    fetch('/prayer/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title, content, category, is_anonymous: anon })
+    }).then(r => r.json()).then(d => {
+        if (d.success) { location.reload(); }
+        else { errEl.textContent = d.error || '發送失敗，請再試一次'; }
+    });
+}
+
+// ── 表情回應 ────────────────────────────────
+function toggleReact(prayerId, emoji, btn) {
+    btn.disabled = true;
+    fetch(`/prayer/${prayerId}/react`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emoji })
+    }).then(r => r.json()).then(d => {
+        btn.disabled = false;
+        if (!d.success) return;
+
+        // 更新所有 emoji 的數量
+        const row = document.getElementById('reactions-' + prayerId);
+        row.querySelectorAll('.reaction-btn').forEach(b => {
+            const e = b.dataset.emoji;
+            const cnt = d.emoji_counts[e] || 0;
+            b.querySelector('.reaction-count').textContent = cnt > 0 ? cnt : '';
+            b.classList.toggle('reacted', e === emoji && d.action === 'added');
+        });
+
+        // 更新麥穗 SVG 圖示
+        const frontWrap = document.getElementById('front-svg-' + prayerId);
+        const backWrap  = document.getElementById('back-svg-' + prayerId);
+        if (frontWrap) frontWrap.innerHTML = getStageSVG(d.stage.label, d.stage.glow, 68);
+        if (backWrap)  backWrap.innerHTML  = getStageSVG(d.stage.label, d.stage.glow, 28);
+    });
+}
+
+// ── 翻牌 ────────────────────────────────
+function flipCard(id) {
+    const card = document.getElementById('card-' + id);
+    const isFlipped = card.classList.toggle('flipped');
+    // 翻回正面時，關閉留言區
+    if (!isFlipped) {
+        const commentArea = document.getElementById('comments-' + id);
+        if (commentArea) commentArea.style.display = 'none';
+    }
+}
+
+// ── 麥浪動畫：依卡片位置錯開搖曳時間，產生波浪感 ────────────────────────────────
+(function initWheatWave() {
+    const cards = document.querySelectorAll('.wheat-card');
+    cards.forEach((card, i) => {
+        const duration  = 3.5 + (i % 3) * 0.6;
+        const delay     = (i % 5) * 0.55;
+        setTimeout(() => {
+            card.style.animation = `wheatSway ${duration}s ${delay}s ease-in-out infinite`;
+        }, 600 + i * 60);
+    });
+})();
+
+// ── 風中金色粒子：隨機生成，飄散後自動移除 ────────────────────────────────
+(function initWindParticles() {
+    const world = document.querySelector('.wheat-world');
+    if (!world) return;
+
+    function spawnParticle() {
+        const p = document.createElement('div');
+        p.className = 'wind-particle';
+        const size = 2 + Math.random() * 4;
+        p.style.cssText = `
+            width: ${size}px;
+            height: ${size}px;
+            left: ${8 + Math.random() * 80}%;
+            bottom: ${20 + Math.random() * 45}%;
+            animation-duration: ${4 + Math.random() * 6}s;
+            animation-delay: ${Math.random() * 1.5}s;
+        `;
+        world.appendChild(p);
+        p.addEventListener('animationend', () => p.remove());
+    }
+
+    // 每 700ms 生一顆，視覺上連續但不密集
+    spawnParticle();
+    setInterval(spawnParticle, 700);
+})();
+
+// ── 初始化表情數量 ────────────────────────────────
+// 用獨立 API 取得各 emoji 數量（避免模板渲染複雜度）
+document.querySelectorAll('.wheat-card').forEach(card => {
+    const prayerId = card.id.replace('card-', '');
+    fetch(`/prayer/${prayerId}/reactions-count`)
+        .then(r => r.json()).then(d => {
+            if (!d.success) return;
+            const row = document.getElementById('reactions-' + prayerId);
+            if (!row) return;
+            row.querySelectorAll('.reaction-btn').forEach(btn => {
+                const e = btn.dataset.emoji;
+                const cnt = d.emoji_counts[e] || 0;
+                btn.querySelector('.reaction-count').textContent = cnt > 0 ? cnt : '';
+            });
+        }).catch(() => {});
+});
+
+// ── 留言展開/收合 ────────────────────────────────
+function toggleComments(prayerId, btn) {
+    const area = document.getElementById('comments-' + prayerId);
+    const isOpen = area.style.display === 'block';
+    area.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) loadComments(prayerId);
+}
+
+function loadComments(prayerId) {
+    fetch(`/prayer/${prayerId}/comments`)
+        .then(r => r.json()).then(d => {
+            if (!d.success) return;
+            const list = document.getElementById('comment-list-' + prayerId);
+            list.innerHTML = '';
+            if (d.comments.length === 0) {
+                list.innerHTML = '<div style="color:#b09060;font-size:0.82rem;text-align:center;padding:8px 0;">還沒有回應，成為第一個 🙏</div>';
+                return;
+            }
+            d.comments.forEach(c => {
+                const div = document.createElement('div');
+                div.className = 'comment-item';
+                const avatarHtml = c.picture_url
+                    ? `<img src="${escHtml(c.picture_url)}" class="comment-avatar">`
+                    : `<div class="comment-avatar-placeholder">${escHtml(c.display_name[0] || '?')}</div>`;
+                div.innerHTML = `
+                    ${avatarHtml}
+                    <div class="comment-bubble">
+                        <div class="comment-author">${escHtml(c.display_name)}</div>
+                        <div class="comment-text">${escHtml(c.content)}</div>
+                    </div>`;
+                list.appendChild(div);
+            });
+        });
+}
+
+// ── 送出留言 ────────────────────────────────
+function sendComment(prayerId) {
+    const input = document.getElementById('cinput-' + prayerId);
+    const anon  = document.getElementById('canon-' + prayerId);
+    const content = input.value.trim();
+    if (!content) return;
+
+    fetch(`/prayer/${prayerId}/comment`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content, is_anonymous: anon.checked })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            input.value = '';
+            input.style.height = '';
+            loadComments(prayerId);
+            const cntEl = document.getElementById('cnt-' + prayerId);
+            if (cntEl) cntEl.textContent = parseInt(cntEl.textContent || 0) + 1;
+        } else {
+            alert(d.error || '送出失敗');
+        }
+    });
+}
+
+// ── 標記蒙應允 ────────────────────────────────
+function markAnswered(prayerId, btn) {
+    if (!confirm('確定標記這則代禱已蒙應允？感謝神的恩典 ✨')) return;
+    btn.disabled = true;
+    fetch(`/prayer/${prayerId}/answered`, { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.success) location.reload();
+            else { alert(d.error || '操作失敗'); btn.disabled = false; }
+        });
+}
+
+// ── 刪除代禱 ────────────────────────────────
+function deletePrayer(prayerId, btn) {
+    if (!confirm('確定刪除這則代禱事項？')) return;
+    btn.disabled = true;
+    fetch(`/prayer/${prayerId}/delete`, { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.success) {
+                const card = document.getElementById('card-' + prayerId);
+                card.style.opacity = '0';
+                card.style.transition = 'opacity 0.3s';
+                setTimeout(() => card.remove(), 350);
+            } else { alert(d.error || '刪除失敗'); btn.disabled = false; }
+        });
+}
+
+// ── 工具函式 ────────────────────────────────
+function escHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function autoResize(el) {
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 100) + 'px';
+}
+</script>
+
+{% endblock %}

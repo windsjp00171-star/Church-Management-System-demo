@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}我的個人資料{% endblock %}
+{% block content %}
+
+<div style="max-width:440px; margin:0 auto; padding-top:20px;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+        <h2 style="margin:0;">👤 個人資料</h2>
+        <a href="/" style="color:#888; font-size:0.9rem; text-decoration:none;">← 返回首頁</a>
+    </div>
+
+    <div style="background:white; border-radius:16px; padding:28px; box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+
+        <!-- LINE 頭像 + 暱稱（唯讀） -->
+        <div style="display:flex; align-items:center; gap:14px; padding-bottom:20px; margin-bottom:20px; border-bottom:1px solid #f0f0f0;">
+            {% if user.picture_url %}
+            <img src="{{ user.picture_url }}" style="width:52px; height:52px; border-radius:50%; object-fit:cover;">
+            {% endif %}
+            <div>
+                <p style="font-weight:bold; margin:0;">{{ user.display_name }}</p>
+                <p style="color:#aaa; font-size:0.82rem; margin:2px 0 0 0;">LINE 帳號（無法修改）</p>
+            </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">
+                真實姓名 <span style="color:#c62828;">*</span>
+            </label>
+            <input id="f-name" type="text" value="{{ user.real_name or '' }}" placeholder="請輸入真實中文姓名"
+                style="width:100%; padding:12px 14px; border:1px solid #ddd; border-radius:8px;
+                       font-size:1rem; box-sizing:border-box;">
+        </div>
+
+        <div style="margin-bottom:28px;">
+            {% set primary_groups = groups | selectattr('is_primary', 'ne', false) | list %}
+            {% set secondary_groups = groups | selectattr('is_primary', 'equalto', false) | list %}
+
+            {% if primary_groups %}
+            <label style="font-weight:bold; display:block; margin-bottom:8px;">所屬小組</label>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+                {% for g in primary_groups %}
+                {% set selected = user.group_tags and g.name in user.group_tags %}
+                <label style="display:flex; align-items:center; gap:6px; padding:7px 14px;
+                              border:1px solid {{ '#06C755' if selected else '#ddd' }}; border-radius:20px;
+                              cursor:pointer; font-size:0.9rem; font-weight:{{ 'bold' if selected else 'normal' }};
+                              background:{{ '#e8f5e9' if selected else 'white' }};
+                              color:{{ '#2e7d32' if selected else '#333' }};"
+                    onclick="toggleTag(this)">
+                    <input type="checkbox" name="group_tag" value="{{ g.name }}"
+                        {{ 'checked' if selected else '' }} style="display:none;">
+                    {{ g.name }}
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if secondary_groups %}
+            <label style="font-weight:600; display:block; margin-bottom:8px; color:#888; font-size:0.88rem;">服事團隊（選填）</label>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                {% for g in secondary_groups %}
+                {% set selected = user.group_tags and g.name in user.group_tags %}
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px;
+                              border:1px solid {{ '#f0a500' if selected else '#ddd' }}; border-radius:20px;
+                              cursor:pointer; font-size:0.85rem; font-weight:{{ 'bold' if selected else 'normal' }};
+                              background:{{ '#fff8e1' if selected else 'white' }};
+                              color:{{ '#e65100' if selected else '#888' }};"
+                    onclick="toggleTag(this, true)">
+                    <input type="checkbox" name="group_tag" value="{{ g.name }}"
+                        {{ 'checked' if selected else '' }} style="display:none;">
+                    {{ g.name }}
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if not groups %}
+            <p style="color:#aaa; font-size:0.85rem;">尚未設定小組，請聯絡管理員</p>
+            {% endif %}
+        </div>
+
+        <button onclick="saveProfile()"
+            style="width:100%; padding:14px; background:#06C755; color:white; border:none;
+                   border-radius:10px; font-size:1.05rem; font-weight:bold; cursor:pointer;">
+            儲存
+        </button>
+        <p id="save-msg" style="text-align:center; color:#06C755; margin-top:12px; display:none;">✅ 已儲存！</p>
+    </div>
+</div>
+
+<script>
+function toggleTag(el, isSecondary) {
+    const cb = el.querySelector('input');
+    cb.checked = !cb.checked;
+    if (isSecondary) {
+        el.style.background = cb.checked ? '#fff8e1' : 'white';
+        el.style.borderColor = cb.checked ? '#f0a500' : '#ddd';
+        el.style.color = cb.checked ? '#e65100' : '#888';
+    } else {
+        el.style.background = cb.checked ? '#e8f5e9' : 'white';
+        el.style.borderColor = cb.checked ? '#06C755' : '#ddd';
+        el.style.color = cb.checked ? '#2e7d32' : '#333';
+    }
+    el.style.fontWeight = cb.checked ? 'bold' : 'normal';
+}
+
+function saveProfile() {
+    const name = document.getElementById('f-name').value.trim();
+    if (!name) { alert('請填寫真實姓名'); return; }
+    const group_tags = [...document.querySelectorAll('[name="group_tag"]:checked')].map(c => c.value);
+    fetch('/profile', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ real_name: name, group_tags })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            const msg = document.getElementById('save-msg');
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 3000);
+        } else alert(d.error || '儲存失敗');
+    });
+}
+</script>
+{% endblock %}

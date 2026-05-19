@@ -1,0 +1,327 @@
+{% extends "base.html" %}
+{% block title %}行事曆{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <h2 style="margin:0;">📅 行事曆</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <button onclick="openAdd()"
+            style="padding:8px 18px; background:#7b1fa2; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.9rem;">
+            ＋ 新增教會行事
+        </button>
+        <a href="/admin" style="padding:8px 16px; background:#f5f5f5; border:1px solid #ddd; border-radius:8px; text-decoration:none; color:#555; font-size:0.9rem;">← 返回後台</a>
+    </div>
+</div>
+
+<!-- 圖例 -->
+<div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:16px; align-items:center;">
+    <span style="background:#7b1fa2; color:white; font-size:0.78rem; padding:3px 10px; border-radius:4px; font-weight:500;">⛪ 教會行事</span>
+    <span style="background:#06C755; color:white; font-size:0.78rem; padding:3px 10px; border-radius:4px; font-weight:500;">🎉 活動（開放）</span>
+    <span style="background:#aaa; color:white; font-size:0.78rem; padding:3px 10px; border-radius:4px; font-weight:500;">活動（關閉）</span>
+    <span style="background:#1e88e5; color:white; font-size:0.78rem; padding:3px 10px; border-radius:4px; font-weight:500;">📖 門訓堂次</span>
+</div>
+
+<!-- 月份導覽 -->
+<div style="display:flex; align-items:center; justify-content:center; gap:20px; margin-bottom:20px;">
+    <button onclick="changeMonth(-1)"
+        style="padding:8px 20px; background:white; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:1rem;">
+        ‹ 上個月
+    </button>
+    <h3 id="month-label" style="margin:0; min-width:120px; text-align:center; font-size:1.2rem;"></h3>
+    <button onclick="changeMonth(1)"
+        style="padding:8px 20px; background:white; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:1rem;">
+        下個月 ›
+    </button>
+</div>
+
+<!-- 月曆格 -->
+<div style="background:white; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,0.07); overflow:hidden;">
+    <!-- 星期標頭 -->
+    <div style="display:grid; grid-template-columns:repeat(7,1fr); background:#f5f5f5; border-bottom:1px solid #eee;">
+        {% for day in ['日','一','二','三','四','五','六'] %}
+        <div style="padding:10px 0; text-align:center; font-size:0.82rem; font-weight:bold;
+                    color:{{ '#e53935' if loop.index == 1 else ('#1565c0' if loop.index == 7 else '#555') }};">
+            {{ day }}
+        </div>
+        {% endfor %}
+    </div>
+    <!-- 日期格 -->
+    <div id="cal-grid" style="display:grid; grid-template-columns:repeat(7,1fr);"></div>
+</div>
+
+<!-- 當天詳情 -->
+<div id="day-detail" style="display:none; background:white; border-radius:14px; padding:24px;
+     box-shadow:0 2px 10px rgba(0,0,0,0.07); margin-top:20px;">
+    <h3 id="detail-title" style="margin:0 0 16px 0;"></h3>
+    <div id="detail-items"></div>
+</div>
+
+<script>
+const MONTHS = ['一月','二月','三月','四月','五月','六月','七月','八月','九月','十月','十一月','十二月'];
+let currentYear, currentMonth;
+let calItems = [];
+
+// 初始化為今天
+const today = new Date();
+currentYear = today.getFullYear();
+currentMonth = today.getMonth() + 1;
+
+loadCalendar();
+
+function changeMonth(delta) {
+    currentMonth += delta;
+    if (currentMonth > 12) { currentMonth = 1; currentYear++; }
+    if (currentMonth < 1)  { currentMonth = 12; currentYear--; }
+    loadCalendar();
+}
+
+function loadCalendar() {
+    document.getElementById('month-label').textContent = `${currentYear} 年 ${MONTHS[currentMonth-1]}`;
+    document.getElementById('day-detail').style.display = 'none';
+    fetch(`/admin/api/calendar?year=${currentYear}&month=${currentMonth}`)
+        .then(r => r.json())
+        .then(items => {
+            calItems = items;
+            renderGrid(items);
+        });
+}
+
+function renderGrid(items) {
+    // 建立日期 → items 的 map
+    const byDate = {};
+    items.forEach(item => {
+        if (!byDate[item.date]) byDate[item.date] = [];
+        byDate[item.date].push(item);
+    });
+
+    // 計算該月第一天是星期幾
+    const firstDate = new Date(currentYear, currentMonth - 1, 1);
+    const startWeekday = firstDate.getDay(); // 0=日
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate();
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+
+    const grid = document.getElementById('cal-grid');
+    grid.innerHTML = '';
+
+    // 空白格（前置）
+    for (let i = 0; i < startWeekday; i++) {
+        grid.appendChild(emptyCell());
+    }
+
+    // 日期格
+    for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${currentYear}-${String(currentMonth).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const dayItems = byDate[dateStr] || [];
+        const isToday = dateStr === todayStr;
+        const weekday = (startWeekday + d - 1) % 7;
+        grid.appendChild(dayCell(d, dateStr, dayItems, isToday, weekday));
+    }
+
+    // 空白格（結尾補滿 7 的倍數）
+    const total = startWeekday + daysInMonth;
+    const remainder = total % 7;
+    if (remainder !== 0) {
+        for (let i = 0; i < 7 - remainder; i++) grid.appendChild(emptyCell());
+    }
+}
+
+function emptyCell() {
+    const div = document.createElement('div');
+    div.style.cssText = 'min-height:80px; border-right:1px solid #f0f0f0; border-bottom:1px solid #f0f0f0; background:#fafafa;';
+    return div;
+}
+
+function dayCell(d, dateStr, items, isToday, weekday) {
+    const div = document.createElement('div');
+    const numColor = weekday === 0 ? '#e53935' : weekday === 6 ? '#1565c0' : '#333';
+    div.style.cssText = `min-height:80px; border-right:1px solid #f0f0f0; border-bottom:1px solid #f0f0f0;
+        padding:6px; cursor:${items.length ? 'pointer' : 'default'};
+        background:${isToday ? '#f0fff4' : 'white'};`;
+    if (items.length) {
+        div.onmouseover = () => div.style.background = '#f5f5f5';
+        div.onmouseout  = () => div.style.background = isToday ? '#f0fff4' : 'white';
+        div.onclick = () => showDetail(dateStr, items);
+    }
+
+    // 日期數字
+    const num = document.createElement('div');
+    num.style.cssText = `font-size:0.85rem; font-weight:${isToday ? 'bold' : 'normal'}; color:${numColor};
+        ${isToday ? 'background:#06C755; color:white; width:22px; height:22px; border-radius:50%; display:flex; align-items:center; justify-content:center;' : ''}`;
+    num.textContent = d;
+    div.appendChild(num);
+
+    // 事項 pill（最多顯示 3 個，超過顯示 +N）
+    const shown = items.slice(0, 3);
+    shown.forEach(item => {
+        const pill = document.createElement('div');
+        const bg = item.type === 'church' ? (item.color || '#7b1fa2')
+            : item.type === 'event' ? (item.is_open ? '#06C755' : '#aaa')
+            : '#1e88e5';
+        pill.style.cssText = `margin-top:3px; padding:2px 6px; border-radius:4px; font-size:0.72rem;
+            background:${bg}; color:white; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+            max-width:100%; cursor:pointer;`;
+        pill.title = item.title;
+        pill.textContent = (item.time ? item.time + ' ' : '') + item.title;
+        div.appendChild(pill);
+    });
+    if (items.length > 3) {
+        const more = document.createElement('div');
+        more.style.cssText = 'font-size:0.72rem; color:#aaa; margin-top:2px; padding-left:4px;';
+        more.textContent = `+${items.length - 3} 筆`;
+        div.appendChild(more);
+    }
+    return div;
+}
+
+function showDetail(dateStr, items) {
+    const [y, m, d] = dateStr.split('-');
+    document.getElementById('detail-title').textContent =
+        `${y} 年 ${parseInt(m)} 月 ${parseInt(d)} 日`;
+
+    const container = document.getElementById('detail-items');
+    container.innerHTML = items.map(item => {
+        const isEvent = item.type === 'event';
+        const isChurch = item.type === 'church';
+        const dot = isChurch ? (item.color || '#7b1fa2')
+            : isEvent ? (item.is_open ? '#06C755' : '#aaa')
+            : '#1e88e5';
+        const link = isChurch ? null
+            : isEvent ? `/admin/events/${item.id}/registrations`
+            : `/admin/courses/${item.course_id}`;
+        const label = isChurch ? '教會行事'
+            : isEvent ? (item.is_open ? '報名開放' : '關閉')
+            : '門訓堂次';
+        const sub = isChurch ? (item.description || '')
+            : isEvent ? (item.location ? `📍 ${item.location}` : '')
+            : (item.subtitle || '');
+        const editBtn = isChurch ? `
+            <div style="display:flex; gap:6px; margin-top:8px;">
+                <button onclick="event.preventDefault(); openEdit('${item.id}','${(item.title||'').replace(/'/g,"\\'")}','${item.date}','${(item.description||'').replace(/'/g,"\\'")}','${item.color||'#7b1fa2'}')"
+                    style="padding:4px 12px; background:#f0f0f0; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">編輯</button>
+                <button onclick="event.preventDefault(); deleteChurch('${item.id}')"
+                    style="padding:4px 12px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">刪除</button>
+            </div>` : '';
+        return `
+        <div style="display:flex; align-items:flex-start; gap:12px; padding:14px 16px;
+            border-radius:10px; margin-bottom:8px; color:inherit;
+            background:#f9f9f9; border-left:4px solid ${dot};">
+            <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    ${link ? `<a href="${link}" style="font-weight:bold; font-size:0.95rem; color:#333; text-decoration:none;">${item.title}</a>`
+                           : `<span style="font-weight:bold; font-size:0.95rem;">${item.title}</span>`}
+                    <span style="font-size:0.75rem; padding:2px 8px; border-radius:10px;
+                                 background:${dot}20; color:${dot === '#aaa' ? '#888' : dot};">${label}</span>
+                </div>
+                ${item.time ? `<div style="font-size:0.8rem; color:#888; margin-top:3px;">🕐 ${item.time}</div>` : ''}
+                ${sub ? `<div style="font-size:0.8rem; color:#888; margin-top:2px;">${sub}</div>` : ''}
+                ${editBtn}
+            </div>
+        </div>`;
+    }).join('');
+
+    document.getElementById('day-detail').style.display = 'block';
+    document.getElementById('day-detail').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+// ── 教會行事 CRUD ──
+const CSRF = '{{ csrf_token() }}';
+let editChurchId = null;
+
+function openAdd() {
+    editChurchId = null;
+    document.getElementById('church-modal-title').textContent = '新增教會行事';
+    document.getElementById('ch-title').value = '';
+    document.getElementById('ch-date').value = '';
+    document.getElementById('ch-desc').value = '';
+    setColor('#7b1fa2');
+    document.getElementById('church-modal').style.display = 'flex';
+}
+function openEdit(id, title, date, desc, color) {
+    editChurchId = id;
+    document.getElementById('church-modal-title').textContent = '編輯教會行事';
+    document.getElementById('ch-title').value = title;
+    document.getElementById('ch-date').value = date;
+    document.getElementById('ch-desc').value = desc;
+    setColor(color);
+    document.getElementById('church-modal').style.display = 'flex';
+}
+function setColor(val) {
+    document.querySelectorAll('.ch-color-btn').forEach(btn => {
+        btn.style.outline = btn.dataset.color === val ? '3px solid #333' : 'none';
+    });
+    document.getElementById('ch-color-val').value = val;
+}
+function closeChurchModal() {
+    document.getElementById('church-modal').style.display = 'none';
+}
+async function submitChurchForm() {
+    const title = document.getElementById('ch-title').value.trim();
+    const date  = document.getElementById('ch-date').value;
+    if (!title || !date) { alert('請填寫標題與日期'); return; }
+    const url = editChurchId
+        ? `/admin/calendar/church/${editChurchId}/edit`
+        : '/admin/calendar/church/new';
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+        body: JSON.stringify({
+            title,
+            event_date: date,
+            description: document.getElementById('ch-desc').value.trim() || null,
+            color: document.getElementById('ch-color-val').value || '#7b1fa2',
+        }),
+    });
+    const d = await res.json();
+    if (d.success) { closeChurchModal(); loadCalendar(); }
+    else alert(d.error || '儲存失敗');
+}
+async function deleteChurch(id) {
+    if (!confirm('確定刪除這筆教會行事？')) return;
+    const res = await fetch(`/admin/calendar/church/${id}/delete`, {
+        method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+    });
+    const d = await res.json();
+    if (d.success) { loadCalendar(); document.getElementById('day-detail').style.display = 'none'; }
+    else alert('刪除失敗');
+}
+</script>
+
+<!-- 教會行事 Modal -->
+<div id="church-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:16px; padding:28px; width:100%; max-width:420px; margin:16px; box-shadow:0 8px 32px rgba(0,0,0,0.15);">
+        <h3 id="church-modal-title" style="margin:0 0 20px;">新增教會行事</h3>
+        <div style="margin-bottom:14px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">標題 *</label>
+            <input id="ch-title" type="text" placeholder="例：主日崇拜、小組聚會"
+                style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:14px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">日期 *</label>
+            <input id="ch-date" type="date"
+                style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:14px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">說明（選填）</label>
+            <input id="ch-desc" type="text" placeholder="地點、備注等"
+                style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:22px;">
+            <label style="font-weight:bold; display:block; margin-bottom:8px;">顏色</label>
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                {% for color in ['#7b1fa2','#c62828','#e65100','#f9a825','#2e7d32','#1565c0','#424242'] %}
+                <span class="ch-color-btn" data-color="{{ color }}"
+                    onclick="setColor('{{ color }}')"
+                    style="width:28px; height:28px; border-radius:50%; background:{{ color }}; cursor:pointer; display:inline-block;"></span>
+                {% endfor %}
+            </div>
+            <input type="hidden" id="ch-color-val" value="#7b1fa2">
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="submitChurchForm()"
+                style="flex:1; padding:11px; background:#7b1fa2; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">儲存</button>
+            <button onclick="closeChurchModal()"
+                style="padding:11px 20px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">取消</button>
+        </div>
+    </div>
+</div>
+{% endblock %}

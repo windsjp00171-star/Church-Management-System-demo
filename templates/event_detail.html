@@ -1,0 +1,758 @@
+{% extends "base.html" %}
+{% block title %}{{ event.title }}{% endblock %}
+{% block content %}
+
+<style>
+/* ══ 進場動畫 ══ */
+@keyframes portalSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.pa {
+    animation: portalSlideUp 0.45s cubic-bezier(0.22,1,0.36,1) both;
+    animation-delay: var(--d, 0ms);
+}
+</style>
+
+<!-- ══ 頁首 ══ -->
+<div class="page-header pa" style="--d:0ms">
+    <div class="page-header-left">
+        <a href="/events" class="breadcrumb">‹ 活動列表</a>
+        <h1 class="page-title">{{ event.title }}</h1>
+    </div>
+</div>
+
+<!-- ══ 活動海報 ══ -->
+{% if event.poster_url %}
+<div class="pa" style="--d:40ms; margin-bottom:20px; border-radius:var(--radius-lg); overflow:hidden; box-shadow:var(--shadow-sm); border:1px solid var(--border);">
+    <img src="{{ event.poster_url }}" alt="{{ event.title }}"
+        style="width:100%; display:block; max-height:600px; object-fit:contain; background:#f5f5f5;">
+</div>
+{% endif %}
+
+<!-- ══ 活動資訊卡 ══ -->
+<div class="card pa" style="--d:{{ '80ms' if event.poster_url else '60ms' }}; margin-bottom:20px;">
+    <!-- 標題 + 狀態 badge -->
+    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:16px;">
+        {% if is_full %}
+            <span class="badge badge-orange">名額已滿</span>
+        {% elif not reg_open %}
+            {% if event.reg_end and event.reg_end < now_str %}
+            <span class="badge badge-red">報名已截止</span>
+            {% elif event.reg_start and event.reg_start > now_str %}
+            <span class="badge badge-blue">報名尚未開始</span>
+            {% else %}
+            <span class="badge badge-red">報名已關閉</span>
+            {% endif %}
+        {% else %}
+            <span class="badge badge-green">報名開放中</span>
+        {% endif %}
+    </div>
+
+    <!-- Info 列表 -->
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+        {% if event.location %}
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.875rem; color:var(--text-2);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--text-3)"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>{{ event.location }}</span>
+        </div>
+        {% endif %}
+        {% if event.event_start %}
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.875rem; color:var(--text-2);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--text-3)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>開始：{{ event.event_start| taipei_time }}</span>
+        </div>
+        {% endif %}
+        {% if event.event_end %}
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.875rem; color:var(--text-2);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--text-3)"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            <span>結束：{{ event.event_end| taipei_time }}</span>
+        </div>
+        {% endif %}
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.875rem; color:var(--text-2);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--text-3)"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            {% if event.capacity %}
+            <span>名額：{{ reg_count }} / {{ event.capacity }} 人
+                {% if waitlist_count > 0 %}
+                <span style="color:var(--orange); font-size:0.82rem;">（候補 {{ waitlist_count }} 人）</span>
+                {% endif %}
+            </span>
+            {% else %}
+            <span>已報名：{{ reg_count }} 人（無人數上限）</span>
+            {% endif %}
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.875rem; color:var(--text-2);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--text-3)"><rect width="20" height="12" x="2" y="6" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>
+            {% if event.fee %}
+            <span>費用：{{ event.fee }} 元</span>
+            {% else %}
+            <span><span class="badge badge-purple" style="margin-right:4px;">免收費</span></span>
+            {% endif %}
+        </div>
+        {% if event.reg_end %}
+        <div style="display:flex; align-items:center; gap:8px; font-size:0.875rem; color:var(--text-2);">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--orange)"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2"/><path d="M5 3 2 6M22 6l-3-3"/></svg>
+            <span style="color:var(--orange);">報名截止：{{ event.reg_end| taipei_time }}</span>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 活動說明 -->
+    {% if event.description %}
+    <div style="border-top:1px solid var(--border); padding-top:16px; color:var(--text-2); white-space:pre-wrap; line-height:1.8; font-size:0.9rem;">{{ event.description }}</div>
+    {% endif %}
+</div>
+
+<!-- ===== 已報名狀態 ===== -->
+{% if my_regs %}
+
+{% for reg in my_regs %}
+<div class="card pa" style="--d:{{ 120 + loop.index0 * 40 }}ms; margin-bottom:16px; border-left:3px solid var(--green);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+            <span class="section-label" style="margin:0;">報名 #{{ loop.index }}</span>
+            {% if event.allow_multiple %}
+            <span style="font-size:0.8rem; color:var(--text-4);">（同帳號第 {{ loop.index }} 筆）</span>
+            {% endif %}
+        </div>
+        {% if reg.checked_in %}
+        <span class="badge badge-green">已簽到 ✓</span>
+        {% else %}
+        <span class="badge badge-gray">待簽到</span>
+        {% endif %}
+    </div>
+    {% set reg_answers = my_answers_map.get(reg.id, []) %}
+    {% if reg_answers %}
+    <div style="margin-bottom:12px; display:flex; flex-direction:column; gap:4px;">
+        {% for ans in reg_answers %}
+        <div style="font-size:0.875rem; color:var(--text-2);">
+            <span style="font-weight:600; color:var(--text-1);">{{ ans.event_fields.label if ans.event_fields else '欄位' }}：</span>{{ ans.answer }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+    {% if not reg.checked_in %}
+    <button onclick="cancelReg('{{ reg.id }}')" class="btn btn-danger" style="font-size:0.875rem;">
+        取消此筆報名
+    </button>
+    {% endif %}
+</div>
+{% endfor %}
+
+{% if event.allow_multiple and reg_open and not is_full and is_whitelisted %}
+<div class="pa" style="--d:180ms; text-align:center; margin-bottom:20px;">
+    <button onclick="toggleAddForm()" class="btn btn-primary">
+        ＋ 幫另一位報名
+    </button>
+</div>
+<div id="add-form-section" style="display:none; margin-bottom:24px;">
+    <div class="card pa" style="--d:200ms;">
+        <div class="section-label" style="margin-bottom:8px;">新增報名資料</div>
+        <p style="font-size:0.85rem; color:var(--text-3); margin-bottom:20px;">以 <strong>{{ session.display_name }}</strong> 的帳號協助他人報名</p>
+        <div id="reg-form">
+            <div style="margin-bottom:16px; padding:12px 16px; background:var(--surface-2, #f5f5f5); border-radius:var(--radius); color:var(--text-2); font-size:0.9rem; border:1px solid var(--border);">
+                報名身份：<strong>{{ session.display_name }}</strong>（來自您的 LINE 帳號）
+            </div>
+            {% for field in fields %}
+            <div class="field-wrapper"
+                 data-sort-order="{{ loop.index0 }}"
+                 data-condition="{{ field.condition_json or '' }}"
+                 data-field-type="{{ field.field_type }}"
+                 data-field-id="{{ field.id }}"
+                 {% if field.is_required %}data-required="true"{% endif %}
+                 style="margin-bottom:16px;">
+                <label style="display:block; font-weight:600; margin-bottom:8px; color:var(--text-1); font-size:0.9rem;">
+                    {{ field.label }}
+                    {% if field.is_required %}<span style="color:var(--red);">*</span>{% endif %}
+                </label>
+                {% if field.field_type == 'radio' %}
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                    {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);">
+                            <input type="radio" name="add_field_{{ field.id }}" value="{{ opt.strip() }}"
+                                onchange="evaluateConditions()"
+                                style="width:17px; height:17px; accent-color:#06C755; flex-shrink:0;">
+                            <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                        </label>
+                    {% endfor %}
+                    {% if field.options and '__other__' in field.options %}
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); flex-wrap:wrap;">
+                            <input type="radio" name="add_field_{{ field.id }}" value="__other__"
+                                onchange="evaluateConditions(); toggleOtherText(this)"
+                                style="width:17px; height:17px; accent-color:#06C755; flex-shrink:0;">
+                            <span style="font-size:0.9rem;">其他（請填寫）</span>
+                            <input type="text" class="other-text"
+                                style="display:none; padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.9rem; min-width:160px; flex:1;"
+                                placeholder="請說明...">
+                        </label>
+                    {% endif %}
+                    </div>
+                {% elif field.field_type == 'checkbox' %}
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                    {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);">
+                            <input type="checkbox" value="{{ opt.strip() }}"
+                                style="width:17px; height:17px; accent-color:#06C755; flex-shrink:0;">
+                            <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                        </label>
+                    {% endfor %}
+                    {% if field.options and '__other__' in field.options %}
+                        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); flex-wrap:wrap;">
+                            <input type="checkbox" value="__other__"
+                                onchange="toggleOtherText(this)"
+                                style="width:17px; height:17px; accent-color:#06C755; flex-shrink:0;">
+                            <span style="font-size:0.9rem;">其他（請填寫）</span>
+                            <input type="text" class="other-text"
+                                style="display:none; padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.9rem; min-width:160px; flex:1;"
+                                placeholder="請說明...">
+                        </label>
+                    {% endif %}
+                    </div>
+                {% elif field.field_type == 'textarea' %}
+                    <textarea data-field-id="{{ field.id }}"
+                        {% if field.is_required %}data-required="true"{% endif %}
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem; resize:vertical; min-height:80px; box-sizing:border-box;"
+                        placeholder="{{ field.label }}"></textarea>
+                {% elif field.field_type == 'select' %}
+                    <select data-field-id="{{ field.id }}"
+                        {% if field.is_required %}data-required="true"{% endif %}
+                        onchange="evaluateConditions()"
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem;">
+                        <option value="">請選擇...</option>
+                        {% for opt in field.options.split('\n') if field.options and opt.strip() %}
+                        <option value="{{ opt.strip() }}">{{ opt.strip() }}</option>
+                        {% endfor %}
+                    </select>
+                {% elif field.field_type == 'number' %}
+                    <input type="number" data-field-id="{{ field.id }}"
+                        {% if field.is_required %}data-required="true"{% endif %}
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem; box-sizing:border-box;"
+                        placeholder="{{ field.label }}">
+                {% elif field.field_type == 'date' %}
+                    <input type="date" data-field-id="{{ field.id }}"
+                        {% if field.is_required %}data-required="true"{% endif %}
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem; box-sizing:border-box;">
+                {% else %}
+                    <input type="text" data-field-id="{{ field.id }}"
+                        {% if field.is_required %}data-required="true"{% endif %}
+                        style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem; box-sizing:border-box;"
+                        placeholder="{{ field.label }}">
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% set meal_opts_ev = event.meal_options %}
+            {% if meal_opts_ev and meal_opts_ev.enabled %}
+            <div style="margin-bottom:16px; padding:14px 16px; background:var(--blue-bg, #e3f2fd); border-radius:var(--radius); border:1px solid var(--blue-border, #90caf9);">
+                <p style="font-weight:700; margin:0 0 10px; color:var(--blue); font-size:0.95rem;">餐點訂購（可多選）</p>
+                {% for opt in meal_opts_ev.options %}{% if opt.enabled %}
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px; padding:8px 12px; background:white; border-radius:var(--radius); border:1px solid var(--border);">
+                    <input type="checkbox" id="meal-ev-{{ opt.id }}" value="{{ opt.id }}"
+                        data-price="{{ opt.price or 0 }}" class="meal-cb-ev"
+                        style="width:18px; height:18px; cursor:pointer;" onchange="calcEvTotal()">
+                    <label for="meal-ev-{{ opt.id }}" style="cursor:pointer; flex:1; font-size:0.93rem;">{{ opt.label or opt.meal }}</label>
+                    <span style="color:var(--orange); font-weight:700; font-size:0.92rem;">{% if opt.price %}${{ opt.price }}{% else %}免費{% endif %}</span>
+                </div>
+                {% endif %}{% endfor %}
+                <div id="ev-total-area" style="display:none; margin-top:10px; padding:8px 12px; background:var(--green-bg, #e8f5e9); border-radius:var(--radius); text-align:right; font-weight:700; color:var(--green); font-size:0.95rem;">
+                    餐費合計：<span id="ev-total-val">$0</span>
+                </div>
+            </div>
+            {% endif %}
+            <p style="font-size:0.78rem; color:var(--text-4); margin-bottom:12px;">本表單所收集之個人資料僅供本次活動行政作業使用，不另作他用。</p>
+            <div id="error-msg" style="display:none; color:var(--red); background:var(--red-bg, #ffebee); padding:10px 16px; border-radius:var(--radius); margin-bottom:16px; font-size:0.875rem;"></div>
+            <button onclick="submitReg()" class="btn btn-primary" style="width:100%; padding:14px; font-size:1rem;">
+                確認報名
+            </button>
+        </div>
+        <div id="success-msg" style="display:none; text-align:center; padding:20px 0;">
+            <div style="font-size:3rem;">🎉</div>
+            <p style="font-size:1.1rem; font-weight:700; color:var(--green); margin-top:12px;">報名成功！</p>
+            <p style="color:var(--text-2); margin-top:6px;">請稍後重新整理頁面查看報名資料</p>
+            <button onclick="location.reload()" class="btn btn-primary" style="margin-top:16px;">
+                查看報名結果
+            </button>
+        </div>
+    </div>
+</div>
+{% endif %}{# end: allow_multiple block #}
+
+<!-- ===== 白名單限制提示 ===== -->
+{% elif reg_open and not is_full and not is_whitelisted %}
+<div class="card pa" style="--d:120ms; text-align:center; padding:32px 28px;">
+    <div class="empty-state">
+        <div style="font-size:2.5rem; margin-bottom:12px;">🔒</div>
+        <h3 style="margin-bottom:8px; color:var(--text-2);">此活動僅限受邀人員報名</h3>
+        <p style="color:var(--text-3); font-size:0.9rem;">你目前不在報名名單中，如有疑問請聯絡負責同工。</p>
+    </div>
+</div>
+
+<!-- ===== 一鍵報名（quick_reg 且無自訂欄位）===== -->
+{% elif reg_open and not is_full and is_whitelisted and event.quick_reg and not fields %}
+<div class="card pa" style="--d:120ms; text-align:center;">
+    <div style="font-size:2.5rem; margin-bottom:12px;">⚡</div>
+    <h3 style="margin-bottom:6px; color:var(--text-1);">一鍵報名</h3>
+    <p style="color:var(--text-3); font-size:0.9rem; margin-bottom:24px;">確認以下資料後即可完成報名</p>
+
+    <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px 20px; text-align:left; margin-bottom:24px;">
+        <div style="display:flex; align-items:center; gap:12px; margin-bottom:10px;">
+            {% if session.picture_url %}
+            <img src="{{ session.picture_url }}" style="width:44px; height:44px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+            {% endif %}
+            <div>
+                <p style="font-weight:700; font-size:1.05rem; margin:0; color:var(--text-1);">{{ user_profile.real_name or session.display_name }}</p>
+                {% if user_profile.group_tags %}
+                <p style="color:var(--blue); font-size:0.85rem; margin:3px 0 0 0;">{{ user_profile.group_tags | join('、') }}</p>
+                {% endif %}
+            </div>
+        </div>
+        {% if not user_profile.real_name %}
+        <p style="color:var(--orange); font-size:0.82rem; margin-top:8px;">
+            ⚠️ 你尚未填寫真實姓名，<a href="/profile" style="color:var(--orange);">點此完善個人資料</a>
+        </p>
+        {% endif %}
+    </div>
+
+    <button onclick="quickReg()" class="btn btn-primary" style="width:100%; padding:14px; font-size:1.05rem;">
+        確認報名
+    </button>
+    <p style="color:var(--text-4); font-size:0.8rem; margin-top:10px;">資料有誤？<a href="/profile" style="color:var(--text-3);">修改個人資料</a></p>
+</div>
+
+<!-- ===== 尚未報名：首次報名表單 ===== -->
+{% elif reg_open and not is_full and is_whitelisted %}
+<div class="card pa" style="--d:120ms;">
+    <div class="section-label" style="margin-bottom:20px;">填寫報名資料</div>
+    <div id="reg-form">
+        <div style="margin-bottom:16px; padding:12px 16px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-2); font-size:0.9rem;">
+            報名身份：<strong style="color:var(--text-1);">{{ user_profile.real_name or session.display_name }}</strong>
+            {% if user_profile.group_tags %}<span style="color:var(--text-3);">（{{ user_profile.group_tags | join('、') }}）</span>{% endif %}
+        </div>
+        {% for field in fields %}
+        <div class="field-wrapper"
+             data-sort-order="{{ loop.index0 }}"
+             data-condition="{{ field.condition_json or '' }}"
+             data-field-type="{{ field.field_type }}"
+             data-field-id="{{ field.id }}"
+             {% if field.is_required %}data-required="true"{% endif %}
+             style="margin-bottom:16px;">
+            <label style="display:block; font-weight:600; margin-bottom:8px; color:var(--text-1); font-size:0.9rem;">
+                {{ field.label }}
+                {% if field.is_required %}<span style="color:var(--red);">*</span>{% endif %}
+            </label>
+
+            {% if field.field_type == 'radio' %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); transition:background 0.15s;">
+                        <input type="radio" name="field_{{ field.id }}" value="{{ opt.strip() }}"
+                            onchange="evaluateConditions()"
+                            style="width:17px; height:17px; accent-color:#06C755; flex-shrink:0;">
+                        <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                    </label>
+                {% endfor %}
+                {% if field.options and '__other__' in field.options %}
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); flex-wrap:wrap;">
+                        <input type="radio" name="field_{{ field.id }}" value="__other__"
+                            onchange="evaluateConditions(); toggleOtherText(this)"
+                            style="width:17px; height:17px; accent-color:#06C755; flex-shrink:0;">
+                        <span style="font-size:0.9rem;">其他（請填寫）</span>
+                        <input type="text" class="other-text"
+                            style="display:none; padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.9rem; min-width:160px; flex:1;"
+                            placeholder="請說明...">
+                    </label>
+                {% endif %}
+                </div>
+
+            {% elif field.field_type == 'checkbox' %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);">
+                        <input type="checkbox" value="{{ opt.strip() }}"
+                            style="width:17px; height:17px; accent-color:#06C755; flex-shrink:0;">
+                        <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                    </label>
+                {% endfor %}
+                {% if field.options and '__other__' in field.options %}
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; padding:10px 14px; border:1px solid var(--border); border-radius:var(--radius); background:var(--surface); flex-wrap:wrap;">
+                        <input type="checkbox" value="__other__"
+                            onchange="toggleOtherText(this)"
+                            style="width:17px; height:17px; accent-color:#06C755; flex-shrink:0;">
+                        <span style="font-size:0.9rem;">其他（請填寫）</span>
+                        <input type="text" class="other-text"
+                            style="display:none; padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.9rem; min-width:160px; flex:1;"
+                            placeholder="請說明...">
+                    </label>
+                {% endif %}
+                </div>
+
+            {% elif field.field_type == 'textarea' %}
+                <textarea data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem; resize:vertical; min-height:80px; box-sizing:border-box;"
+                    placeholder="{{ field.label }}"></textarea>
+
+            {% elif field.field_type == 'select' %}
+                <select data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    onchange="evaluateConditions()"
+                    style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem;">
+                    <option value="">請選擇...</option>
+                    {% for opt in field.options.split('\n') if field.options and opt.strip() %}
+                    <option value="{{ opt.strip() }}">{{ opt.strip() }}</option>
+                    {% endfor %}
+                </select>
+
+            {% elif field.field_type == 'number' %}
+                <input type="number" data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem; box-sizing:border-box;"
+                    placeholder="{{ field.label }}">
+
+            {% elif field.field_type == 'date' %}
+                <input type="date" data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem; box-sizing:border-box;">
+
+            {% else %}
+                <input type="text" data-field-id="{{ field.id }}"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    style="width:100%; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.95rem; box-sizing:border-box;"
+                    placeholder="{{ field.label }}">
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% set meal_opts_ev = event.meal_options %}
+        {% if meal_opts_ev and meal_opts_ev.enabled %}
+        <div style="margin-bottom:16px; padding:14px 16px; background:var(--blue-bg, #e3f2fd); border-radius:var(--radius); border:1px solid var(--blue-border, #90caf9);">
+            <p style="font-weight:700; margin:0 0 10px; color:var(--blue); font-size:0.95rem;">餐點訂購（可多選）</p>
+            {% for opt in meal_opts_ev.options %}{% if opt.enabled %}
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:8px; padding:8px 12px; background:white; border-radius:var(--radius); border:1px solid var(--border);">
+                <input type="checkbox" id="meal-ev-{{ opt.id }}" value="{{ opt.id }}"
+                    data-price="{{ opt.price or 0 }}" class="meal-cb-ev"
+                    style="width:18px; height:18px; cursor:pointer;" onchange="calcEvTotal()">
+                <label for="meal-ev-{{ opt.id }}" style="cursor:pointer; flex:1; font-size:0.93rem;">{{ opt.label or opt.meal }}</label>
+                <span style="color:var(--orange); font-weight:700; font-size:0.92rem;">{% if opt.price %}${{ opt.price }}{% else %}免費{% endif %}</span>
+            </div>
+            {% endif %}{% endfor %}
+            <div id="ev-total-area" style="display:none; margin-top:10px; padding:8px 12px; background:var(--green-bg, #e8f5e9); border-radius:var(--radius); text-align:right; font-weight:700; color:var(--green); font-size:0.95rem;">
+                餐費合計：<span id="ev-total-val">$0</span>
+            </div>
+        </div>
+        {% endif %}
+        <p style="font-size:0.78rem; color:var(--text-4); margin-bottom:12px;">本表單所收集之個人資料僅供本次活動行政作業使用，不另作他用。</p>
+        <div id="error-msg" style="display:none; color:var(--red); background:var(--red-bg, #ffebee); padding:10px 16px; border-radius:var(--radius); margin-bottom:16px; font-size:0.875rem;"></div>
+        <button onclick="submitReg()" class="btn btn-primary" style="width:100%; padding:14px; font-size:1rem;">
+            確認報名
+        </button>
+    </div>
+    <div id="success-msg" style="display:none; text-align:center; padding:20px 0;">
+        <div style="font-size:3rem;">🎉</div>
+        <p style="font-size:1.1rem; font-weight:700; color:var(--green); margin-top:12px;">報名成功！</p>
+        <p style="color:var(--text-2); margin-top:6px;">請稍後重新整理頁面查看報名資料</p>
+        <button onclick="location.reload()" class="btn btn-primary" style="margin-top:16px;">
+            查看報名結果
+        </button>
+    </div>
+</div>
+
+<!-- ===== 已關閉 ===== -->
+{% elif not reg_open %}
+<div class="card pa" style="--d:120ms; text-align:center; padding:28px;">
+    <div style="font-size:2rem; margin-bottom:8px;">🔒</div>
+    {% if event.reg_end and event.reg_end < now_str %}
+    <p style="font-weight:700; color:var(--red); margin:0;">報名已截止</p>
+    {% elif event.reg_start and event.reg_start > now_str %}
+    <p style="font-weight:700; color:var(--blue); margin:0;">報名尚未開始</p>
+    <p style="color:var(--text-3); font-size:0.9rem; margin-top:6px;">開放時間：{{ event.reg_start| taipei_time }}</p>
+    {% else %}
+    <p style="font-weight:700; color:var(--red); margin:0;">此活動報名已關閉</p>
+    {% endif %}
+</div>
+
+{% elif my_waitlist_pos %}
+<!-- ===== 候補中 ===== -->
+<div class="card pa" style="--d:120ms; border-left:3px solid var(--orange);">
+    <div style="display:flex; align-items:center; gap:14px; margin-bottom:16px;">
+        <div style="font-size:2.5rem; line-height:1;">⏳</div>
+        <div>
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:4px;">
+                <span class="badge badge-orange">候補中</span>
+            </div>
+            <p style="color:var(--text-2); margin:0; font-size:0.9rem;">
+                您目前排在候補名單第 <strong style="font-size:1.1rem; color:var(--orange);">{{ my_waitlist_pos }}</strong> 位
+            </p>
+        </div>
+    </div>
+    <p style="color:var(--text-3); font-size:0.85rem; margin-bottom:16px;">
+        當有人取消報名，系統會依排序自動將您升為正式報名，無需再次操作。
+    </p>
+    <button onclick="cancelWaitlist()" class="btn btn-danger" style="font-size:0.875rem;">
+        退出候補名單
+    </button>
+</div>
+
+{% elif is_full and reg_open and is_whitelisted and not event.allow_multiple and waitlist_open %}
+<!-- ===== 額滿：可加入候補 ===== -->
+<div class="card pa" style="--d:120ms; text-align:center; border-left:3px solid var(--orange);">
+    <div style="font-size:2.5rem; margin-bottom:8px;">😢</div>
+    <p style="font-weight:700; font-size:1rem; color:var(--text-1); margin:0 0 8px;">報名人數已達上限</p>
+    {% if waitlist_count > 0 %}
+    <p style="color:var(--text-3); font-size:0.85rem; margin-top:4px;">目前有 {{ waitlist_count }} 人在候補中</p>
+    {% endif %}
+    <p style="color:var(--text-3); font-size:0.85rem; margin-top:8px; margin-bottom:20px;">加入候補名單，有名額釋出時系統自動晉升</p>
+    <button onclick="joinWaitlist()" class="btn btn-primary" style="background:var(--orange); border-color:var(--orange); padding:12px 28px;">
+        加入候補名單
+    </button>
+</div>
+
+{% elif is_full %}
+<!-- ===== 額滿：無法候補 ===== -->
+<div class="card pa" style="--d:120ms; text-align:center;">
+    <div style="font-size:2rem; margin-bottom:8px;">😢</div>
+    <p style="font-weight:700; color:var(--orange); margin:0;">報名人數已達上限，無法再報名</p>
+</div>
+{% endif %}{# end: outer if my_regs #}
+
+
+<script>
+// ===================================================
+// 輔助：取得 wrapper 的 field_id
+// ===================================================
+function getWrapperId(wrapper) {
+    return wrapper.dataset.fieldId
+        || wrapper.querySelector('[data-field-id]')?.dataset.fieldId
+        || null;
+}
+
+// ===================================================
+// 輔助：取得 wrapper 目前填寫的值（支援所有類型）
+// ===================================================
+function getWrapperValue(wrapper) {
+    const type = wrapper.dataset.fieldType || 'text';
+
+    if (type === 'radio') {
+        const checked = wrapper.querySelector('input[type="radio"]:checked');
+        if (!checked) return '';
+        if (checked.value === '__other__') {
+            const text = checked.closest('label').querySelector('.other-text')?.value.trim();
+            return text ? '其他：' + text : '其他';
+        }
+        return checked.value;
+    }
+
+    if (type === 'checkbox') {
+        const checked = Array.from(wrapper.querySelectorAll('input[type="checkbox"]:checked'));
+        const values = checked.map(c => {
+            if (c.value === '__other__') {
+                const text = c.closest('label').querySelector('.other-text')?.value.trim();
+                return text ? '其他：' + text : '其他';
+            }
+            return c.value;
+        }).filter(Boolean);
+        return values.join('、');
+    }
+
+    // text / textarea / select / number / date
+    const input = wrapper.querySelector(
+        'select[data-field-id], input[data-field-id], textarea[data-field-id]'
+    );
+    return input ? input.value.trim() : '';
+}
+
+// ===================================================
+// 切換「其他」文字輸入框（radio 先清掉同 group 其他的）
+// ===================================================
+function toggleOtherText(input) {
+    const textInput = input.closest('label').querySelector('.other-text');
+    if (!textInput) return;
+    if (input.type === 'radio') {
+        // 隱藏同 name 下所有 other-text
+        document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
+            const t = r.closest('label').querySelector('.other-text');
+            if (t) { t.style.display = 'none'; t.value = ''; }
+        });
+        if (input.checked) {
+            textInput.style.display = 'inline-block';
+            textInput.focus();
+        }
+    } else {
+        // checkbox
+        textInput.style.display = input.checked ? 'inline-block' : 'none';
+        if (input.checked) textInput.focus();
+        else textInput.value = '';
+    }
+}
+
+// ===================================================
+// 跳題條件邏輯（支援 select / radio 當觸發問題）
+// ===================================================
+function evaluateConditions() {
+    const allWrappers = Array.from(document.querySelectorAll('.field-wrapper'));
+    allWrappers.forEach(wrapper => {
+        const condStr = wrapper.dataset.condition;
+        if (!condStr) return;
+        let cond;
+        try { cond = JSON.parse(condStr); } catch { return; }
+        const triggerWrapper = allWrappers.find(
+            w => parseInt(w.dataset.sortOrder) === cond.trigger_sort_order
+        );
+        if (!triggerWrapper) return;
+        const currentValue = getWrapperValue(triggerWrapper);
+        const matched = (currentValue === cond.trigger_value);
+        wrapper.style.display = matched ? 'block' : 'none';
+        if (!matched) {
+            // 清空所有輸入
+            wrapper.querySelectorAll('input[type="radio"], input[type="checkbox"]')
+                .forEach(i => i.checked = false);
+            wrapper.querySelectorAll('.other-text')
+                .forEach(t => { t.value = ''; t.style.display = 'none'; });
+            const inp = wrapper.querySelector('[data-field-id]');
+            if (inp) { inp.value = ''; inp.style.borderColor = '#ddd'; }
+        }
+    });
+}
+document.addEventListener('DOMContentLoaded', evaluateConditions);
+
+// ===================================================
+// 幫另一位報名：切換顯示追加表單
+// ===================================================
+function toggleAddForm() {
+    const section = document.getElementById('add-form-section');
+    if (!section) return;
+    const isHidden = section.style.display === 'none';
+    section.style.display = isHidden ? 'block' : 'none';
+    if (isHidden) section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// ===================================================
+// 一鍵報名（quick_reg 模式）
+function quickReg() {
+    fetch('/event/{{ event.id }}/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: [] })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '報名失敗，請稍後再試');
+    });
+}
+
+function calcEvTotal() {
+    let total = 0;
+    document.querySelectorAll('.meal-cb-ev:checked').forEach(cb => { total += parseInt(cb.dataset.price) || 0; });
+    const area = document.getElementById('ev-total-area');
+    if (area) { area.style.display = total > 0 ? 'block' : 'none'; document.getElementById('ev-total-val').textContent = '$' + total; }
+}
+
+// 送出報名
+// ===================================================
+function submitReg() {
+    const allWrappers = document.querySelectorAll('.field-wrapper');
+    const answers = [];
+    let hasError = false;
+
+    allWrappers.forEach(wrapper => {
+        if (wrapper.style.display === 'none') return;
+        const fieldId = getWrapperId(wrapper);
+        if (!fieldId) return;
+
+        const isRequired = wrapper.dataset.required === 'true';
+        const value = getWrapperValue(wrapper);
+
+        if (isRequired && !value) {
+            hasError = true;
+            wrapper.style.outline = '2px solid #e53935';
+            wrapper.style.borderRadius = '8px';
+            const inp = wrapper.querySelector('[data-field-id]');
+            if (inp) inp.style.borderColor = '#e53935';
+        } else {
+            wrapper.style.outline = '';
+            const inp = wrapper.querySelector('[data-field-id]');
+            if (inp) inp.style.borderColor = '#ddd';
+        }
+
+        if (value) answers.push({ field_id: fieldId, answer: value });
+    });
+
+    if (hasError) { showError('請填寫所有必填欄位'); return; }
+
+    const mealSelections = [...document.querySelectorAll('.meal-cb-ev:checked')].map(cb => cb.value);
+    fetch('/event/{{ event.id }}/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers, meal_selections: mealSelections })
+    })
+    .then(res => res.text().then(text => {
+        try { return JSON.parse(text); }
+        catch { throw new Error('伺服器錯誤：' + text.substring(0, 200)); }
+    }))
+    .then(data => {
+        if (data.success) {
+            document.getElementById('reg-form')?.style.setProperty('display', 'none');
+            document.getElementById('success-msg')?.style.setProperty('display', 'block');
+        } else {
+            showError(data.error || '報名失敗，請稍後再試');
+        }
+    })
+    .catch(err => showError(err.message || '未知錯誤'));
+}
+
+// 取消報名（傳入特定報名 ID）
+function cancelReg(regId) {
+    if (!confirm('確定要取消這筆報名嗎？')) return;
+    fetch('/event/{{ event.id }}/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reg_id: regId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) location.reload();
+        else alert(data.error || '取消失敗');
+    });
+}
+
+function showError(msg) {
+    const el = document.getElementById('error-msg');
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+// 加入候補名單
+function joinWaitlist() {
+    if (!confirm('確定加入候補名單嗎？有名額釋出時系統會自動晉升為正式報名。')) return;
+    fetch('/event/{{ event.id }}/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers: [] })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success && d.waitlisted) {
+            alert('已加入候補名單！有名額時系統將自動為您升為正式報名。');
+            location.reload();
+        } else if (d.success) {
+            location.reload();
+        } else {
+            alert(d.error || '操作失敗，請稍後再試');
+        }
+    });
+}
+
+// 退出候補名單
+function cancelWaitlist() {
+    if (!confirm('確定退出候補名單嗎？')) return;
+    fetch('/event/{{ event.id }}/cancel_waitlist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '操作失敗');
+    });
+}
+</script>
+
+{% endblock %}

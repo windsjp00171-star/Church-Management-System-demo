@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}福音卡片管理{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/gospel" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回福音關懷</a>
+        <h2 style="margin-top:6px;">📝 信仰問答卡片管理</h2>
+        <p style="color:#888; font-size:0.88rem; margin-top:4px;">管理「認識信仰」頁面上的翻卡內容</p>
+    </div>
+    <a href="/gospel" target="_blank"
+        style="padding:9px 18px; background:#fff8e1; color:#c47800; border:1px solid #e8d080;
+               border-radius:8px; text-decoration:none; font-size:0.88rem; font-weight:600;">
+        👁 預覽頁面
+    </a>
+</div>
+
+<div style="display:flex; flex-direction:column; gap:14px;">
+{% for card in cards %}
+<div style="background:white; border-radius:14px; padding:22px 24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);
+            border-left:4px solid {{ '#c49535' if card.is_active else '#e0e0e0' }};"
+     id="card-row-{{ card.id }}">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+        <div style="display:flex; align-items:center; gap:10px;">
+            <span style="font-size:1.6rem;">{{ card.icon or '✝️' }}</span>
+            <span style="font-size:0.78rem; padding:2px 10px; border-radius:20px; font-weight:600;
+                {% if card.is_active %}background:#e8f5e9; color:#2e7d32;{% else %}background:#f5f5f5; color:#999;{% endif %}">
+                {{ '顯示中' if card.is_active else '已隱藏' }}
+            </span>
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button onclick="toggleActive('{{ card.id }}', {{ 'false' if card.is_active else 'true' }}, this)"
+                style="padding:6px 14px; border:none; border-radius:8px; cursor:pointer; font-size:0.82rem; font-weight:600;
+                       {% if card.is_active %}background:#ffebee; color:#c62828;{% else %}background:#e8f5e9; color:#2e7d32;{% endif %}">
+                {{ '隱藏' if card.is_active else '顯示' }}
+            </button>
+            <button onclick="saveCard('{{ card.id }}')"
+                style="padding:6px 14px; background:#1565c0; color:white; border:none; border-radius:8px;
+                       cursor:pointer; font-size:0.82rem; font-weight:600;">
+                💾 儲存
+            </button>
+        </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:80px 1fr; gap:14px; align-items:start;">
+        <div>
+            <label style="font-size:0.78rem; color:#888; display:block; margin-bottom:4px;">圖示 Emoji</label>
+            <input type="text" id="icon-{{ card.id }}" value="{{ card.icon or '✝️' }}"
+                style="width:100%; padding:8px; border:1.5px solid #e0e0e0; border-radius:8px;
+                       font-size:1.2rem; text-align:center; outline:none;">
+        </div>
+        <div>
+            <label style="font-size:0.78rem; color:#888; display:block; margin-bottom:4px;">問題（卡片正面）</label>
+            <input type="text" id="question-{{ card.id }}" value="{{ card.question }}"
+                style="width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px;
+                       font-size:0.92rem; outline:none; font-family:inherit;">
+        </div>
+    </div>
+
+    <div style="margin-top:12px;">
+        <label style="font-size:0.78rem; color:#888; display:block; margin-bottom:4px;">答案（卡片背面）</label>
+        <textarea id="answer-{{ card.id }}" rows="3"
+            style="width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px;
+                   font-size:0.9rem; resize:vertical; font-family:inherit; outline:none; line-height:1.6;">{{ card.answer }}</textarea>
+    </div>
+
+    <div id="save-msg-{{ card.id }}" style="font-size:0.82rem; margin-top:8px; min-height:18px;"></div>
+</div>
+{% endfor %}
+</div>
+
+{% if not cards %}
+<div style="text-align:center; padding:60px 0; color:#aaa; background:white; border-radius:14px;">
+    <div style="font-size:3rem;">📝</div>
+    <p style="margin-top:12px;">目前沒有卡片</p>
+</div>
+{% endif %}
+
+<script>
+function saveCard(cardId) {
+    const icon     = document.getElementById('icon-' + cardId).value.trim();
+    const question = document.getElementById('question-' + cardId).value.trim();
+    const answer   = document.getElementById('answer-' + cardId).value.trim();
+    const msg      = document.getElementById('save-msg-' + cardId);
+
+    if (!question || !answer) {
+        msg.textContent = '⚠️ 問題與答案不能空白';
+        msg.style.color = '#c62828';
+        return;
+    }
+
+    fetch(`/admin/gospel/cards/${cardId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ icon, question, answer })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            msg.textContent = '✅ 已儲存';
+            msg.style.color = '#2e7d32';
+            setTimeout(() => msg.textContent = '', 2500);
+        } else {
+            msg.textContent = '❌ ' + (d.error || '儲存失敗');
+            msg.style.color = '#c62828';
+        }
+    });
+}
+
+function toggleActive(cardId, newVal, btn) {
+    fetch(`/admin/gospel/cards/${cardId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: newVal === 'true' || newVal === true })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '操作失敗');
+    });
+}
+</script>
+
+{% endblock %}

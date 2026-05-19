@@ -1,0 +1,336 @@
+{% extends "base.html" %}
+{% block title %}{{ '編輯課程' if course else '建立課程' }}{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+    <div>
+        <a href="/admin/courses" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回課程列表</a>
+        <h2 style="margin-top:6px;">{{ '✏️ 編輯課程' if course else '📚 建立課程' }}</h2>
+    </div>
+</div>
+
+<div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 8px rgba(0,0,0,0.06); max-width:640px;">
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">課程名稱 *</label>
+        <input id="f-title" type="text" value="{{ course.title if course else '' }}"
+            placeholder="例：門徒訓練基礎班"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">期數</label>
+        <input id="f-period" type="text" value="{{ course.period if course else '' }}"
+            placeholder="例：第一期、2026 年春季"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">總堂次數</label>
+        <input id="f-total" type="number" min="1" value="{{ course.total_sessions if course else 8 }}"
+            style="width:120px; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+        <span style="color:#888; font-size:0.85rem; margin-left:8px;">堂</span>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">缺勤上限</label>
+        <div style="display:flex; align-items:center; gap:8px;">
+            <input id="f-absence" type="number" min="0"
+                value="{{ course.absence_limit if course and course.absence_limit is not none else '' }}"
+                placeholder="不設限"
+                style="width:120px; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+            <span style="color:#888; font-size:0.85rem;">堂（超過即未通過）</span>
+        </div>
+        <p style="font-size:0.8rem; color:#aaa; margin-top:4px;">留空 = 不設門檻（如全人更新營），由管理員手動標記完課</p>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">💰 教材費用</label>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+            <span style="color:#888; font-size:0.9rem;">$</span>
+            <input id="f-fee" type="number" min="0" step="1"
+                value="{{ course.material_fee if course and course.material_fee else 0 }}"
+                style="width:120px; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+            <span style="color:#888; font-size:0.85rem;">元（0 = 免費）</span>
+            <span style="color:#bbb; font-size:0.85rem; margin-left:8px;">⏰ 提前</span>
+            <input id="f-reminder" type="number" min="1" max="30"
+                value="{{ course.reminder_days if course and course.reminder_days else 3 }}"
+                style="width:64px; padding:10px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; text-align:center;">
+            <span style="color:#888; font-size:0.85rem;">天提醒未付款者</span>
+        </div>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">上課地點</label>
+        <input id="f-location" type="text" value="{{ course.location if course else '' }}"
+            placeholder="例：教會多功能廳、B1 禱告室"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">課程簡介</label>
+        <textarea id="f-desc" rows="4" placeholder="課程簡介、上課時間、對象等（會顯示給學員看）"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box; resize:vertical;">{{ course.description if course else '' }}</textarea>
+        <p style="font-size:0.8rem; color:#aaa; margin-top:4px;">此欄位會顯示在學員報名頁面</p>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">備註說明</label>
+        <textarea id="f-notes" rows="3" placeholder="補充說明、注意事項等（學員報名頁可見）"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box; resize:vertical;">{{ course.notes if course and course.notes else '' }}</textarea>
+        <p style="font-size:0.8rem; color:#aaa; margin-top:4px;">會顯示在學員報名頁，可補充課程注意事項</p>
+    </div>
+
+    <!-- 餐點訂購設定 -->
+    <div style="margin-bottom:20px; background:#e3f2fd; padding:16px; border-radius:10px; border:1px solid #90caf9;">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+            <input type="checkbox" id="f-meal-enabled" style="width:16px; height:16px; cursor:pointer;" onchange="toggleMealConfig()">
+            <label for="f-meal-enabled" style="font-weight:bold; cursor:pointer;">🍱 開放餐點訂購</label>
+        </div>
+        <p style="font-size:0.8rem; color:#888; margin:4px 0 12px 26px;">學員報名時可勾選用餐，費用自動加總</p>
+        <div id="meal-config" style="display:none;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px;">
+                <label style="font-size:0.9rem; color:#555; font-weight:bold;">活動天數</label>
+                <input type="number" id="f-meal-days" min="1" max="14" value="1"
+                    style="width:72px; padding:7px 10px; border:1px solid #90caf9; border-radius:6px; font-size:0.9rem;"
+                    oninput="rebuildMealGrid()">
+                <span style="font-size:0.85rem; color:#888;">天</span>
+            </div>
+            <div id="meal-grid" style="overflow-x:auto;">
+                <!-- 動態產生 -->
+            </div>
+            <p style="font-size:0.8rem; color:#888; margin-top:8px;">✔ 勾選代表該餐次開放訂購，填入費用（0 = 免費）</p>
+        </div>
+    </div>
+
+    <!-- 所屬學程 -->
+    <div style="margin-bottom:20px; background:#e8f5e9; padding:16px; border-radius:10px; border:1px solid #a5d6a7;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">所屬學程（選填）</label>
+        <select id="f-category"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; background:white;">
+            <option value="">（不指定類別）</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {{ 'selected' if course and course.category_id == cat.id else '' }}>
+                {{ cat.name }}
+            </option>
+            {% endfor %}
+        </select>
+        <p style="font-size:0.8rem; color:#555; margin-top:6px;">
+            指定後，已完訓此類別的學員報名時會收到「回鍋提示」。
+            <a href="/admin/course-categories" style="color:#2e7d32;">管理類別 →</a>
+        </p>
+    </div>
+
+    <!-- 前置類別 -->
+    <div style="margin-bottom:20px; background:#fff3e0; padding:16px; border-radius:10px; border:1px solid #ffe082;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">前置認證要求（選填）</label>
+        <select id="f-prereq-cat"
+            style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; background:white;">
+            <option value="">（無前置要求）</option>
+            {% for cat in categories %}
+            <option value="{{ cat.id }}" {{ 'selected' if course and course.prerequisite_category_id == cat.id else '' }}>
+                {{ cat.name }}
+            </option>
+            {% endfor %}
+        </select>
+        <p style="font-size:0.8rem; color:#888; margin-top:6px;">未完訓指定類別的學員，系統會擋住報名並顯示提示。</p>
+    </div>
+
+    <div style="margin-bottom:20px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">報名截止日期（選填）</label>
+        <input id="f-deadline" type="datetime-local"
+            value="{{ course.reg_deadline[:16] if course and course.reg_deadline else '' }}"
+            style="padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+        <p style="font-size:0.8rem; color:#aaa; margin-top:4px;">超過此時間即關閉報名，留空 = 不設截止</p>
+    </div>
+
+    <div style="margin-bottom:16px; display:flex; align-items:center; gap:10px;">
+        <input id="f-open" type="checkbox" {{ 'checked' if (not course or course.is_open) else '' }}
+            style="width:16px; height:16px; cursor:pointer;">
+        <label for="f-open" style="cursor:pointer; font-weight:bold;">開放報名</label>
+    </div>
+
+    <div style="margin-bottom:16px; display:flex; align-items:flex-start; gap:10px; background:#e8f5e9; padding:12px 16px; border-radius:8px; border:1px solid #a5d6a7;">
+        <input id="f-material" type="checkbox" {{ 'checked' if course and course.has_material else '' }}
+            style="width:16px; height:16px; cursor:pointer; margin-top:2px; flex-shrink:0;">
+        <div>
+            <label for="f-material" style="cursor:pointer; font-weight:bold;">此課程需要購買教材</label>
+            <p style="font-size:0.82rem; color:#888; margin-top:3px;">啟用後，學員報名時會詢問是否需要教材，後台可統計購買人數。</p>
+        </div>
+    </div>
+
+    <div style="margin-bottom:16px; display:flex; align-items:flex-start; gap:10px; background:#fff8e1; padding:12px 16px; border-radius:8px; border:1px solid #ffe082;">
+        <input id="f-whitelist" type="checkbox" {{ 'checked' if course and course.whitelist_enabled else '' }}
+            style="width:16px; height:16px; cursor:pointer; margin-top:2px; flex-shrink:0;">
+        <div>
+            <label for="f-whitelist" style="cursor:pointer; font-weight:bold;">限定報名名單</label>
+            <p style="font-size:0.82rem; color:#888; margin-top:3px;">啟用後只有名單內的人才能報名。可在課程管理頁面維護名單。</p>
+        </div>
+    </div>
+
+    <div style="margin-bottom:16px; display:flex; align-items:flex-start; gap:10px; background:#e8f5e9; padding:12px 16px; border-radius:8px; border:1px solid #a5d6a7;">
+        <input id="f-shared-checkin" type="checkbox" {{ 'checked' if course and course.shared_checkin_token else '' }}
+            style="width:16px; height:16px; cursor:pointer; margin-top:2px; flex-shrink:0;">
+        <div>
+            <label for="f-shared-checkin" style="cursor:pointer; font-weight:bold;">啟用課程通用 QR Code</label>
+            <p style="font-size:0.82rem; color:#888; margin-top:3px;">整個課程共用一個 QR Code，掃碼自動對應最近的堂次，適合不需分堂簽到的活動。</p>
+        </div>
+    </div>
+
+    <div style="margin-bottom:28px; display:flex; align-items:flex-start; gap:10px; background:#fce4ec; padding:12px 16px; border-radius:8px; border:1px solid #f48fb1;">
+        <input id="f-auto-complete" type="checkbox" {{ 'checked' if course and course.auto_complete_on_checkin else '' }}
+            style="width:16px; height:16px; cursor:pointer; margin-top:2px; flex-shrink:0;">
+        <div>
+            <label for="f-auto-complete" style="cursor:pointer; font-weight:bold;">簽到即完課</label>
+            <p style="font-size:0.82rem; color:#888; margin-top:3px;">掃碼簽到後自動標記完課。適合全人更新營等單次出席即算完成的活動。</p>
+        </div>
+    </div>
+
+    <div style="display:flex; gap:12px;">
+        <button onclick="submitForm()"
+            style="padding:12px 32px; background:#06C755; color:white; border:none; border-radius:8px;
+                   cursor:pointer; font-weight:bold; font-size:1rem;">
+            {{ '儲存' if course else '建立課程' }}
+        </button>
+        <a href="/admin/courses"
+           style="padding:12px 20px; background:#f5f5f5; color:#666; border-radius:8px; text-decoration:none; font-size:0.95rem;">
+            取消
+        </a>
+    </div>
+</div>
+
+<script>
+// ── 餐點格子 ──────────────────────────────────────────
+const MEAL_TYPES = ['早餐','午餐','晚餐'];
+const EXISTING_MEAL = {{ (course.meal_options | tojson) if course and course.meal_options else 'null' }};
+
+function toggleMealConfig() {
+    const on = document.getElementById('f-meal-enabled').checked;
+    document.getElementById('meal-config').style.display = on ? 'block' : 'none';
+    if (on && !document.getElementById('meal-grid').innerHTML.trim()) rebuildMealGrid();
+}
+function rebuildMealGrid() {
+    const days = Math.max(1, Math.min(14, parseInt(document.getElementById('f-meal-days').value) || 1));
+    const grid = document.getElementById('meal-grid');
+    const prevMap = {};
+    (collectMealOptions() || []).forEach(o => { prevMap[o.id] = o; });
+
+    let html = '<table style="width:100%; border-collapse:collapse; font-size:0.88rem;">';
+    html += '<tr><th style="padding:8px 10px; background:#bbdefb; text-align:left;"></th>';
+    MEAL_TYPES.forEach(m => { html += `<th style="padding:8px 10px; background:#bbdefb; text-align:center;">${m}</th>`; });
+    html += '</tr>';
+    for (let d = 1; d <= days; d++) {
+        html += `<tr style="border-bottom:1px solid #e3f2fd;"><td style="padding:8px 10px; font-weight:bold; color:#1565c0; white-space:nowrap;">第 ${d} 天</td>`;
+        MEAL_TYPES.forEach(m => {
+            const id = `d${d}_${m}`;
+            const prev = prevMap[id] || {};
+            const chk = prev.enabled || false;
+            const pr  = prev.price !== undefined ? prev.price : 0;
+            html += `<td style="padding:8px 10px; text-align:center;">
+                <label style="display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="mc-${id}" ${chk ? 'checked' : ''} onchange="updateMealCell('${id}')" style="width:15px; height:15px;">
+                    <span style="color:#888; font-size:0.8rem;">$</span>
+                    <input type="number" id="mp-${id}" min="0" value="${pr}"
+                        style="width:68px; padding:4px 7px; border:1px solid ${chk ? '#90caf9' : '#e0e0e0'}; border-radius:6px;" ${chk ? '' : 'disabled'}>
+                </label>
+            </td>`;
+        });
+        html += '</tr>';
+    }
+    html += '</table>';
+    grid.innerHTML = html;
+}
+function updateMealCell(id) {
+    const cb = document.getElementById('mc-' + id);
+    const inp = document.getElementById('mp-' + id);
+    inp.disabled = !cb.checked;
+    inp.style.border = cb.checked ? '1px solid #90caf9' : '1px solid #e0e0e0';
+}
+function collectMealOptions() {
+    const days = Math.max(1, parseInt(document.getElementById('f-meal-days')?.value) || 1);
+    const options = [];
+    for (let d = 1; d <= days; d++) {
+        MEAL_TYPES.forEach(m => {
+            const id = `d${d}_${m}`;
+            const cb = document.getElementById('mc-' + id);
+            if (!cb) return;
+            options.push({ id, day: d, meal: m, label: `第${d}天${m}`,
+                enabled: cb.checked,
+                price: parseInt(document.getElementById('mp-' + id).value) || 0 });
+        });
+    }
+    return options;
+}
+function initMealConfig() {
+    if (!EXISTING_MEAL || !EXISTING_MEAL.enabled) return;
+    document.getElementById('f-meal-enabled').checked = true;
+    document.getElementById('meal-config').style.display = 'block';
+    document.getElementById('f-meal-days').value = EXISTING_MEAL.days || 1;
+    rebuildMealGrid();
+    (EXISTING_MEAL.options || []).forEach(o => {
+        const cb = document.getElementById('mc-' + o.id);
+        const inp = document.getElementById('mp-' + o.id);
+        if (!cb) return;
+        cb.checked = o.enabled;
+        if (inp) { inp.disabled = !o.enabled; inp.value = o.price || 0;
+            inp.style.border = o.enabled ? '1px solid #90caf9' : '1px solid #e0e0e0'; }
+    });
+}
+window.addEventListener('DOMContentLoaded', initMealConfig);
+// ─────────────────────────────────────────────────────
+
+function submitForm() {
+    const title = document.getElementById('f-title').value.trim();
+    if (!title) { alert('請填寫課程名稱'); return; }
+
+    const mealEnabled = document.getElementById('f-meal-enabled').checked;
+    const meal_options = mealEnabled ? {
+        enabled: true,
+        days: parseInt(document.getElementById('f-meal-days').value) || 1,
+        options: collectMealOptions()
+    } : null;
+
+    const absenceVal = document.getElementById('f-absence').value.trim();
+    const data = {
+        title,
+        period: document.getElementById('f-period').value.trim(),
+        total_sessions: parseInt(document.getElementById('f-total').value) || 1,
+        absence_limit: absenceVal !== '' ? parseInt(absenceVal) : null,
+        material_fee: parseInt(document.getElementById('f-fee').value) || 0,
+        reminder_days: parseInt(document.getElementById('f-reminder').value) || 3,
+        location: document.getElementById('f-location').value.trim() || null,
+        description: document.getElementById('f-desc').value.trim(),
+        notes: document.getElementById('f-notes').value.trim() || null,
+        meal_options,
+        category_id: document.getElementById('f-category').value || null,
+        prerequisite_category_id: document.getElementById('f-prereq-cat').value || null,
+        reg_deadline: document.getElementById('f-deadline').value || null,
+        is_open: document.getElementById('f-open').checked,
+        has_material: document.getElementById('f-material').checked,
+        whitelist_enabled: document.getElementById('f-whitelist').checked,
+        use_shared_checkin: document.getElementById('f-shared-checkin').checked,
+        auto_complete_on_checkin: document.getElementById('f-auto-complete').checked,
+    };
+
+    {% if course %}
+    const url = '/admin/courses/{{ course.id }}/edit';
+    {% else %}
+    const url = '/admin/courses/new';
+    {% endif %}
+
+    fetch(url, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            window.location.href = d.course_id ? `/admin/courses/${d.course_id}` : '/admin/courses';
+        } else {
+            alert(d.error || '儲存失敗');
+        }
+    });
+}
+</script>
+{% endblock %}

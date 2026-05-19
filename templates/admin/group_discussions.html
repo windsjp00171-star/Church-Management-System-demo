@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+{% block title %}小組討論管理{% endblock %}
+{% block content %}
+
+<style>
+@keyframes portalSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.pa { animation: portalSlideUp 0.45s cubic-bezier(0.22,1,0.36,1) both; animation-delay: var(--d, 0ms); }
+
+.q-tag {
+    display: flex; align-items: flex-start; gap: 8px;
+    padding: 8px 12px; background: #f9fafb;
+    border: 1px solid var(--border); border-radius: 8px;
+    margin-bottom: 6px; font-size: 0.9rem; color: var(--text-2);
+}
+.q-tag button {
+    background: none; border: none; cursor: pointer;
+    color: var(--text-4); flex-shrink: 0; margin-top: 1px;
+    font-size: 1rem; line-height: 1; padding: 0;
+}
+.q-tag button:hover { color: var(--red); }
+
+/* Modal overlay */
+.modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.4); z-index: 1000;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(3px);
+}
+.modal-box {
+    background: white; border-radius: var(--radius-xl);
+    padding: 28px; width: 100%; max-width: 480px;
+    margin: 16px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+    max-height: 90vh; overflow-y: auto;
+}
+.form-label { font-weight: 600; display: block; margin-bottom: 5px; font-size: 0.88rem; color: var(--text-2); }
+.form-row { margin-bottom: 14px; }
+.form-input { width: 100%; padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; font-size: 0.92rem; box-sizing: border-box; outline: none; }
+.form-input:focus { border-color: var(--green); }
+
+/* 討論列表項目 */
+.gd-item {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px 18px;
+    background: white;
+    margin-bottom: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    box-shadow: var(--shadow-sm);
+}
+.gd-item-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.gd-item-title { font-weight: 700; font-size: 0.97rem; color: var(--text-1); flex: 1; }
+.gd-item-date { font-size: 0.8rem; color: var(--text-4); }
+</style>
+
+<div class="page-header pa" style="--d:0ms">
+    <div class="page-header-left">
+        <a href="/admin" class="breadcrumb">← 後台管理</a>
+        <div class="page-title">小組討論管理</div>
+        <div style="font-size:0.82rem; color:var(--text-4); margin-top:2px;">設定每週要在首頁顯示的影片與討論問題</div>
+    </div>
+    <button onclick="openNewModal()" class="btn btn-primary btn-sm">＋ 新增</button>
+</div>
+
+{% if items %}
+<div class="pa" style="--d:80ms">
+{% for item in items %}
+<div class="gd-item">
+    <div class="gd-item-head">
+        {% if item.is_active %}
+        <span class="badge badge-green">啟用</span>
+        {% else %}
+        <span class="badge badge-gray">停用</span>
+        {% endif %}
+        <div class="gd-item-title">{{ item.title }}</div>
+        <div class="gd-item-date">{{ item.display_start }} ～ {{ item.display_end }}</div>
+    </div>
+
+    <!-- YouTube URL -->
+    <div style="font-size:0.82rem; color:var(--text-3); overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px; margin-right:3px; color:#ef4444;">
+            <path d="m22.54 6.42-2.1-2.1A2 2 0 0 0 19 3.8L5 3.8a2 2 0 0 0-1.44.62L1.46 6.42A2 2 0 0 0 1 7.86v.9A11 11 0 0 0 12 20a11 11 0 0 0 11-11.24v-.9a2 2 0 0 0-.46-1.44Z"/>
+            <path d="m10 15 5-3-5-3z"/>
+        </svg>
+        {{ item.youtube_url }}
+    </div>
+
+    <!-- 討論問題預覽 -->
+    {% set qs = item.questions %}
+    {% if qs %}
+    <div style="font-size:0.82rem; color:var(--text-3);">
+        共 {{ qs|length }} 個討論問題
+        {% for q in qs[:2] %}
+        <div style="margin-top:3px; padding-left:12px; border-left:2px solid var(--border); color:var(--text-2);">{{ q }}</div>
+        {% endfor %}
+        {% if qs|length > 2 %}
+        <div style="padding-left:12px; color:var(--text-4);">…還有 {{ qs|length - 2 }} 個</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- 操作按鈕 -->
+    <div style="display:flex; gap:8px; margin-top:4px;">
+        <button onclick="openEditById('{{ item.id }}')" class="btn btn-outline btn-sm">編輯</button>
+        <button onclick="deleteItem('{{ item.id }}')" class="btn btn-danger btn-sm">刪除</button>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state pa" style="--d:80ms">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"
+         style="color:var(--text-4); margin-bottom:12px;">
+        <path d="m22.54 6.42-2.1-2.1A2 2 0 0 0 19 3.8L5 3.8a2 2 0 0 0-1.44.62L1.46 6.42A2 2 0 0 0 1 7.86v.9A11 11 0 0 0 12 20a11 11 0 0 0 11-11.24v-.9a2 2 0 0 0-.46-1.44Z"/>
+        <path d="m10 15 5-3-5-3z"/>
+    </svg>
+    <p>尚未建立任何小組討論排程</p>
+    <button onclick="openNewModal()" class="btn btn-primary" style="margin-top:14px;">＋ 立即新增</button>
+</div>
+{% endif %}
+
+<!-- ══ 新增/編輯 Modal ══ -->
+<div id="gd-modal" class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal-box">
+        <h3 id="modal-title" style="margin:0 0 20px; font-size:1rem; font-weight:700; color:var(--text-1);">新增小組討論</h3>
+        <input type="hidden" id="edit-id">
+
+        <div class="form-row">
+            <label class="form-label">標題</label>
+            <input id="f-title" type="text" class="form-input" placeholder="本週小組討論" value="本週小組討論">
+        </div>
+
+        <div class="form-row">
+            <label class="form-label">YouTube 連結 *</label>
+            <input id="f-url" type="url" class="form-input" placeholder="https://www.youtube.com/watch?v=...">
+        </div>
+
+        <div style="display:flex; gap:10px; margin-bottom:14px;">
+            <div style="flex:1;">
+                <label class="form-label">顯示開始日期 *</label>
+                <input id="f-start" type="date" class="form-input">
+            </div>
+            <div style="flex:1;">
+                <label class="form-label">顯示結束日期 *</label>
+                <input id="f-end" type="date" class="form-input">
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                <label class="form-label" style="margin:0;">討論問題</label>
+                <button onclick="addQuestion()" class="btn btn-outline btn-sm" style="font-size:0.78rem; padding:4px 10px;">＋ 新增問題</button>
+            </div>
+            <div id="q-list"></div>
+            <div style="display:flex; gap:6px; margin-top:8px;">
+                <input id="q-input" type="text" class="form-input" placeholder="輸入問題後按 Enter 或點新增"
+                    style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();addQuestion();}">
+            </div>
+        </div>
+
+        <div class="form-row" style="display:flex; align-items:center; gap:10px;">
+            <input type="checkbox" id="f-active" checked style="width:16px; height:16px; cursor:pointer;">
+            <label for="f-active" style="cursor:pointer; font-size:0.9rem; color:var(--text-2);">設為啟用（在指定日期範圍顯示於首頁）</label>
+        </div>
+
+        <div style="display:flex; gap:8px; margin-top:8px;">
+            <button onclick="submitForm()" class="btn btn-primary" style="flex:1;">儲存</button>
+            <button onclick="closeModal()" class="btn btn-outline">取消</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const CSRF = '{{ csrf_token() }}';
+let _questions = [];
+
+// 所有討論資料放在 JS 變數，避免 HTML 屬性中文轉義問題
+const GD_ITEMS = {{ items | tojson }};
+
+function openEditById(id) {
+    const item = GD_ITEMS.find(i => i.id === id);
+    if (item) openEditModal(item);
+}
+
+function openNewModal() {
+    document.getElementById('modal-title').textContent = '新增小組討論';
+    document.getElementById('edit-id').value = '';
+    document.getElementById('f-title').value = '本週小組討論';
+    document.getElementById('f-url').value = '';
+    document.getElementById('f-start').value = '';
+    document.getElementById('f-end').value = '';
+    document.getElementById('f-active').checked = true;
+    _questions = [];
+    renderQuestions();
+    document.getElementById('gd-modal').style.display = 'flex';
+}
+
+function openEditModal(item) {
+    document.getElementById('modal-title').textContent = '編輯小組討論';
+    document.getElementById('edit-id').value = item.id;
+    document.getElementById('f-title').value = item.title || '本週小組討論';
+    document.getElementById('f-url').value = item.youtube_url || '';
+    document.getElementById('f-start').value = item.display_start || '';
+    document.getElementById('f-end').value = item.display_end || '';
+    document.getElementById('f-active').checked = !!item.is_active;
+    _questions = Array.isArray(item.questions) ? [...item.questions] : [];
+    renderQuestions();
+    document.getElementById('gd-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('gd-modal').style.display = 'none';
+}
+
+function renderQuestions() {
+    const el = document.getElementById('q-list');
+    el.innerHTML = _questions.map((q, i) => `
+        <div class="q-tag">
+            <span style="flex:1;">${i+1}. ${q}</span>
+            <button onclick="removeQ(${i})" title="刪除">✕</button>
+        </div>
+    `).join('');
+}
+
+function addQuestion() {
+    const inp = document.getElementById('q-input');
+    const val = inp.value.trim();
+    if (!val) return;
+    _questions.push(val);
+    inp.value = '';
+    renderQuestions();
+    inp.focus();
+}
+
+function removeQ(i) {
+    _questions.splice(i, 1);
+    renderQuestions();
+}
+
+async function submitForm() {
+    const id = document.getElementById('edit-id').value;
+    const body = {
+        title:         document.getElementById('f-title').value.trim() || '本週小組討論',
+        youtube_url:   document.getElementById('f-url').value.trim(),
+        questions:     _questions,
+        display_start: document.getElementById('f-start').value,
+        display_end:   document.getElementById('f-end').value,
+        is_active:     document.getElementById('f-active').checked,
+    };
+    if (!body.youtube_url || !body.display_start || !body.display_end) {
+        alert('請填寫 YouTube 連結與顯示日期區間');
+        return;
+    }
+    const url = id
+        ? `/admin/group-discussions/${id}/edit`
+        : '/admin/group-discussions/new';
+    try {
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
+            body: JSON.stringify(body),
+        });
+        const text = await res.text();
+        let d;
+        try { d = JSON.parse(text); } catch { alert('伺服器回應非 JSON：' + text.slice(0, 200)); return; }
+        if (d.success) location.reload();
+        else alert(d.error || '儲存失敗');
+    } catch (e) {
+        alert('網路錯誤：' + e.message);
+    }
+}
+
+async function deleteItem(id) {
+    if (!confirm('確定刪除此小組討論排程？')) return;
+    const res = await fetch(`/admin/group-discussions/${id}/delete`, {
+        method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+    });
+    const d = await res.json();
+    if (d.success) location.reload();
+    else alert('刪除失敗');
+}
+</script>
+
+{% endblock %}

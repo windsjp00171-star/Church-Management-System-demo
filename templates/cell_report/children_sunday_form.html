@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}兒童主日報告{% endblock %}
+{% block content %}
+<div class="container" style="max-width:400px; margin:60px auto; padding:0 16px;">
+  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:4px;">兒童主日報告</h1>
+  <p style="color:#888; margin-bottom:24px;">{{ date.strftime('%Y/%m/%d') }}</p>
+  <div style="background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,.08);">
+    <label style="display:block; font-weight:600; margin-bottom:8px;">出席人數</label>
+    <input type="number" id="count" min="0" value="{{ report.get('attendance_count', 0) or 0 }}"
+           style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1.1rem; text-align:center; margin-bottom:16px;">
+    <button onclick="submitReport()"
+            style="width:100%; padding:14px; background:#4a90d9; color:#fff; border:none;
+                   border-radius:10px; font-size:1rem; font-weight:700; cursor:pointer;">送出</button>
+    <div id="result" style="text-align:center; color:#2e7d32; margin-top:12px; display:none;">✓ 已儲存</div>
+  </div>
+</div>
+<script>
+async function submitReport() {
+  const count = parseInt(document.getElementById('count').value) || 0;
+  const res = await fetch(window.location.href, {
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({attendance_count: count})
+  });
+  if ((await res.json()).success) {
+    document.getElementById('result').style.display = 'block';
+    setTimeout(() => document.getElementById('result').style.display = 'none', 3000);
+  }
+}
+</script>
+{% endblock %}

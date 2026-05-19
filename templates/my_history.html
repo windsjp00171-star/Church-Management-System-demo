@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block title %}我的記錄{% endblock %}
+{% block content %}
+
+<style>
+/* ══ 進場動畫 ══ */
+@keyframes portalSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.pa {
+    animation: portalSlideUp 0.45s cubic-bezier(0.22,1,0.36,1) both;
+    animation-delay: var(--d, 0ms);
+}
+
+/* ══ Tab 樣式 ══ */
+.hist-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 2px solid var(--border);
+    flex-wrap: wrap;
+    margin-bottom: 0;
+}
+.hist-tab {
+    padding: 10px 20px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--text-3);
+    border-bottom: 2px solid transparent;
+    margin-bottom: -2px;
+    transition: all 0.15s;
+}
+.hist-tab.active {
+    color: var(--green);
+    border-bottom-color: var(--green);
+}
+.hist-tab:hover:not(.active) {
+    color: var(--text-2);
+}
+
+/* ══ 出席進度條 ══ */
+.attend-bar {
+    background: #f0f0f0;
+    border-radius: 20px;
+    height: 6px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+.attend-bar-fill {
+    height: 100%;
+    border-radius: 20px;
+    transition: width 0.4s ease;
+}
+</style>
+
+<!-- ══ 頁首 ══ -->
+<div class="page-header pa" style="--d:0ms">
+    <div class="page-header-left">
+        <div class="breadcrumb">
+            <a href="/">首頁</a>
+            <span>›</span>
+            <span>我的記錄</span>
+        </div>
+        <h1 class="page-title">我的記錄</h1>
+        <p class="page-subtitle">{{ session.real_name or session.display_name }} 的所有活動、學程與代禱紀錄</p>
+    </div>
+</div>
+
+<!-- ══ Tab 切換 ══ -->
+<div class="hist-tabs pa" style="--d:60ms">
+    <button id="tab-events" class="hist-tab active" onclick="switchTab('events')">
+        活動報名（{{ regs|length }}）
+    </button>
+    <button id="tab-courses" class="hist-tab" onclick="switchTab('courses')">
+        門訓學程（{{ course_count }}）
+    </button>
+    <button id="tab-prayers" class="hist-tab" onclick="switchTab('prayers')">
+        代禱紀錄（{{ my_prayers|length }}）
+    </button>
+</div>
+
+<!-- ══ 活動報名 ══ -->
+<div id="panel-events" style="margin-top:20px;">
+    {% if regs %}
+    {% for reg in regs %}
+    {% set event = reg.events or {} %}
+    <div class="card-sm pa" style="--d:{{ loop.index0 * 40 + 80 }}ms; border-left:4px solid {{ 'var(--green)' if reg.checked_in else 'var(--border)' }}; margin-bottom:12px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:700; font-size:0.97rem; margin-bottom:6px; color:var(--text-1);">
+                    {{ event.title or '（活動已刪除）' }}
+                </div>
+                <div style="font-size:0.84rem; color:var(--text-3); display:flex; flex-wrap:wrap; gap:10px; margin-bottom:4px;">
+                    {% if event.event_start %}
+                    <span style="display:inline-flex; align-items:center; gap:4px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--text-3)"><rect width="18" height="18" x="3" y="4" rx="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>
+                        {{ event.event_start| taipei_time }}
+                    </span>
+                    {% endif %}
+                    {% if event.location %}
+                    <span style="display:inline-flex; align-items:center; gap:4px;">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--text-3)"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+                        {{ event.location }}
+                    </span>
+                    {% endif %}
+                </div>
+                <div style="font-size:0.78rem; color:var(--text-4);">
+                    報名時間：{{ reg.created_at[:10] if reg.created_at else '' }}
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;">
+                {% if reg.checked_in %}
+                <span class="badge badge-green">已簽到</span>
+                {% elif event.checkin_enabled %}
+                <span class="badge badge-orange">待簽到</span>
+                {% else %}
+                <span class="badge badge-gray">已報名</span>
+                {% endif %}
+                {% if reg.payment_status == 'paid' %}
+                <span class="badge badge-blue">已付款</span>
+                {% elif reg.payment_status == 'waived' %}
+                <span class="badge badge-purple">免收費</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    {% else %}
+    <div class="empty-state pa" style="--d:80ms">
+        <div class="empty-state-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
+        </div>
+        <p class="empty-state-title">還沒有活動報名記錄</p>
+        <a href="/events" class="btn btn-outline" style="margin-top:12px;">查看開放中的活動 →</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ══ 門訓學程 ══ -->
+<div id="panel-courses" style="display:none; margin-top:20px;">
+
+    {% if certifications %}
+    <div class="section-label pa" style="--d:80ms; margin-bottom:10px;">完訓認證</div>
+    {% for cert in certifications %}
+    {% set cat = cert.course_categories or {} %}
+    <div class="card-sm pa" style="--d:{{ loop.index0 * 40 + 120 }}ms; border-left:4px solid var(--green); margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+            <div>
+                <div style="font-weight:700; font-size:0.97rem; color:var(--text-1);">{{ cat.name or '—' }}</div>
+                <div style="font-size:0.78rem; color:var(--text-4); margin-top:4px;">
+                    完訓日期：{{ cert.certified_at[:10] if cert.certified_at else '—' }}
+                    {% if cert.note and cert.note != 'None' %}
+                    ．{{ cert.note }}
+                    {% endif %}
+                </div>
+            </div>
+            <span class="badge badge-green" style="flex-shrink:0;">已完訓</span>
+        </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if enrollments %}
+    {% if certifications %}
+    <div class="section-label pa" style="--d:{{ certifications|length * 40 + 120 }}ms; margin:18px 0 10px;">修課中</div>
+    {% endif %}
+    {% for e in enrollments %}
+    {% set course = e.courses or {} %}
+    {% set accent = 'var(--red)' if e.status == 'absent' else 'var(--blue)' %}
+    {% set delay_ms = loop.index0 * 40 + (certifications|length * 40 + 160 if certifications else 120) %}
+    <div class="card-sm pa" style="--d:{{ delay_ms }}ms; border-left:4px solid {{ accent }}; margin-bottom:10px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div style="flex:1; min-width:0;">
+                <div style="font-weight:700; font-size:0.97rem; margin-bottom:4px; color:var(--text-1);">
+                    {{ course.title or '（課程已刪除）' }}
+                    {% if course.period and course.period != 'None' %}
+                    <span style="font-size:0.82rem; color:var(--text-3); font-weight:400;">· {{ course.period }}</span>
+                    {% endif %}
+                </div>
+                <div style="font-size:0.84rem; color:var(--text-3); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;color:var(--text-3)"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                    {% if course.total_sessions %}共 {{ course.total_sessions }} 堂 ·{% endif %}
+                    已出席 <strong style="color:var(--blue);">{{ e.attended_count }}</strong>
+                    {% if course.total_sessions %}<span style="color:var(--text-4);">/ {{ course.total_sessions }} 堂</span>{% endif %}
+                </div>
+                {% if e.status == 'absent' %}
+                <div style="font-size:0.78rem; color:var(--red); margin-top:4px;">缺勤未通過，如有疑問請聯繫行政同工</div>
+                {% endif %}
+            </div>
+            {% if e.status == 'absent' %}
+            <span class="badge badge-red" style="flex-shrink:0;">缺勤未通過</span>
+            {% else %}
+            <span class="badge badge-blue" style="flex-shrink:0;">學習中</span>
+            {% endif %}
+        </div>
+        {% if course.total_sessions and course.total_sessions > 0 %}
+        {% set pct = (e.attended_count / course.total_sessions * 100)|int %}
+        <div class="attend-bar">
+            <div class="attend-bar-fill" style="background:{{ 'var(--red)' if e.status == 'absent' else 'var(--blue)' }}; width:{{ pct }}%;"></div>
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    {% if not certifications and not enrollments %}
+    <div class="empty-state pa" style="--d:80ms">
+        <div class="empty-state-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+        </div>
+        <p class="empty-state-title">還沒有學程記錄</p>
+        <a href="/courses" class="btn btn-outline" style="margin-top:12px;">查看開放中的學程 →</a>
+    </div>
+    {% endif %}
+</div>
+
+<!-- ══ 代禱紀錄 ══ -->
+<div id="panel-prayers" style="display:none; margin-top:20px;">
+    {% if my_prayers %}
+    <div style="display:flex; flex-direction:column; gap:12px;">
+    {% for p in my_prayers %}
+    {% set stage_emoji = '🌰' if p.reaction_count == 0 else ('🌱' if p.reaction_count <= 3 else ('🌿' if p.reaction_count <= 9 else '🌾')) %}
+    {% if p.status == 'answered' %}{% set stage_emoji = '✨🌾' %}{% endif %}
+    <div class="card-sm pa" style="--d:{{ loop.index0 * 40 + 80 }}ms; border-left:4px solid {{ '#e8c020' if p.status == 'answered' else '#c49535' }};">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px; flex-wrap:wrap;">
+                    <span style="font-size:1.2rem; line-height:1;">{{ stage_emoji }}</span>
+                    <span style="font-weight:700; font-size:0.95rem; color:#3a2000;">{{ p.title }}</span>
+                    {% if p.status == 'answered' %}
+                    <span class="badge badge-orange">✨ 蒙應允</span>
+                    {% elif p.is_anonymous %}
+                    <span class="badge badge-gray">匿名發出</span>
+                    {% endif %}
+                </div>
+                {% if p.content %}
+                <div style="font-size:0.87rem; color:#7a5200; line-height:1.6; margin-bottom:8px;">{{ p.content }}</div>
+                {% endif %}
+                <div style="font-size:0.78rem; color:var(--text-4); display:flex; gap:12px; flex-wrap:wrap;">
+                    <span>{{ p.created_at[:10] if p.created_at else '' }}</span>
+                    <span>🙏 {{ p.reaction_count or 0 }} 人代禱</span>
+                    <span>💬 {{ p.comment_count or 0 }} 則回應</span>
+                </div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                <a href="/prayer" class="btn btn-outline" style="font-size:0.8rem; padding:5px 14px; border-color:#e8c56a; color:#c47800; background:#fff8dc; white-space:nowrap;">
+                    查看麥田
+                </a>
+                {% if p.status == 'active' %}
+                <button onclick="markAnswered('{{ p.id }}', this)"
+                    class="btn btn-secondary" style="font-size:0.8rem; padding:5px 14px; color:var(--orange); white-space:nowrap;">
+                    ✨ 標記蒙應允
+                </button>
+                {% endif %}
+                <button onclick="deletePrayer('{{ p.id }}', this)"
+                    class="btn btn-secondary" style="font-size:0.8rem; padding:5px 14px; color:var(--red); white-space:nowrap;">
+                    刪除
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state pa" style="--d:80ms">
+        <div class="empty-state-icon" style="font-size:2.5rem; line-height:1;">🌾</div>
+        <p class="empty-state-title">還沒有代禱紀錄</p>
+        <a href="/prayer" class="btn btn-outline" style="margin-top:12px; border-color:#e8c56a; color:#c47800;">前往代禱麥田 →</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function switchTab(tab) {
+    ['events','courses','prayers'].forEach(t => {
+        document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
+        const btn = document.getElementById('tab-' + t);
+        btn.classList.toggle('active', t === tab);
+    });
+}
+
+function markAnswered(prayerId, btn) {
+    if (!confirm('確定標記這則代禱已蒙應允？感謝神的恩典 ✨')) return;
+    btn.disabled = true;
+    fetch(`/prayer/${prayerId}/answered`, { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.success) location.reload();
+            else { alert(d.error || '操作失敗'); btn.disabled = false; }
+        });
+}
+
+function deletePrayer(prayerId, btn) {
+    if (!confirm('確定刪除這則代禱事項？')) return;
+    btn.disabled = true;
+    fetch(`/prayer/${prayerId}/delete`, { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.success) location.reload();
+            else { alert(d.error || '刪除失敗'); btn.disabled = false; }
+        });
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}主日報告{% endblock %}
+{% block content %}
+<div class="container" style="max-width:480px; margin:60px auto; padding:0 16px;">
+  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:4px;">成人主日報告</h1>
+  <p style="color:#888; margin-bottom:24px;">{{ date.strftime('%Y/%m/%d') }}（{{ ['一','二','三','四','五','六','日'][date.weekday()] }}）</p>
+
+  <div style="background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,.08);">
+    <div style="display:flex; flex-direction:column; gap:16px;">
+      <div>
+        <label style="display:block; font-weight:600; margin-bottom:8px;">第一堂人數</label>
+        <input type="number" id="first" min="0" value="{{ report.get('first_service_count', 0) or 0 }}"
+               style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1.1rem; text-align:center;">
+      </div>
+      <div>
+        <label style="display:block; font-weight:600; margin-bottom:8px;">第二堂人數</label>
+        <input type="number" id="second" min="0" value="{{ report.get('second_service_count', 0) or 0 }}"
+               style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1.1rem; text-align:center;">
+      </div>
+      <div style="padding:12px; background:#f9f9f9; border-radius:8px; text-align:center;">
+        合計：<span id="total" style="font-weight:700; font-size:1.2rem;">{{ (report.get('first_service_count', 0) or 0) + (report.get('second_service_count', 0) or 0) }}</span> 人
+      </div>
+      <button onclick="submitReport()"
+              style="padding:14px; background:#06C755; color:#fff; border:none;
+                     border-radius:10px; font-size:1rem; font-weight:700; cursor:pointer;">
+        送出
+      </button>
+      <div id="result" style="text-align:center; color:#2e7d32; display:none;">✓ 已儲存</div>
+    </div>
+  </div>
+</div>
+
+<script>
+document.getElementById('first').oninput = updateTotal;
+document.getElementById('second').oninput = updateTotal;
+function updateTotal() {
+  const f = parseInt(document.getElementById('first').value) || 0;
+  const s = parseInt(document.getElementById('second').value) || 0;
+  document.getElementById('total').textContent = f + s;
+}
+async function submitReport() {
+  const first = parseInt(document.getElementById('first').value) || 0;
+  const second = parseInt(document.getElementById('second').value) || 0;
+  const res = await fetch(window.location.href, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({first_service_count: first, second_service_count: second})
+  });
+  if ((await res.json()).success) {
+    document.getElementById('result').style.display = 'block';
+    setTimeout(() => document.getElementById('result').style.display = 'none', 3000);
+  }
+}
+</script>
+{% endblock %}

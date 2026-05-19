@@ -1,0 +1,14 @@
+flask==3.1.2
+flask-session==0.8.0
+flask-limiter==3.9.0
+python-dotenv==1.2.2
+requests==2.32.5
+supabase==2.28.3
+openpyxl==3.1.5
+gunicorn==23.0.0
+bcrypt==4.2.1
+boto3==1.35.99
+anthropic>=0.40.0
+google-generativeai>=0.8.0
+groq>=0.9.0
+pandas==2.2.2

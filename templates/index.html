@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% block title %}活動列表{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:20px;">
+    <a href="/" style="color:#06C755; text-decoration:none; font-size:0.9rem;">← 返回首頁</a>
+</div>
+
+<!-- ===== 報名開放中 ===== -->
+<h2 style="margin-bottom:16px;">🎉 報名開放中</h2>
+
+{% if open_events %}
+    {% for event in open_events %}
+    <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px;
+                box-shadow:0 2px 8px rgba(0,0,0,0.06); border-left:4px solid #06C755;">
+
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+            <div style="flex:1;">
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                    <h3 style="margin:0;">{{ event.title }}</h3>
+                    {% if event._i_registered %}
+                    <span style="background:#e8f5e9; color:#2e7d32; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:bold;">
+                        ✓ 已報名
+                    </span>
+                    {% endif %}
+                </div>
+
+                <div style="color:#666; font-size:0.88rem; line-height:2;">
+                    {% if event.location %}
+                    <span>📍 {{ event.location }}</span><br>
+                    {% endif %}
+                    {% if event.event_start %}
+                    <span>🕐 {{ event.event_start| taipei_time }}</span><br>
+                    {% endif %}
+                    {% if event.reg_end %}
+                    <span style="color:#e65100;">⏰ 報名截止：{{ event.reg_end| taipei_time }}</span><br>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 右側：名額資訊 -->
+            <div style="text-align:right; min-width:80px;">
+                {% if event.capacity %}
+                    {% set remaining = event.capacity - event._reg_count %}
+                    <div style="font-size:1.4rem; font-weight:bold; color:{{ '#e53935' if remaining <= 5 else '#06C755' }};">
+                        {{ remaining }}
+                    </div>
+                    <div style="font-size:0.75rem; color:#999;">剩餘名額</div>
+                {% else %}
+                    <div style="font-size:1rem; font-weight:bold; color:#06C755;">{{ event._reg_count }}</div>
+                    <div style="font-size:0.75rem; color:#999;">已報名</div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div style="margin-top:14px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+            {% if event.fee %}
+            <span style="color:#888; font-size:0.85rem;">💰 {{ event.fee }} 元</span>
+            {% else %}
+            <span style="color:#888; font-size:0.85rem;">💰 免費</span>
+            {% endif %}
+
+            <a href="/event/{{ event.id }}"
+               style="background:#06C755; color:white; padding:8px 22px; border-radius:8px;
+                      text-decoration:none; font-weight:bold; font-size:0.9rem;">
+                {{ '查看我的報名' if event._i_registered else '立即報名' }}
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+
+{% else %}
+    <div style="background:white; border-radius:12px; padding:40px; text-align:center;
+                color:#999; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <div style="font-size:2.5rem; margin-bottom:8px;">📭</div>
+        <p>目前沒有開放報名的活動</p>
+    </div>
+{% endif %}
+
+
+<!-- ===== 其他活動（已關閉/已過期/名額已滿） ===== -->
+{% if other_events %}
+<h2 style="margin:28px 0 16px; color:#999; font-size:1rem;">其他活動</h2>
+
+{% for event in other_events %}
+<div style="background:white; border-radius:12px; padding:16px 20px; margin-bottom:10px;
+            box-shadow:0 1px 4px rgba(0,0,0,0.04); opacity:0.75;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="font-weight:bold; color:#555;">{{ event.title }}</span>
+
+                {% if event._is_past %}
+                <span style="background:#f5f5f5; color:#999; padding:2px 8px; border-radius:20px; font-size:0.75rem;">已結束</span>
+                {% elif event._is_full %}
+                <span style="background:#fff3e0; color:#e65100; padding:2px 8px; border-radius:20px; font-size:0.75rem;">名額已滿</span>
+                {% else %}
+                <span style="background:#ffebee; color:#c62828; padding:2px 8px; border-radius:20px; font-size:0.75rem;">報名已關閉</span>
+                {% endif %}
+
+                {% if event._i_registered %}
+                <span style="background:#e8f5e9; color:#2e7d32; padding:2px 8px; border-radius:20px; font-size:0.75rem;">✓ 已報名</span>
+                {% endif %}
+            </div>
+            <div style="color:#aaa; font-size:0.82rem; margin-top:4px;">
+                {% if event.event_start %}{{ event.event_start[:10] }}{% endif %}
+                {% if event.location %} ．{{ event.location }}{% endif %}
+            </div>
+        </div>
+        <a href="/event/{{ event.id }}"
+           style="color:#999; font-size:0.85rem; text-decoration:none; padding:6px 14px;
+                  border:1px solid #ddd; border-radius:6px;">
+            查看詳情
+        </a>
+    </div>
+</div>
+{% endfor %}
+{% endif %}
+
+{% endblock %}

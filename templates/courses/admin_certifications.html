@@ -1,0 +1,471 @@
+{% extends "base.html" %}
+{% block title %}學程認證管理{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/courses" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回課程管理</a>
+        <h2 style="margin-top:6px;">🎓 學程認證管理</h2>
+        <p style="color:#888; font-size:0.85rem; margin-top:2px;">此頁面供行政人員手動補登或修正認證記錄。正常情況下系統在學員完訓時會自動發放認證。</p>
+    </div>
+</div>
+
+<!-- 說明提示 -->
+<div style="background:#fff8e1; border-left:4px solid #f59e0b; border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:0.85rem; color:#78350f;">
+    ⚠️ 系統已自動追蹤完訓認證。此頁面用於：補登舊有資料、修正系統錯誤、手動核發特殊情況的認證。
+</div>
+
+<!-- ── 共用完訓日期 ── -->
+<div style="background:white; border-radius:12px; padding:14px 20px; margin-bottom:14px;
+     box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; gap:14px; flex-wrap:wrap; align-items:flex-end;">
+    <div>
+        <label style="font-size:0.8rem; color:#555; font-weight:bold; display:block; margin-bottom:5px;">📅 完訓日期</label>
+        <div style="display:flex; gap:6px;">
+            <select id="g-year"  style="padding:8px; border:1px solid #ddd; border-radius:8px; font-size:0.88rem;"></select>
+            <select id="g-month" style="padding:8px 6px; border:1px solid #ddd; border-radius:8px; font-size:0.88rem;"></select>
+            <select id="g-day"   style="padding:8px 6px; border:1px solid #ddd; border-radius:8px; font-size:0.88rem;"></select>
+        </div>
+    </div>
+    <div style="flex:1; min-width:160px;">
+        <label style="font-size:0.8rem; color:#555; font-weight:bold; display:block; margin-bottom:5px;">📝 備註（選填）</label>
+        <input id="g-note" type="text" placeholder="例：第三期、2025春季班"
+            onkeydown="return event.key !== 'Enter'"
+            style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.88rem; box-sizing:border-box;">
+    </div>
+    <div style="color:#aaa; font-size:0.78rem;">設好後打勾，打完按底部確認</div>
+</div>
+
+<!-- ── 篩選 ── -->
+<form method="GET" action="/admin/certifications"
+    style="display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px; background:white;
+           padding:10px 16px; border-radius:10px; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+
+    <!-- 小組（第一個標籤）篩選 -->
+    <select name="group"
+        style="padding:7px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.88rem; min-width:120px;">
+        <option value="">全部小組</option>
+        {% for g in all_groups %}
+        <option value="{{ g }}" {{ 'selected' if group_filter == g else '' }}>{{ g }}</option>
+        {% endfor %}
+    </select>
+
+    <!-- 標籤篩選（任意 tag） -->
+    <select name="tag"
+        style="padding:7px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.88rem; min-width:120px;">
+        <option value="">全部標籤</option>
+        {% for t in all_tags %}
+        <option value="{{ t }}" {{ 'selected' if tag_filter == t else '' }}>{{ t }}</option>
+        {% endfor %}
+    </select>
+
+    <!-- 姓名搜尋 -->
+    <input type="text" name="q" value="{{ q }}" placeholder="搜尋姓名..."
+        style="padding:7px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.88rem; width:140px;">
+
+    <button type="submit"
+        style="padding:7px 16px; background:#1565c0; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.88rem;">
+        搜尋
+    </button>
+    {% if group_filter or tag_filter or q %}
+    <a href="/admin/certifications" style="color:#999; font-size:0.83rem; text-decoration:none;">清除</a>
+    {% endif %}
+    <span style="color:#888; font-size:0.82rem; margin-left:auto;">共 {{ total }} 人</span>
+</form>
+
+<!-- 分頁導航（上） -->
+{% if total_pages > 1 %}
+{% set qs = '&q=' ~ q ~ '&group=' ~ group_filter ~ '&tag=' ~ tag_filter %}
+<div style="display:flex; align-items:center; gap:8px; margin-bottom:10px; flex-wrap:wrap;">
+    {% if page > 1 %}
+    <a href="/admin/certifications?page={{ page - 1 }}{{ qs }}"
+        style="padding:6px 14px; background:white; border:1px solid #ddd; border-radius:8px;
+               text-decoration:none; color:#555; font-size:0.85rem;">← 上一頁</a>
+    {% endif %}
+    {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span style="padding:6px 14px; background:#2e7d32; color:white; border-radius:8px; font-size:0.85rem; font-weight:bold;">{{ p }}</span>
+        {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+        <a href="/admin/certifications?page={{ p }}{{ qs }}"
+            style="padding:6px 14px; background:white; border:1px solid #ddd; border-radius:8px;
+                   text-decoration:none; color:#555; font-size:0.85rem;">{{ p }}</a>
+        {% elif p == page - 3 or p == page + 3 %}
+        <span style="color:#aaa; font-size:0.85rem;">…</span>
+        {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}
+    <a href="/admin/certifications?page={{ page + 1 }}{{ qs }}"
+        style="padding:6px 14px; background:white; border:1px solid #ddd; border-radius:8px;
+               text-decoration:none; color:#555; font-size:0.85rem;">下一頁 →</a>
+    {% endif %}
+    <span style="color:#aaa; font-size:0.8rem; margin-left:4px;">第 {{ page }} / {{ total_pages }} 頁，每頁 50 人</span>
+</div>
+{% endif %}
+
+{% if users %}
+
+<!-- ── 勾選式 Pivot Table ── -->
+{# 把既有認證序列化給 JS 用 #}
+<script>
+const INIT_CERTS = {
+    {% for user in users %}
+    {% for cat in categories %}
+    {% set cert = cert_pivot.get(user.id, {}).get(cat.id) %}
+    {% if cert %}
+    "{{ user.id }}__{{ cat.id }}": "{{ cert.id }}",
+    {% endif %}
+    {% endfor %}
+    {% endfor %}
+};
+const CAT_NAMES  = { {% for cat in categories %}"{{ cat.id }}": "{{ cat.name|e }}", {% endfor %} };
+const USER_NAMES = { {% for user in users %}"{{ user.id }}": "{{ user._name|e }}", {% endfor %} };
+</script>
+
+<div style="background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.07); overflow:hidden; margin-bottom:90px;">
+<div style="overflow-x:auto;">
+<table style="width:100%; border-collapse:collapse; min-width:{{ 160 + categories|length * 110 }}px;">
+    <thead>
+        <tr style="background:#2e7d32; color:white;">
+            <th style="padding:12px 16px; text-align:left; font-size:0.82rem; font-weight:600;
+                        white-space:nowrap; position:sticky; left:0; background:#2e7d32; z-index:3; min-width:120px;">
+                姓名
+            </th>
+            {% for cat in categories %}
+            <th style="padding:12px 10px; text-align:center; font-size:0.82rem; font-weight:600;
+                        white-space:nowrap; min-width:110px; border-left:1px solid rgba(255,255,255,0.2);">
+                {{ cat.name }}
+            </th>
+            {% endfor %}
+        </tr>
+    </thead>
+    <tbody>
+    {% set ns = namespace(cur_group='') %}
+    {% for user in users %}
+        {% if user._group != ns.cur_group %}
+        {% set ns.cur_group = user._group %}
+        <tr>
+            <td colspan="{{ categories|length + 1 }}"
+                style="padding:6px 16px; background:#e8f5e9; font-size:0.8rem; font-weight:700;
+                       color:#2e7d32; border-top:2px solid #c8e6c9;">
+                📌 {{ user._group }}
+            </td>
+        </tr>
+        {% endif %}
+
+        <tr style="border-bottom:1px solid #f0f0f0;"
+            onmouseover="this.style.background='#f9fff9'" onmouseout="this.style.background=''">
+            <!-- 姓名 -->
+            <td style="padding:8px 16px; white-space:nowrap; position:sticky; left:0;
+                        background:white; z-index:1; border-right:2px solid #f0f0f0;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    {% if user.picture_url %}
+                    <img src="{{ user.picture_url }}" style="width:26px;height:26px;border-radius:50%;object-fit:cover;flex-shrink:0;" onerror="this.style.display='none'">
+                    {% endif %}
+                    <span style="font-size:0.88rem; font-weight:500;">{{ user._name }}</span>
+                </div>
+            </td>
+            {% for cat in categories %}
+            {% set cert = cert_pivot.get(user.id, {}).get(cat.id) %}
+            <td style="padding:5px 6px; text-align:center; border-left:1px solid #f5f5f5;">
+                <label id="lbl-{{ user.id }}-{{ cat.id }}"
+                    style="display:inline-flex; flex-direction:column; align-items:center;
+                           gap:2px; padding:5px 8px; border-radius:8px; transition:all 0.15s;
+                           {{ 'background:#e8f5e9;' if cert else '' }}
+                           {% if session.get('is_super_admin') %}cursor:pointer;{% endif %}"
+                    {% if session.get('is_super_admin') %}onclick="toggleCell('{{ user.id }}', '{{ cat.id }}', this)"{% endif %}>
+                    <span class="cell-icon" style="font-size:1.2rem; line-height:1;">{{ '✅' if cert else '☐' }}</span>
+                    <span class="cell-txt" style="font-size:0.67rem; color:{{ '#2e7d32' if cert else '#ccc' }};">
+                        {{ cert.certified_at if cert else '未認證' }}
+                    </span>
+                </label>
+            </td>
+            {% endfor %}
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>
+</div>
+</div>
+
+<!-- 分頁導航（下） -->
+{% if total_pages > 1 %}
+<div style="display:flex; align-items:center; gap:8px; margin-top:14px; flex-wrap:wrap;">
+    {% if page > 1 %}
+    <a href="/admin/certifications?page={{ page - 1 }}{{ qs }}"
+        style="padding:6px 14px; background:white; border:1px solid #ddd; border-radius:8px;
+               text-decoration:none; color:#555; font-size:0.85rem;">← 上一頁</a>
+    {% endif %}
+    {% for p in range(1, total_pages + 1) %}
+        {% if p == page %}
+        <span style="padding:6px 14px; background:#2e7d32; color:white; border-radius:8px; font-size:0.85rem; font-weight:bold;">{{ p }}</span>
+        {% elif p == 1 or p == total_pages or (p >= page - 2 and p <= page + 2) %}
+        <a href="/admin/certifications?page={{ p }}{{ qs }}"
+            style="padding:6px 14px; background:white; border:1px solid #ddd; border-radius:8px;
+                   text-decoration:none; color:#555; font-size:0.85rem;">{{ p }}</a>
+        {% elif p == page - 3 or p == page + 3 %}
+        <span style="color:#aaa; font-size:0.85rem;">…</span>
+        {% endif %}
+    {% endfor %}
+    {% if page < total_pages %}
+    <a href="/admin/certifications?page={{ page + 1 }}{{ qs }}"
+        style="padding:6px 14px; background:white; border:1px solid #ddd; border-radius:8px;
+               text-decoration:none; color:#555; font-size:0.85rem;">下一頁 →</a>
+    {% endif %}
+</div>
+{% endif %}
+
+{% else %}
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px;">
+    <div style="font-size:3rem;">🎓</div>
+    <p style="margin-top:12px;">{% if q or group_filter or tag_filter %}查無符合的成員{% else %}尚未有任何成員資料{% endif %}</p>
+</div>
+{% endif %}
+
+
+{% if session.get('is_super_admin') %}
+<!-- ── 底部確認列（有變更才出現） ── -->
+<div id="confirm-bar"
+    style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:200;
+           background:white; border-top:2px solid #06C755; padding:14px 20px;
+           box-shadow:0 -4px 20px rgba(0,0,0,0.12); display:none;
+           align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+    <div style="font-size:0.9rem; color:#333;">
+        已變更 <strong id="bar-count" style="color:#06C755;">0</strong> 項
+        <span id="bar-add-label" style="margin-left:8px; font-size:0.82rem; color:#2e7d32;"></span>
+        <span id="bar-del-label" style="margin-left:6px; font-size:0.82rem; color:#c62828;"></span>
+    </div>
+    <div style="display:flex; gap:10px;">
+        <button onclick="resetChanges()"
+            style="padding:9px 18px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer; font-size:0.88rem;">
+            ↩ 還原
+        </button>
+        <button onclick="showPreview()"
+            style="padding:9px 22px; background:#06C755; color:white; border:none; border-radius:8px;
+                   cursor:pointer; font-weight:bold; font-size:0.95rem;">
+            👁 預覽並儲存
+        </button>
+    </div>
+</div>
+{% endif %}{# end is_super_admin confirm bar #}
+
+
+<!-- ── 預覽 Modal ── -->
+<div id="preview-modal" onclick="if(event.target===this)closePreview()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:300;
+           align-items:flex-start; justify-content:center; padding:20px; overflow-y:auto;">
+    <div style="background:white; border-radius:16px; padding:28px; max-width:500px; width:100%; position:relative; margin:auto;">
+        <button onclick="closePreview()" style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:1.3rem;cursor:pointer;color:#aaa;">✕</button>
+        <h3 style="margin:0 0 18px;">📋 確認儲存內容</h3>
+
+        <div id="preview-add-section" style="display:none; margin-bottom:16px;">
+            <div style="font-size:0.85rem; font-weight:bold; color:#2e7d32; margin-bottom:8px;">
+                ✅ 新增認證
+                <span style="font-size:0.78rem; font-weight:normal; margin-left:6px;" id="preview-date-label"></span>
+            </div>
+            <div id="preview-add-list" style="max-height:200px; overflow-y:auto; border:1px solid #e8f5e9; border-radius:8px;"></div>
+        </div>
+
+        <div id="preview-del-section" style="display:none; margin-bottom:20px;">
+            <div style="font-size:0.85rem; font-weight:bold; color:#c62828; margin-bottom:8px;">🗑 移除認證</div>
+            <div id="preview-del-list" style="max-height:160px; overflow-y:auto; border:1px solid #ffebee; border-radius:8px;"></div>
+        </div>
+
+        <div style="display:flex; gap:10px;">
+            <button onclick="submitSave()"
+                style="flex:1; padding:12px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:1rem;">
+                ✅ 確認儲存
+            </button>
+            <button onclick="closePreview()"
+                style="padding:12px 18px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+
+
+<script>
+// ══════════════════════════════════════════
+// 初始化共用日期選單
+// ══════════════════════════════════════════
+(function() {
+    const now = new Date();
+    const cy = now.getFullYear(), cm = now.getMonth() + 1, cd = now.getDate();
+    const yEl = document.getElementById('g-year');
+    const mEl = document.getElementById('g-month');
+    const dEl = document.getElementById('g-day');
+    for (let y = cy; y >= 1991; y--) {
+        const o = document.createElement('option');
+        o.value = y; o.textContent = `民國 ${y - 1911} 年`;
+        if (y === cy) o.selected = true;
+        yEl.appendChild(o);
+    }
+    for (let m = 1; m <= 12; m++) {
+        const o = document.createElement('option');
+        o.value = String(m).padStart(2, '0'); o.textContent = `${m} 月`;
+        if (m === cm) o.selected = true;
+        mEl.appendChild(o);
+    }
+    for (let d = 1; d <= 31; d++) {
+        const o = document.createElement('option');
+        o.value = String(d).padStart(2, '0'); o.textContent = `${d} 日`;
+        if (d === cd) o.selected = true;
+        dEl.appendChild(o);
+    }
+})();
+
+function getGlobalDate() {
+    return `${document.getElementById('g-year').value}-${document.getElementById('g-month').value}-${document.getElementById('g-day').value}`;
+}
+
+// ══════════════════════════════════════════
+// 變更追蹤
+// ══════════════════════════════════════════
+// pending: { "uid__cid": { action:'add'|'del', certId } }
+const pending = {};
+
+function toggleCell(userId, catId, label) {
+    const key     = `${userId}__${catId}`;
+    const origCid = INIT_CERTS[key] || '';  // 原本是否有認證
+    const icon    = label.querySelector('.cell-icon');
+    const txt     = label.querySelector('.cell-txt');
+    const nowCert = icon.textContent === '✅';  // 目前顯示狀態
+
+    if (nowCert) {
+        // 目前顯示已認證 → 切回未認證
+        icon.textContent = '☐';
+        txt.textContent  = '未認證';
+        txt.style.color  = '#ccc';
+        label.style.background = '';
+        if (origCid) {
+            // 原本有認證 → pending 刪除
+            pending[key] = { action: 'del', certId: origCid };
+        } else {
+            // 原本沒有，只是這次打了又取消
+            delete pending[key];
+        }
+    } else {
+        // 目前顯示未認證 → 切到已認證
+        icon.textContent = '✅';
+        txt.textContent  = getGlobalDate();
+        txt.style.color  = '#2e7d32';
+        label.style.background = '#e8f5e9';
+        if (!origCid) {
+            // 原本沒有 → pending 新增
+            pending[key] = { action: 'add', userId, catId };
+        } else {
+            // 原本有，只是取消又打回來
+            delete pending[key];
+        }
+    }
+    updateBar();
+}
+
+function updateBar() {
+    const keys   = Object.keys(pending);
+    const adds   = keys.filter(k => pending[k].action === 'add');
+    const dels   = keys.filter(k => pending[k].action === 'del');
+    const bar    = document.getElementById('confirm-bar');
+
+    if (!keys.length) { bar.style.display = 'none'; return; }
+
+    bar.style.display = 'flex';
+    document.getElementById('bar-count').textContent = keys.length;
+    document.getElementById('bar-add-label').textContent = adds.length ? `＋${adds.length} 新增` : '';
+    document.getElementById('bar-del-label').textContent = dels.length ? `－${dels.length} 移除` : '';
+}
+
+function resetChanges() {
+    if (!confirm('還原所有未儲存的變更？')) return;
+    location.reload();
+}
+
+// ══════════════════════════════════════════
+// 預覽 Modal
+// ══════════════════════════════════════════
+function showPreview() {
+    const keys = Object.keys(pending);
+    if (!keys.length) return;
+
+    const adds = keys.filter(k => pending[k].action === 'add');
+    const dels = keys.filter(k => pending[k].action === 'del');
+    const certDate = getGlobalDate();
+    const note = document.getElementById('g-note').value.trim();
+
+    // 新增區
+    const addSec = document.getElementById('preview-add-section');
+    const addList = document.getElementById('preview-add-list');
+    if (adds.length) {
+        addSec.style.display = 'block';
+        document.getElementById('preview-date-label').textContent = `完訓日期：${certDate}${note ? '　備註：' + note : ''}`;
+        addList.innerHTML = adds.map(k => {
+            const [uid, cid] = k.split('__');
+            return `<div style="padding:8px 14px; border-bottom:1px solid #f5f5f5; font-size:0.88rem; display:flex; gap:8px;">
+                <span style="color:#2e7d32;">✅</span>
+                <span><strong>${USER_NAMES[uid] || uid}</strong> · ${CAT_NAMES[cid] || cid}</span>
+            </div>`;
+        }).join('');
+    } else addSec.style.display = 'none';
+
+    // 刪除區
+    const delSec = document.getElementById('preview-del-section');
+    const delList = document.getElementById('preview-del-list');
+    if (dels.length) {
+        delSec.style.display = 'block';
+        delList.innerHTML = dels.map(k => {
+            const [uid, cid] = k.split('__');
+            return `<div style="padding:8px 14px; border-bottom:1px solid #f5f5f5; font-size:0.88rem; display:flex; gap:8px;">
+                <span style="color:#c62828;">🗑</span>
+                <span><strong>${USER_NAMES[uid] || uid}</strong> · ${CAT_NAMES[cid] || cid}</span>
+            </div>`;
+        }).join('');
+    } else delSec.style.display = 'none';
+
+    document.getElementById('preview-modal').style.display = 'flex';
+}
+
+function closePreview() {
+    document.getElementById('preview-modal').style.display = 'none';
+}
+
+// ══════════════════════════════════════════
+// 儲存
+// ══════════════════════════════════════════
+function submitSave() {
+    const keys     = Object.keys(pending);
+    const certDate = getGlobalDate();
+    const note     = document.getElementById('g-note').value.trim() || null;
+
+    const addPayload = keys
+        .filter(k => pending[k].action === 'add')
+        .map(k => {
+            const [userId, catId] = k.split('__');
+            return { user_id: userId, category_id: catId, certified_at: certDate, note };
+        });
+    const delPayload = keys
+        .filter(k => pending[k].action === 'del')
+        .map(k => pending[k].certId);
+
+    const btn = document.querySelector('#preview-modal button[onclick="submitSave()"]');
+    btn.disabled = true; btn.textContent = '儲存中…';
+
+    fetch('/admin/certifications/bulk-save', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ add: addPayload, delete: delPayload })
+    })
+    .then(r => r.json())
+    .then(d => {
+        btn.disabled = false; btn.textContent = '✅ 確認儲存';
+        if (d.success) {
+            closePreview();
+            const msgs = [];
+            if (d.added)   msgs.push(`新增 ${d.added} 筆`);
+            if (d.deleted) msgs.push(`移除 ${d.deleted} 筆`);
+            showToast(`🎓 認證已儲存（${msgs.join('、')}）`, 'success');
+            setTimeout(() => location.reload(), 900);
+        } else showToast(d.error || '儲存失敗', 'error');
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = '✅ 確認儲存'; showToast('連線失敗', 'error'); });
+}
+</script>
+{% endblock %}

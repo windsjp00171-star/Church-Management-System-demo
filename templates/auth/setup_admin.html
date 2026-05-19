@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>初始化設定 — {{ church_name }}</title>
+    <style>
+        body {
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
+            min-height: 100vh; margin: 0; padding: 24px 16px;
+            background: #f5f5f5; font-family: sans-serif;
+            box-sizing: border-box;
+        }
+        .card {
+            background: white; padding: 48px 40px;
+            border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            text-align: center; width: min(100%, 420px);
+            box-sizing: border-box;
+        }
+        .badge {
+            display: inline-block; background: #fff3e0;
+            color: #e65100; font-size: 0.78rem; font-weight: 700;
+            padding: 4px 12px; border-radius: 20px;
+            letter-spacing: 0.05em; margin-bottom: 20px;
+        }
+        h1 { font-size: 1.4rem; margin-bottom: 8px; }
+        .desc { color: #666; font-size: 0.9rem; line-height: 1.7; margin-bottom: 28px; }
+        .user-box {
+            background: #f5f5f5; border-radius: 10px;
+            padding: 14px 18px; margin-bottom: 24px;
+            font-size: 0.9rem; color: #333;
+        }
+        .btn {
+            display: block; width: 100%;
+            background: #1a73e8; color: white;
+            border: none; border-radius: 8px;
+            padding: 14px; font-size: 1rem; font-weight: 700;
+            cursor: pointer; box-sizing: border-box;
+        }
+        .btn:hover { background: #1558b0; }
+        .note { margin-top: 16px; font-size: 0.78rem; color: #999; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="badge">⚙️ 首次部署設定</div>
+        <h1>設定系統管理員</h1>
+        <p class="desc">
+            目前系統尚未有任何管理員。<br>
+            點下方按鈕，將您的帳號設定為第一位管理員。
+        </p>
+        <div class="user-box">
+            目前登入：<strong>{{ session.display_name }}</strong>
+        </div>
+        <form method="POST">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn">設定我為管理員</button>
+        </form>
+        <p class="note">此頁面在設定完成後會自動關閉，無法再次存取。</p>
+    </div>
+</body>
+</html>

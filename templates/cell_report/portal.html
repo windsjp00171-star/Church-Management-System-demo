@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}小組回報 - 選擇小組{% endblock %}
+{% block content %}
+<div class="container" style="max-width:600px; margin:40px auto; padding:0 16px;">
+  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:24px;">小組回報入口</h1>
+
+  {% if groups %}
+    <p style="color:#666; margin-bottom:16px;">請選擇要回報的小組：</p>
+    <div style="display:flex; flex-direction:column; gap:12px;">
+      {% for g in groups %}
+        <a href="{{ url_for('cell_report.section1', group_id=g.id) }}"
+           style="display:block; padding:16px 20px; background:#fff; border:1px solid #e0e0e0;
+                  border-radius:12px; text-decoration:none; color:#222; font-weight:600;
+                  box-shadow:0 1px 3px rgba(0,0,0,.06);">
+          {{ g.name }}
+          {% if g.get('weekly_gather_day') %}
+            <span style="font-size:0.85rem; font-weight:400; color:#888; margin-left:8px;">
+              每週{{ g.weekly_gather_day }}聚會
+            </span>
+          {% endif %}
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div style="padding:24px; background:#f9f9f9; border-radius:12px; color:#666; text-align:center;">
+      你目前沒有被分配到任何小組。<br>請聯繫管理員設定。
+    </div>
+  {% endif %}
+
+  {% if session.get('is_pastor') %}
+    <div style="margin-top:32px; padding-top:20px; border-top:1px solid #eee;">
+      <a href="{{ url_for('cell_report.pastor_dashboard') }}"
+         style="display:block; text-align:center; padding:12px; background:#06C755;
+                color:#fff; border-radius:10px; text-decoration:none; font-weight:600;">
+        牧者週報總覽
+      </a>
+    </div>
+  {% elif session.get('is_staff') %}
+    <div style="margin-top:32px; padding-top:20px; border-top:1px solid #eee;">
+      <a href="{{ url_for('cell_report.staff_dashboard') }}"
+         style="display:block; text-align:center; padding:12px; background:#4a90d9;
+                color:#fff; border-radius:10px; text-decoration:none; font-weight:600;">
+        同工管理中心
+      </a>
+    </div>
+  {% endif %}
+</div>
+{% endblock %}

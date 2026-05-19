@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}學程管理{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/courses" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回課程管理</a>
+        <h2 style="margin-top:6px;">🗂️ 學程管理</h2>
+        <p style="color:#888; font-size:0.85rem; margin-top:4px;">定義教會五大學程，課程掛上所屬學程，完訓後自動發放學程認證。</p>
+    </div>
+    <button onclick="showAddForm()"
+        style="padding:9px 20px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+        ＋ 新增學程
+    </button>
+</div>
+
+<!-- 新增表單 -->
+<div id="add-form" style="display:none; background:#f9fbe7; border:1px solid #c5e1a5; border-radius:12px; padding:20px; margin-bottom:24px;">
+    <p style="font-weight:bold; margin:0 0 14px;">新增學程</p>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <div style="flex:1; min-width:180px;">
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">類別名稱 *</label>
+            <input id="new-name" type="text" placeholder="例：全人更新營"
+                style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div style="flex:2; min-width:200px;">
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">說明（選填）</label>
+            <input id="new-desc" type="text" placeholder="簡短說明這個類別的課程內容"
+                style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div>
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">排序</label>
+            <input id="new-order" type="number" value="0" min="0"
+                style="width:72px; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+        </div>
+        <div style="display:flex; gap:8px;">
+            <button onclick="submitAdd()"
+                style="padding:9px 20px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+                新增
+            </button>
+            <button onclick="hideAddForm()"
+                style="padding:9px 14px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 類別列表 -->
+{% if categories %}
+<div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+{% for cat in categories %}
+<div id="cat-row-{{ cat.id }}" style="padding:18px 20px; border-bottom:1px solid #f5f5f5; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <!-- 顯示模式 -->
+    <div id="view-{{ cat.id }}" style="display:flex; align-items:center; gap:12px; flex:1; min-width:0; flex-wrap:wrap;">
+        <div style="flex:1; min-width:0;">
+            <div style="font-weight:bold; font-size:0.95rem;">{{ cat.name }}</div>
+            {% if cat.description %}
+            <div style="font-size:0.82rem; color:#888; margin-top:2px;">{{ cat.description }}</div>
+            {% endif %}
+        </div>
+        <span style="font-size:0.8rem; color:#aaa; white-space:nowrap;">排序 {{ cat.sort_order }}</span>
+        {% if not cat.is_active %}
+        <span style="background:#f5f5f5; color:#999; padding:3px 10px; border-radius:20px; font-size:0.78rem;">已停用</span>
+        {% endif %}
+    </div>
+    <!-- 編輯模式（隱藏） -->
+    <div id="edit-{{ cat.id }}" style="display:none; flex:1; min-width:0;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+            <input id="e-name-{{ cat.id }}" type="text" value="{{ cat.name }}"
+                style="flex:1; min-width:140px; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem;">
+            <input id="e-desc-{{ cat.id }}" type="text" value="{{ cat.description or '' }}" placeholder="說明"
+                style="flex:2; min-width:180px; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem;">
+            <input id="e-order-{{ cat.id }}" type="number" value="{{ cat.sort_order }}"
+                style="width:64px; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem;">
+            <button onclick="saveEdit('{{ cat.id }}')"
+                style="padding:7px 16px; background:#06C755; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.88rem; font-weight:bold;">
+                儲存
+            </button>
+            <button onclick="cancelEdit('{{ cat.id }}')"
+                style="padding:7px 12px; background:#f5f5f5; color:#666; border:none; border-radius:6px; cursor:pointer; font-size:0.88rem;">
+                取消
+            </button>
+        </div>
+    </div>
+    <!-- 操作按鈕 -->
+    <div id="actions-{{ cat.id }}" style="display:flex; gap:6px; flex-shrink:0;">
+        <button onclick="startEdit('{{ cat.id }}')"
+            style="padding:6px 14px; background:#e3f2fd; color:#1565c0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+            ✏️ 編輯
+        </button>
+        <button onclick="deleteCategory('{{ cat.id }}', '{{ cat.name }}')"
+            style="padding:6px 14px; background:#f5f5f5; color:#999; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+            刪除
+        </button>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="font-size:3rem;">🗂️</div>
+    <p style="margin-top:12px;">尚未建立任何學程，點上方「新增學程」開始吧</p>
+</div>
+{% endif %}
+
+<script>
+function showAddForm() {
+    document.getElementById('add-form').style.display = 'block';
+    document.getElementById('new-name').focus();
+}
+function hideAddForm() {
+    document.getElementById('add-form').style.display = 'none';
+}
+function submitAdd() {
+    const name = document.getElementById('new-name').value.trim();
+    if (!name) { document.getElementById('new-name').focus(); return; }
+    fetch('/admin/course-categories/new', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            name,
+            description: document.getElementById('new-desc').value.trim() || null,
+            sort_order: parseInt(document.getElementById('new-order').value) || 0,
+        })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '新增失敗');
+    });
+}
+function startEdit(id) {
+    document.getElementById('view-' + id).style.display = 'none';
+    document.getElementById('edit-' + id).style.display = '';
+    document.getElementById('actions-' + id).style.display = 'none';
+}
+function cancelEdit(id) {
+    document.getElementById('view-' + id).style.display = '';
+    document.getElementById('edit-' + id).style.display = 'none';
+    document.getElementById('actions-' + id).style.display = '';
+}
+function saveEdit(id) {
+    const name = document.getElementById('e-name-' + id).value.trim();
+    if (!name) return;
+    fetch(`/admin/course-categories/${id}/edit`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            name,
+            description: document.getElementById('e-desc-' + id).value.trim() || null,
+            sort_order: parseInt(document.getElementById('e-order-' + id).value) || 0,
+            is_active: true,
+        })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '儲存失敗');
+    });
+}
+function deleteCategory(id, name) {
+    if (!confirm(`確定刪除「${name}」？\n（如有學程使用此類別則無法刪除）`)) return;
+    fetch(`/admin/course-categories/${id}/delete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) location.reload();
+            else alert(d.error || '刪除失敗');
+        });
+}
+// Enter 送出
+document.getElementById('new-name').addEventListener('keydown', e => { if (e.key === 'Enter') submitAdd(); });
+</script>
+{% endblock %}

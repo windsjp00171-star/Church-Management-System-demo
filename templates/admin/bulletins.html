@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% block title %}週報管理{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <h2 style="margin:0;">📰 週報管理</h2>
+    <a href="/admin" style="color:#06C755; text-decoration:none; font-size:0.9rem;">← 返回後台</a>
+</div>
+
+<!-- 上傳表單 -->
+<div style="background:white; border-radius:12px; padding:24px; margin-bottom:28px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <h3 style="margin:0 0 16px 0;">上傳新週報</h3>
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-bottom:16px;">
+        <div>
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">週報日期 *</label>
+            <input id="bulletin_date" type="date"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+        </div>
+        <div>
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">標題（選填，留空自動產生）</label>
+            <input id="bulletin_title" type="text" placeholder="例：2026-04-19 週報"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+        </div>
+    </div>
+    <div style="margin-bottom:16px;">
+        <label style="font-weight:bold; display:block; margin-bottom:6px;">PDF 檔案 *</label>
+        <input id="bulletin_file" type="file" accept=".pdf"
+            style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; background:#fafafa;">
+    </div>
+    <div id="upload-error" style="display:none; color:#c62828; background:#ffebee; padding:10px 16px; border-radius:8px; margin-bottom:12px;"></div>
+    <button onclick="uploadBulletin()"
+        style="background:#06C755; color:white; border:none; padding:12px 28px; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer;">
+        上傳週報
+    </button>
+    <span id="upload-loading" style="display:none; margin-left:14px; color:#888;">上傳中...</span>
+</div>
+
+<!-- 週報列表 -->
+<div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <h3 style="margin:0 0 16px 0;">已上傳週報（共 {{ bulletins|length }} 份）</h3>
+    {% if bulletins %}
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f5f5f5; text-align:left;">
+                    <th style="padding:10px 16px; border-bottom:2px solid #eee;">日期</th>
+                    <th style="padding:10px 16px; border-bottom:2px solid #eee;">標題</th>
+                    <th style="padding:10px 16px; border-bottom:2px solid #eee;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for b in bulletins %}
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:12px 16px; color:#555;">{{ b.bulletin_date }}</td>
+                    <td style="padding:12px 16px;">{{ b.title }}</td>
+                    <td style="padding:12px 16px; display:flex; gap:10px; align-items:center;">
+                        <a href="{{ b.pdf_url }}" target="_blank"
+                            style="color:#1565c0; font-size:0.9rem; text-decoration:none;">
+                            📄 預覽
+                        </a>
+                        <button onclick="deleteBulletin('{{ b.id }}', this)"
+                            style="background:#ffebee; color:#c62828; border:none; padding:5px 14px; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                            刪除
+                        </button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p style="color:#aaa; text-align:center; padding:32px 0;">尚未上傳任何週報</p>
+    {% endif %}
+</div>
+
+<script>
+function uploadBulletin() {
+    const date = document.getElementById('bulletin_date').value;
+    const title = document.getElementById('bulletin_title').value.trim();
+    const file = document.getElementById('bulletin_file').files[0];
+    const errEl = document.getElementById('upload-error');
+    const loading = document.getElementById('upload-loading');
+
+    errEl.style.display = 'none';
+    if (!date) { errEl.textContent = '請選擇週報日期'; errEl.style.display = 'block'; return; }
+    if (!file) { errEl.textContent = '請選擇 PDF 檔案'; errEl.style.display = 'block'; return; }
+
+    const form = new FormData();
+    form.append('bulletin_date', date);
+    form.append('title', title);
+    form.append('pdf', file);
+
+    loading.style.display = 'inline';
+    fetch('/admin/api/upload-bulletin', { method: 'POST', body: form })
+        .then(r => r.json())
+        .then(d => {
+            loading.style.display = 'none';
+            if (d.success) location.reload();
+            else { errEl.textContent = d.error || '上傳失敗'; errEl.style.display = 'block'; }
+        })
+        .catch(() => {
+            loading.style.display = 'none';
+            errEl.textContent = '上傳失敗，請稍後再試';
+            errEl.style.display = 'block';
+        });
+}
+
+function deleteBulletin(id, btn) {
+    if (!confirm('確定刪除這份週報？')) return;
+    fetch(`/admin/bulletins/${id}/delete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); else alert(d.error || '刪除失敗'); });
+}
+</script>
+
+{% endblock %}

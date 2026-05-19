@@ -1,0 +1,155 @@
+{% extends "base.html" %}
+{% block title %}小組回報 - 步驟三{% endblock %}
+{% block content %}
+<div class="container" style="max-width:640px; margin:40px auto; padding:0 16px;">
+  <div style="margin-bottom:8px; color:#888; font-size:0.9rem;">
+    <a href="{{ url_for('cell_report.section2', group_id=group.id, week_date=week_date.isoformat()) }}" style="color:#06C755;">← 返回步驟二</a>
+  </div>
+
+  <h1 style="font-size:1.3rem; font-weight:700; margin-bottom:4px;">{{ group.name }}</h1>
+  <p style="color:#888; margin-bottom:24px;">步驟 3／3 — 補充資訊（週：{{ week_date }}）</p>
+
+  {% if error %}
+    <div style="padding:12px 16px; background:#fdecea; border-radius:8px; color:#c62828; margin-bottom:16px;">
+      {{ error }}
+    </div>
+  {% endif %}
+
+  <form method="post" style="display:flex; flex-direction:column; gap:24px;">
+
+    <!-- 四大面向自評 -->
+    <section>
+      <h2 style="font-size:1.1rem; font-weight:700; margin-bottom:16px;">小組長自評（必填）</h2>
+      {% set aspects = [
+        ('spiritual_status', '靈命狀況', 'spiritual_note'),
+        ('family_status',    '家庭狀況', 'family_note'),
+        ('work_status',      '工作/學業狀況', 'work_note'),
+        ('health_status',    '健康狀況', 'health_note'),
+      ] %}
+      {% for field, label, note_field in aspects %}
+      <div style="margin-bottom:16px;">
+        <label style="display:block; font-weight:600; margin-bottom:8px;">{{ label }} <span style="color:#d00;">*</span></label>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          {% for val, lbl in [('good','良好'),('ok','普通'),('concern','需關懷'),('urgent','緊急')] %}
+          <label style="display:flex; align-items:center; gap:6px; cursor:pointer;
+                         padding:6px 12px; border:1px solid #ddd; border-radius:20px;
+                         background:{% if report and report.get(field) == val %}#06C755{% else %}#fff{% endif %};
+                         color:{% if report and report.get(field) == val %}#fff{% else %}#333{% endif %};">
+            <input type="radio" name="{{ field }}" value="{{ val }}"
+                   {% if report and report.get(field) == val %}checked{% endif %}
+                   style="display:none;">
+            {{ lbl }}
+          </label>
+          {% endfor %}
+        </div>
+        <input type="text" name="{{ note_field }}"
+               value="{{ (report[note_field] if report and report.get(note_field)) or '' }}"
+               placeholder="補充說明（選填）"
+               style="margin-top:8px; width:100%; padding:8px 12px; border:1px solid #eee;
+                      border-radius:8px; font-size:0.95rem;">
+      </div>
+      {% endfor %}
+    </section>
+
+    <!-- 小組整體狀況 -->
+    <section>
+      <label style="display:block; font-weight:700; margin-bottom:8px;">
+        小組整體狀況 <span style="color:#d00;">*</span>
+      </label>
+      <textarea name="group_status" rows="4" required
+                placeholder="請描述本週小組聚會情況、氛圍、值得感恩或需代禱的事項..."
+                style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px;
+                       font-size:0.95rem; resize:vertical;">{{ (report.group_status if report and report.get('group_status')) or '' }}</textarea>
+    </section>
+
+    <!-- 新朋友 -->
+    <section>
+      <label style="display:block; font-weight:700; margin-bottom:8px;">新朋友資訊（選填）</label>
+      <div id="newcomers-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
+        {% set newcomers = [] %}
+        {% if report and report.get('newcomer_raw') %}
+          {% set newcomers = report.newcomer_raw | tojson | fromjson %}
+        {% endif %}
+        {% for nc in newcomers %}
+        <div class="newcomer-row" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+          <input type="text" placeholder="姓名" value="{{ nc.name or '' }}"
+                 style="flex:1; min-width:120px; padding:8px 10px; border:1px solid #ddd; border-radius:8px;"
+                 oninput="updateNewcomers()">
+          <input type="tel" placeholder="電話（選填）" value="{{ nc.phone or '' }}"
+                 style="flex:1; min-width:120px; padding:8px 10px; border:1px solid #ddd; border-radius:8px;"
+                 oninput="updateNewcomers()">
+          <button type="button" onclick="this.closest('.newcomer-row').remove(); updateNewcomers();"
+                  style="padding:8px 12px; background:#fff; border:1px solid #e0e0e0;
+                         border-radius:8px; color:#d00; cursor:pointer;">移除</button>
+        </div>
+        {% endfor %}
+      </div>
+      <button type="button" onclick="addNewcomer()"
+              style="padding:8px 16px; background:#f5f5f5; border:1px solid #ddd;
+                     border-radius:8px; cursor:pointer;">+ 新增新朋友</button>
+      <input type="hidden" name="newcomers_json" id="newcomers-json" value="{{ (report.newcomer_raw if report and report.get('newcomer_raw')) or '[]' }}">
+    </section>
+
+    <!-- 同工會建議 -->
+    <section>
+      <label style="display:block; font-weight:700; margin-bottom:8px;">同工會建議（選填）</label>
+      <textarea name="coworker_suggestion" rows="3"
+                placeholder="有什麼想向教會同工反映或建議的事項..."
+                style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px;
+                       font-size:0.95rem; resize:vertical;">{{ (report.coworker_suggestion if report and report.get('coworker_suggestion')) or '' }}</textarea>
+    </section>
+
+    <button type="submit"
+            style="padding:14px; background:#06C755; color:#fff; border:none; border-radius:10px;
+                   font-size:1rem; font-weight:700; cursor:pointer;">
+      送出回報 ✓
+    </button>
+  </form>
+</div>
+
+<script>
+// 讓 radio 按鈕視覺更新
+document.querySelectorAll('input[type="radio"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const name = radio.name;
+    document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
+      const label = r.closest('label');
+      if (label) {
+        label.style.background = r.checked ? '#06C755' : '#fff';
+        label.style.color = r.checked ? '#fff' : '#333';
+      }
+    });
+  });
+});
+
+function addNewcomer() {
+  const list = document.getElementById('newcomers-list');
+  const div = document.createElement('div');
+  div.className = 'newcomer-row';
+  div.style.cssText = 'display:flex; gap:8px; flex-wrap:wrap; align-items:center;';
+  div.innerHTML = `
+    <input type="text" placeholder="姓名"
+           style="flex:1; min-width:120px; padding:8px 10px; border:1px solid #ddd; border-radius:8px;"
+           oninput="updateNewcomers()">
+    <input type="tel" placeholder="電話（選填）"
+           style="flex:1; min-width:120px; padding:8px 10px; border:1px solid #ddd; border-radius:8px;"
+           oninput="updateNewcomers()">
+    <button type="button" onclick="this.closest('.newcomer-row').remove(); updateNewcomers();"
+            style="padding:8px 12px; background:#fff; border:1px solid #e0e0e0;
+                   border-radius:8px; color:#d00; cursor:pointer;">移除</button>`;
+  list.appendChild(div);
+}
+
+function updateNewcomers() {
+  const rows = document.querySelectorAll('.newcomer-row');
+  const data = [];
+  rows.forEach(row => {
+    const inputs = row.querySelectorAll('input');
+    const name = (inputs[0]?.value || '').trim();
+    const phone = (inputs[1]?.value || '').trim();
+    if (name) data.push({name, phone});
+  });
+  document.getElementById('newcomers-json').value = JSON.stringify(data);
+}
+</script>
+{% endblock %}

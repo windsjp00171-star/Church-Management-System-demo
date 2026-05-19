@@ -1,0 +1,911 @@
+{% extends "base.html" %}
+{% block title %}{{ '編輯活動' if event else '建立活動' }}{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+    <h2>{{ '✏️ 編輯活動' if event else '✨ 建立新活動' }}</h2>
+    <a href="/admin/events" style="color:#666; text-decoration:none;">← 返回活動列表</a>
+</div>
+
+<div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+
+    <!-- 海報上傳 -->
+    <div style="margin-bottom:28px;">
+        <h3 style="margin-bottom:12px; color:#333;">🖼 活動海報</h3>
+        <div id="poster-area"
+            onclick="document.getElementById('poster-input').click()"
+            style="border:2px dashed #ddd; border-radius:12px; padding:24px; text-align:center;
+                   cursor:pointer; background:#fafafa; position:relative; transition:border-color 0.2s;"
+            onmouseover="this.style.borderColor='#06C755'" onmouseout="this.style.borderColor='#ddd'">
+
+            {% if event and event.poster_url %}
+            <img id="poster-preview" src="{{ event.poster_url }}"
+                style="max-width:100%; max-height:360px; border-radius:8px; display:block; margin:0 auto;">
+            <p style="color:#aaa; font-size:0.82rem; margin-top:10px;">點擊更換海報</p>
+            {% else %}
+            <div id="poster-placeholder">
+                <p style="font-size:2rem; margin:0;">🖼</p>
+                <p style="color:#aaa; margin:8px 0 0 0;">點擊上傳活動海報</p>
+                <p style="color:#ccc; font-size:0.8rem; margin:4px 0 0 0;">支援 JPG / PNG / GIF / WebP</p>
+            </div>
+            <img id="poster-preview" src="" style="max-width:100%; max-height:360px; border-radius:8px; display:none; margin:0 auto;">
+            {% endif %}
+
+            <div id="poster-uploading" style="display:none; position:absolute; inset:0; background:rgba(255,255,255,0.85);
+                border-radius:10px; display:none; align-items:center; justify-content:center; font-size:0.9rem; color:#555;">
+                上傳中...
+            </div>
+        </div>
+
+        <input type="file" id="poster-input" accept="image/*" style="display:none" onchange="uploadPoster(this)">
+        <input type="hidden" id="poster_url" value="{{ event.poster_url if event and event.poster_url else '' }}">
+
+        {% if event and event.poster_url %}
+        <div style="margin-top:10px; display:flex; gap:10px; justify-content:flex-end;">
+            <button type="button" onclick="removePoster()"
+                style="padding:6px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                移除海報
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 基本資料 -->
+    <h3 style="margin-bottom:16px; color:#333;">📋 基本資料</h3>
+
+    <div style="display:grid; gap:16px;">
+        <div>
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">活動名稱 *</label>
+            <input id="title" type="text" value="{{ event.title if event else '' }}"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+        </div>
+        <div>
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">地點</label>
+            <input id="location" type="text" value="{{ event.location if event else '' }}"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+        </div>
+        <div>
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">活動簡介</label>
+            <textarea id="description" rows="3"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; resize:vertical;">{{ event.description if event else '' }}</textarea>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">活動開始時間</label>
+                <input id="event_start" type="datetime-local"
+                    value="{{ event.event_start | taipei_time('%Y-%m-%dT%H:%M') if event and event.event_start else '' }}"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+            </div>
+            <div>
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">活動結束時間</label>
+                <input id="event_end" type="datetime-local"
+                    value="{{ event.event_end | taipei_time('%Y-%m-%dT%H:%M') if event and event.event_end else '' }}"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">報名開始時間</label>
+                <input id="reg_start" type="datetime-local"
+                    value="{{ event.reg_start | taipei_time('%Y-%m-%dT%H:%M') if event and event.reg_start else '' }}"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+            </div>
+            <div>
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">報名截止時間</label>
+                <input id="reg_end" type="datetime-local"
+                    value="{{ event.reg_end | taipei_time('%Y-%m-%dT%H:%M') if event and event.reg_end else '' }}"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+            </div>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+            <div>
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">人數上限（留空表示無限制）</label>
+                <input id="capacity" type="number" min="1"
+                    value="{{ event.capacity if event and event.capacity else '' }}"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+            </div>
+            <div>
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">費用（元，免費填 0）</label>
+                <input id="fee" type="number" min="0"
+                    value="{{ event.fee if event else 0 }}"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+            </div>
+            <div>
+                <label style="font-weight:bold; display:block; margin-bottom:6px;">⏰ 繳費提醒（天前）</label>
+                <input id="reminder_days" type="number" min="1" max="30"
+                    value="{{ event.reminder_days if event and event.reminder_days else 3 }}"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+                <p style="font-size:0.78rem; color:#aaa; margin-top:4px;">活動前幾天提醒未付款者，預設 3 天（有費用才會通知）</p>
+            </div>
+        </div>
+        <!-- 餐點訂購設定 -->
+        <div style="background:#e3f2fd; padding:14px 16px; border-radius:8px; border:1px solid #90caf9;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:4px;">
+                <input type="checkbox" id="f-meal-enabled" style="width:16px; height:16px; cursor:pointer;" onchange="toggleMealConfig()">
+                <label for="f-meal-enabled" style="font-weight:bold; cursor:pointer;">🍱 開放餐點訂購</label>
+            </div>
+            <p style="font-size:0.8rem; color:#888; margin:4px 0 10px 26px;">報名時可勾選用餐，費用自動加總</p>
+            <div id="meal-config" style="display:none;">
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+                    <label style="font-size:0.9rem; color:#555; font-weight:bold;">活動天數</label>
+                    <input type="number" id="f-meal-days" min="1" max="14" value="1"
+                        style="width:68px; padding:7px 10px; border:1px solid #90caf9; border-radius:6px; font-size:0.9rem;"
+                        oninput="rebuildMealGrid()">
+                    <span style="font-size:0.85rem; color:#888;">天</span>
+                </div>
+                <div id="meal-grid" style="overflow-x:auto;"></div>
+                <p style="font-size:0.8rem; color:#888; margin-top:8px;">✔ 勾選代表該餐次開放訂購，填入費用（0 = 免費）</p>
+            </div>
+        </div>
+
+        <!-- 候補名單設定 -->
+        <div style="display:flex; align-items:flex-start; gap:10px; background:#e3f2fd; padding:12px 16px; border-radius:8px; border:1px solid #90caf9; margin-top:10px;">
+            <input id="waitlist_enabled" type="checkbox"
+                {{ 'checked' if event and event.waitlist_enabled }}
+                onchange="toggleWaitlistDeadline(this)"
+                style="width:18px; height:18px; cursor:pointer; margin-top:2px; flex-shrink:0;">
+            <div style="flex:1;">
+                <label for="waitlist_enabled" style="font-weight:bold; cursor:pointer;">開放候補名單</label>
+                <p style="font-size:0.82rem; color:#888; margin-top:3px;">
+                    額滿後允許會友加入候補，有人取消時自動晉升。
+                </p>
+                <div id="waitlist_deadline_section" style="display:{{ 'block' if event and event.waitlist_enabled else 'none' }}; margin-top:10px;">
+                    <label style="font-size:0.85rem; font-weight:bold; display:block; margin-bottom:4px;">候補截止時間（選填，過期後自動關閉候補）</label>
+                    <input id="waitlist_deadline" type="datetime-local"
+                        value="{{ event.waitlist_deadline[:16] if event and event.waitlist_deadline else '' }}"
+                        style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; width:100%; max-width:260px;">
+                </div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:10px; background:#fff8e1; padding:12px 16px; border-radius:8px; border:1px solid #ffe082;">
+            <input id="allow_multiple" type="checkbox"
+                {{ 'checked' if event and event.allow_multiple }}
+                style="width:18px; height:18px; cursor:pointer; margin-top:2px; flex-shrink:0;">
+            <div>
+                <label for="allow_multiple" style="font-weight:bold; cursor:pointer;">允許同一帳號重複報名</label>
+                <p style="font-size:0.82rem; color:#888; margin-top:3px;">
+                    適合需要代報名的情境（例如老人家由家屬協助），同一 LINE 帳號可幫多人報名。
+                </p>
+            </div>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:10px; background:#e8f5e9; padding:12px 16px; border-radius:8px; border:1px solid #a5d6a7; margin-top:10px;">
+            <input id="allow_external_reg" type="checkbox"
+                {{ 'checked' if event and event.allow_external_reg }}
+                style="width:18px; height:18px; cursor:pointer; margin-top:2px; flex-shrink:0;">
+            <div>
+                <label for="allow_external_reg" style="font-weight:bold; cursor:pointer;">開放外部報名</label>
+                <p style="font-size:0.82rem; color:#888; margin-top:3px;">
+                    啟用後，未登入者進入報名頁或掃簽到 QR Code 時，會先詢問是否為會友。外部朋友可直接填寫姓名與自訂欄位報名，<strong>無需 LINE 登入</strong>。簽到時顯示打碼姓名清單供點選。
+                </p>
+            </div>
+        </div>
+        <div style="display:flex; align-items:flex-start; gap:10px; background:#fff8e1; padding:12px 16px; border-radius:8px; border:1px solid #ffe082; margin-top:10px;">
+            <input id="whitelist_enabled" type="checkbox"
+                {{ 'checked' if event and event.whitelist_enabled }}
+                style="width:18px; height:18px; cursor:pointer; margin-top:2px; flex-shrink:0;">
+            <div>
+                <label for="whitelist_enabled" style="font-weight:bold; cursor:pointer;">限定報名名單</label>
+                <p style="font-size:0.82rem; color:#888; margin-top:3px;">
+                    啟用後只有名單內的人才能報名，非名單者看到「受邀人員限定」提示。可在報名名單頁面維護名單。
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂欄位 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin:28px 0 8px;">
+        <h3 style="color:#333; margin:0;">🔧 自訂報名欄位</h3>
+        <button type="button" onclick="openPreview()"
+            style="padding:8px 18px; background:#e3f2fd; color:#1565c0; border:1px solid #90caf9; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+            👁 預覽表單
+        </button>
+    </div>
+    <p style="color:#666; font-size:0.9rem; margin-bottom:10px;">
+        支援文字、長文字、單選、多選、下拉選單、數字、日期。<strong>下拉選單與單選</strong>可設定跳題條件。
+    </p>
+    <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:0.85rem; color:#795548;">
+        💡 <strong>請記得</strong>：第一個欄位名稱填 <strong>「參加者姓名」</strong>（文字類型、必填），簽到名單才能正確顯示每位參加者的名字，代報時也不會顯示代報者的名字。
+    </div>
+
+    <div id="fieldList">
+        {% for field in fields %}
+        <div class="field-row"
+             data-saved-condition="{{ field.condition_json or '' }}"
+             data-field-id="{{ field.id }}"
+             style="background:#f9f9f9; border-radius:10px; padding:14px 16px; margin-bottom:10px; border:1px solid #eee;">
+
+            <!-- 第一行：欄位名稱 + 類型 + 必填 + 刪除 -->
+            <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                <input type="text" placeholder="欄位名稱，例：電話" value="{{ field.label }}"
+                    class="f-label"
+                    style="flex:1; min-width:140px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;">
+                <select class="f-type" onchange="toggleOptions(this)"
+                    style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;">
+                    <option value="text"     {{ 'selected' if field.field_type=='text' }}>文字</option>
+                    <option value="textarea" {{ 'selected' if field.field_type=='textarea' }}>長文字</option>
+                    <option value="radio"    {{ 'selected' if field.field_type=='radio' }}>單選</option>
+                    <option value="checkbox" {{ 'selected' if field.field_type=='checkbox' }}>多選</option>
+                    <option value="select"   {{ 'selected' if field.field_type=='select' }}>下拉選單</option>
+                    <option value="number"   {{ 'selected' if field.field_type=='number' }}>數字</option>
+                    <option value="date"     {{ 'selected' if field.field_type=='date' }}>日期</option>
+                </select>
+                <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
+                    <input type="checkbox" class="f-required" {{ 'checked' if field.is_required }}
+                        style="width:16px; height:16px;"> 必填
+                </label>
+                <button onclick="this.closest('.field-row').remove(); rebuildAllConditionDropdowns()"
+                    style="padding:6px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                    刪除
+                </button>
+            </div>
+
+            <!-- 第二行：選項（select / radio / checkbox 才顯示） -->
+            <div class="options-area" style="margin-top:10px; {{ '' if field.field_type in ['select','radio','checkbox'] else 'display:none;' }}">
+                <label style="font-size:0.85rem; color:#888; display:block; margin-bottom:4px;">
+                    選項內容（每行一個）
+                </label>
+                <textarea class="f-options" rows="3"
+                    style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; resize:vertical;">{{ (field.options or '').replace('__other__', '').strip() }}</textarea>
+                <!-- 其他選項開關 -->
+                <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.85rem; cursor:pointer; color:#555;">
+                    <input type="checkbox" class="f-has-other"
+                        {{ 'checked' if field.options and '__other__' in field.options }}
+                        onchange="toggleHasOther(this)"
+                        style="width:15px; height:15px;">
+                    加入「其他（請填寫）」開放填寫選項
+                </label>
+            </div>
+
+            <!-- 第三行：跳題條件 -->
+            <div class="condition-section" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e0e0e0;">
+                <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:#666; cursor:pointer;">
+                    <input type="checkbox" class="f-has-condition"
+                        onchange="toggleConditionPanel(this)"
+                        style="width:15px; height:15px;">
+                    設定跳題條件（只在特定答案時才顯示此問題）
+                </label>
+                <div class="condition-panel" style="display:none; margin-top:10px; background:white; border:1px solid #d0d0d0; border-radius:8px; padding:14px;">
+                    <p style="font-size:0.85rem; color:#555; margin-bottom:10px;">此問題只在以下條件成立時才顯示：</p>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.9rem;">
+                        <span style="color:#555;">當</span>
+                        <select class="f-cond-trigger" onchange="updateConditionValues(this)"
+                            style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; min-width:160px; font-size:0.9rem;">
+                            <option value="">— 選擇觸發問題 —</option>
+                        </select>
+                        <span style="color:#555;">的答案是</span>
+                        <select class="f-cond-value"
+                            style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; min-width:120px; font-size:0.9rem;">
+                            <option value="">— 先選觸發問題 —</option>
+                        </select>
+                        <span style="color:#555;">時才顯示</span>
+                    </div>
+                    <p style="font-size:0.8rem; color:#aaa; margin-top:8px;">
+                        ⚠️ 觸發問題需為「單選」或「下拉選單」類型，且已填好選項。
+                    </p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    <button onclick="addField()"
+        style="margin-top:8px; padding:10px 20px; background:#f5f5f5; border:1px dashed #ccc;
+               border-radius:8px; cursor:pointer; color:#555; font-size:0.95rem; width:100%;">
+        + 新增欄位
+    </button>
+
+    <!-- 電子簽到設定 -->
+    <h3 style="margin:28px 0 8px; color:#333;">📱 電子簽到</h3>
+    <p style="color:#666; font-size:0.9rem; margin-bottom:12px;">
+        開啟後會產生專屬 QR Code，活動當天讓出席者掃碼簽到。
+    </p>
+    <!-- 快速提示 -->
+    <div style="background:#e8f4fd; border-left:3px solid #1565c0; border-radius:0 8px 8px 0; padding:10px 14px; margin-bottom:14px; font-size:0.82rem; color:#1a3a5c; line-height:1.8;">
+        💡 <strong>核心同工會 / 掃碼即到場</strong>：勾選「開啟」→ 選「全開放」→ 再勾選「⚡ 掃碼即自動簽到」，會友掃碼後直接完成，不需點確認。
+    </div>
+    <div style="background:#f9f9f9; border-radius:10px; padding:16px 20px; border:1px solid #eee;">
+        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:bold;">
+            <input type="checkbox" id="checkin_enabled"
+                onchange="toggleCheckinMode(this)"
+                {{ 'checked' if event and event.checkin_enabled }}
+                style="width:18px; height:18px;">
+            開啟電子簽到 QR Code
+        </label>
+        <div id="checkin_mode_section"
+             style="margin-top:14px; padding-top:14px; border-top:1px solid #e0e0e0;
+                    {{ '' if event and event.checkin_enabled else 'display:none;' }}">
+            <p style="font-size:0.85rem; color:#555; margin-bottom:10px;">簽到對象：</p>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+                <input type="radio" name="checkin_mode" value="registered_only"
+                    {{ 'checked' if not event or not event.checkin_mode or event.checkin_mode == 'registered_only' }}
+                    style="width:16px; height:16px;">
+                <span><strong>僅限已報名者</strong> <span style="color:#888; font-size:0.85rem;">（只有事先報名的弟兄姊妹能簽到）</span></span>
+            </label>
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="radio" name="checkin_mode" value="open"
+                    {{ 'checked' if event and event.checkin_mode == 'open' }}
+                    onchange="toggleOpenCheckin(this)"
+                    style="width:16px; height:16px;">
+                <span><strong>全開放</strong> <span style="color:#888; font-size:0.85rem;">（任何人掃碼都可簽到，未報名者自動建立到場紀錄）</span></span>
+            </label>
+            <!-- 掃碼即自動簽到子選項 -->
+            <div id="allow_open_checkin_section"
+                 style="margin-left:24px; margin-top:10px; padding:10px 14px; background:#fff8e1; border-radius:8px; border:1px solid #ffe082;
+                        {{ '' if event and event.checkin_mode == 'open' else 'display:none;' }}">
+                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                    <input type="checkbox" id="allow_open_checkin"
+                        {{ 'checked' if event and event.allow_open_checkin }}
+                        style="width:16px; height:16px;">
+                    <span style="font-size:0.88rem; color:#5d4037; font-weight:bold;">⚡ 掃碼即自動簽到（不需點確認）</span>
+                </label>
+                <p style="font-size:0.8rem; color:#8d6e63; margin:6px 0 0 24px;">
+                    適合核心同工會等場合，掃碼後直接完成簽到，並自動帶入小組資訊。
+                </p>
+            </div>
+        </div>
+
+        <!-- 🎉 Party 動畫開關 -->
+        <div id="party_animation_section"
+             style="margin-top:12px; padding:10px 14px; background:#fdf4ff; border-radius:8px; border:1px solid #e9d5ff;
+                    {{ '' if event and event.checkin_enabled else 'display:none;' }}">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="party_animation"
+                    {{ 'checked' if event and event.get('party_animation') }}
+                    style="width:16px; height:16px;">
+                <span style="font-size:0.88rem; color:#6b21a8; font-weight:bold;">🎉 簽到成功後播放派對動畫</span>
+            </label>
+            <p style="font-size:0.8rem; color:#9333ea; margin:5px 0 0 24px;">
+                彩帶爆炸 + 氣球浮升顯示到場者名字，適合特別活動或聚會。
+            </p>
+        </div>
+    </div>
+
+    <!-- 送出 -->
+    <div style="margin-top:32px; display:flex; gap:12px;">
+        <button onclick="submitForm()"
+            style="padding:12px 32px; background:#06C755; color:white; border:none;
+                   border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer;">
+            {{ '儲存變更' if event else '建立活動' }}
+        </button>
+        <a href="/admin/events"
+            style="padding:12px 24px; background:#f5f5f5; color:#666; border-radius:8px;
+                   text-decoration:none; font-size:1rem;">
+            取消
+        </a>
+    </div>
+</div>
+
+<!-- ===== 預覽表單 Modal ===== -->
+<div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; overflow-y:auto; padding:24px 16px;">
+    <div style="background:white; border-radius:16px; max-width:520px; margin:0 auto; padding:28px; position:relative;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h3 style="margin:0; color:#333;">👁 表單預覽</h3>
+            <button onclick="closePreview()"
+                style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#999; padding:4px 8px;">✕</button>
+        </div>
+        <p style="font-size:0.85rem; color:#aaa; margin-bottom:20px;">這是報名者看到的填寫畫面（僅供預覽，不可實際送出）</p>
+        <div style="margin-bottom:16px; padding:12px 16px; background:#f5f5f5; border-radius:8px; color:#555; font-size:0.9rem;">
+            報名身份：<strong>您的 LINE 名稱</strong>（來自您的 LINE 帳號）
+        </div>
+        <div id="preview-fields"></div>
+        <button disabled
+            style="width:100%; background:#ccc; color:white; border:none; padding:14px; border-radius:10px; font-size:1rem; font-weight:bold; cursor:not-allowed; margin-top:16px;">
+            確認報名（預覽模式）
+        </button>
+    </div>
+</div>
+
+<script>
+// ==========================================
+// 選項區塊切換（select / radio / checkbox 才顯示）
+// ==========================================
+function toggleOptions(select) {
+    const row = select.closest('.field-row');
+    const area = row.querySelector('.options-area');
+    const showOptions = ['select', 'radio', 'checkbox'].includes(select.value);
+    area.style.display = showOptions ? 'block' : 'none';
+    rebuildAllConditionDropdowns();
+}
+
+// ==========================================
+// 「其他」選項：加入或移除 __other__ 標記
+// ==========================================
+function toggleHasOther(checkbox) {
+    const textarea = checkbox.closest('.options-area').querySelector('.f-options');
+    const lines = textarea.value.split('\n').map(l => l.trim()).filter(l => l && l !== '__other__');
+    if (checkbox.checked) lines.push('__other__');
+    textarea.value = lines.join('\n');
+}
+
+// ==========================================
+// 跳題條件相關
+// ==========================================
+function toggleConditionPanel(checkbox) {
+    const panel = checkbox.closest('.condition-section').querySelector('.condition-panel');
+    if (checkbox.checked) {
+        panel.style.display = 'block';
+        rebuildTriggerDropdown(checkbox.closest('.field-row'));
+    } else {
+        panel.style.display = 'none';
+    }
+}
+
+function rebuildTriggerDropdown(currentRow) {
+    const triggerSelect = currentRow.querySelector('.f-cond-trigger');
+    if (!triggerSelect) return;
+    const savedTrigger = triggerSelect.value;
+    triggerSelect.innerHTML = '<option value="">— 選擇觸發問題 —</option>';
+    const allRows = Array.from(document.querySelectorAll('.field-row'));
+    allRows.forEach((row, index) => {
+        if (row === currentRow) return;
+        const type = row.querySelector('.f-type').value;
+        if (!['select', 'radio'].includes(type)) return; // 只有 select / radio 可觸發
+        const label = row.querySelector('.f-label').value.trim() || `第 ${index + 1} 題`;
+        const opt = document.createElement('option');
+        opt.value = index;
+        opt.textContent = `第${index + 1}題：${label}`;
+        if (String(index) === String(savedTrigger)) opt.selected = true;
+        triggerSelect.appendChild(opt);
+    });
+    if (triggerSelect.value !== '') updateConditionValues(triggerSelect);
+}
+
+function rebuildAllConditionDropdowns() {
+    document.querySelectorAll('.f-has-condition:checked').forEach(checkbox => {
+        rebuildTriggerDropdown(checkbox.closest('.field-row'));
+    });
+}
+
+function updateConditionValues(triggerSelect) {
+    const valueSelect = triggerSelect.closest('.condition-panel').querySelector('.f-cond-value');
+    const savedValue = valueSelect.value;
+    const triggerIndex = parseInt(triggerSelect.value);
+    if (isNaN(triggerIndex)) {
+        valueSelect.innerHTML = '<option value="">— 先選觸發問題 —</option>';
+        return;
+    }
+    const allRows = Array.from(document.querySelectorAll('.field-row'));
+    const triggerRow = allRows[triggerIndex];
+    if (!triggerRow) return;
+    const optionsText = triggerRow.querySelector('.f-options')?.value || '';
+    const options = optionsText.split('\n').map(s => s.trim()).filter(s => s && s !== '__other__');
+    valueSelect.innerHTML = '<option value="">— 選擇觸發答案 —</option>';
+    options.forEach(opt => {
+        const el = document.createElement('option');
+        el.value = opt;
+        el.textContent = opt;
+        if (opt === savedValue) el.selected = true;
+        valueSelect.appendChild(el);
+    });
+}
+
+// ==========================================
+// 新增欄位
+// ==========================================
+function addField() {
+    const div = document.createElement('div');
+    div.className = 'field-row';
+    div.style.cssText = 'background:#f9f9f9; border-radius:10px; padding:14px 16px; margin-bottom:10px; border:1px solid #eee;';
+    div.innerHTML = `
+        <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+            <input type="text" placeholder="欄位名稱，例：電話"
+                class="f-label"
+                style="flex:1; min-width:140px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;">
+            <select class="f-type" onchange="toggleOptions(this)"
+                style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;">
+                <option value="text">文字</option>
+                <option value="textarea">長文字</option>
+                <option value="radio">單選</option>
+                <option value="checkbox">多選</option>
+                <option value="select">下拉選單</option>
+                <option value="number">數字</option>
+                <option value="date">日期</option>
+            </select>
+            <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
+                <input type="checkbox" class="f-required" style="width:16px; height:16px;"> 必填
+            </label>
+            <button onclick="this.closest('.field-row').remove(); rebuildAllConditionDropdowns()"
+                style="padding:6px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                刪除
+            </button>
+        </div>
+        <div class="options-area" style="margin-top:10px; display:none;">
+            <label style="font-size:0.85rem; color:#888; display:block; margin-bottom:4px;">
+                選項內容（每行一個）
+            </label>
+            <textarea class="f-options" rows="3"
+                style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; resize:vertical;"></textarea>
+            <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.85rem; cursor:pointer; color:#555;">
+                <input type="checkbox" class="f-has-other" onchange="toggleHasOther(this)" style="width:15px; height:15px;">
+                加入「其他（請填寫）」開放填寫選項
+            </label>
+        </div>
+        <div class="condition-section" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e0e0e0;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:#666; cursor:pointer;">
+                <input type="checkbox" class="f-has-condition" onchange="toggleConditionPanel(this)" style="width:15px; height:15px;">
+                設定跳題條件（只在特定答案時才顯示此問題）
+            </label>
+            <div class="condition-panel" style="display:none; margin-top:10px; background:white; border:1px solid #d0d0d0; border-radius:8px; padding:14px;">
+                <p style="font-size:0.85rem; color:#555; margin-bottom:10px;">此問題只在以下條件成立時才顯示：</p>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.9rem;">
+                    <span style="color:#555;">當</span>
+                    <select class="f-cond-trigger" onchange="updateConditionValues(this)"
+                        style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; min-width:160px; font-size:0.9rem;">
+                        <option value="">— 選擇觸發問題 —</option>
+                    </select>
+                    <span style="color:#555;">的答案是</span>
+                    <select class="f-cond-value"
+                        style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; min-width:120px; font-size:0.9rem;">
+                        <option value="">— 先選觸發問題 —</option>
+                    </select>
+                    <span style="color:#555;">時才顯示</span>
+                </div>
+                <p style="font-size:0.8rem; color:#aaa; margin-top:8px;">
+                    ⚠️ 觸發問題需為「單選」或「下拉選單」類型，且已填好選項。
+                </p>
+            </div>
+        </div>
+    `;
+    document.getElementById('fieldList').appendChild(div);
+}
+
+// ── 餐點格子（與課程表單共用相同邏輯）────────────────────
+const MEAL_TYPES_EV = ['早餐','午餐','晚餐'];
+const EXISTING_MEAL_EV = {{ (event.meal_options | tojson) if event and event.meal_options else 'null' }};
+
+function toggleMealConfig() {
+    const on = document.getElementById('f-meal-enabled').checked;
+    document.getElementById('meal-config').style.display = on ? 'block' : 'none';
+    if (on && !document.getElementById('meal-grid').innerHTML.trim()) rebuildMealGrid();
+}
+function rebuildMealGrid() {
+    const days = Math.max(1, Math.min(14, parseInt(document.getElementById('f-meal-days').value) || 1));
+    const prevMap = {};
+    (collectMealOptions() || []).forEach(o => { prevMap[o.id] = o; });
+    let html = '<table style="width:100%; border-collapse:collapse; font-size:0.88rem;">';
+    html += '<tr><th style="padding:8px 10px; background:#bbdefb; text-align:left;"></th>';
+    MEAL_TYPES_EV.forEach(m => { html += `<th style="padding:8px 10px; background:#bbdefb; text-align:center;">${m}</th>`; });
+    html += '</tr>';
+    for (let d = 1; d <= days; d++) {
+        html += `<tr style="border-bottom:1px solid #e3f2fd;"><td style="padding:8px 10px; font-weight:bold; color:#1565c0; white-space:nowrap;">第 ${d} 天</td>`;
+        MEAL_TYPES_EV.forEach(m => {
+            const id = `d${d}_${m}`;
+            const prev = prevMap[id] || {};
+            const chk = prev.enabled || false;
+            const pr = prev.price !== undefined ? prev.price : 0;
+            html += `<td style="padding:8px 10px; text-align:center;">
+                <label style="display:flex; align-items:center; justify-content:center; gap:6px; cursor:pointer;">
+                    <input type="checkbox" id="mc-${id}" ${chk ? 'checked' : ''} onchange="updateMealCell('${id}')" style="width:15px; height:15px;">
+                    <span style="color:#888; font-size:0.8rem;">$</span>
+                    <input type="number" id="mp-${id}" min="0" value="${pr}"
+                        style="width:68px; padding:4px 7px; border:1px solid ${chk ? '#90caf9' : '#e0e0e0'}; border-radius:6px;" ${chk ? '' : 'disabled'}>
+                </label></td>`;
+        });
+        html += '</tr>';
+    }
+    html += '</table>';
+    document.getElementById('meal-grid').innerHTML = html;
+}
+function updateMealCell(id) {
+    const cb = document.getElementById('mc-' + id);
+    const inp = document.getElementById('mp-' + id);
+    inp.disabled = !cb.checked;
+    inp.style.border = cb.checked ? '1px solid #90caf9' : '1px solid #e0e0e0';
+}
+function collectMealOptions() {
+    const days = Math.max(1, parseInt(document.getElementById('f-meal-days')?.value) || 1);
+    const options = [];
+    for (let d = 1; d <= days; d++) {
+        MEAL_TYPES_EV.forEach(m => {
+            const id = `d${d}_${m}`;
+            const cb = document.getElementById('mc-' + id);
+            if (!cb) return;
+            options.push({ id, day: d, meal: m, label: `第${d}天${m}`,
+                enabled: cb.checked,
+                price: parseInt(document.getElementById('mp-' + id).value) || 0 });
+        });
+    }
+    return options;
+}
+function initMealConfig() {
+    if (!EXISTING_MEAL_EV || !EXISTING_MEAL_EV.enabled) return;
+    document.getElementById('f-meal-enabled').checked = true;
+    document.getElementById('meal-config').style.display = 'block';
+    document.getElementById('f-meal-days').value = EXISTING_MEAL_EV.days || 1;
+    rebuildMealGrid();
+    (EXISTING_MEAL_EV.options || []).forEach(o => {
+        const cb = document.getElementById('mc-' + o.id);
+        const inp = document.getElementById('mp-' + o.id);
+        if (!cb) return;
+        cb.checked = o.enabled;
+        if (inp) { inp.disabled = !o.enabled; inp.value = o.price || 0;
+            inp.style.border = o.enabled ? '1px solid #90caf9' : '1px solid #e0e0e0'; }
+    });
+}
+window.addEventListener('DOMContentLoaded', initMealConfig);
+// ─────────────────────────────────────────────────────────
+
+// ==========================================
+// 送出表單
+// ==========================================
+function submitForm() {
+    const title = document.getElementById('title').value.trim();
+    if (!title) { alert('請填寫活動名稱！'); return; }
+
+    const fields = [];
+    document.querySelectorAll('.field-row').forEach((row, index) => {
+        let condition_json = null;
+        const hasCondition = row.querySelector('.f-has-condition')?.checked;
+        if (hasCondition) {
+            const triggerIndex = row.querySelector('.f-cond-trigger')?.value;
+            const triggerValue = row.querySelector('.f-cond-value')?.value;
+            if (triggerIndex !== '' && triggerValue !== '') {
+                condition_json = JSON.stringify({
+                    trigger_sort_order: parseInt(triggerIndex),
+                    trigger_value: triggerValue
+                });
+            }
+        }
+
+        // 選項：把不含 __other__ 的純文字選項 + 若有勾選則加回 __other__
+        const rawOptions = row.querySelector('.f-options')?.value.trim() || '';
+        const hasOther = row.querySelector('.f-has-other')?.checked;
+        const cleanOptions = rawOptions.split('\n').map(l => l.trim())
+            .filter(l => l && l !== '__other__').join('\n');
+        const finalOptions = hasOther ? cleanOptions + '\n__other__' : cleanOptions;
+
+        fields.push({
+            id: row.dataset.fieldId || null,   // 保留既有欄位 ID，避免重建後答案消失
+            label: row.querySelector('.f-label').value.trim(),
+            field_type: row.querySelector('.f-type').value,
+            options: finalOptions,
+            is_required: row.querySelector('.f-required').checked,
+            condition_json,
+        });
+    });
+
+    const checkinEnabled = document.getElementById('checkin_enabled').checked;
+    const checkinModeEl = document.querySelector('input[name="checkin_mode"]:checked');
+    const allowMultiple = document.getElementById('allow_multiple').checked;
+    const allowOpenCheckinEl = document.getElementById('allow_open_checkin');
+    const allowOpenCheckin = allowOpenCheckinEl ? allowOpenCheckinEl.checked : false;
+
+    const payload = {
+        title,
+        description: document.getElementById('description').value.trim(),
+        location: document.getElementById('location').value.trim(),
+        event_start: document.getElementById('event_start').value || null,
+        event_end: document.getElementById('event_end').value || null,
+        reg_start: document.getElementById('reg_start').value || null,
+        reg_end: document.getElementById('reg_end').value || null,
+        capacity: document.getElementById('capacity').value || null,
+        fee: document.getElementById('fee').value || 0,
+        reminder_days: parseInt(document.getElementById('reminder_days').value) || 3,
+        is_open: true,
+        checkin_enabled: checkinEnabled,
+        checkin_mode: checkinModeEl ? checkinModeEl.value : 'registered_only',
+        allow_open_checkin: allowOpenCheckin,
+        allow_multiple: allowMultiple,
+        allow_external_reg: document.getElementById('allow_external_reg').checked,
+        party_animation: document.getElementById('party_animation').checked,
+        whitelist_enabled: document.getElementById('whitelist_enabled').checked,
+        waitlist_enabled: document.getElementById('waitlist_enabled').checked,
+        waitlist_deadline: document.getElementById('waitlist_deadline').value || null,
+        poster_url: document.getElementById('poster_url').value || null,
+        meal_options: document.getElementById('f-meal-enabled').checked ? {
+            enabled: true,
+            days: parseInt(document.getElementById('f-meal-days').value) || 1,
+            options: collectMealOptions()
+        } : null,
+        fields,
+    };
+
+    const url = '{{ "/admin/events/" + event.id + "/edit" if event else "/admin/events/new" }}';
+    fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    })
+    .then(res => res.text().then(text => {
+        try { return JSON.parse(text); }
+        catch { throw new Error('伺服器錯誤：' + text.substring(0, 300)); }
+    }))
+    .then(data => {
+        if (data.success) window.location.href = '/admin/events';
+        else alert('建立失敗：' + (data.error || '未知錯誤'));
+    })
+    .catch(err => alert('錯誤：' + err.message));
+}
+
+// ==========================================
+// 電子簽到 checkbox 切換
+// ==========================================
+function toggleWaitlistDeadline(checkbox) {
+    document.getElementById('waitlist_deadline_section').style.display = checkbox.checked ? 'block' : 'none';
+}
+
+function toggleCheckinMode(checkbox) {
+    document.getElementById('checkin_mode_section').style.display = checkbox.checked ? 'block' : 'none';
+    document.getElementById('party_animation_section').style.display = checkbox.checked ? 'block' : 'none';
+    // 未開啟簽到時隱藏子選項
+    if (!checkbox.checked) {
+        document.getElementById('allow_open_checkin_section').style.display = 'none';
+    }
+}
+
+function toggleOpenCheckin(radio) {
+    // 切換「全開放」radio 時顯示/隱藏自動簽到子選項
+    const section = document.getElementById('allow_open_checkin_section');
+    if (section) section.style.display = radio.value === 'open' ? 'block' : 'none';
+}
+
+// 頁面載入後：若已選全開放，確保子選項可見；若選僅限報名，也要綁定 onchange
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('input[name="checkin_mode"]').forEach(r => {
+        r.addEventListener('change', () => toggleOpenCheckin(r));
+    });
+});
+
+// ==========================================
+// 預覽表單 Modal
+// ==========================================
+function openPreview() {
+    const container = document.getElementById('preview-fields');
+    container.innerHTML = '';
+
+    const rows = Array.from(document.querySelectorAll('.field-row'));
+    if (!rows.length) {
+        container.innerHTML = '<p style="color:#aaa; text-align:center; padding:20px;">尚未新增任何欄位</p>';
+    } else {
+        rows.forEach((row, i) => {
+            const label = row.querySelector('.f-label').value.trim() || `欄位 ${i+1}`;
+            const type = row.querySelector('.f-type').value;
+            const required = row.querySelector('.f-required').checked;
+            const rawOpts = row.querySelector('.f-options')?.value || '';
+            const hasOther = row.querySelector('.f-has-other')?.checked;
+            const opts = rawOpts.split('\n').map(o => o.trim()).filter(o => o && o !== '__other__');
+
+            const wrap = document.createElement('div');
+            wrap.style.cssText = 'margin-bottom:20px;';
+
+            let html = `<label style="display:block; font-weight:bold; margin-bottom:8px; color:#333;">
+                ${escHtml(label)}${required ? ' <span style="color:#e53935;">*</span>' : ''}
+            </label>`;
+
+            if (type === 'radio') {
+                html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+                opts.forEach(opt => {
+                    html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;cursor:pointer;">
+                        <input type="radio" disabled style="width:17px;height:17px;"> <span>${escHtml(opt)}</span>
+                    </label>`;
+                });
+                if (hasOther) html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;cursor:pointer;">
+                    <input type="radio" disabled style="width:17px;height:17px;"> <span>其他（請填寫）</span>
+                    <input type="text" disabled placeholder="請說明..." style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;min-width:120px;flex:1;">
+                </label>`;
+                html += '</div>';
+            } else if (type === 'checkbox') {
+                html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+                opts.forEach(opt => {
+                    html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;cursor:pointer;">
+                        <input type="checkbox" disabled style="width:17px;height:17px;"> <span>${escHtml(opt)}</span>
+                    </label>`;
+                });
+                if (hasOther) html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;cursor:pointer;">
+                    <input type="checkbox" disabled style="width:17px;height:17px;"> <span>其他（請填寫）</span>
+                    <input type="text" disabled placeholder="請說明..." style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;min-width:120px;flex:1;">
+                </label>`;
+                html += '</div>';
+            } else if (type === 'select') {
+                html += `<select disabled style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">
+                    <option>請選擇...</option>`;
+                opts.forEach(opt => { html += `<option>${escHtml(opt)}</option>`; });
+                html += '</select>';
+            } else if (type === 'textarea') {
+                html += `<textarea disabled rows="3" placeholder="${escHtml(label)}"
+                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;resize:vertical;"></textarea>`;
+            } else if (type === 'number') {
+                html += `<input type="number" disabled placeholder="${escHtml(label)}"
+                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">`;
+            } else if (type === 'date') {
+                html += `<input type="date" disabled
+                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">`;
+            } else {
+                html += `<input type="text" disabled placeholder="${escHtml(label)}"
+                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">`;
+            }
+
+            wrap.innerHTML = html;
+            container.appendChild(wrap);
+        });
+    }
+
+    document.getElementById('preview-modal').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+
+function closePreview() {
+    document.getElementById('preview-modal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function escHtml(str) {
+    return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// 點 modal 背景關閉
+document.getElementById('preview-modal').addEventListener('click', function(e) {
+    if (e.target === this) closePreview();
+});
+
+// ==========================================
+// 頁面載入時：初始化已存在的跳題條件 + has-other
+// ==========================================
+document.addEventListener('DOMContentLoaded', () => {
+    document.querySelectorAll('.field-row[data-saved-condition]').forEach(row => {
+        const condStr = row.dataset.savedCondition;
+        if (!condStr) return;
+        let cond;
+        try { cond = JSON.parse(condStr); } catch { return; }
+        const checkbox = row.querySelector('.f-has-condition');
+        if (checkbox) {
+            checkbox.checked = true;
+            const panel = row.querySelector('.condition-panel');
+            if (panel) panel.style.display = 'block';
+        }
+        rebuildTriggerDropdown(row);
+        const triggerSelect = row.querySelector('.f-cond-trigger');
+        if (triggerSelect) {
+            triggerSelect.value = String(cond.trigger_sort_order);
+            updateConditionValues(triggerSelect);
+            const valueSelect = row.querySelector('.f-cond-value');
+            if (valueSelect) valueSelect.value = cond.trigger_value;
+        }
+    });
+});
+
+// ==========================================
+// 海報上傳
+// ==========================================
+function uploadPoster(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const uploading = document.getElementById('poster-uploading');
+    uploading.style.display = 'flex';
+
+    const fd = new FormData();
+    fd.append('image', file);
+
+    fetch('/admin/api/upload-image', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(data => {
+            uploading.style.display = 'none';
+            if (data.success) {
+                document.getElementById('poster_url').value = data.url;
+                const preview = document.getElementById('poster-preview');
+                preview.src = data.url;
+                preview.style.display = 'block';
+                const ph = document.getElementById('poster-placeholder');
+                if (ph) ph.style.display = 'none';
+            } else {
+                alert(data.error || '上傳失敗');
+            }
+        })
+        .catch(() => {
+            uploading.style.display = 'none';
+            alert('上傳失敗，請重試');
+        });
+}
+
+function removePoster() {
+    if (!confirm('確定移除海報？')) return;
+    document.getElementById('poster_url').value = '';
+    const preview = document.getElementById('poster-preview');
+    preview.src = '';
+    preview.style.display = 'none';
+    const ph = document.getElementById('poster-placeholder');
+    if (ph) ph.style.display = 'block';
+}
+</script>
+{% endblock %}

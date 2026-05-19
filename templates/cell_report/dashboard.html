@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}{{ dashboard_title }}{% endblock %}
+{% block content %}
+<div class="container" style="max-width:800px; margin:40px auto; padding:0 16px;">
+  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:4px;">{{ dashboard_title }}</h1>
+
+  <!-- 週次導航 -->
+  <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+    <a href="?week={{ prev_week }}" style="color:#06C755; text-decoration:none; font-size:1.2rem;">←</a>
+    <span style="font-weight:600;">
+      {{ week_start.strftime('%m/%d') }}（一）～ {{ week_end.strftime('%m/%d') }}（日）
+    </span>
+    {% if not is_current_week %}
+      <a href="?week={{ next_week }}" style="color:#06C755; text-decoration:none; font-size:1.2rem;">→</a>
+    {% endif %}
+    {% if not is_current_week %}
+      <a href="?" style="margin-left:8px; padding:4px 12px; border:1px solid #06C755; color:#06C755;
+                          border-radius:20px; text-decoration:none; font-size:0.85rem;">本週</a>
+    {% endif %}
+  </div>
+
+  <!-- 聚會統計卡片 -->
+  <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:28px;">
+    <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
+      <div style="font-size:1.8rem; font-weight:700; color:#06C755;">{{ adult }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">成人主日（{{ sunday_date.strftime('%m/%d') }}）</div>
+      <div style="font-size:0.8rem; color:#999;">一：{{ adult_first }}  二：{{ adult_second }}</div>
+    </div>
+    <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
+      <div style="font-size:1.8rem; font-weight:700; color:#4a90d9;">{{ children }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">兒童主日</div>
+    </div>
+    <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
+      <div style="font-size:1.8rem; font-weight:700; color:#9c6de8;">{{ prayer }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">禱告會（{{ prayer_date.strftime('%m/%d') }}）</div>
+    </div>
+    <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
+      <div style="font-size:1.8rem; font-weight:700; color:#e8a83e;">{{ morning_prayer }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">晨禱（{{ morning_prayer_date.strftime('%m/%d') }}）</div>
+    </div>
+  </div>
+
+  <!-- 小組回報列表 -->
+  <h2 style="font-size:1.1rem; font-weight:700; margin-bottom:12px;">小組回報狀況</h2>
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    {% for item in groups %}
+    <div style="padding:14px 16px; background:#fff; border-radius:12px; box-shadow:0 1px 3px rgba(0,0,0,.06);
+                display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+      <div>
+        <div style="font-weight:600;">{{ item.group.name }}</div>
+        <div style="font-size:0.85rem; color:#888;">聚會日：{{ item.meet_date.strftime('%m/%d') }}</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:12px;">
+        {% if item.no_meeting %}
+          <span style="padding:4px 10px; background:#f0f4ff; color:#4a90d9; border-radius:20px; font-size:0.85rem;">
+            無聚會{% if item.no_meeting_reason %}：{{ item.no_meeting_reason }}{% endif %}
+          </span>
+        {% elif item.has_report %}
+          <span style="padding:4px 10px; background:#e8f5e9; color:#2e7d32; border-radius:20px; font-size:0.85rem;">
+            ✓ 已回報{% if item.attend is not none %}（{{ item.attend }} 人）{% endif %}
+          </span>
+        {% else %}
+          <span style="padding:4px 10px; background:#fff3e0; color:#e65100; border-radius:20px; font-size:0.85rem;">
+            未回報
+          </span>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <!-- 快速輸入聚會人數 -->
+  <div style="margin-top:32px; padding-top:24px; border-top:1px solid #eee;">
+    <h2 style="font-size:1rem; font-weight:700; margin-bottom:12px;">快速更新聚會人數</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="{{ url_for('cell_report.sunday') }}"
+         style="padding:10px 16px; background:#06C755; color:#fff; border-radius:8px; text-decoration:none;">
+        主日報告
+      </a>
+      <a href="{{ url_for('cell_report.children') }}"
+         style="padding:10px 16px; background:#4a90d9; color:#fff; border-radius:8px; text-decoration:none;">
+        兒童主日
+      </a>
+      <a href="{{ url_for('cell_report.prayer') }}"
+         style="padding:10px 16px; background:#9c6de8; color:#fff; border-radius:8px; text-decoration:none;">
+        禱告會
+      </a>
+      <a href="{{ url_for('cell_report.morning_prayer') }}"
+         style="padding:10px 16px; background:#e8a83e; color:#fff; border-radius:8px; text-decoration:none;">
+        晨禱
+      </a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+{% block content %}
+
+<!-- 顶部入口（最小侵入） -->
+<div class="btn-row" style="justify-content:flex-end; gap:8px; margin-bottom:10px;">
+  <a class="secondary-btn" href="{{ url_for('diary.stars') }}">✦ 我的星空</a>
+  <a class="secondary-btn" href="{{ url_for('diary.history') }}">📖 書卷瀏覽</a>
+  {% if pastor_mode %}
+    <a class="pastor-entry-btn" href="{{ url_for('diary.pastor') }}">📖 查閱成員靈修</a>
+  {% endif %}
+  {% if admin_mode %}
+    <a class="secondary-btn" href="{{ url_for('diary.admin') }}">後台</a>
+  {% endif %}
+</div>
+
+<section class="calendar-card">
+  <div class="calendar-header">
+    <a href="{{ url_for('diary.index', month=prev_month) }}">← 上一月</a>
+    <div class="calendar-title">{{ calendar_year }} 年 {{ calendar_month }} 月</div>
+    <a href="{{ url_for('diary.index', month=next_month) }}">下一月 →</a>
+  </div>
+
+  <div class="calendar-grid">
+    <div class="calendar-weekday">日</div>
+    <div class="calendar-weekday">一</div>
+    <div class="calendar-weekday">二</div>
+    <div class="calendar-weekday">三</div>
+    <div class="calendar-weekday">四</div>
+    <div class="calendar-weekday">五</div>
+    <div class="calendar-weekday">六</div>
+    {% for _ in range(first_day_offset) %}
+      <div></div>
+    {% endfor %}
+    {% for d in calendar_days %}
+      {% if d.is_future %}
+        <div class="calendar-day {{ d.status }}" title="{{ d.date }}">{{ d.day }}</div>
+      {% else %}
+        <a
+          href="{{ url_for('diary.index', d=d.date, month=calendar_year ~ '-' ~ '%02d'|format(calendar_month)) }}"
+          class="calendar-day {{ d.status }}"
+          title="{{ d.date }}"
+        >
+          {{ d.day }}
+        </a>
+      {% endif %}
+    {% endfor %}
+  </div>
+
+  <div class="legend">
+    <span class="dot unwritten"></span>未寫
+    <span class="dot written"></span>已寫
+    <span class="dot future"></span>未到
+    <span class="dot selected"></span>選擇中
+  </div>
+</section>
+
+<section class="scripture-card">
+  <h2>今日讀經</h2>
+
+  {% if plan %}
+    {% if plan %}
+      <div class="book-bg-wrap">
+        <div class="book-bg-label">段落背景</div>
+        <div class="book-bg" id="book-intro">{{ book_bg or '' }}</div>
+      </div>
+    {% endif %}
+
+    <div class="scripture-ref">
+      <strong>{{ plan.book }} {{ plan.range }}</strong>
+    </div>
+
+    <div class="scripture-content">
+      {% if verses %}
+        {% for v in verses %}
+          <p>{{ v }}</p>
+        {% endfor %}
+      {% else %}
+        <p class="muted">（找不到經文內容，請確認 scripture/cuv.json 是否包含此書卷與章節。）</p>
+      {% endif %}
+    </div>
+
+    <!-- AI 反思引導 -->
+    <div class="guide-section">
+      <button class="guide-btn" id="guide-btn" onclick="loadGuide()">✦ 反思引導</button>
+      <div class="guide-loading" id="guide-loading">正在生成引導問題…</div>
+      <div class="guide-box" id="guide-box"></div>
+    </div>
+
+  {% else %}
+    <div class="scripture-content">
+      <p class="muted">（今日尚未設定讀經進度）</p>
+    </div>
+  {% endif %}
+</section>
+
+<script>
+// 自動載入段落背景
+(async function() {
+  const el = document.getElementById("book-intro");
+  if (!el) return;
+  try {
+    const res = await fetch("/api/diary/passage-intro?d={{ entry_date }}");
+    const data = await res.json();
+    if (data.intro) el.textContent = data.intro;
+  } catch(e) { /* 靜默失敗，保留原始文字 */ }
+})();
+
+async function loadGuide() {
+  const btn = document.getElementById("guide-btn");
+  const loading = document.getElementById("guide-loading");
+  const box = document.getElementById("guide-box");
+
+  btn.disabled = true;
+  btn.textContent = "生成中…";
+  loading.style.display = "block";
+  box.style.display = "none";
+
+  try {
+    const res = await fetch("/api/diary/guide?d={{ entry_date }}");
+    let data;
+    try { data = await res.json(); }
+    catch { throw new Error("伺服器回應異常（" + res.status + "）"); }
+    loading.style.display = "none";
+
+    if (data.questions && data.questions.length) {
+      box.innerHTML = data.questions
+        .map(q => `<div class="guide-question">${q}</div>`)
+        .join("");
+      box.style.display = "block";
+      btn.textContent = "↻ 再試一次";
+    } else {
+      box.innerHTML = `<div class="muted">${data.error || "無法生成，請稍後再試。"}</div>`;
+      box.style.display = "block";
+      btn.textContent = "✦ 反思引導";
+    }
+  } catch(e) {
+    loading.style.display = "none";
+    box.innerHTML = `<div class="muted">發生錯誤，請稍後再試。（${e.message}）</div>`;
+    box.style.display = "block";
+    btn.textContent = "✦ 反思引導";
+  }
+  btn.disabled = false;
+}
+</script>
+
+<section class="diary-card">
+  <h2>靈修書寫</h2>
+  <div class="diary-date">日期：{{ entry_date }}</div>
+
+  {% if completed %}
+    <div class="locked-hint">
+      這一天內容已鎖定（可複製，不能再修改）。
+    </div>
+
+    <div class="btn-row">
+      <button type="button" class="secondary-btn" onclick="copyDiary()">複製內容</button>
+    </div>
+
+    <textarea id="diaryText" readonly class="diary-textarea">{{ content }}</textarea>
+
+    <textarea id="copyPayload" style="position:absolute;left:-9999px;top:-9999px;">
+📅 日期：{{ entry_date }}
+{% if plan %}
+📖 讀經：{{ plan.book }} {{ plan.range }}
+{% endif %}
+
+📝 靈修心得：
+{{ content }}
+    </textarea>
+
+    <script>
+      async function copyDiary() {
+        const payloadEl = document.getElementById("copyPayload");
+        const text = (payloadEl.value || payloadEl.textContent || "").trim();
+        if (!text) return;
+
+        const btn = document.querySelector(".btn-row .secondary-btn");
+        function showOk() {
+          if (!btn) return;
+          const orig = btn.textContent;
+          btn.textContent = "✓ 已複製";
+          btn.disabled = true;
+          setTimeout(function() { btn.textContent = orig; btn.disabled = false; }, 2000);
+        }
+
+        try {
+          if (navigator.clipboard && window.isSecureContext) {
+            await navigator.clipboard.writeText(text);
+          } else {
+            throw new Error("no clipboard api");
+          }
+          showOk();
+        } catch(e) {
+          // Fallback: 使 textarea 暫時可見並選取，再 execCommand
+          const orig = { position: payloadEl.style.position, left: payloadEl.style.left,
+                         top: payloadEl.style.top, opacity: payloadEl.style.opacity };
+          payloadEl.style.position = "fixed";
+          payloadEl.style.left = "0";
+          payloadEl.style.top = "0";
+          payloadEl.style.opacity = "0";
+          payloadEl.removeAttribute("readonly");
+          payloadEl.focus();
+          payloadEl.select();
+          const ok = document.execCommand("copy");
+          payloadEl.setAttribute("readonly", "");
+          payloadEl.style.position = orig.position || "absolute";
+          payloadEl.style.left = orig.left || "-9999px";
+          payloadEl.style.top = orig.top || "-9999px";
+          payloadEl.style.opacity = orig.opacity || "";
+          if (ok) showOk();
+        }
+      }
+    </script>
+
+  {% else %}
+    <form method="post" action="{{ url_for('diary.save') }}">
+      <textarea
+        name="content"
+        class="diary-textarea"
+        placeholder="咀嚼並回應神的話語"
+      >{{ content }}</textarea>
+
+      <input type="hidden" name="entry_date" value="{{ entry_date }}">
+      <button type="submit" class="primary-btn"
+        onclick="return confirm('確定要儲存並鎖定嗎？\n鎖定後內容就無法再修改了。')">儲存並鎖定</button>
+    </form>
+  {% endif %}
+</section>
+
+<!-- DLC：授權區塊（獨立 form，避免 nested form） -->
+<section class="diary-card">
+  {% set grant_count = granted_map|length %}
+  <button type="button" class="grant-toggle" id="grant-toggle" onclick="toggleGrant()" aria-expanded="false">
+    <span>🔐 查閱授權設定</span>
+    <span class="grant-toggle-meta">
+      {% if grant_count > 0 %}
+        <span class="grant-badge">已授權 {{ grant_count }} 人</span>
+      {% else %}
+        <span style="opacity:0.5; font-size:12px;">未設定</span>
+      {% endif %}
+      <span class="grant-toggle-arrow" id="grant-arrow">▼</span>
+    </span>
+  </button>
+
+  <div id="grant-body" style="display:none; margin-top:12px;">
+    <div class="muted" style="margin-bottom:12px;">
+      只要授權一次，之後你寫完靈修送出，對方就可在「查閱」頁面看到你的萬年曆與內容。
+    </div>
+
+    {% if pastors and pastors|length > 0 %}
+      <form method="post" action="{{ url_for('diary.grant') }}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input type="hidden" name="entry_date" value="{{ entry_date }}">
+
+        <select name="pastor_line_user_id" style="min-width:220px;">
+          <option value="">（選擇要授權的牧者 / 小組長）</option>
+          {% for p in pastors %}
+            <option value="{{ p.line_user_id }}">{{ p.display_name }}</option>
+          {% endfor %}
+        </select>
+
+        <button type="submit" name="action" value="grant" class="primary-btn"
+          onclick="var sel=this.form.querySelector('select');if(!sel.value){alert('請先選擇要授權的對象');return false;}return confirm('確定要授權「'+sel.options[sel.selectedIndex].text+'」查閱你的靈修記錄嗎？')">授權</button>
+      </form>
+
+      {% if grant_count > 0 %}
+        <div style="margin-top:14px;">
+          <div class="muted" style="margin-bottom:6px;">已授權名單：</div>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            {% for p in pastors %}
+              {% if granted_map.get(p.line_user_id) %}
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px;">
+                  <div style="opacity:0.7;">{{ p.display_name }}（已授權）</div>
+                  <form method="post" action="{{ url_for('diary.grant') }}">
+                    <input type="hidden" name="entry_date" value="{{ entry_date }}">
+                    <input type="hidden" name="pastor_line_user_id" value="{{ p.line_user_id }}">
+                    <button type="submit" name="action" value="revoke" class="secondary-btn" style="opacity:0.85;"
+                      onclick="return confirm('確定要取消「{{ p.display_name }}」的查閱授權嗎？')">取消授權</button>
+                  </form>
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+    {% else %}
+      <div class="muted">
+        目前尚未設定任何白名單牧者／小組長，所以暫時無法授權。（請管理者到後台勾選白名單）
+      </div>
+    {% endif %}
+  </div>
+</section>
+
+<script>
+function toggleGrant() {
+  const body = document.getElementById("grant-body");
+  const arrow = document.getElementById("grant-arrow");
+  const btn = document.getElementById("grant-toggle");
+  const open = body.style.display === "none";
+  body.style.display = open ? "block" : "none";
+  arrow.textContent = open ? "▲" : "▼";
+  btn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+</script>
+
+{% endblock %}

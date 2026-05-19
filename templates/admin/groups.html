@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}小組管理{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+    <div>
+        <a href="/admin" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回後台</a>
+        <h2 style="margin-top:6px;">🏘 小組管理</h2>
+    </div>
+</div>
+
+<!-- 說明 -->
+<div style="background:#fff8e1; border-left:4px solid #f9a825; border-radius:8px; padding:14px 18px; margin-bottom:24px; font-size:0.88rem; color:#5d4037;">
+    <strong>主標籤</strong>（週間小組）：用於門訓總覽分組，每人建議選一個主標籤。<br>
+    <strong>副標籤</strong>（服事團隊）：額外身份標記，不影響門訓分組。<br>
+    <strong>⚙️ 同工身份</strong>：勾選後，屬於此標籤的成員可在首頁看到同工限定的快捷連結（出席回報等）。
+</div>
+
+<!-- 新增區塊 -->
+<div style="background:white; border-radius:12px; padding:20px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <p style="font-weight:bold; margin-bottom:14px; color:#333;">新增標籤</p>
+
+    <!-- 類型切換 -->
+    <div style="display:flex; gap:8px; margin-bottom:14px;">
+        <button id="btn-primary" onclick="setType(true)"
+            style="padding:7px 20px; border-radius:20px; border:2px solid #06C755; background:#06C755; color:white; cursor:pointer; font-weight:bold; font-size:0.88rem;">
+            主標籤（週間小組）
+        </button>
+        <button id="btn-secondary" onclick="setType(false)"
+            style="padding:7px 20px; border-radius:20px; border:2px solid #ddd; background:white; color:#888; cursor:pointer; font-size:0.88rem;">
+            副標籤（服事團隊）
+        </button>
+    </div>
+
+    <div style="display:flex; gap:10px;">
+        <input id="newGroupName" type="text" placeholder="輸入標籤名稱..."
+            style="flex:1; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;"
+            onkeydown="if(event.key==='Enter') addGroup()">
+        <button onclick="addGroup()"
+            style="padding:10px 24px; background:#06C755; color:white; border:none; border-radius:8px;
+                   cursor:pointer; font-weight:bold; font-size:0.95rem;">
+            新增
+        </button>
+    </div>
+</div>
+
+<!-- 主標籤列表 -->
+<div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:20px;">
+    <p style="font-weight:bold; margin-bottom:16px; color:#333;">
+        🏷 主標籤 <span style="font-size:0.8rem; color:#888; font-weight:normal;">（週間小組，用於門訓分組）</span>
+    </p>
+    <div id="primaryList">
+        <p style="color:#999; text-align:center; padding:20px 0;">載入中...</p>
+    </div>
+</div>
+
+<!-- 副標籤列表 -->
+<div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <p style="font-weight:bold; margin-bottom:16px; color:#333;">
+        🔖 副標籤 <span style="font-size:0.8rem; color:#888; font-weight:normal;">（服事團隊等，不影響門訓分組）</span>
+    </p>
+    <div id="secondaryList">
+        <p style="color:#999; text-align:center; padding:20px 0;">載入中...</p>
+    </div>
+</div>
+
+<script>
+let addingPrimary = true;
+
+function setType(isPrimary) {
+    addingPrimary = isPrimary;
+    document.getElementById('btn-primary').style.background = isPrimary ? '#06C755' : 'white';
+    document.getElementById('btn-primary').style.color = isPrimary ? 'white' : '#888';
+    document.getElementById('btn-primary').style.borderColor = isPrimary ? '#06C755' : '#ddd';
+    document.getElementById('btn-secondary').style.background = isPrimary ? 'white' : '#f0a500';
+    document.getElementById('btn-secondary').style.color = isPrimary ? '#888' : 'white';
+    document.getElementById('btn-secondary').style.borderColor = isPrimary ? '#ddd' : '#f0a500';
+}
+
+loadGroups();
+
+function loadGroups() {
+    fetch('/admin/api/groups')
+        .then(res => res.json())
+        .then(groups => {
+            const primary = groups.filter(g => g.is_primary !== false);
+            const secondary = groups.filter(g => g.is_primary === false);
+            renderList('primaryList', primary, true);
+            renderList('secondaryList', secondary, false);
+        });
+}
+
+function renderList(containerId, groups, isPrimary) {
+    const container = document.getElementById(containerId);
+    if (!groups.length) {
+        container.innerHTML = `<p style="color:#999; text-align:center; padding:20px 0;">尚無${isPrimary ? '主' : '副'}標籤</p>`;
+        return;
+    }
+    container.innerHTML = groups.map((g, i) => `
+        <div style="display:flex; align-items:center; justify-content:space-between;
+                    padding:12px 0; border-bottom:1px solid #f0f0f0; flex-wrap:wrap; gap:8px;">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <span style="color:#bbb; font-size:0.85rem; width:24px; text-align:right;">${i + 1}</span>
+                <span style="font-size:1rem; font-weight:500; color:#333;">${g.name}</span>
+                ${g.is_staff ? '<span style="background:#e8f5e9; color:#2e7d32; padding:2px 8px; border-radius:12px; font-size:0.75rem;">⚙️ 同工</span>' : ''}
+            </div>
+            <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                <button onclick="toggleStaff('${g.id}', this)"
+                    title="${g.is_staff ? '取消同工身份' : '設為同工身份'}"
+                    style="padding:5px 12px; border-radius:6px; border:none; cursor:pointer; font-size:0.8rem;
+                           background:${g.is_staff ? '#e8f5e9' : '#f5f5f5'};
+                           color:${g.is_staff ? '#2e7d32' : '#888'};">
+                    ${g.is_staff ? '⚙️ 同工中' : '設為同工'}
+                </button>
+                <button onclick="togglePrimary('${g.id}', this)"
+                    title="${isPrimary ? '改為副標籤' : '改為主標籤'}"
+                    style="padding:5px 12px; border-radius:6px; border:none; cursor:pointer; font-size:0.8rem;
+                           background:${isPrimary ? '#fff8e1' : '#e8f5e9'};
+                           color:${isPrimary ? '#f57f17' : '#2e7d32'};">
+                    ${isPrimary ? '改為副標籤' : '改為主標籤'}
+                </button>
+                <button onclick="deleteGroup('${g.id}', '${g.name}', this)"
+                    style="padding:5px 14px; background:#ffebee; color:#c62828; border:none;
+                           border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                    刪除
+                </button>
+            </div>
+        </div>
+    `).join('');
+}
+
+function addGroup() {
+    const input = document.getElementById('newGroupName');
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+
+    fetch('/admin/api/groups', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, is_primary: addingPrimary })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            input.value = '';
+            loadGroups();
+        } else {
+            alert(data.error || '新增失敗');
+        }
+    });
+}
+
+function toggleStaff(id, btn) {
+    btn.disabled = true;
+    fetch(`/admin/api/groups/${id}/toggle-staff`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) loadGroups();
+            else { alert(data.error || '操作失敗'); btn.disabled = false; }
+        });
+}
+
+function togglePrimary(id, btn) {
+    btn.disabled = true;
+    fetch(`/admin/api/groups/${id}/toggle-primary`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) loadGroups();
+            else { alert(data.error || '操作失敗'); btn.disabled = false; }
+        });
+}
+
+function deleteGroup(id, name, btn) {
+    if (!confirm(`確定要刪除「${name}」嗎？\n已套用此標籤的使用者不受影響，僅移除選單選項。`)) return;
+    btn.disabled = true;
+    fetch(`/admin/api/groups/${id}/delete`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) loadGroups();
+            else { alert(data.error || '刪除失敗'); btn.disabled = false; }
+        });
+}
+</script>
+{% endblock %}

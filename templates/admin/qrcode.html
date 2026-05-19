@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}電子簽到 QR Code - {{ event.title }}{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/events/{{ event.id }}/registrations" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回報名名單</a>
+        <h2 style="margin-top:6px;">📱 電子簽到 QR Code</h2>
+        <p style="color:#555; margin-top:4px;">{{ event.title }}</p>
+    </div>
+</div>
+
+<!-- 模式標籤 -->
+<div style="margin-bottom:20px;">
+    {% if event.checkin_mode == 'registered_only' %}
+    <span style="background:#e3f2fd; color:#1565c0; padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:bold;">
+        🔒 僅限已報名者簽到
+    </span>
+    {% else %}
+    <span style="background:#e8f5e9; color:#2e7d32; padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:bold;">
+        🌐 全開放（任何人可簽到）
+    </span>
+    {% endif %}
+    {% if event.event_start %}
+    <span style="margin-left:8px; color:#888; font-size:0.85rem;">
+        ⏰ 有效日期：{{ event.event_start[:10] }}
+        {% if event.event_end and event.event_end[:10] != event.event_start[:10] %}
+        ～ {{ event.event_end[:10] }}
+        {% endif %}
+    </span>
+    {% endif %}
+</div>
+
+<!-- QR Code 卡片 -->
+<div style="background:white; border-radius:16px; padding:32px; text-align:center; box-shadow:0 2px 16px rgba(0,0,0,0.08); margin-bottom:20px;">
+
+    <!-- QR Code 圖形（由 JS 產生） -->
+    <div id="qrcode" style="display:inline-block; padding:16px; background:white; border-radius:12px; border:2px solid #e0e0e0;"></div>
+
+    <p style="margin-top:20px; font-size:0.85rem; color:#888;">將此 QR Code 投影或印出，讓出席者掃描簽到</p>
+
+    <!-- 操作按鈕 -->
+    <div style="display:flex; gap:12px; justify-content:center; margin-top:20px; flex-wrap:wrap;">
+        <button onclick="downloadQR()"
+            style="padding:10px 24px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+            下載 QR Code 圖片
+        </button>
+        <button onclick="window.print()"
+            style="padding:10px 24px; background:#e3f2fd; color:#1565c0; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+            列印
+        </button>
+    </div>
+</div>
+
+<!-- 簽到連結（可複製） -->
+<div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <p style="font-size:0.85rem; color:#888; margin-bottom:8px;">簽到連結（可複製分享）</p>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <input id="checkin-url" type="text" value="{{ checkin_url }}" readonly
+            style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem; background:#f9f9f9; color:#555;">
+        <button onclick="copyUrl()"
+            style="padding:10px 16px; background:#f5f5f5; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap;">
+            複製
+        </button>
+    </div>
+    <p style="font-size:0.8rem; color:#ffb300; margin-top:8px;">
+        ⚠️ 請勿將此連結公開散布，掃碼即可簽到，謹慎分享。
+    </p>
+</div>
+
+<!-- 全螢幕投影按鈕 -->
+<div style="margin-top:16px; text-align:center;">
+    <button onclick="openFullscreen()"
+        style="padding:12px 32px; background:#333; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.95rem;">
+        全螢幕投影模式
+    </button>
+</div>
+
+<!-- 全螢幕 overlay -->
+<div id="fullscreen-overlay" style="display:none; position:fixed; inset:0; background:white; z-index:9999; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px;">
+    <p style="font-size:1.5rem; font-weight:bold; color:#222; margin-bottom:8px;">{{ event.title }}</p>
+    {% if event.event_start %}
+    <p style="color:#888; margin-bottom:24px;">{{ event.event_start| taipei_time }}
+        {% if event.location %} ．{{ event.location }}{% endif %}
+    </p>
+    {% endif %}
+    <div id="qrcode-fullscreen" style="display:inline-block; padding:20px; background:white; border:3px solid #e0e0e0; border-radius:16px;"></div>
+    <p style="margin-top:24px; font-size:1.1rem; color:#555;">用手機掃描 QR Code 簽到</p>
+    <button onclick="closeFullscreen()"
+        style="margin-top:32px; padding:10px 28px; background:#f5f5f5; border:none; border-radius:8px; cursor:pointer; color:#666;">
+        離開投影模式
+    </button>
+</div>
+
+<!-- qrcode.js via CDN -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+<script>
+const CHECKIN_URL = {{ checkin_url | tojson }};
+
+// 產生主要 QR Code
+const qr = new QRCode(document.getElementById('qrcode'), {
+    text: CHECKIN_URL,
+    width: 240,
+    height: 240,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+});
+
+// 產生全螢幕用的大 QR Code
+const qrFull = new QRCode(document.getElementById('qrcode-fullscreen'), {
+    text: CHECKIN_URL,
+    width: 400,
+    height: 400,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+});
+
+// 下載 QR Code 圖片
+function downloadQR() {
+    const canvas = document.querySelector('#qrcode canvas');
+    if (!canvas) { alert('QR Code 尚未產生，請稍後再試'); return; }
+    const link = document.createElement('a');
+    link.download = '簽到QRCode_{{ event.title }}.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+// 複製連結
+function copyUrl() {
+    const input = document.getElementById('checkin-url');
+    input.select();
+    document.execCommand('copy');
+    alert('連結已複製！');
+}
+
+// 全螢幕投影
+function openFullscreen() {
+    const overlay = document.getElementById('fullscreen-overlay');
+    overlay.style.display = 'flex';
+    // 嘗試進入瀏覽器全螢幕
+    if (overlay.requestFullscreen) overlay.requestFullscreen();
+}
+
+function closeFullscreen() {
+    document.getElementById('fullscreen-overlay').style.display = 'none';
+    if (document.exitFullscreen) document.exitFullscreen();
+}
+
+// 列印時只顯示 QR Code
+window.addEventListener('beforeprint', () => {
+    document.body.innerHTML = `
+        <div style="text-align:center; padding:40px;">
+            <h2>{{ event.title }}</h2>
+            {% if event.event_start %}
+            <p style="color:#666; margin:8px 0;">{{ event.event_start| taipei_time }}</p>
+            {% endif %}
+            <div style="margin:24px auto; display:inline-block;">${document.getElementById('qrcode').innerHTML}</div>
+            <p style="color:#888; margin-top:16px;">掃描 QR Code 進行電子簽到</p>
+        </div>`;
+});
+</script>
+
+<!-- 列印樣式 -->
+<style>
+@media print {
+    nav, .no-print { display: none !important; }
+}
+</style>
+
+{% endblock %}

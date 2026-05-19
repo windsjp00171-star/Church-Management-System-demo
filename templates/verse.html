@@ -1,0 +1,592 @@
+{% extends "base.html" %}
+{% block title %}每日經文祝福卡{% endblock %}
+{% block content %}
+
+<style>
+@keyframes portalSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.pa {
+    animation: portalSlideUp 0.45s cubic-bezier(0.22,1,0.36,1) both;
+    animation-delay: var(--d, 0ms);
+}
+</style>
+
+<div class="page-header pa" style="--d:0ms">
+    <div class="page-header-left">
+        <a href="/" class="breadcrumb">← 返回首頁</a>
+        <div class="page-title">今日經文祝福卡</div>
+        <div style="font-size:0.82rem; color:var(--text-4); margin-top:2px;">{{ today }} · 每日一抽，願神的話語伴你同行</div>
+    </div>
+</div>
+
+<!-- 經文卡片（存圖區域） -->
+<div class="pa" style="--d:80ms; display:flex; justify-content:center; margin-bottom:28px;">
+    <div id="verse-card"
+        style="
+            width: 340px;
+            min-height: 480px;
+            border-radius: 24px;
+            {% if not theme.image_url %}
+            background: {{ theme.gradient }};
+            {% endif %}
+            padding: 40px 32px;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+            position: relative;
+            overflow: hidden;
+            box-sizing: border-box;
+        ">
+        {% if theme.image_url %}
+        <img src="{{ theme.image_url }}" crossorigin="anonymous" alt=""
+            style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:24px;pointer-events:none;">
+        {% endif %}
+
+        {# ── 文字顏色（自訂圖片主題支援 dark 模式）── #}
+        {% set tc = 'rgba(30,30,30,0.9)' if theme.text_mode == 'dark' else 'white' %}
+        {% set tc2 = 'rgba(30,30,30,0.55)' if theme.text_mode == 'dark' else 'rgba(255,255,255,0.65)' %}
+        {% set tc3 = 'rgba(30,30,30,0.45)' if theme.text_mode == 'dark' else 'rgba(255,255,255,0.55)' %}
+        {% set tc4 = 'rgba(30,30,30,0.7)' if theme.text_mode == 'dark' else 'rgba(255,255,255,0.75)' %}
+        {% set box_bg = 'rgba(0,0,0,0.06)' if theme.text_mode == 'dark' else 'rgba(255,255,255,0.13)' %}
+        {% set box_border = 'rgba(0,0,0,0.12)' if theme.text_mode == 'dark' else 'rgba(255,255,255,0.2)' %}
+
+        {# ── 裝飾圖形（image_url 主題跳過，由設計師圖片提供視覺）── #}
+        {% if not theme.image_url %}
+        {% if theme.deco == 'circles' %}
+        {# 大圓角裝飾 #}
+        <div style="position:absolute;top:-50px;right:-50px;width:180px;height:180px;
+                    border-radius:50%;background:rgba(255,255,255,0.09);pointer-events:none;"></div>
+        <div style="position:absolute;bottom:-70px;left:-40px;width:220px;height:220px;
+                    border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none;"></div>
+        <div style="position:absolute;top:50%;left:-60px;width:120px;height:120px;
+                    border-radius:50%;background:rgba(255,255,255,0.05);pointer-events:none;"></div>
+
+        {% elif theme.deco == 'rings' %}
+        {# 空心圓環裝飾 #}
+        <div style="position:absolute;top:-30px;right:-30px;width:160px;height:160px;
+                    border-radius:50%;border:2px solid rgba(255,255,255,0.18);pointer-events:none;"></div>
+        <div style="position:absolute;top:-10px;right:-10px;width:100px;height:100px;
+                    border-radius:50%;border:1px solid rgba(255,255,255,0.12);pointer-events:none;"></div>
+        <div style="position:absolute;bottom:-50px;left:-50px;width:200px;height:200px;
+                    border-radius:50%;border:2px solid rgba(255,255,255,0.12);pointer-events:none;"></div>
+        <div style="position:absolute;bottom:-20px;left:-20px;width:120px;height:120px;
+                    border-radius:50%;border:1px solid rgba(255,255,255,0.1);pointer-events:none;"></div>
+
+        {% elif theme.deco == 'diagonal' %}
+        {# 斜線條紋裝飾 #}
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;border-radius:24px;">
+            <div style="position:absolute;top:-200px;left:-200px;right:-200px;bottom:-200px;
+                        background:repeating-linear-gradient(
+                            55deg,
+                            transparent,
+                            transparent 28px,
+                            rgba(255,255,255,0.04) 28px,
+                            rgba(255,255,255,0.04) 30px
+                        );"></div>
+        </div>
+        <div style="position:absolute;top:-40px;right:-40px;width:150px;height:150px;
+                    border-radius:50%;background:rgba(255,255,255,0.07);pointer-events:none;"></div>
+
+        {% elif theme.deco == 'cross' %}
+        {# 十字架背景裝飾 #}
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+                    width:80px;height:260px;background:rgba(255,255,255,0.07);
+                    border-radius:10px;pointer-events:none;"></div>
+        <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) translateY(-50px);
+                    width:200px;height:80px;background:rgba(255,255,255,0.07);
+                    border-radius:10px;pointer-events:none;"></div>
+        {# 角落小十字 #}
+        <div style="position:absolute;top:18px;right:18px;pointer-events:none;opacity:0.25;">
+            <div style="position:absolute;left:8px;top:0;width:2px;height:18px;background:white;border-radius:2px;"></div>
+            <div style="position:absolute;left:0;top:6px;width:18px;height:2px;background:white;border-radius:2px;"></div>
+        </div>
+        <div style="position:absolute;bottom:18px;left:18px;pointer-events:none;opacity:0.2;">
+            <div style="position:absolute;left:8px;top:0;width:2px;height:18px;background:white;border-radius:2px;"></div>
+            <div style="position:absolute;left:0;top:6px;width:18px;height:2px;background:white;border-radius:2px;"></div>
+        </div>
+
+        {% elif theme.deco == 'diamond' %}
+        {# 菱形幾何裝飾 #}
+        <div style="position:absolute;top:-40px;right:-20px;width:120px;height:120px;
+                    background:rgba(255,255,255,0.08);transform:rotate(45deg);border-radius:12px;
+                    pointer-events:none;"></div>
+        <div style="position:absolute;top:10px;right:50px;width:60px;height:60px;
+                    background:rgba(255,255,255,0.05);transform:rotate(45deg);border-radius:6px;
+                    pointer-events:none;"></div>
+        <div style="position:absolute;bottom:-50px;left:-30px;width:160px;height:160px;
+                    background:rgba(255,255,255,0.06);transform:rotate(45deg);border-radius:16px;
+                    pointer-events:none;"></div>
+        <div style="position:absolute;bottom:60px;right:-20px;width:80px;height:80px;
+                    border:2px solid rgba(255,255,255,0.12);transform:rotate(45deg);border-radius:8px;
+                    pointer-events:none;"></div>
+
+        {% elif theme.deco == 'waves' %}
+        {# 波浪層次裝飾 #}
+        <div style="position:absolute;bottom:0;left:0;right:0;height:140px;
+                    border-radius:70% 70% 0 0 / 100% 100% 0 0;
+                    background:rgba(255,255,255,0.07);pointer-events:none;"></div>
+        <div style="position:absolute;bottom:0;left:-10px;right:-10px;height:90px;
+                    border-radius:55% 55% 0 0 / 100% 100% 0 0;
+                    background:rgba(255,255,255,0.05);pointer-events:none;"></div>
+        <div style="position:absolute;top:0;left:0;right:0;height:70px;
+                    border-radius:0 0 50% 50% / 0 0 80% 80%;
+                    background:rgba(255,255,255,0.05);pointer-events:none;"></div>
+        <div style="position:absolute;top:30px;left:-10px;right:-10px;height:50px;
+                    border-radius:0 0 40% 40% / 0 0 100% 100%;
+                    border-bottom:1px solid rgba(255,255,255,0.08);
+                    background:transparent;pointer-events:none;"></div>
+
+        {% elif theme.deco == 'rays' %}
+        {# 放射光芒裝飾（SVG，避免 html2canvas 對 1px+transform-origin 的渲染錯誤）#}
+        <svg style="position:absolute;top:-60px;right:-60px;pointer-events:none;overflow:hidden;"
+             width="280" height="280" viewBox="0 0 280 280" xmlns="http://www.w3.org/2000/svg">
+            {% for angle in [0, 18, 36, 54, 72, 90, 108, 126, 144, 162] %}
+            <line x1="140" y1="140" x2="560" y2="140"
+                  stroke="white" stroke-opacity="0.12" stroke-width="1.5"
+                  transform="rotate({{ angle + 180 }}, 140, 140)"/>
+            {% endfor %}
+        </svg>
+        {# 右上角光暈 #}
+        <div style="position:absolute;top:-80px;right:-80px;width:220px;height:220px;
+                    border-radius:50%;
+                    background:radial-gradient(circle, rgba(255,255,255,0.14) 0%, transparent 70%);
+                    pointer-events:none;"></div>
+
+        {% elif theme.deco == 'stars' %}
+        {# 星點裝飾 #}
+        <div style="position:absolute;inset:0;pointer-events:none;">
+            {% set star_pos = [
+                (15,12),(45,28),(75,8),(88,35),(60,18),(30,42),
+                (10,60),(55,55),(82,65),(25,78),(70,80),(90,20),
+                (40,90),(65,95),(18,88),(50,70),(78,45),(35,65)
+            ] %}
+            {% for x, y in star_pos %}
+            <div style="position:absolute;left:{{x}}%;top:{{y}}%;
+                        width:{{ loop.index % 3 + 1 }}px;height:{{ loop.index % 3 + 1 }}px;
+                        background:white;border-radius:50%;
+                        opacity:{{ 0.3 + (loop.index % 5) * 0.1 }};"></div>
+            {% endfor %}
+        </div>
+
+        {% elif theme.deco == 'dots' %}
+        {# 點陣裝飾 #}
+        <div style="position:absolute;top:0;left:0;right:0;bottom:0;pointer-events:none;overflow:hidden;border-radius:24px;">
+            <div style="position:absolute;top:-10px;left:-10px;right:-10px;bottom:-10px;
+                        background-image:radial-gradient(circle, rgba(255,255,255,0.15) 1px, transparent 1px);
+                        background-size:22px 22px;"></div>
+            <div style="position:absolute;top:0;left:0;right:0;bottom:0;
+                        background:radial-gradient(ellipse at 50% 50%, transparent 40%, rgba(0,0,0,0.25) 100%);"></div>
+        </div>
+        <div style="position:absolute;top:-60px;right:-60px;width:200px;height:200px;
+                    border-radius:50%;
+                    background:radial-gradient(circle, rgba(255,255,255,0.12) 0%, transparent 70%);
+                    pointer-events:none;"></div>
+
+        {% endif %}
+        {% endif %}{# end if not image_url #}
+
+        {# ── 獅頭 LOGO（右下角浮水印）── #}
+        <img src="/static/img/lion.png"
+             style="position:absolute;bottom:16px;right:16px;
+                    width:64px;height:64px;object-fit:contain;
+                    opacity:0.18;pointer-events:none;z-index:0;"
+             onerror="this.style.display='none'">
+
+        {# ── 上方：教會名稱 ── #}
+        <div style="text-align:center;position:relative;z-index:1;">
+            <div style="font-size:0.7rem;color:{{ tc2 }};letter-spacing:3px;margin-bottom:5px;">
+                DAILY BLESSING
+            </div>
+            <div style="font-size:1rem;font-weight:bold;color:{{ tc }};letter-spacing:2px;">
+                {{ church_name }}
+            </div>
+        </div>
+
+        {# ── 中間：圖示 + 經文 ── #}
+        <div style="text-align:center;position:relative;z-index:1;">
+            <div style="font-size:2.4rem;margin-bottom:18px;opacity:0.85;color:{{ tc }};
+                        {% if theme.symbol == '✦' %}letter-spacing:4px;{% endif %}">
+                {{ theme.symbol }}
+            </div>
+
+            <div style="
+                background:{{ box_bg }};
+                border-radius:16px;
+                padding:22px 20px;
+                border:1px solid {{ box_border }};
+            ">
+                <p style="
+                    font-size:1.06rem;
+                    line-height:1.9;
+                    color:{{ tc }};
+                    font-weight:500;
+                    margin:0 0 14px 0;
+                    text-align:justify;
+                ">「{{ verse.text }}」</p>
+                <p style="
+                    font-size:0.8rem;
+                    color:{{ tc4 }};
+                    margin:0;
+                    text-align:right;
+                    letter-spacing:1px;
+                ">— {{ verse.ref }}</p>
+            </div>
+        </div>
+
+        {# ── 下方：日期 + 姓名 ── #}
+        <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;">
+            <div>
+                <div style="font-size:0.68rem;color:{{ tc3 }};letter-spacing:1px;">今日祝福</div>
+                <div style="font-size:0.78rem;color:{{ tc }};margin-top:3px;">{{ today }}</div>
+            </div>
+            <div style="text-align:right;">
+                <div style="font-size:0.68rem;color:{{ tc3 }};">送給</div>
+                <div style="font-size:0.88rem;color:{{ tc }};font-weight:bold;margin-top:3px;">{{ user_name }}</div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<!-- 操作按鈕 -->
+<div class="pa" style="--d:160ms; display:flex; justify-content:center; gap:12px; flex-wrap:wrap;">
+    <button id="save-btn" onclick="saveCard()" class="btn btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="margin-right:5px; vertical-align:-2px;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" x2="12" y1="15" y2="3"/>
+        </svg>
+        存到手機
+    </button>
+    <button id="share-btn" onclick="shareCard()" class="btn btn-outline">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="margin-right:5px; vertical-align:-2px;">
+            <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/>
+            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+        </svg>
+        一鍵分享
+    </button>
+    <a href="/" class="btn btn-outline">返回首頁</a>
+</div>
+
+<p class="pa" style="--d:200ms; text-align:center; color:var(--text-4); font-size:0.78rem; margin-top:16px;">
+    每日零點後可重新抽取新的祝福卡
+</p>
+
+<!-- 彈出長按儲存用 overlay -->
+<div id="save-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.82);z-index:9999;
+    flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:24px;box-sizing:border-box;"
+    onclick="closeSaveOverlay()">
+    <p style="color:white;font-size:.95rem;font-weight:600;text-align:center;margin:0;">
+        長按圖片 → 儲存至相簿
+    </p>
+    <img id="save-img" src="" alt="祝福卡"
+        style="max-width:min(340px,90vw);border-radius:16px;box-shadow:0 8px 40px rgba(0,0,0,.5);"
+        onclick="event.stopPropagation()">
+    <button onclick="closeSaveOverlay()"
+        style="background:rgba(255,255,255,.18);color:white;border:1px solid rgba(255,255,255,.3);
+        border-radius:100px;padding:10px 28px;font-size:.9rem;cursor:pointer;">關閉</button>
+</div>
+
+<!-- 分享彈窗（YouTube 風格）-->
+<div id="share-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;
+    align-items:center;justify-content:center;padding:16px;box-sizing:border-box;"
+    onclick="closeShareModal()">
+    <div onclick="event.stopPropagation()"
+         style="background:#fff;border-radius:16px;width:min(520px,95vw);
+                box-shadow:0 24px 80px rgba(0,0,0,.35);overflow:hidden;">
+
+        <!-- 標題列 -->
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    padding:18px 20px 14px;border-bottom:1px solid #f0f0f0;">
+            <span style="font-size:1rem;font-weight:700;color:#0f0f0f;">分享</span>
+            <button onclick="closeShareModal()"
+                style="width:36px;height:36px;border-radius:50%;border:none;background:transparent;
+                       cursor:pointer;display:flex;align-items:center;justify-content:center;color:#606060;
+                       font-size:1.1rem;transition:background .15s;"
+                onmouseover="this.style.background='#f2f2f2'" onmouseout="this.style.background='transparent'">
+                ✕
+            </button>
+        </div>
+
+        <!-- 卡片預覽 -->
+        <div style="display:flex;justify-content:center;padding:20px 20px 0;background:#fafafa;">
+            <img id="share-preview" src="" alt="祝福卡"
+                 style="height:200px;border-radius:12px;object-fit:contain;
+                        box-shadow:0 4px 20px rgba(0,0,0,.15);display:none;">
+        </div>
+
+        <!-- 手機提示（canShare files 不支援時顯示）-->
+        <div id="mobile-share-hint" style="display:none;margin:12px 20px 0;background:#e8f5e9;
+             color:#2e7d32;border-radius:8px;padding:10px 14px;font-size:0.82rem;line-height:1.5;">
+            📥 圖片已儲存到手機，請開啟相簿選取後，再用 LINE / IG 等 App 分享。
+        </div>
+
+        <!-- 平台圖示列（YouTube 風格）-->
+        <div style="display:flex;gap:8px;padding:20px;overflow-x:auto;scrollbar-width:none;">
+
+            <!-- 下載 -->
+            <div onclick="downloadForShare()"
+                 style="display:flex;flex-direction:column;align-items:center;gap:8px;
+                        min-width:72px;cursor:pointer;">
+                <div style="width:52px;height:52px;border-radius:50%;background:#f2f2f2;
+                            display:flex;align-items:center;justify-content:center;
+                            transition:background .15s;"
+                     onmouseover="this.style.background='#e0e0e0'" onmouseout="this.style.background='#f2f2f2'">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#0f0f0f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" x2="12" y1="15" y2="3"/>
+                    </svg>
+                </div>
+                <span style="font-size:0.7rem;color:#0f0f0f;white-space:nowrap;">下載圖片</span>
+            </div>
+
+            <!-- Facebook -->
+            <a id="fb-share-link" href="#" target="_blank" rel="noopener"
+               style="display:flex;flex-direction:column;align-items:center;gap:8px;
+                      min-width:72px;cursor:pointer;text-decoration:none;">
+                <div style="width:52px;height:52px;border-radius:50%;background:#1877f2;
+                            display:flex;align-items:center;justify-content:center;
+                            transition:opacity .15s;"
+                     onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+                        <path d="M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z"/>
+                    </svg>
+                </div>
+                <span style="font-size:0.7rem;color:#0f0f0f;white-space:nowrap;">Facebook</span>
+            </a>
+
+            <!-- LINE -->
+            <a id="line-share-link" href="#" target="_blank" rel="noopener"
+               style="display:flex;flex-direction:column;align-items:center;gap:8px;
+                      min-width:72px;cursor:pointer;text-decoration:none;">
+                <div style="width:52px;height:52px;border-radius:50%;background:#06c755;
+                            display:flex;align-items:center;justify-content:center;
+                            transition:opacity .15s;"
+                     onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+                    <svg width="26" height="26" viewBox="0 0 48 48" fill="white">
+                        <path d="M24 4C13 4 4 11.6 4 21c0 5.8 3.4 11 8.7 14.3-.3 1.2-1.2 4.4-1.4 5.1-.2.9.3 1.1 1 .7l6.2-4.1c1.8.3 3.6.5 5.5.5 11 0 20-7.6 20-17S35 4 24 4z"/>
+                    </svg>
+                </div>
+                <span style="font-size:0.7rem;color:#0f0f0f;white-space:nowrap;">LINE</span>
+            </a>
+
+            <!-- X (Twitter) -->
+            <a id="x-share-link" href="#" target="_blank" rel="noopener"
+               style="display:flex;flex-direction:column;align-items:center;gap:8px;
+                      min-width:72px;cursor:pointer;text-decoration:none;">
+                <div style="width:52px;height:52px;border-radius:50%;background:#000;
+                            display:flex;align-items:center;justify-content:center;
+                            transition:opacity .15s;"
+                     onmouseover="this.style.opacity='.75'" onmouseout="this.style.opacity='1'">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="white">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-4.714-6.231-5.401 6.231H2.746l7.73-8.835L1.254 2.25H8.08l4.253 5.622 5.91-5.622Zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+                    </svg>
+                </div>
+                <span style="font-size:0.7rem;color:#0f0f0f;white-space:nowrap;">X</span>
+            </a>
+
+        </div>
+
+        <!-- 複製連結列 -->
+        <div style="display:flex;align-items:center;gap:10px;
+                    padding:0 20px 20px;">
+            <div style="flex:1;background:#f2f2f2;border-radius:8px;padding:10px 14px;
+                        overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+                        font-size:0.82rem;color:#555;" id="share-url-display"></div>
+            <button id="copy-link-btn" onclick="copyShareLink()"
+                style="flex-shrink:0;padding:10px 18px;border-radius:8px;border:none;
+                       background:#065fd4;color:white;font-size:0.82rem;font-weight:600;
+                       cursor:pointer;transition:background .15s;white-space:nowrap;"
+                onmouseover="this.style.background='#0356bf'" onmouseout="this.style.background='#065fd4'">
+                複製連結
+            </button>
+        </div>
+
+    </div>
+</div>
+
+<!-- html2canvas -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+const VERSE_TEXT = {{ verse.text | tojson }};
+const VERSE_REF  = {{ verse.ref  | tojson }};
+const PAGE_URL   = window.location.href;
+
+function isIOS() {
+    return /iP(hone|od|ad)/.test(navigator.userAgent) ||
+           (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+}
+function isMobile() {
+    return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+function closeSaveOverlay() {
+    document.getElementById('save-overlay').style.display = 'none';
+}
+function closeShareModal() {
+    document.getElementById('share-modal').style.display = 'none';
+}
+
+let _shareCanvas = null;
+
+async function _buildCanvas() {
+    return html2canvas(document.getElementById('verse-card'), {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: null,
+        logging: false,
+        onclone: function(clonedDoc) {
+            clonedDoc.querySelectorAll('link[href*="googleapis"], link[href*="gstatic"]')
+                .forEach(function(el) { el.remove(); });
+            var style = clonedDoc.createElement('style');
+            style.textContent = '* { font-family: "PingFang TC","Microsoft JhengHei",serif !important; }';
+            clonedDoc.head.appendChild(style);
+        },
+    });
+}
+
+async function shareCard() {
+    const btn = document.getElementById('share-btn');
+    const origHtml = btn.innerHTML;
+    btn.textContent = '準備中…';
+    btn.disabled = true;
+
+    try {
+        const canvas = await _buildCanvas();
+        _shareCanvas = canvas;
+
+        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+        const file = new File([blob], '今日經文祝福卡.png', { type: 'image/png' });
+        const shareText = `「${VERSE_TEXT}」— ${VERSE_REF}`;
+
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            // 手機原生分享（帶圖片）→ LINE / FB / IG 全支援
+            await navigator.share({
+                title: '今日經文祝福卡',
+                text: shareText,
+                files: [file],
+            });
+        } else {
+            // 不支援帶圖分享（部分瀏覽器）或電腦端 → 顯示彈窗
+            // 手機情境：自動下載圖片，提示從相簿分享
+            const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+            if (isMobile) {
+                // 自動觸發下載
+                const a = document.createElement('a');
+                a.href = canvas.toDataURL('image/png');
+                a.download = '今日經文祝福卡.png';
+                a.click();
+            }
+
+            const encUrl  = encodeURIComponent(PAGE_URL);
+            const encText = encodeURIComponent(shareText);
+            document.getElementById('fb-share-link').href =
+                'https://www.facebook.com/sharer/sharer.php?u=' + encUrl;
+            document.getElementById('line-share-link').href =
+                'https://social-plugins.line.me/lineit/share?url=' + encUrl + '&text=' + encText;
+            document.getElementById('x-share-link').href =
+                'https://x.com/intent/tweet?text=' + encText + '&url=' + encUrl;
+            document.getElementById('share-url-display').textContent = PAGE_URL;
+
+            const preview = document.getElementById('share-preview');
+            preview.src = canvas.toDataURL('image/png');
+            preview.style.display = 'block';
+
+            // 手機額外提示
+            const hint = document.getElementById('mobile-share-hint');
+            if (hint) hint.style.display = isMobile ? 'block' : 'none';
+
+            document.getElementById('share-modal').style.display = 'flex';
+        }
+    } catch (err) {
+        if (err.name !== 'AbortError') {
+            console.error('share error:', err);
+            alert('分享失敗，請使用「存到手機」再自行分享');
+        }
+    } finally {
+        btn.innerHTML = origHtml;
+        btn.disabled = false;
+    }
+}
+
+function copyShareLink() {
+    navigator.clipboard.writeText(PAGE_URL).then(() => {
+        const btn = document.getElementById('copy-link-btn');
+        btn.textContent = '已複製！';
+        btn.style.background = '#2d7a3a';
+        setTimeout(() => {
+            btn.textContent = '複製連結';
+            btn.style.background = '#065fd4';
+        }, 2000);
+    });
+}
+
+function downloadForShare() {
+    if (!_shareCanvas) return;
+    const link = document.createElement('a');
+    link.download = '今日經文祝福卡.png';
+    link.href = _shareCanvas.toDataURL('image/png');
+    link.click();
+    closeShareModal();
+}
+
+
+function saveCard() {
+    const btn = document.getElementById('save-btn');
+    btn.textContent = '處理中…';
+    btn.disabled = true;
+
+    html2canvas(document.getElementById('verse-card'), {
+        scale: 3,
+        useCORS: true,
+        backgroundColor: null,
+        logging: false,
+        onclone: function(clonedDoc) {
+            // 移除 Google Fonts link，防止跨域字型污染 canvas
+            clonedDoc.querySelectorAll('link[href*="googleapis"], link[href*="gstatic"]')
+                .forEach(function(el) { el.remove(); });
+            // 改用系統字型，確保 toDataURL 不拋 SecurityError
+            var style = clonedDoc.createElement('style');
+            style.textContent = '* { font-family: "PingFang TC","Microsoft JhengHei",serif !important; }';
+            clonedDoc.head.appendChild(style);
+        },
+    }).then(canvas => {
+        const dataUrl = canvas.toDataURL('image/png');
+
+        if (isIOS() || isMobile()) {
+            // iOS / Android LINE 瀏覽器不支援 <a download>，改用長按彈窗
+            const overlay = document.getElementById('save-overlay');
+            document.getElementById('save-img').src = dataUrl;
+            overlay.style.display = 'flex';
+            btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>存到手機`;
+            btn.disabled = false;
+        } else {
+            const link = document.createElement('a');
+            link.download = '今日經文祝福卡.png';
+            link.href = dataUrl;
+            link.click();
+            btn.textContent = '已下載！';
+            setTimeout(() => {
+                btn.innerHTML = `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>存到手機`;
+                btn.disabled = false;
+            }, 2500);
+        }
+    }).catch(function(err) {
+        console.error('html2canvas error:', err);
+        alert('儲存失敗，請截圖儲存\n（' + (err && err.message ? err.message : String(err)) + '）');
+        btn.textContent = '存到手機';
+        btn.disabled = false;
+    });
+}
+</script>
+{% endblock %}

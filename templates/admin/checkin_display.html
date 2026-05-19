@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>簽到展示 — {{ event.title }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Noto Sans TC', 'PingFang TC', sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: white;
+            user-select: none;
+        }
+
+        /* ── 待機畫面 ── */
+        #waiting-screen {
+            width: 100%;
+            max-width: 1100px;
+            padding: 32px 24px 140px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .event-title {
+            font-size: clamp(1.4rem, 3.5vw, 2.4rem);
+            font-weight: 900;
+            letter-spacing: 0.06em;
+            text-shadow: 0 2px 30px rgba(255,255,255,0.2);
+            margin-bottom: 12px;
+            color: rgba(255,255,255,0.85);
+            text-align: center;
+        }
+        #counter-badge {
+            font-size: clamp(1.1rem, 2.5vw, 1.6rem);
+            font-weight: 800;
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.15);
+            border-radius: 40px;
+            padding: 8px 28px;
+            margin-bottom: 12px;
+            letter-spacing: 0.06em;
+            color: rgba(255,255,255,0.75);
+            backdrop-filter: blur(6px);
+            transition: all 0.4s ease;
+        }
+        #counter-badge span {
+            color: #6bcb77;
+            font-size: 1.2em;
+        }
+        .scan-hint {
+            font-size: clamp(0.75rem, 1.6vw, 0.95rem);
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.25em;
+            text-align: center;
+        }
+
+        /* ── 公告 Overlay ── */
+        #announce-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.88);
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            z-index: 500;
+            text-align: center;
+            cursor: pointer;
+        }
+        #announce-overlay.show { display: flex; }
+
+        .announce-welcome {
+            font-size: clamp(1rem, 3vw, 1.8rem);
+            color: rgba(255,255,255,0.6);
+            letter-spacing: 0.3em;
+            animation: fadeUp 0.4s 0.15s ease both;
+        }
+        .announce-name {
+            font-size: clamp(2.5rem, 9vw, 7rem);
+            font-weight: 900;
+            background: linear-gradient(135deg, #f9d423 0%, #ff4e50 50%, #c471ed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            letter-spacing: 0.06em;
+            line-height: 1.1;
+            margin: 10px 0;
+            animation: popIn 0.5s 0.08s cubic-bezier(0.34,1.56,0.64,1) both;
+        }
+        .announce-sub {
+            font-size: clamp(1.2rem, 3.5vw, 2.2rem);
+            color: rgba(255,255,255,0.8);
+            margin-top: 10px;
+            animation: fadeUp 0.4s 0.25s ease both;
+        }
+        .announce-dismiss {
+            margin-top: 32px;
+            font-size: 0.8rem;
+            color: rgba(255,255,255,0.25);
+            letter-spacing: 0.1em;
+            animation: fadeUp 0.4s 0.5s ease both;
+        }
+        @keyframes popIn {
+            from { transform: scale(0.3); opacity: 0; }
+            to   { transform: scale(1);   opacity: 1; }
+        }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(14px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Party elements ── */
+        #party-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; z-index: 9999;
+        }
+        @keyframes balloonRise {
+            0%   { bottom: -180px; opacity: 0; }
+            8%   { opacity: 1; }
+            82%  { opacity: 1; }
+            100% { bottom: 115vh; opacity: 0; }
+        }
+        @keyframes balloonSway {
+            0%, 100% { transform: rotate(-5deg); }
+            50%       { transform: rotate(5deg) translateX(22px); }
+        }
+        .party-balloon {
+            position: fixed; pointer-events: none; z-index: 9998;
+            display: flex; flex-direction: column; align-items: center;
+            animation: balloonRise var(--rise-dur, 5.5s) ease-out forwards;
+        }
+        .balloon-body {
+            width: 80px; height: 96px;
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: inset -8px -10px 18px rgba(0,0,0,0.15),
+                        inset 5px 5px 12px rgba(255,255,255,0.4);
+            position: relative;
+            animation: balloonSway var(--sway-dur, 2.8s) ease-in-out infinite;
+        }
+        .balloon-knot {
+            position: absolute; bottom: -10px; left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+        }
+        .balloon-string { width: 1.5px; height: 70px; background: rgba(200,200,200,0.35); }
+        .balloon-label {
+            font-size: 0.72rem; font-weight: 800;
+            color: rgba(255,255,255,0.95);
+            text-shadow: 0 1px 4px rgba(0,0,0,0.4);
+            text-align: center; padding: 3px 6px;
+            max-width: 68px; word-break: break-all; line-height: 1.3;
+        }
+
+        /* ── 啟動畫面 ── */
+        #start-overlay {
+            position: fixed; inset: 0;
+            background: rgba(10,12,30,0.96);
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            z-index: 9000; cursor: pointer;
+            text-align: center;
+        }
+        #start-overlay .start-icon { font-size: 4rem; margin-bottom: 16px; }
+        #start-overlay .start-title {
+            font-size: clamp(1.5rem, 4vw, 2.6rem);
+            font-weight: 900; letter-spacing: 0.1em;
+            color: white; margin-bottom: 8px;
+        }
+        #start-overlay .start-sub {
+            font-size: clamp(0.9rem, 2vw, 1.2rem);
+            color: rgba(255,255,255,0.45); letter-spacing: 0.2em;
+        }
+
+        /* ── Walker stage ── */
+        #walker-stage {
+            position: fixed;
+            bottom: 40px;
+            left: 0; right: 0;
+            height: 180px;
+            pointer-events: none;
+            z-index: 40;
+            overflow: hidden;
+        }
+        /* 地板線 */
+        #walker-stage::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 1px;
+            background: linear-gradient(90deg,
+                transparent 0%, rgba(255,255,255,0.18) 20%,
+                rgba(255,255,255,0.18) 80%, transparent 100%);
+        }
+
+        /* 水平位移由 JS RAF 控制，不再用 CSS walkRight/walkLeft */
+
+        /* Jump */
+        @keyframes jumpBob {
+            0%, 100% { transform: translateY(0); }
+            30%       { transform: translateY(-36px); }
+            50%       { transform: translateY(0); }
+            60%       { transform: translateY(-14px); }
+        }
+        /* Normal walk bob */
+        @keyframes walkerBob {
+            0%, 100% { transform: translateY(0); }
+            50%       { transform: translateY(-8px); }
+        }
+        /* Cheer bob (bigger bounce) */
+        @keyframes cheerBob {
+            0%, 100% { transform: translateY(0); }
+            50%       { transform: translateY(-16px); }
+        }
+        @keyframes legFwd {
+            0%, 100% { transform: rotate(-30deg); }
+            50%       { transform: rotate(30deg); }
+        }
+        @keyframes legBwd {
+            0%, 100% { transform: rotate(30deg); }
+            50%       { transform: rotate(-30deg); }
+        }
+        /* Cheer arms */
+        @keyframes armCheerL {
+            0%, 100% { transform: rotate(-130deg); }
+            50%       { transform: rotate(-160deg); }
+        }
+        @keyframes armCheerR {
+            0%, 100% { transform: rotate(130deg); }
+            50%       { transform: rotate(160deg); }
+        }
+        /* Jump legs */
+        @keyframes legJump {
+            0%, 100% { transform: rotate(0deg); }
+            30%       { transform: rotate(15deg); }
+            50%       { transform: rotate(0deg); }
+        }
+        /* Walk arms (swing opposite to same-side leg) */
+        @keyframes armWalkL {
+            0%, 100% { transform: rotate(20deg); }
+            50%       { transform: rotate(-20deg); }
+        }
+        @keyframes armWalkR {
+            0%, 100% { transform: rotate(-20deg); }
+            50%       { transform: rotate(20deg); }
+        }
+        /* Jump arms (spread out) */
+        @keyframes armJump {
+            0%, 100% { transform: rotate(0deg); }
+            30%       { transform: rotate(-40deg); }
+            50%       { transform: rotate(0deg); }
+        }
+
+        .walker {
+            position: absolute;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            /* left set by JS RAF */
+        }
+
+        .walker-tag {
+            font-size: clamp(0.9rem, 1.6vw, 1.15rem);
+            font-weight: 800;
+            color: rgba(255,255,255,0.95);
+            background: rgba(0,0,0,0.55);
+            backdrop-filter: blur(4px);
+            padding: 3px 12px;
+            border-radius: 12px;
+            white-space: nowrap;
+            letter-spacing: 0.06em;
+            text-shadow: 0 1px 4px rgba(0,0,0,0.7);
+        }
+        .walker-fig {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .walker.style-walk  .walker-fig { animation: walkerBob var(--bob) ease-in-out infinite; }
+        .walker.style-jump  .walker-fig { animation: jumpBob calc(var(--bob) * 2) ease-in-out infinite; }
+        .walker.style-cheer .walker-fig { animation: cheerBob calc(var(--bob) * 0.7) ease-in-out infinite; }
+
+        /* go-left mirrors the figure horizontally */
+        .walker.go-left  .walker-fig { transform: scaleX(-1); }
+        .walker.go-right .walker-fig { transform: scaleX(1); }
+
+        .w-head {
+            width: 38px; height: 38px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.25);
+            margin-bottom: 2px;
+            flex-shrink: 0;
+        }
+        .w-body {
+            width: 30px; height: 34px;
+            border-radius: 7px 7px 4px 4px;
+            margin-bottom: 2px;
+            flex-shrink: 0;
+            position: relative;
+        }
+        /* Arms — always visible */
+        .w-arm {
+            position: absolute;
+            top: 3px;
+            width: 10px; height: 26px;
+            border-radius: 6px;
+            transform-origin: top center;
+        }
+        .w-arm.arm-l { left: -11px; }
+        .w-arm.arm-r { right: -11px; }
+        /* Walk: swing opposite to same-side leg */
+        .walker.style-walk  .w-arm.arm-l  { animation: armWalkL var(--step) ease-in-out infinite alternate; }
+        .walker.style-walk  .w-arm.arm-r  { animation: armWalkR var(--step) ease-in-out infinite alternate; }
+        /* Jump: both arms spread out */
+        .walker.style-jump  .w-arm.arm-l  { animation: armJump calc(var(--bob) * 2) ease-in-out infinite; }
+        .walker.style-jump  .w-arm.arm-r  { animation: armJump calc(var(--bob) * 2) ease-in-out infinite reverse; }
+        /* Cheer: arms raised high */
+        .walker.style-cheer .w-arm.arm-l  { animation: armCheerL var(--bob) ease-in-out infinite alternate; }
+        .walker.style-cheer .w-arm.arm-r  { animation: armCheerR var(--bob) ease-in-out infinite alternate; }
+
+        .w-legs { display: flex; gap: 5px; }
+        .w-leg {
+            width: 12px; height: 30px;
+            border-radius: 6px;
+            transform-origin: top center;
+            flex-shrink: 0;
+        }
+        .walker.style-walk  .w-leg:first-child { animation: legFwd var(--step) ease-in-out infinite alternate; }
+        .walker.style-walk  .w-leg:last-child  { animation: legBwd var(--step) ease-in-out infinite alternate; }
+        .walker.style-jump  .w-leg             { animation: legJump calc(var(--bob) * 2) ease-in-out infinite; }
+        .walker.style-cheer .w-leg:first-child { animation: legFwd var(--step) ease-in-out infinite alternate; }
+        .walker.style-cheer .w-leg:last-child  { animation: legBwd var(--step) ease-in-out infinite alternate; }
+
+        /* ── Meet interactions ── */
+        @keyframes armShake {
+            0%, 100% { transform: rotate(72deg); }
+            50%       { transform: rotate(58deg); }
+        }
+        @keyframes armHugFwd {
+            0%, 100% { transform: rotate(52deg); }
+            50%       { transform: rotate(38deg); }
+        }
+        @keyframes bodyLean {
+            0%, 100% { transform: rotate(5deg); }
+            50%       { transform: rotate(9deg); }
+        }
+        /* Shake: arm-r extends toward partner; since go-left is scaleX(-1), this naturally mirrors */
+        .walker.style-meet-shake .walker-fig              { animation: none !important; }
+        .walker.style-meet-shake .w-arm.arm-r             { animation: armShake 0.5s ease-in-out infinite !important; }
+        .walker.style-meet-shake .w-arm.arm-l             { animation: none !important; transform: rotate(-10deg); }
+        .walker.style-meet-shake .w-leg:first-child       { animation: none !important; transform: rotate(-6deg); }
+        .walker.style-meet-shake .w-leg:last-child        { animation: none !important; transform: rotate(6deg); }
+        /* Hug: both arms forward, body leans in */
+        .walker.style-meet-hug .walker-fig                { animation: bodyLean 0.9s ease-in-out infinite !important; }
+        .walker.style-meet-hug .w-arm.arm-r               { animation: armHugFwd 0.9s ease-in-out infinite !important; }
+        .walker.style-meet-hug .w-arm.arm-l               { animation: armHugFwd 0.9s ease-in-out infinite reverse !important; }
+        .walker.style-meet-hug .w-leg:first-child         { animation: none !important; transform: rotate(-4deg); }
+        .walker.style-meet-hug .w-leg:last-child          { animation: none !important; transform: rotate(4deg); }
+        /* Cheer together: synchronized jump */
+        .walker.style-meet-cheer .walker-fig              { animation: cheerBob calc(var(--bob) * 0.5) ease-in-out infinite !important; }
+        .walker.style-meet-cheer .w-arm.arm-l             { animation: armCheerL var(--bob) ease-in-out infinite alternate !important; }
+        .walker.style-meet-cheer .w-arm.arm-r             { animation: armCheerR var(--bob) ease-in-out infinite alternate !important; }
+        .walker.style-meet-cheer .w-leg:first-child       { animation: legFwd var(--step) ease-in-out infinite alternate !important; }
+        .walker.style-meet-cheer .w-leg:last-child        { animation: legBwd var(--step) ease-in-out infinite alternate !important; }
+        /* Floating emoji between them */
+        .meet-emoji {
+            position: absolute;
+            font-size: 1.5rem;
+            pointer-events: none;
+            z-index: 50;
+            animation: meetEmojiPop 0.4s cubic-bezier(0.34,1.56,0.64,1) both,
+                       meetEmojiFloat 1.6s 0.4s ease-in-out infinite;
+        }
+        @keyframes meetEmojiPop {
+            from { transform: scale(0); opacity: 0; }
+            to   { transform: scale(1); opacity: 1; }
+        }
+        @keyframes meetEmojiFloat {
+            0%, 100% { transform: translateY(0); }
+            50%       { transform: translateY(-9px); }
+        }
+
+        /* 左下角狀態 */
+        #status-dot {
+            position: fixed; bottom: 14px; left: 16px;
+            font-size: 0.7rem; color: rgba(255,255,255,0.2);
+            display: flex; align-items: center; gap: 6px;
+            z-index: 100;
+        }
+        .dot { width: 6px; height: 6px; border-radius: 50%; background: #4ade80; }
+        .dot.err { background: #f87171; }
+
+        /* 靜音按鈕 */
+        #mute-btn {
+            position: fixed; bottom: 14px; right: 16px;
+            background: rgba(255,255,255,0.12);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: rgba(255,255,255,0.5);
+            border-radius: 20px; padding: 5px 14px;
+            font-size: 0.75rem; cursor: pointer;
+            z-index: 100; backdrop-filter: blur(6px);
+        }
+        #mute-btn:hover { background: rgba(255,255,255,0.22); }
+    </style>
+</head>
+<body>
+
+<!-- 啟動畫面（必須點一下才能解鎖音效） -->
+<div id="start-overlay" onclick="startDisplay()">
+    <div class="start-icon">🎉</div>
+    <div class="start-title">{{ event.title }}</div>
+    <div class="start-sub">▸ 點擊螢幕啟動展示 ◂</div>
+</div>
+
+<!-- 待機畫面 -->
+<div id="waiting-screen">
+    <div class="event-title">{{ event.title }}</div>
+    <div id="counter-badge">已到場 <span id="counter-num">0</span> 人</div>
+    <div class="scan-hint">▸ 掃描 QR Code 簽到 ◂</div>
+</div>
+
+<!-- 走路小人舞台 -->
+<div id="walker-stage"></div>
+
+<!-- 公告 Overlay -->
+<div id="announce-overlay" onclick="dismissAnnounce()">
+    <div class="announce-welcome">歡　迎</div>
+    <div class="announce-name" id="announce-name">—</div>
+    <div class="announce-sub">到場了！🎉</div>
+    <div class="announce-dismiss">點擊任意處關閉</div>
+</div>
+
+<!-- 狀態指示 -->
+<div id="status-dot">
+    <div class="dot" id="dot"></div>
+    <span id="status-text">連線中...</span>
+</div>
+
+<!-- 靜音按鈕 -->
+<button id="mute-btn" onclick="toggleMute()">🔊 音效開</button>
+
+<script>
+const EVENT_ID = '{{ event.id }}';
+const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff',
+                '#ff9f1c','#ff85c2','#38b6ff','#f9844a','#a8ff78'];
+
+// ── 音效 ──────────────────────────────────────────────────
+let audioCtx = null;
+let muted    = false;
+
+function getAudioCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    return audioCtx;
+}
+
+function toggleMute() {
+    muted = !muted;
+    document.getElementById('mute-btn').textContent = muted ? '🔇 音效關' : '🔊 音效開';
+}
+
+let displayStarted = false;
+
+function startDisplay() {
+    if (displayStarted) return;
+    displayStarted = true;
+    // 在用戶手勢中初始化 AudioContext，確保音效可以播放
+    getAudioCtx();
+    const overlay = document.getElementById('start-overlay');
+    overlay.style.transition = 'opacity 0.5s';
+    overlay.style.opacity = '0';
+    setTimeout(() => overlay.remove(), 500);
+    // 開始 polling
+    poll();
+    setInterval(poll, 3000);
+}
+
+function playCheckinSound() {
+    if (muted) return;
+    try {
+        const ctx = getAudioCtx();
+        const now = ctx.currentTime;
+
+        // 上升和弦音階 C5 → E5 → G5 → C6（每音間隔 90ms）
+        [523.25, 659.25, 783.99, 1046.5].forEach((freq, i) => {
+            const osc  = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.value = freq;
+            const t = now + i * 0.09;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.28, t + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.38);
+            osc.start(t);
+            osc.stop(t + 0.45);
+        });
+
+        // 最後鈴聲持音（C major 三和弦）
+        [523.25, 659.25, 783.99].forEach(freq => {
+            const osc  = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'triangle';
+            osc.frequency.value = freq;
+            const t = now + 4 * 0.09;
+            gain.gain.setValueAtTime(0, t);
+            gain.gain.linearRampToValueAtTime(0.13, t + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.7);
+            osc.start(t);
+            osc.stop(t + 0.8);
+        });
+    } catch(e) {
+        console.warn('Audio failed:', e);
+    }
+}
+
+let knownIds      = new Set();
+let initialized   = false;
+let announceTimer = null;
+let announceQueue = [];
+let isAnnouncing  = false;
+let walkerIndex   = 0;
+
+// ── Polling ──────────────────────────────────────────────
+function poll() {
+    fetch(`/admin/events/${EVENT_ID}/checkin-live/data`)
+        .then(r => r.json())
+        .then(data => {
+            setStatus(true);
+            updateCounter(data.checked_count || 0);
+
+            const newArrivals = [];
+            for (const item of (data.checked || [])) {
+                if (!knownIds.has(item.id)) {
+                    knownIds.add(item.id);
+                    if (initialized) newArrivals.push(item);
+                }
+            }
+
+            if (!initialized) {
+                initialized = true;
+                // 頁面載入時補上所有已到場的小人（不做入場動畫）
+                (data.checked || []).forEach(item => spawnWalker(item.display_name, false));
+            } else {
+                newArrivals.forEach(a => {
+                    spawnWalker(a.display_name, true);  // 新到場：從邊緣走入揮手
+                    announceQueue.push(a);
+                });
+                if (!isAnnouncing && announceQueue.length > 0) nextAnnounce();
+            }
+        })
+        .catch(() => setStatus(false));
+}
+
+function updateCounter(n) {
+    document.getElementById('counter-num').textContent = n;
+}
+
+function setStatus(ok) {
+    document.getElementById('dot').className = 'dot' + (ok ? '' : ' err');
+    document.getElementById('status-text').textContent = ok ? '即時更新中' : '連線失敗，重試中...';
+}
+
+// ── Walker RAF (bounce within stage) ─────────────────────
+const ACTION_STATES = ['walk', 'walk', 'walk', 'jump', 'cheer'];
+const STATE_DUR = {
+    walk:  [2500, 5000],
+    jump:  [1000, 2200],
+    cheer: [1400, 3000],
+};
+const STATE_SPEED = { walk: 1.0, cheer: 0.6, jump: 0.0, meet: 0.0, arrive: 1.2 };
+const MEET_DIST   = 72;
+const MEET_EMOJIS = { shake: '🤝', hug: '❤️', cheer: '🎉' };
+
+const STAGE_PAD  = 24;  // px margin from each edge
+const WALKER_W   = 80;  // approx element width (head + tag)
+
+const walkerObjs = [];
+let rafStarted   = false;
+
+function randMs(min, max) { return min + Math.random() * (max - min); }
+
+function walkerRaf() {
+    const stage  = document.getElementById('walker-stage');
+    const stageW = stage.offsetWidth;
+    const minX   = STAGE_PAD;
+    const maxX   = stageW - WALKER_W - STAGE_PAD;
+    const centerX = stageW / 2 - WALKER_W / 2;
+
+    for (const w of walkerObjs) {
+        const mult = STATE_SPEED[w.state] ?? 1.0;
+        w.x += w.baseVx * mult;
+
+        // Arrive state: walk toward center, cheer on arrival
+        if (w.state === 'arrive') {
+            const arrived = w.baseVx > 0 ? w.x >= w.arriveTarget : w.x <= w.arriveTarget;
+            if (arrived) {
+                w.x = w.arriveTarget;
+                w.state = 'cheer';
+                w.el.classList.remove('style-arrive', 'style-walk');
+                w.el.classList.add('style-cheer');
+                setTimeout(() => runBehavior(w, ACTION_STATES[Math.floor(Math.random() * ACTION_STATES.length)]), 1800 + Math.random() * 800);
+            }
+        } else if (w.state !== 'meet') {
+            if (w.x <= minX) {
+                w.x = minX; w.baseVx = Math.abs(w.baseVx);
+                w.el.classList.remove('go-left'); w.el.classList.add('go-right');
+            } else if (w.x >= maxX) {
+                w.x = maxX; w.baseVx = -Math.abs(w.baseVx);
+                w.el.classList.remove('go-right'); w.el.classList.add('go-left');
+            }
+        }
+        w.el.style.left = w.x + 'px';
+    }
+
+    // Proximity meet detection
+    for (let i = 0; i < walkerObjs.length; i++) {
+        const a = walkerObjs[i];
+        if (a.state === 'meet' || a.state === 'arrive') continue;
+        if (Date.now() - (a.lastMeet || 0) < 6000) continue;
+        for (let j = i + 1; j < walkerObjs.length; j++) {
+            const b = walkerObjs[j];
+            if (b.state === 'meet' || b.state === 'arrive') continue;
+            if (Date.now() - (b.lastMeet || 0) < 6000) continue;
+            if (Math.abs(a.x - b.x) < MEET_DIST) {
+                triggerMeet(a, b);
+                break;
+            }
+        }
+    }
+
+    requestAnimationFrame(walkerRaf);
+}
+
+function triggerMeet(a, b) {
+    const types = ['shake', 'shake', 'hug', 'cheer'];
+    const type  = types[Math.floor(Math.random() * types.length)];
+    const dur   = 2200 + Math.random() * 1800;
+    const now   = Date.now();
+    a.lastMeet  = b.lastMeet = now;
+
+    // Face each other
+    const left  = a.x <= b.x ? a : b;
+    const right = a.x <= b.x ? b : a;
+    left.el.classList.remove('go-left', 'go-right');  left.el.classList.add('go-right');
+    right.el.classList.remove('go-left', 'go-right'); right.el.classList.add('go-left');
+
+    [a, b].forEach(w => {
+        w.state = 'meet';
+        w.el.classList.remove('style-walk', 'style-jump', 'style-cheer',
+                              'style-meet-shake', 'style-meet-hug', 'style-meet-cheer');
+        w.el.classList.add('style-meet-' + type);
+    });
+
+    // Floating emoji between them
+    const stage  = document.getElementById('walker-stage');
+    const midX   = (a.x + b.x) / 2 + 18;
+    const botVal = Math.max(parseInt(a.el.style.bottom)||4, parseInt(b.el.style.bottom)||4) + 118;
+    const emoEl  = document.createElement('div');
+    emoEl.className  = 'meet-emoji';
+    emoEl.style.left = midX + 'px';
+    emoEl.style.bottom = botVal + 'px';
+    emoEl.textContent = MEET_EMOJIS[type];
+    stage.appendChild(emoEl);
+
+    setTimeout(() => {
+        emoEl.remove();
+        [a, b].forEach(w => {
+            w.el.classList.remove('style-meet-shake', 'style-meet-hug', 'style-meet-cheer');
+        });
+        // Walk away from each other
+        left.baseVx  = -Math.abs(left.baseVx);
+        right.baseVx =  Math.abs(right.baseVx);
+        left.el.classList.remove('go-left', 'go-right');  left.el.classList.add('go-left');
+        right.el.classList.remove('go-left', 'go-right'); right.el.classList.add('go-right');
+        runBehavior(left,  ACTION_STATES[Math.floor(Math.random() * ACTION_STATES.length)]);
+        runBehavior(right, ACTION_STATES[Math.floor(Math.random() * ACTION_STATES.length)]);
+    }, dur);
+}
+
+function runBehavior(wObj, state) {
+    wObj.state = state;
+    wObj.el.classList.remove('style-walk', 'style-jump', 'style-cheer',
+                             'style-meet-shake', 'style-meet-hug', 'style-meet-cheer');
+    wObj.el.classList.add('style-' + state);
+
+    const [min, max] = STATE_DUR[state];
+    setTimeout(() => {
+        // 直接切換到下一個動作，不經過 idle
+        let next;
+        do { next = ACTION_STATES[Math.floor(Math.random() * ACTION_STATES.length)]; }
+        while (next === state && Math.random() < 0.7); // 避免連續同一動作
+        runBehavior(wObj, next);
+    }, randMs(min, max));
+}
+
+function spawnWalker(name, isNewArrival) {
+    const color  = COLORS[Math.floor(Math.random() * COLORS.length)];
+    walkerIndex++;
+
+    const stage  = document.getElementById('walker-stage');
+    const stageW = stage.offsetWidth || window.innerWidth;
+    const speed  = 0.35 + Math.random() * 0.5;
+    const step   = (0.28 + Math.random() * 0.22).toFixed(2) + 's';
+    const bob    = (0.38 + Math.random() * 0.18).toFixed(2) + 's';
+    const bottom = 4 + Math.floor(Math.random() * 28);
+
+    // New arrivals enter from a random edge; existing (on init) spawn anywhere
+    let startX, goLeft, arriveTarget;
+    if (isNewArrival) {
+        const fromLeft = Math.random() < 0.5;
+        startX      = fromLeft ? -WALKER_W : stageW + 4;
+        goLeft      = !fromLeft;
+        // Walk toward a random spot in the middle 40–60% of stage
+        arriveTarget = stageW * (0.3 + Math.random() * 0.4);
+    } else {
+        startX = STAGE_PAD + Math.random() * Math.max(0, stageW - WALKER_W - STAGE_PAD * 2);
+        goLeft = Math.random() < 0.5;
+    }
+    const baseVx = goLeft ? -speed : speed;
+
+    const w = document.createElement('div');
+    w.className = `walker style-walk ${goLeft ? 'go-left' : 'go-right'}`;
+    w.style.bottom = bottom + 'px';
+    w.style.left   = startX + 'px';
+    w.style.setProperty('--step', step);
+    w.style.setProperty('--bob',  bob);
+
+    w.innerHTML = `
+        <div class="walker-tag">${escHtml(name)}</div>
+        <div class="walker-fig">
+            <div class="w-head" style="background:${color}"></div>
+            <div class="w-body" style="background:${color}">
+                <div class="w-arm arm-l" style="background:${color}"></div>
+                <div class="w-arm arm-r" style="background:${color}"></div>
+            </div>
+            <div class="w-legs">
+                <div class="w-leg" style="background:${color}"></div>
+                <div class="w-leg" style="background:${color}"></div>
+            </div>
+        </div>
+    `;
+    stage.appendChild(w);
+
+    const wObj = { el: w, x: startX, baseVx, state: isNewArrival ? 'arrive' : 'walk',
+                   lastMeet: 0, arriveTarget: arriveTarget || 0 };
+    walkerObjs.push(wObj);
+
+    if (!rafStarted) { rafStarted = true; requestAnimationFrame(walkerRaf); }
+
+    if (!isNewArrival) {
+        setTimeout(() => {
+            runBehavior(wObj, ACTION_STATES[Math.floor(Math.random() * ACTION_STATES.length)]);
+        }, Math.random() * 2000);
+    }
+}
+
+// ── Announce queue ────────────────────────────────────────
+function nextAnnounce() {
+    if (announceQueue.length === 0) { isAnnouncing = false; return; }
+    isAnnouncing = true;
+    showAnnounce(announceQueue.shift());
+}
+
+function showAnnounce(item) {
+    if (announceTimer) clearTimeout(announceTimer);
+    document.getElementById('announce-name').textContent = item.display_name;
+    document.getElementById('announce-overlay').classList.add('show');
+
+    playCheckinSound();
+    startConfetti();
+    const count = 12 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => spawnBalloon(item.display_name), i * 200 + Math.random() * 100);
+    }
+
+    announceTimer = setTimeout(() => {
+        dismissAnnounce();
+        setTimeout(nextAnnounce, 800);
+    }, 6000);
+}
+
+function dismissAnnounce() {
+    document.getElementById('announce-overlay').classList.remove('show');
+    if (announceTimer) clearTimeout(announceTimer);
+}
+
+// ── Confetti ──────────────────────────────────────────────
+function startConfetti() {
+    const old = document.getElementById('party-canvas');
+    if (old) old.remove();
+    const canvas = document.createElement('canvas');
+    canvas.id = 'party-canvas';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+    const pieces = [];
+    for (let i = 0; i < 220; i++) {
+        const circle = Math.random() > 0.5;
+        pieces.push({
+            x: Math.random() * canvas.width,
+            y: -20 - Math.random() * canvas.height * 0.7,
+            w: circle ? 5 + Math.random()*9 : 9 + Math.random()*15,
+            h: circle ? 0 : 4 + Math.random()*8,
+            circle,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+            rot: Math.random() * Math.PI * 2,
+            rotV: (Math.random() - 0.5) * 0.18,
+            vx: (Math.random() - 0.5) * 4,
+            vy: 2 + Math.random() * 3.2,
+            alpha: 1,
+        });
+    }
+    let frame = 0;
+    const MAX = 380;
+    (function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pieces.forEach(p => {
+            p.x += p.vx; p.y += p.vy; p.rot += p.rotV; p.vy += 0.04;
+            if (frame > MAX - 90) p.alpha -= 0.011;
+            ctx.globalAlpha = Math.max(0, p.alpha);
+            ctx.fillStyle = p.color;
+            if (p.circle) {
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.w/2, 0, Math.PI*2); ctx.fill();
+            } else {
+                ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot);
+                ctx.fillRect(-p.w/2, -p.h/2, p.w, p.h); ctx.restore();
+            }
+        });
+        ctx.globalAlpha = 1;
+        if (++frame < MAX) requestAnimationFrame(draw);
+        else canvas.remove();
+    })();
+}
+
+// ── Balloons ──────────────────────────────────────────────
+function spawnBalloon(name) {
+    const color   = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const x       = 3 + Math.random() * 90;
+    const riseDur = (5 + Math.random() * 4).toFixed(1) + 's';
+    const swayDur = (2 + Math.random() * 2.5).toFixed(1) + 's';
+    const el = document.createElement('div');
+    el.className = 'party-balloon';
+    el.style.left = x + '%';
+    el.style.setProperty('--rise-dur', riseDur);
+    el.innerHTML = `
+        <div class="balloon-body" style="background:${color}; --sway-dur:${swayDur}">
+            <div class="balloon-label">${escHtml(name)}</div>
+            <div class="balloon-knot" style="border-top-color:${color}"></div>
+        </div>
+        <div class="balloon-string"></div>
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), parseFloat(riseDur) * 1000 + 1000);
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── Start ─────────────────────────────────────────────────
+// polling 由 startDisplay() 在用戶點擊後啟動，確保 AudioContext 已解鎖
+</script>
+
+</body>
+</html>

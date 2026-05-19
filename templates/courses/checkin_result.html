@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}課程簽到{% endblock %}
+{% block content %}
+
+<div style="max-width:480px; margin:40px auto; text-align:center;">
+
+{% if success %}
+    {% if already %}
+    <!-- 已簽到過 -->
+    <div style="background:white; border-radius:16px; padding:40px 32px; box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+        <div style="font-size:4rem; margin-bottom:16px;">✅</div>
+        <h2 style="color:#2e7d32; margin-bottom:8px;">已簽到</h2>
+        <p style="color:#888; margin-bottom:20px;">{{ display_name }}，你已經簽到過這堂課了！</p>
+        <div style="background:#f5f5f5; border-radius:10px; padding:14px 20px; text-align:left; margin-bottom:24px;">
+            <p style="margin:0; font-weight:bold; color:#333;">{{ course.title }}</p>
+            <p style="margin:4px 0 0 0; color:#666; font-size:0.9rem;">
+                第 {{ sess.session_number }} 堂{% if sess.title and sess.title != '第 ' + sess.session_number|string + ' 堂' %} · {{ sess.title }}{% endif %}
+            </p>
+        </div>
+    </div>
+    {% else %}
+    <!-- 簽到成功 -->
+    <div style="background:white; border-radius:16px; padding:40px 32px; box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+        <div style="font-size:4rem; margin-bottom:16px;">🎉</div>
+        <h2 style="color:#06C755; margin-bottom:8px;">簽到成功！</h2>
+        <p style="color:#888; margin-bottom:20px;">{{ display_name }}，出席已記錄！</p>
+        <div style="background:#e8f5e9; border-radius:10px; padding:14px 20px; text-align:left; margin-bottom:24px;">
+            <p style="margin:0; font-weight:bold; color:#333;">{{ course.title }}</p>
+            <p style="margin:4px 0 0 0; color:#2e7d32; font-size:0.9rem;">
+                第 {{ sess.session_number }} 堂{% if sess.title and sess.title != '第 ' + sess.session_number|string + ' 堂' %} · {{ sess.title }}{% endif %}
+            </p>
+        </div>
+    </div>
+    {% endif %}
+{% else %}
+    <!-- 簽到失敗 -->
+    <div style="background:white; border-radius:16px; padding:40px 32px; box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+        <div style="font-size:4rem; margin-bottom:16px;">❌</div>
+        <h2 style="color:#c62828; margin-bottom:8px;">簽到失敗</h2>
+        <p style="color:#888; margin-bottom:24px;">{{ message }}</p>
+        <a href="/courses"
+           style="display:inline-block; padding:10px 24px; background:#06C755; color:white; border-radius:8px; text-decoration:none; font-weight:bold;">
+            前往學程列表
+        </a>
+    </div>
+{% endif %}
+
+    <div style="margin-top:20px;">
+        <a href="/my-courses" style="color:#888; font-size:0.9rem; text-decoration:none;">查看我的學程</a>
+    </div>
+</div>
+{% endblock %}

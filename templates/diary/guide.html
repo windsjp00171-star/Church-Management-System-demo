@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ app_name }}｜使用說明</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --green-light: #d7f5df;
+      --red-light: #ffd8d8;
+      --gray-light: #ede8e0;
+      --black: #2e2a26;
+      --muted: #8a7f76;
+      --bg: #f5f3ee;
+      --white: #fffef9;
+      --accent: #b8956a;
+      --radius: 16px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: var(--bg);
+      color: var(--black);
+      line-height: 1.7;
+    }
+
+    /* HERO */
+    .hero {
+      background: var(--black);
+      color: white;
+      padding: 48px 24px 40px;
+      text-align: center;
+    }
+
+    .hero-emoji { font-size: 52px; display: block; margin-bottom: 14px; }
+
+    .hero h1 {
+      font-family: "Noto Serif TC", Georgia, serif;
+      font-size: 26px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      margin-bottom: 8px;
+    }
+
+    .hero p {
+      font-size: 14px;
+      color: #aaa;
+      line-height: 1.8;
+    }
+
+    .start-btn {
+      display: inline-block;
+      margin-top: 24px;
+      padding: 14px 32px;
+      background: white;
+      color: var(--black);
+      border-radius: 50px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+      letter-spacing: 1px;
+    }
+
+    .container {
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 24px 16px 48px;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin: 28px 0 10px;
+    }
+
+    .card {
+      background: var(--white);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 12px rgba(60,40,10,0.07);
+    }
+
+    .card-title {
+      font-family: "Noto Serif TC", Georgia, serif;
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--black);
+    }
+
+    .card p {
+      font-size: 14px;
+      color: #5a4f44;
+      line-height: 1.85;
+    }
+
+    .steps { display: flex; flex-direction: column; gap: 12px; }
+
+    .step { display: flex; gap: 12px; align-items: flex-start; }
+
+    .step-num {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      background: var(--black);
+      color: white;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+
+    .step-text { font-size: 14px; color: #3a3530; line-height: 1.75; }
+    .step-text strong { color: var(--black); }
+
+    .badge-row { display: flex; flex-direction: column; gap: 10px; }
+
+    .badge-item { display: flex; align-items: center; gap: 12px; font-size: 14px; color: #3a3530; }
+
+    .badge {
+      width: 38px;
+      height: 38px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 13px;
+      flex-shrink: 0;
+    }
+
+    .badge.written   { background: var(--green-light); color: #1b5e20; }
+    .badge.unwritten { background: var(--red-light);   color: #7f0000; }
+    .badge.future    { background: var(--gray-light);  color: #6b625a; }
+
+    .tip {
+      background: #fffbea;
+      border-left: 4px solid #f5c842;
+      border-radius: 0 10px 10px 0;
+      padding: 12px 14px;
+      font-size: 13px;
+      color: #5a4f44;
+      line-height: 1.8;
+      margin-top: 12px;
+    }
+
+    .tip.purple {
+      background: #f6f3ff;
+      border-left-color: #9c7fe0;
+    }
+
+    .tip.blue {
+      background: #f0f7ff;
+      border-left-color: #5b9bd5;
+    }
+
+    .tip.warm {
+      background: #fdf6ee;
+      border-left-color: var(--accent);
+    }
+
+    .grant-flow { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+
+    .grant-step {
+      background: var(--bg);
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 13px;
+      color: #5a4f44;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .grant-step .num {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: #4caf7d;
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .faq-item { margin-bottom: 16px; }
+    .faq-item:last-child { margin-bottom: 0; }
+    .faq-q { font-weight: 700; font-size: 14px; margin-bottom: 4px; color: var(--black); }
+    .faq-a { font-size: 14px; color: #6b625a; line-height: 1.8; }
+
+    .footer {
+      text-align: center;
+      padding: 8px 16px 40px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .footer .verse {
+      font-family: "Noto Serif TC", Georgia, serif;
+      font-size: 15px;
+      color: #5a4f44;
+      line-height: 2;
+      margin-bottom: 8px;
+    }
+
+    .footer-btn {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 14px 36px;
+      background: var(--black);
+      color: white;
+      border-radius: 50px;
+      font-size: 15px;
+      font-weight: 700;
+      text-decoration: none;
+    }
+
+    /* OS tab */
+    .os-tabs { display: flex; gap: 8px; margin-bottom: 14px; }
+    .os-tab {
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: 1px solid #d8cfc4;
+      background: var(--white);
+      color: #6b625a;
+    }
+    .os-tab.active { background: var(--black); color: white; border-color: var(--black); }
+    .os-panel { display: none; }
+    .os-panel.active { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="hero">
+  <span class="hero-emoji">📖</span>
+  <h1>{{ app_name }}</h1>
+  <p>每一天，用文字安靜在神面前。<br>這份說明幫助你快速上手。</p>
+  <a class="start-btn" href="/login">立即開始使用 →</a>
+</div>
+
+<div class="container">
+
+  <div class="section-label">第一步</div>
+  <div class="card">
+    <div class="card-title">🔐 登入系統</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">點上方「立即開始使用」或直接前往系統網址</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">點選「<strong>使用 LINE 登入</strong>」，用你的 LINE 帳號授權</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">登入後自動進入主頁，之後打開都不需要重新登入</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 加到主畫面 -->
+  <div class="card">
+    <div class="card-title">📲 加到手機主畫面（建議）</div>
+    <p style="margin-bottom:12px;">把{{ app_name }}加到主畫面，之後就像 App 一樣直接開，不用每次從 LINE 找連結。</p>
+
+    <div class="os-tabs">
+      <button class="os-tab active" onclick="switchTab('ios')">iPhone (iOS)</button>
+      <button class="os-tab" onclick="switchTab('android')">Android</button>
+    </div>
+
+    <div class="os-panel active" id="tab-ios">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">用 <strong>Safari</strong> 打開{{ app_name }}網址</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">點下方工具列的 <strong>分享按鈕</strong>（方框加箭頭）</div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">選「<strong>加入主畫面</strong>」→ 點右上角「新增」</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="os-panel" id="tab-android">
+      <div class="steps">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div class="step-text">用 <strong>Chrome</strong> 打開{{ app_name }}網址</div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div class="step-text">點右上角 <strong>⋮ 選單</strong></div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div class="step-text">選「<strong>新增至主畫面</strong>」→ 確認</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip blue">
+      💡 加完之後主畫面會出現{{ app_name }}的圖示，點進去就直接開啟，不需要開瀏覽器。
+    </div>
+  </div>
+
+  <div class="section-label">每天使用</div>
+  <div class="card">
+    <div class="card-title">✍️ 寫下今日靈修</div>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-text">進入系統後，頁面會自動顯示<strong>今天的讀經進度</strong>與經文內容</div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-text">閱讀完經文後，在下方「<strong>靈修書寫</strong>」區塊寫下你的感動或回應</div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-text">寫完後按「<strong>儲存並鎖定</strong>」，完成今日靈修記錄</div>
+      </div>
+    </div>
+    <div class="tip">
+      💡 <strong>儲存後內容會鎖定，無法修改</strong>，這是為了保留你最真實的感動。你仍可點「複製內容」分享給他人。
+    </div>
+  </div>
+
+  <!-- 段落背景 -->
+  <div class="card">
+    <div class="card-title">📜 段落背景</div>
+    <p>每天進入頁面，經文上方會自動出現一小段「<strong>段落背景</strong>」，簡短說明這段經文發生在什麼情況下。</p>
+    <div class="tip warm" style="margin-top:12px;">
+      💡 不是課本那種死板介紹，而是幫你在讀經前先「進入狀況」，讓那段話更有畫面感。
+    </div>
+  </div>
+
+  <!-- AI 反思引導 -->
+  <div class="card">
+    <div class="card-title">✦ 反思引導（AI 輔助）</div>
+    <p style="margin-bottom:12px;">讀完經文後，如果不知道從哪裡開始書寫，可以點經文下方的「<strong>✦ 反思引導</strong>」按鈕。</p>
+    <p>AI 會根據當天那幾節<strong>具體的經文內容</strong>，提出 2–3 個幫助你安靜思考的問題，引導你進入書寫狀態。</p>
+    <div class="tip purple">
+      💡 引導問題只是幫助你進入思考，<strong>不是標準答案</strong>。你可以只回應其中一個問題，或完全按自己的感動書寫。
+    </div>
+  </div>
+
+  <div class="section-label">查看記錄</div>
+  <div class="card">
+    <div class="card-title">📅 月曆顏色說明</div>
+    <div class="badge-row">
+      <div class="badge-item">
+        <div class="badge written">已</div>
+        <div><strong>綠色</strong> — 這天已完成靈修書寫</div>
+      </div>
+      <div class="badge-item">
+        <div class="badge unwritten">未</div>
+        <div><strong>紅色</strong> — 這天尚未書寫，可點進去補寫</div>
+      </div>
+      <div class="badge-item">
+        <div class="badge future">—</div>
+        <div><strong>灰色</strong> — 還沒到的日期</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📖 書卷瀏覽</div>
+    <p>點右上角「<strong>📖 書卷瀏覽</strong>」，可依聖經書卷查看靈修記錄。</p>
+    <p style="margin-top:8px;">點選任一<strong>已寫（綠色）</strong>的日期，可以直接展開閱讀當天的靈修內容，方便回顧神在那段時間的帶領。</p>
+  </div>
+
+  <div class="section-label">選用功能</div>
+  <div class="card">
+    <div class="card-title">🤝 授權牧者查閱（選用）</div>
+    <p style="margin-bottom:12px;">如果你願意讓牧者或小組長看到你的靈修記錄，可以在主頁下方「<strong>牧養查閱授權</strong>」進行授權。</p>
+    <div class="grant-flow">
+      <div class="grant-step">
+        <span class="num">1</span>從下拉選單選擇要授權的牧者或小組長
+      </div>
+      <div class="grant-step">
+        <span class="num">2</span>按下「授權」按鈕
+      </div>
+      <div class="grant-step">
+        <span class="num">3</span>完成！之後每次寫完，對方都能自動看到
+      </div>
+    </div>
+    <div class="tip">
+      💡 <strong>授權完全自願。</strong>這不是要讓靈修變成功課，只是讓牧者能更了解你、為你禱告。你隨時可以取消授權。
+    </div>
+  </div>
+
+  <div class="section-label">常見問題</div>
+  <div class="card">
+    <div class="faq-item">
+      <div class="faq-q">Q：儲存後發現寫錯了，可以修改嗎？</div>
+      <div class="faq-a">儲存後內容會鎖定，無法修改。就像日記一樣，保留當下最真實的心情。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q：忘記寫了，可以補寫之前的嗎？</div>
+      <div class="faq-a">可以。點月曆上過去紅色的日期，即可進入該天補寫。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q：我的靈修內容別人看得到嗎？</div>
+      <div class="faq-a">不會。預設完全私密，只有你自己主動授權的人才能查看。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q：手機可以用嗎？</div>
+      <div class="faq-a">可以！建議用 Safari（iPhone）或 Chrome（Android）加到主畫面，之後直接像 App 一樣開啟。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q：想複製靈修內容分享怎麼辦？</div>
+      <div class="faq-a">儲存鎖定後，頁面會出現「複製內容」按鈕，點一下即可複製完整記錄。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q：段落背景跟反思引導是 AI 寫的嗎？</div>
+      <div class="faq-a">是的，兩個都是根據當天具體的聖經段落即時生成。同一段經文全教會共用同一份，不會重複呼叫。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q：反思引導的問題每次都一樣嗎？</div>
+      <div class="faq-a">同一段經文的問題會一樣（有快取）。換了新的段落就會重新生成。</div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <div class="verse">「你們親近神，神就必親近你們。」<br>雅各書 4:8</div>
+  <a class="footer-btn" href="/login">開始使用{{ app_name }} →</a>
+  <br><br>
+  {{ app_name }}｜願你每天都能在此遇見神 🙏
+</div>
+
+<script>
+function switchTab(os) {
+  document.querySelectorAll(".os-tab").forEach(t => t.classList.remove("active"));
+  document.querySelectorAll(".os-panel").forEach(p => p.classList.remove("active"));
+  document.querySelector(`[onclick="switchTab('${os}')"]`).classList.add("active");
+  document.getElementById(`tab-${os}`).classList.add("active");
+}
+</script>
+
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>{{ app_name }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
+
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#111111">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="{{ app_name }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">{{ app_name }}</div>
+    {% if current_user %}
+      <div style="display:flex;align-items:center;gap:10px;">
+{% if current_user.picture_url %}
+          <img src="{{ current_user.picture_url }}" class="topbar-avatar" alt="{{ current_user.display_name }}">
+        {% endif %}
+      </div>
+    {% endif %}
+  </div>
+</header>
+
+<main class="container">
+
+  {% if show_bootstrap %}
+    <div class="toast warn" style="margin-bottom:12px; word-break:break-all;">
+      ⚙️ 尚未設定管理員。請將以下 LINE User ID 填入環境變數 <strong>ADMIN_LINE_USER_IDS</strong>，再重新部署：<br>
+      <code>{{ current_user.line_user_id }}</code>
+    </div>
+  {% endif %}
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <div class="stack" style="margin-bottom:12px;">
+        {% for cat, msg in messages %}
+          <div class="toast {{ cat }}">{{ msg }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
+
+  {% block body %}{% endblock %}
+</main>
+
+<!-- 浮動說明按鈕 -->
+<a href="{{ url_for('guide') }}" class="help-fab" id="help-fab" title="使用說明">？</a>
+<div class="help-bubble" id="help-bubble">👆 點我看使用說明</div>
+
+<script>
+  document.querySelectorAll(".toast").forEach(function(el) {
+    setTimeout(function() {
+      el.style.transition = "opacity 0.5s";
+      el.style.opacity = "0";
+      setTimeout(function() { el.remove(); }, 500);
+    }, 3000);
+  });
+
+  // 使用說明提示泡泡：沒看過就顯示，看過就不再出現
+  (function() {
+    var fab = document.getElementById("help-fab");
+    var bubble = document.getElementById("help-bubble");
+    if (!fab || !bubble) return;
+
+    if (!localStorage.getItem("guide_hint_seen")) {
+      // 第一次：加脈衝動畫 + 顯示泡泡
+      fab.classList.add("help-fab-pulse");
+      bubble.classList.add("help-bubble-show");
+
+      // 5 秒後泡泡淡出
+      setTimeout(function() {
+        bubble.style.transition = "opacity 0.5s";
+        bubble.style.opacity = "0";
+        setTimeout(function() { bubble.style.display = "none"; }, 500);
+      }, 5000);
+    }
+
+    // 點過之後記錄，下次不再顯示提示
+    fab.addEventListener("click", function() {
+      localStorage.setItem("guide_hint_seen", "1");
+    });
+  })();
+</script>
+
+</body>
+</html>

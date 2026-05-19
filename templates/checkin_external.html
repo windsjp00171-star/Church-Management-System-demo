@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>外部簽到 — {{ event.title }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: sans-serif;
+            background: #f0f4f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 24px 16px 48px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 28px 22px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        .event-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #222;
+            margin-bottom: 4px;
+            text-align: center;
+        }
+        .event-meta {
+            font-size: 0.82rem;
+            color: #888;
+            margin-bottom: 20px;
+            text-align: center;
+            line-height: 1.8;
+        }
+        .section-title {
+            font-size: 0.88rem;
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 14px;
+            text-align: center;
+        }
+        .name-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 14px 16px;
+            border-radius: 12px;
+            border: 1.5px solid #e0e0e0;
+            background: white;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .name-item:hover { border-color: #06C755; background: #f0faf3; }
+        .name-item.checked-in {
+            border-color: #a5d6a7;
+            background: #f1f8f2;
+            cursor: default;
+            opacity: 0.7;
+        }
+        .name-text {
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: #222;
+            letter-spacing: 0.05em;
+        }
+        .status-badge {
+            font-size: 0.78rem;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .badge-ok { background: #e8f5e9; color: #2e7d32; }
+        .badge-done { background: #f5f5f5; color: #9e9e9e; }
+        .empty-msg {
+            text-align: center;
+            color: #aaa;
+            padding: 24px 0;
+            font-size: 0.9rem;
+        }
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 18px;
+            font-size: 0.85rem;
+            color: #888;
+            cursor: pointer;
+        }
+        .back-link:hover { color: #555; }
+
+        /* 成功畫面 */
+        #success-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+        }
+        #success-overlay.show { display: flex; }
+        .success-box {
+            background: white;
+            border-radius: 20px;
+            padding: 40px 28px;
+            max-width: 340px;
+            width: 90%;
+            text-align: center;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.2);
+        }
+        .success-icon { font-size: 4rem; margin-bottom: 16px; }
+        .success-name { font-size: 1.4rem; font-weight: bold; color: #222; margin-bottom: 8px; }
+        .success-msg { font-size: 0.95rem; color: #666; margin-bottom: 24px; }
+        .btn-close {
+            padding: 12px 32px;
+            background: #06C755;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="event-name">{{ event.title }}</div>
+        <div class="event-meta">
+            {% if event.event_start %}📅 {{ event.event_start[:10] }}{% endif %}
+            {% if event.location %}&nbsp;·&nbsp;📍 {{ event.location }}{% endif %}
+        </div>
+
+        {% set total = regs | length %}
+        {% set done = regs | selectattr('checked_in') | list | length %}
+        <div class="section-title">
+            外部朋友簽到
+            {% if total > 0 %}
+            <span style="display:inline-block; margin-left:8px; font-size:0.8rem; background:#e8f5e9; color:#2e7d32; padding:2px 10px; border-radius:20px; font-weight:bold;">
+                {{ done }} / {{ total }}
+            </span>
+            {% endif %}
+            <br><small style="font-weight:normal; color:#aaa; font-size:0.8rem;">請找到您的名字並點選</small>
+        </div>
+
+        {% if regs %}
+            <div id="name-list">
+            {% for r in regs %}
+            <div class="name-item {% if r.checked_in %}checked-in{% endif %}"
+                 data-reg-id="{{ r.id }}"
+                 data-name="{{ r.guest_name }}"
+                 {% if not r.checked_in %}onclick="doCheckin(this)"{% endif %}>
+                <span class="name-text">{{ r.masked_name }}</span>
+                {% if r.checked_in %}
+                <span class="status-badge badge-done">✓ 已簽到</span>
+                {% else %}
+                <span class="status-badge badge-ok">點選簽到</span>
+                {% endif %}
+            </div>
+            {% endfor %}
+            </div>
+            <div id="all-done-msg" style="display:{% if done == total and total > 0 %}block{% else %}none{% endif %}; text-align:center; padding:20px 0; color:#2e7d32; font-weight:bold; font-size:1rem;">
+                🎉 所有外部報名者已完成簽到！
+            </div>
+        {% else %}
+            <div class="empty-msg">目前沒有外部報名者</div>
+        {% endif %}
+
+        <span class="back-link" onclick="history.back()">← 返回</span>
+    </div>
+
+    <!-- 簽到成功彈窗 -->
+    <div id="success-overlay">
+        <div class="success-box">
+            <div class="success-icon">🎉</div>
+            <div class="success-name" id="success-name"></div>
+            <div class="success-msg">簽到成功！歡迎參加活動</div>
+            <button class="btn-close" onclick="closeSuccess()">完成</button>
+        </div>
+    </div>
+
+    <script>
+        const eventId = {{ event.id | tojson }};
+        const token = {{ token | tojson }};
+
+        function updateCounter() {
+            const total = document.querySelectorAll('.name-item').length;
+            const done = document.querySelectorAll('.name-item.checked-in').length;
+            const badge = document.querySelector('.section-title span');
+            if (badge) badge.textContent = `${done} / ${total}`;
+            if (total > 0 && done === total) {
+                document.getElementById('all-done-msg').style.display = 'block';
+            }
+        }
+
+        function doCheckin(el) {
+            const regId = el.dataset.regId;
+            const name = el.dataset.name;
+
+            el.style.opacity = '0.5';
+            el.style.pointerEvents = 'none';
+
+            fetch(`/checkin/${eventId}/${token}/external-confirm`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reg_id: regId }),
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success || data.already) {
+                    el.classList.add('checked-in');
+                    el.removeAttribute('onclick');
+                    el.querySelector('.status-badge').textContent = '✓ 已簽到';
+                    el.querySelector('.status-badge').className = 'status-badge badge-done';
+                    el.style.opacity = '';
+                    el.style.pointerEvents = '';
+                    updateCounter();
+                    if (data.success) showSuccess(name);
+                } else {
+                    alert(data.error || '簽到失敗，請再試');
+                    el.style.opacity = '';
+                    el.style.pointerEvents = '';
+                }
+            })
+            .catch(() => {
+                alert('網路錯誤，請再試');
+                el.style.opacity = '';
+                el.style.pointerEvents = '';
+            });
+        }
+
+        function showSuccess(name) {
+            document.getElementById('success-name').textContent = name + '，你好！';
+            document.getElementById('success-overlay').classList.add('show');
+        }
+
+        function closeSuccess() {
+            document.getElementById('success-overlay').classList.remove('show');
+        }
+    </script>
+</body>
+</html>

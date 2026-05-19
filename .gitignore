@@ -1,0 +1,22 @@
+# 環境變數（絕對不能上傳）
+.env
+
+# Python 編譯檔
+__pycache__/
+*.pyc
+*.pyo
+
+# Flask session 本地快取
+flask_session/
+
+# 系統檔
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+
+# 暫存文字檔（排除 requirements.txt）
+專案架構.txt

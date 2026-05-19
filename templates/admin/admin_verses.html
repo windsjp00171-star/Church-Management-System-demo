@@ -1,0 +1,526 @@
+{% extends "base.html" %}
+{% block title %}每日經文管理{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回後台</a>
+        <h2 style="margin-top:6px;">🎴 每日經文管理</h2>
+        <p style="color:#888; font-size:0.85rem; margin-top:4px;">共 {{ verses|length }} 筆經文，每日隨機抽取一筆顯示。</p>
+    </div>
+    <button onclick="showAddForm()"
+        style="padding:9px 20px; background:#7b1fa2; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+        ＋ 新增經文
+    </button>
+</div>
+
+<!-- 卡片樣式管理 -->
+<details style="margin-bottom:20px;">
+    <summary style="cursor:pointer; font-size:0.9rem; font-weight:600; color:#7b1fa2;
+                    padding:12px 16px; background:#f3e5f5; border-radius:10px;
+                    list-style:none; display:flex; align-items:center; gap:8px;">
+        <span>🎨</span> 卡片樣式管理
+        <span style="font-size:0.75rem; color:#ab47bc; font-weight:400; margin-left:4px;">（點擊展開）</span>
+    </summary>
+    <div style="padding:20px; background:#faf5ff; border:1px solid #e1bee7; border-top:none;
+                border-radius:0 0 10px 10px; display:flex; flex-direction:column; gap:24px;">
+
+        <!-- ① 內建主題縮圖 -->
+        <div>
+            <div style="font-size:0.85rem; font-weight:700; color:#555; margin-bottom:10px;">
+                內建主題（{{ themes|length }} 款）
+            </div>
+            <div style="font-size:0.75rem; color:#aaa; margin-bottom:12px;">
+                每天每位會友由系統用隨機雜湊分配，內建 + 自訂主題一起輪替。
+            </div>
+            <div style="display:flex; flex-wrap:wrap; gap:12px;">
+                {% for t in themes %}
+                <div style="display:flex; flex-direction:column; align-items:center; gap:5px;">
+                    <div style="width:64px;height:92px;border-radius:9px;
+                                background:{{ t.gradient }};
+                                box-shadow:0 4px 12px rgba(0,0,0,0.22);
+                                display:flex;align-items:center;justify-content:center;
+                                font-size:1.4rem;color:white;">{{ t.symbol }}</div>
+                    <div style="font-size:0.68rem;color:#666;text-align:center;max-width:64px;">{{ t.name }}</div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <!-- ② 自訂主題 -->
+        <div style="border-top:1px solid #e1bee7; padding-top:20px;">
+            <div style="font-size:0.85rem; font-weight:700; color:#555; margin-bottom:6px;">
+                自訂卡片樣式
+                {% if custom_themes %}
+                <span style="font-size:0.75rem;color:#ab47bc;font-weight:400;">
+                    （{{ custom_themes|length }} 款已上傳，與內建主題一起輪替）
+                </span>
+                {% endif %}
+            </div>
+
+            <!-- 已上傳的自訂主題 -->
+            {% if custom_themes %}
+            <div style="display:flex; flex-wrap:wrap; gap:12px; margin-bottom:16px; margin-top:12px;">
+                {% for t in custom_themes %}
+                <div style="display:flex; flex-direction:column; align-items:center; gap:5px;">
+                    <div style="position:relative;">
+                        <div style="width:64px;height:92px;border-radius:9px;overflow:hidden;
+                                    box-shadow:0 4px 12px rgba(0,0,0,0.22);">
+                            <img src="{{ t.image_url }}" style="width:100%;height:100%;object-fit:cover;">
+                        </div>
+                        <button onclick="deleteCustomTheme('{{ t.id }}')"
+                            title="刪除"
+                            style="position:absolute;top:-6px;right:-6px;width:20px;height:20px;
+                                   border-radius:50%;background:#e53935;color:white;border:none;
+                                   cursor:pointer;font-size:0.7rem;display:flex;align-items:center;
+                                   justify-content:center;padding:0;line-height:1;">✕</button>
+                    </div>
+                    <div style="font-size:0.68rem;color:#666;text-align:center;max-width:64px;">{{ t.name }}</div>
+                    <div style="font-size:0.6rem;color:{% if t.text_mode=='dark' %}#888{% else %}#ab47bc{% endif %};">
+                        {{ '深色文字' if t.text_mode=='dark' else '淺色文字' }}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            <!-- 上傳表單 -->
+            <div style="background:white;border:1px dashed #ce93d8;border-radius:10px;padding:16px;">
+                <div style="font-size:0.8rem;font-weight:600;color:#7b1fa2;margin-bottom:12px;">
+                    ＋ 上傳新樣式
+                </div>
+
+                <!-- 規格說明 -->
+                <div style="background:#f3e5f5;border-radius:8px;padding:12px;margin-bottom:14px;
+                            font-size:0.75rem;color:#666;line-height:1.8;">
+                    <div style="font-weight:600;color:#555;margin-bottom:4px;">📐 設計規格</div>
+                    <div>· 尺寸：<strong>340 × 480 px</strong>（比例 17:24）</div>
+                    <div>· 格式：PNG / JPG / WebP，檔案 ≤ 5MB</div>
+                    <div>· 文字顏色：背景深色 → 選「淺色文字（白）」；背景淺色 → 選「深色文字（黑）」</div>
+                    <div>· 建議四周留 <strong>32px 安全邊距</strong>，避免文字被裁切</div>
+                    <div>· 右下角 <strong>64×64px</strong> 區域為浮水印位置，避免放重要元素</div>
+                </div>
+
+                <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:flex-start;">
+                    <!-- 左：表單欄位 -->
+                    <div style="flex:1;min-width:200px;display:flex;flex-direction:column;gap:10px;">
+                        <div>
+                            <label style="font-size:0.78rem;color:#666;display:block;margin-bottom:4px;">樣式名稱 *</label>
+                            <input id="ct-name" type="text" placeholder="例：復活節特輯"
+                                style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;
+                                       font-size:0.88rem;box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;color:#666;display:block;margin-bottom:4px;">中心符號</label>
+                            <select id="ct-symbol"
+                                style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:7px;font-size:0.95rem;">
+                                <option value="✝">✝ 十字架</option>
+                                <option value="✦">✦ 星形</option>
+                                <option value="🕊">🕊 鴿子</option>
+                                <option value="🌿">🌿 枝葉</option>
+                                <option value="⭐">⭐ 星星</option>
+                                <option value="♥">♥ 心形</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;color:#666;display:block;margin-bottom:4px;">文字顏色</label>
+                            <div style="display:flex;gap:10px;">
+                                <label style="display:flex;align-items:center;gap:5px;font-size:0.82rem;cursor:pointer;">
+                                    <input type="radio" name="ct-mode" value="light" checked> 淺色（白字，深色背景用）
+                                </label>
+                                <label style="display:flex;align-items:center;gap:5px;font-size:0.82rem;cursor:pointer;">
+                                    <input type="radio" name="ct-mode" value="dark"> 深色（黑字，淺色背景用）
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label style="font-size:0.78rem;color:#666;display:block;margin-bottom:4px;">卡片背景圖 *</label>
+                            <input type="file" id="ct-file" accept="image/png,image/jpeg,image/webp"
+                                   style="font-size:0.82rem;" onchange="previewCustomTheme(this)">
+                        </div>
+                        <button onclick="uploadCustomTheme()"
+                            style="padding:9px 20px;background:#7b1fa2;color:white;border:none;
+                                   border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:bold;
+                                   align-self:flex-start;">
+                            上傳
+                        </button>
+                        <div id="ct-msg" style="display:none;font-size:0.82rem;"></div>
+                    </div>
+                    <!-- 右：即時預覽 -->
+                    <div style="display:flex;flex-direction:column;align-items:center;gap:6px;">
+                        <div style="font-size:0.72rem;color:#aaa;font-weight:600;">預覽</div>
+                        <div id="ct-preview-wrap" style="width:85px;height:122px;border-radius:12px;
+                                background:#ddd;overflow:hidden;box-shadow:0 4px 14px rgba(0,0,0,0.2);
+                                display:flex;align-items:center;justify-content:center;">
+                            <span style="font-size:0.72rem;color:#bbb;text-align:center;">選擇圖片<br>後預覽</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ③ 浮水印（摺疊） -->
+        <div style="border-top:1px solid #e1bee7; padding-top:16px;">
+            <div style="font-size:0.85rem; font-weight:700; color:#555; margin-bottom:6px;">浮水印 LOGO（右下角）</div>
+            <div style="font-size:0.75rem; color:#aaa; margin-bottom:12px;">
+                建議：正方形透明背景 PNG，≥ 128×128px。上傳後立即生效。
+            </div>
+            <div style="display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+                <div style="display:flex; flex-direction:column; align-items:center; gap:4px;">
+                    <div style="width:64px;height:64px;background:#7b1fa2;border-radius:10px;
+                                display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                        <img id="watermark-preview" src="/static/img/lion.png?{{ now }}"
+                             style="width:52px;height:52px;object-fit:contain;opacity:0.85;"
+                             onerror="this.parentElement.innerHTML='<span style=color:rgba(255,255,255,0.4);font-size:1.8rem>?</span>'">
+                    </div>
+                    <div style="font-size:0.68rem;color:#aaa;">目前</div>
+                </div>
+                <div style="display:flex;flex-direction:column;gap:8px;">
+                    <input type="file" id="watermark-file" accept="image/*"
+                           style="font-size:0.82rem;" onchange="previewWatermark(this)">
+                    <div id="watermark-new-preview" style="display:none; align-items:center; gap:8px;">
+                        <div style="width:64px;height:64px;background:#7b1fa2;border-radius:10px;
+                                    display:flex;align-items:center;justify-content:center;overflow:hidden;">
+                            <img id="watermark-new-img" style="width:52px;height:52px;object-fit:contain;">
+                        </div>
+                        <span style="font-size:0.75rem;color:#888;">新圖預覽</span>
+                    </div>
+                    <button onclick="uploadWatermark()"
+                        style="padding:7px 18px;background:#7b1fa2;color:white;border:none;
+                               border-radius:7px;cursor:pointer;font-size:0.82rem;font-weight:bold;
+                               align-self:flex-start;">上傳取代</button>
+                </div>
+            </div>
+            <div id="watermark-msg" style="display:none;margin-top:10px;font-size:0.82rem;"></div>
+        </div>
+
+    </div>
+</details>
+
+<!-- 新增表單 -->
+<div id="add-form" style="display:none; background:#f3e5f5; border:1px solid #ce93d8; border-radius:12px; padding:20px; margin-bottom:24px;">
+    <p style="font-weight:bold; margin:0 0 14px;">新增經文</p>
+    <div style="display:flex; gap:24px; flex-wrap:wrap; align-items:flex-start;">
+
+        <!-- 左：輸入欄位 -->
+        <div style="flex:1; min-width:240px; display:flex; flex-direction:column; gap:10px;">
+            <div>
+                <label style="font-size:0.82rem; color:#666; display:flex; justify-content:space-between; margin-bottom:4px;">
+                    <span>經文內容 *</span>
+                    <span id="char-count" style="color:#aaa;">0 字</span>
+                </label>
+                <textarea id="new-text" rows="4" maxlength="120" placeholder="輸入經文內容..."
+                    oninput="updatePreview()"
+                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box; resize:vertical;"></textarea>
+                <div id="char-warn" style="display:none; font-size:0.78rem; margin-top:4px;"></div>
+            </div>
+            <div>
+                <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">出處（選填）</label>
+                <input id="new-ref" type="text" placeholder="例：約翰福音 3:16"
+                    oninput="updatePreview()"
+                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+            </div>
+            <div style="display:flex; gap:8px; justify-content:flex-end;">
+                <button onclick="submitAdd()"
+                    style="padding:9px 20px; background:#7b1fa2; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+                    新增
+                </button>
+                <button onclick="hideAddForm()"
+                    style="padding:9px 14px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">
+                    取消
+                </button>
+            </div>
+        </div>
+
+        <!-- 右：即時預覽卡片 -->
+        <div style="flex:0 0 auto; display:flex; flex-direction:column; align-items:center; gap:8px;">
+            <div style="font-size:0.78rem; color:#888; font-weight:600;">卡片預覽</div>
+            <div id="preview-card" style="
+                width:190px; min-height:270px; border-radius:16px;
+                background:linear-gradient(145deg,#4a148c 0%,#7b1fa2 35%,#e91e63 70%,#ff6f00 100%);
+                padding:18px 14px; display:flex; flex-direction:column;
+                justify-content:space-between; box-shadow:0 6px 24px rgba(0,0,0,0.3);
+                position:relative; overflow:hidden; box-sizing:border-box;">
+                <!-- 裝飾 -->
+                <div style="position:absolute;top:-25px;right:-25px;width:100px;height:100px;border-radius:50%;background:rgba(255,255,255,0.09);pointer-events:none;"></div>
+                <div style="position:absolute;bottom:-35px;left:-15px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.06);pointer-events:none;"></div>
+                <!-- 獅頭浮水印 -->
+                <img src="/static/img/lion.png" style="position:absolute;bottom:10px;right:10px;width:36px;height:36px;object-fit:contain;opacity:0.18;pointer-events:none;" onerror="this.style.display='none'">
+                <!-- 上方教會名 -->
+                <div style="text-align:center;position:relative;z-index:1;">
+                    <div style="font-size:0.52rem;color:rgba(255,255,255,0.65);letter-spacing:2px;">DAILY BLESSING</div>
+                    <div style="font-size:0.68rem;font-weight:bold;color:white;letter-spacing:1px;margin-top:3px;">{{ church_name }}</div>
+                </div>
+                <!-- 中間經文 -->
+                <div style="text-align:center;position:relative;z-index:1;">
+                    <div style="font-size:1.2rem;margin-bottom:8px;opacity:0.85;">✝</div>
+                    <div style="background:rgba(255,255,255,0.13);border-radius:8px;padding:10px 8px;border:1px solid rgba(255,255,255,0.2);">
+                        <p id="preview-text" style="font-size:0.68rem;line-height:1.75;color:white;font-weight:500;margin:0 0 6px;text-align:justify;">在此輸入經文內容...</p>
+                        <p id="preview-ref" style="font-size:0.58rem;color:rgba(255,255,255,0.7);margin:0;text-align:right;">—</p>
+                    </div>
+                </div>
+                <!-- 下方日期/姓名 -->
+                <div style="position:relative;z-index:1;display:flex;justify-content:space-between;align-items:flex-end;">
+                    <div>
+                        <div style="font-size:0.48rem;color:rgba(255,255,255,0.55);">今日祝福</div>
+                        <div style="font-size:0.58rem;color:rgba(255,255,255,0.9);margin-top:2px;">{{ today }}</div>
+                    </div>
+                    <div style="text-align:right;">
+                        <div style="font-size:0.48rem;color:rgba(255,255,255,0.55);">送給</div>
+                        <div style="font-size:0.62rem;color:white;font-weight:bold;margin-top:2px;">姓名</div>
+                    </div>
+                </div>
+            </div>
+            <!-- 字數指示 -->
+            <div id="length-badge" style="font-size:0.75rem;color:#aaa;">0 / 60 字</div>
+        </div>
+
+    </div>
+</div>
+
+<!-- 經文列表 -->
+<div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+{% for v in verses %}
+<div id="row-{{ v.id }}" style="padding:16px 20px; border-bottom:1px solid #f5f5f5;">
+    <!-- 顯示模式 -->
+    <div id="view-{{ v.id }}">
+        <div style="display:flex; align-items:flex-start; justify-content:space-between; gap:12px;">
+            <div style="flex:1; min-width:0;">
+                <div style="font-size:0.95rem; color:#333; line-height:1.6;">
+                    {% if not v.is_active %}<span style="color:#bbb;">[停用] </span>{% endif %}
+                    「{{ v.text }}」
+                </div>
+                {% if v.ref %}
+                <div style="font-size:0.82rem; color:#888; margin-top:4px;">— {{ v.ref }}</div>
+                {% endif %}
+            </div>
+            <div style="display:flex; gap:6px; flex-shrink:0; align-items:center;">
+                {% if not v.is_active %}
+                <span style="font-size:0.75rem; color:#bbb; background:#f5f5f5; padding:3px 8px; border-radius:12px;">已停用</span>
+                {% endif %}
+                <button onclick="startEdit('{{ v.id }}')"
+                    style="padding:5px 12px; background:#f3e5f5; color:#7b1fa2; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+                    ✏️ 編輯
+                </button>
+                <button onclick="deleteVerse('{{ v.id }}')"
+                    style="padding:5px 12px; background:#f5f5f5; color:#999; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+                    刪除
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- 編輯模式（隱藏） -->
+    <div id="edit-{{ v.id }}" style="display:none;">
+        <textarea id="e-text-{{ v.id }}" rows="3"
+            style="width:100%; padding:8px 10px; border:1px solid #ce93d8; border-radius:6px; font-size:0.9rem; box-sizing:border-box; resize:vertical; margin-bottom:8px;">{{ v.text }}</textarea>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input id="e-ref-{{ v.id }}" type="text" value="{{ v.ref or '' }}" placeholder="出處"
+                style="flex:1; min-width:160px; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;">
+                <input type="checkbox" id="e-active-{{ v.id }}" {% if v.is_active %}checked{% endif %}>
+                啟用
+            </label>
+            <button onclick="saveEdit('{{ v.id }}')"
+                style="padding:7px 16px; background:#7b1fa2; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.88rem; font-weight:bold;">
+                儲存
+            </button>
+            <button onclick="cancelEdit('{{ v.id }}')"
+                style="padding:7px 12px; background:#f5f5f5; color:#666; border:none; border-radius:6px; cursor:pointer; font-size:0.88rem;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+{% else %}
+<div style="text-align:center; padding:60px; color:#aaa;">
+    <div style="font-size:3rem;">🎴</div>
+    <p style="margin-top:12px;">尚無經文，點上方「新增經文」開始</p>
+</div>
+{% endfor %}
+</div>
+
+<script>
+function showAddForm() {
+    document.getElementById('add-form').style.display = 'block';
+    document.getElementById('new-text').focus();
+    updatePreview();
+}
+function hideAddForm() {
+    document.getElementById('add-form').style.display = 'none';
+    document.getElementById('new-text').value = '';
+    document.getElementById('new-ref').value = '';
+    updatePreview();
+}
+
+// 即時預覽 + 字數警示
+function updatePreview() {
+    const text = document.getElementById('new-text').value;
+    const ref  = document.getElementById('new-ref').value.trim();
+    const len  = text.length;
+
+    // 更新預覽卡片文字
+    document.getElementById('preview-text').textContent = text || '在此輸入經文內容...';
+    document.getElementById('preview-ref').textContent  = ref ? `— ${ref}` : '—';
+
+    // 字數狀態
+    const countEl = document.getElementById('char-count');
+    const badgeEl = document.getElementById('length-badge');
+    const warnEl  = document.getElementById('char-warn');
+
+    countEl.textContent = `${len} 字`;
+    badgeEl.textContent = `${len} / 60 字`;
+
+    if (len > 80) {
+        countEl.style.color = '#c62828';
+        badgeEl.style.color = '#c62828';
+        warnEl.style.display = 'block';
+        warnEl.style.color = '#c62828';
+        warnEl.textContent = '⚠️ 超過 80 字，卡片排版會很擠，建議拆成兩筆';
+    } else if (len > 60) {
+        countEl.style.color = '#e65100';
+        badgeEl.style.color = '#e65100';
+        warnEl.style.display = 'block';
+        warnEl.style.color = '#e65100';
+        warnEl.textContent = '⚠️ 超過 60 字，預覽看看排版是否OK';
+    } else {
+        countEl.style.color = '#aaa';
+        badgeEl.style.color = '#aaa';
+        warnEl.style.display = 'none';
+    }
+}
+
+function submitAdd() {
+    const text = document.getElementById('new-text').value.trim();
+    if (!text) { document.getElementById('new-text').focus(); return; }
+    fetch('/admin/verses/new', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ text, ref: document.getElementById('new-ref').value.trim() || null })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '新增失敗');
+    });
+}
+
+function startEdit(id) {
+    document.getElementById('view-' + id).style.display = 'none';
+    document.getElementById('edit-' + id).style.display = '';
+    document.getElementById('e-text-' + id).focus();
+}
+function cancelEdit(id) {
+    document.getElementById('view-' + id).style.display = '';
+    document.getElementById('edit-' + id).style.display = 'none';
+}
+function saveEdit(id) {
+    const text = document.getElementById('e-text-' + id).value.trim();
+    if (!text) return;
+    fetch(`/admin/verses/${id}/edit`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            text,
+            ref: document.getElementById('e-ref-' + id).value.trim() || null,
+            is_active: document.getElementById('e-active-' + id).checked,
+        })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '儲存失敗');
+    });
+}
+function deleteVerse(id) {
+    if (!confirm('確定刪除此經文？')) return;
+    fetch(`/admin/verses/${id}/delete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); else alert(d.error || '刪除失敗'); });
+}
+
+function previewCustomTheme(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const wrap = document.getElementById('ct-preview-wrap');
+    const reader = new FileReader();
+    reader.onload = e => {
+        wrap.innerHTML = `<img src="${e.target.result}" style="width:100%;height:100%;object-fit:cover;">`;
+    };
+    reader.readAsDataURL(file);
+}
+
+function uploadCustomTheme() {
+    const name = document.getElementById('ct-name').value.trim();
+    const symbol = document.getElementById('ct-symbol').value;
+    const textMode = document.querySelector('input[name="ct-mode"]:checked').value;
+    const file = document.getElementById('ct-file').files[0];
+    const msg = document.getElementById('ct-msg');
+    if (!name) { document.getElementById('ct-name').focus(); return; }
+    if (!file) { alert('請選擇卡片背景圖'); return; }
+    const fd = new FormData();
+    fd.append('name', name);
+    fd.append('symbol', symbol);
+    fd.append('text_mode', textMode);
+    fd.append('image', file);
+    msg.style.display = 'block';
+    msg.style.color = '#888';
+    msg.textContent = '上傳中…';
+    fetch('/admin/verses/upload-theme', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                msg.style.color = '#2e7d32';
+                msg.textContent = '✓ 上傳成功！';
+                setTimeout(() => location.reload(), 800);
+            } else {
+                msg.style.color = '#c62828';
+                msg.textContent = '✗ ' + (d.error || '上傳失敗');
+            }
+        }).catch(() => {
+            msg.style.color = '#c62828';
+            msg.textContent = '✗ 網路錯誤，請重試';
+        });
+}
+
+function deleteCustomTheme(id) {
+    if (!confirm('確定刪除此自訂樣式？')) return;
+    fetch(`/admin/verses/custom-theme/${id}/delete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); else alert(d.error || '刪除失敗'); });
+}
+
+function previewWatermark(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('watermark-new-img').src = e.target.result;
+        document.getElementById('watermark-new-preview').style.display = 'flex';
+    };
+    reader.readAsDataURL(file);
+}
+
+function uploadWatermark() {
+    const file = document.getElementById('watermark-file').files[0];
+    if (!file) { alert('請先選擇圖片'); return; }
+    const fd = new FormData();
+    fd.append('image', file);
+    const msg = document.getElementById('watermark-msg');
+    msg.style.display = 'block';
+    msg.style.color = '#888';
+    msg.textContent = '上傳中...';
+    fetch('/admin/verses/upload-watermark', { method: 'POST', body: fd })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                msg.style.color = '#2e7d32';
+                msg.textContent = '✓ 上傳成功！右下角浮水印已更新。';
+                const ts = Date.now();
+                document.getElementById('watermark-preview').src = '/static/img/lion.png?' + ts;
+                document.getElementById('watermark-new-preview').style.display = 'none';
+                document.getElementById('watermark-file').value = '';
+            } else {
+                msg.style.color = '#c62828';
+                msg.textContent = '✗ ' + (d.error || '上傳失敗');
+            }
+        }).catch(() => {
+            msg.style.color = '#c62828';
+            msg.textContent = '✗ 網路錯誤，請重試';
+        });
+}
+</script>
+{% endblock %}

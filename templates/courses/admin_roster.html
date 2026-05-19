@@ -1,0 +1,644 @@
+{% extends "base.html" %}
+{% block title %}名單管理 - {{ course.title }}{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/courses/{{ course.id }}" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回堂次管理</a>
+        <h2 style="margin-top:6px;">📋 名單管理</h2>
+        <p style="color:#555; margin-top:4px;">{{ course.title }}{% if course.period %} · {{ course.period }}{% endif %}</p>
+    </div>
+</div>
+
+<!-- 教材庫存警告 -->
+{% if material_stock_info %}
+{% set stock = material_stock_info.stock %}
+{% set demand = material_stock_info.demand %}
+{% if stock < demand %}
+<div style="background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; gap:10px;">
+    <span style="font-size:1.3rem;">⚠️</span>
+    <div>
+        <strong>教材庫存不足</strong>：「{{ material_stock_info.name }}」現有 <strong>{{ stock }}</strong> {{ material_stock_info.unit }}，本期需求 <strong>{{ demand }}</strong> {{ material_stock_info.unit }}，
+        差 <strong style="color:#c62828;">{{ demand - stock }}</strong> {{ material_stock_info.unit }}，請盡快補貨。
+        <a href="/admin/materials" style="color:#1565c0; margin-left:8px;">→ 前往教材庫存</a>
+    </div>
+</div>
+{% elif stock <= 5 %}
+<div style="background:#fff8e1; border:1px solid #ffcc02; border-radius:10px; padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; gap:10px;">
+    <span style="font-size:1.3rem;">📦</span>
+    <div>
+        <strong>教材庫存偏低</strong>：「{{ material_stock_info.name }}」剩 <strong>{{ stock }}</strong> {{ material_stock_info.unit }}，本期需求 {{ demand }} {{ material_stock_info.unit }}。
+        <a href="/admin/materials" style="color:#1565c0; margin-left:8px;">→ 前往教材庫存</a>
+    </div>
+</div>
+{% endif %}
+{% endif %}
+
+<!-- 統計列 -->
+<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:16px;">
+    <div style="background:#e3f2fd; border-radius:10px; padding:10px 16px; color:#1565c0; font-size:0.9rem;">
+        📅 本期報名：<strong>{{ enrolled_records|length }}</strong> 人
+        {% if enrolled_records|selectattr('user_id','in', returning_users)|list|length > 0 %}
+        （含 <strong>{{ enrolled_records|selectattr('user_id','in', returning_users)|list|length }}</strong> 位回鍋）
+        {% endif %}
+    </div>
+    <div style="background:#f3e5f5; border-radius:10px; padding:10px 16px; color:#6a1b9a; font-size:0.9rem;">
+        🎓 歷史完訓：<strong>{{ completed_records|length }}</strong> 人
+    </div>
+    {% if course.has_material %}
+    <div style="background:#e8f5e9; border-radius:10px; padding:10px 16px; color:#2e7d32; font-size:0.9rem;">
+        📦 需教材：<strong>{{ material_count }}</strong> 人
+    </div>
+    {% endif %}
+    {% if course.meal_options and course.meal_options.enabled %}
+    {% set meal_total_sum = enrolled_records | selectattr('meal_total') | sum(attribute='meal_total') %}
+    {% set meal_ordered = enrolled_records | selectattr('meal_selections') | list | length %}
+    <div style="background:#fff3e0; border-radius:10px; padding:10px 16px; color:#e65100; font-size:0.9rem;">
+        🍱 訂餐：<strong>{{ meal_ordered }}</strong> 人 / 合計 <strong>${{ meal_total_sum }}</strong>
+    </div>
+    {% endif %}
+    {% if course.absence_limit is not none %}
+    <div style="background:#fff3e0; border-radius:10px; padding:10px 16px; color:#e65100; font-size:0.9rem;">
+        📋 缺勤上限：<strong>{{ course.absence_limit }}</strong> 堂
+    </div>
+    {% endif %}
+</div>
+
+<!-- ===== Tab 列 ===== -->
+<div style="display:flex; gap:0; margin-bottom:0; border-bottom:2px solid #e0e0e0;">
+    <button id="tab-attend" onclick="switchTab('attend')"
+        style="padding:10px 20px; border:none; background:none; cursor:pointer; font-size:0.92rem;
+               font-weight:bold; color:#06C755; border-bottom:2px solid #06C755; margin-bottom:-2px;">
+        📅 本期出席（{{ enrolled_records|length }}）
+    </button>
+    <button id="tab-absent" onclick="switchTab('absent')"
+        style="padding:10px 20px; border:none; background:none; cursor:pointer; font-size:0.92rem;
+               font-weight:bold; color:#999; border-bottom:2px solid transparent; margin-bottom:-2px;">
+        ⚠️ 缺勤未通過{% if absent_records %}（{{ absent_records|length }}）{% endif %}
+    </button>
+    <button id="tab-grad" onclick="switchTab('grad')"
+        style="padding:10px 20px; border:none; background:none; cursor:pointer; font-size:0.92rem;
+               font-weight:bold; color:#999; border-bottom:2px solid transparent; margin-bottom:-2px;">
+        🎓 歷史完訓（{{ completed_records|length }}）
+    </button>
+    <button id="tab-add" onclick="switchTab('add')"
+        style="padding:10px 20px; border:none; background:none; cursor:pointer; font-size:0.92rem;
+               font-weight:bold; color:#999; border-bottom:2px solid transparent; margin-bottom:-2px;">
+        ＋ 新增學員
+    </button>
+</div>
+
+
+<!-- ===== Tab 1：本期出席 ===== -->
+<div id="panel-attend" style="margin-top:16px;">
+
+    <!-- 工具列 -->
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:10px;">
+        <input type="text" placeholder="搜尋姓名..." oninput="filterAttend(this.value)"
+            style="padding:9px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; width:100%; max-width:280px;">
+        {% if enrolled_records %}
+        <button onclick="openNotifyPanel()"
+            style="padding:9px 20px; background:#fff3e0; color:#e65100; border:none; border-radius:8px;
+                   cursor:pointer; font-weight:bold; font-size:0.9rem; white-space:nowrap;">
+            📢 發送通知
+        </button>
+        <button onclick="batchComplete()"
+            style="padding:9px 20px; background:#2e7d32; color:white; border:none; border-radius:8px;
+                   cursor:pointer; font-weight:bold; font-size:0.9rem; white-space:nowrap;">
+            ✅ 一鍵完訓達標者
+        </button>
+        {% endif %}
+    </div>
+
+    {% if enrolled_records %}
+    <div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06); overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; min-width:480px;">
+        <thead>
+            <tr style="background:#f5f5f5; font-size:0.85rem; color:#666;">
+                <th style="padding:12px 16px; text-align:left;">#</th>
+                <th style="padding:12px 16px; text-align:left;">姓名</th>
+                <th style="padding:12px 8px; text-align:center; white-space:nowrap;">出席/總堂</th>
+                {% for s in sessions %}
+                <th style="padding:10px 6px; text-align:center; font-size:0.78rem; white-space:nowrap;">
+                    第{{ s.session_number }}堂<br>
+                    <span style="font-weight:normal; color:#bbb;">
+                        {{ s.scheduled_at[:10] if s.scheduled_at else '' }}
+                    </span>
+                </th>
+                {% endfor %}
+                {% if course.has_material %}
+                <th style="padding:12px 6px; text-align:center;">教材</th>
+                {% endif %}
+                {% if course.meal_options and course.meal_options.enabled %}
+                <th style="padding:12px 6px; text-align:center;">餐點</th>
+                {% endif %}
+                {% if course.has_material or (course.meal_options and course.meal_options.enabled) %}
+                <th style="padding:12px 8px; text-align:center;">💰 付款</th>
+                {% endif %}
+                <th style="padding:12px 8px; text-align:center;">完訓</th>
+                <th style="padding:12px 8px; text-align:center;"></th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for enroll in enrolled_records %}
+        {% set user = user_map.get(enroll.user_id, {}) %}
+        {% set display = user.real_name or user.display_name or '未知' %}
+        {% set attended_count = namespace(val=0) %}
+        {% for s in sessions %}{% if enroll.user_id in att_map.get(s.id, []) %}{% set attended_count.val = attended_count.val + 1 %}{% endif %}{% endfor %}
+        {% set absent_count = sessions|length - attended_count.val %}
+        {% set passed = (course.absence_limit is none) or (absent_count <= course.absence_limit) %}
+        <tr data-name="{{ display|lower }} {{ user.display_name|lower if user.display_name else '' }}" style="border-top:1px solid #f0f0f0;">
+            <td style="padding:10px 16px; color:#999; font-size:0.85rem;">{{ loop.index }}</td>
+            <td style="padding:10px 16px;">
+                <div style="display:flex; align-items:center; gap:8px;">
+                    {% if user.picture_url %}
+                    <img src="{{ user.picture_url }}" style="width:28px; height:28px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+                    {% endif %}
+                    <div>
+                        <div style="font-weight:600; font-size:0.9rem;">{{ user.real_name or user.display_name or '未知' }}{% if user.real_name and user.display_name and user.real_name != user.display_name %}<span style="font-weight:400; color:#999;">（{{ user.display_name }}）</span>{% endif %}</div>
+                    </div>
+                    {% if enroll.user_id in returning_users %}
+                    <span style="font-size:0.72rem; color:#f57f17; background:#fff8e1; padding:2px 6px; border-radius:10px; flex-shrink:0; white-space:nowrap;">🔄 回鍋</span>
+                    {% endif %}
+                </div>
+            </td>
+            <td style="padding:10px 8px; text-align:center; font-weight:bold;
+                       color:{% if not passed and course.absence_limit is not none %}#c62828{% else %}#555{% endif %};">
+                {{ attended_count.val }}/{{ sessions|length }}
+            </td>
+            {% for s in sessions %}
+            {% set attended = enroll.user_id in att_map.get(s.id, []) %}
+            <td style="padding:10px 6px; text-align:center;">
+                <button onclick="toggleAttendance('{{ course.id }}', '{{ s.id }}', '{{ enroll.user_id }}', this)"
+                    style="width:32px; height:32px; border-radius:50%; border:none; cursor:pointer; font-size:1rem;
+                           background:{{ '#06C755' if attended else '#e0e0e0' }};
+                           color:{{ 'white' if attended else '#999' }};">
+                    {{ '✓' if attended else '·' }}
+                </button>
+            </td>
+            {% endfor %}
+            {% if course.has_material %}
+            <td style="padding:10px 6px; text-align:center;">
+                <button onclick="toggleMaterial('{{ course.id }}', '{{ enroll.id }}', this)"
+                    data-val="{{ 'true' if enroll.needs_material else 'false' }}"
+                    title="{{ '需要教材（點擊取消）' if enroll.needs_material else '未購教材（點擊標記）' }}"
+                    style="width:34px; height:34px; border-radius:50%; border:none; cursor:pointer; font-size:1rem;
+                           background:{{ '#e8f5e9' if enroll.needs_material else '#f5f5f5' }};
+                           color:{{ '#2e7d32' if enroll.needs_material else '#bbb' }};">
+                    {{ '✓' if enroll.needs_material else '—' }}
+                </button>
+            </td>
+            {% endif %}
+            {% if course.meal_options and course.meal_options.enabled %}
+            <td style="padding:10px 6px; text-align:center;">
+                {% set meals = enroll.meal_selections %}
+                {% if meals and meals|length > 0 %}
+                {% set meal_map = {} %}
+                {% for o in course.meal_options.options %}{% if o.enabled %}{% set _ = meal_map.update({o.id: o.label or o.meal}) %}{% endif %}{% endfor %}
+                <div style="font-size:0.78rem; color:#1565c0; line-height:1.5;">
+                    {% for mid in meals %}{{ meal_map.get(mid, mid) }}<br>{% endfor %}
+                </div>
+                {% if enroll.meal_total %}
+                <div style="font-size:0.8rem; font-weight:bold; color:#e65100;">${{ enroll.meal_total }}</div>
+                {% endif %}
+                {% else %}
+                <span style="color:#ccc;">—</span>
+                {% endif %}
+            </td>
+            {% endif %}
+            {% if course.has_material or (course.meal_options and course.meal_options.enabled) %}
+            <td style="padding:10px 8px; text-align:center;">
+                {% set ps = enroll.payment_status or 'unpaid' %}
+                {% set no_fee = (not course.material_fee or course.material_fee == 0) and not (course.meal_options and course.meal_options.enabled) %}
+                {% if no_fee %}
+                <button disabled
+                    style="padding:5px 12px; border:none; border-radius:20px; cursor:default; font-size:0.8rem; font-weight:bold; white-space:nowrap; background:#f5f5f5; color:#aaa;">
+                    ➖ 無須繳費
+                </button>
+                {% else %}
+                <button onclick="toggleCoursePayment('{{ course.id }}', '{{ enroll.id }}', this)"
+                    data-status="{{ ps }}"
+                    style="padding:5px 12px; border:none; border-radius:20px; cursor:pointer; font-size:0.8rem; font-weight:bold; white-space:nowrap;
+                        {% if ps == 'paid' %}background:#e8f5e9; color:#2e7d32;
+                        {% elif ps == 'waived' %}background:#e3f2fd; color:#1565c0;
+                        {% else %}background:#ffebee; color:#c62828;{% endif %}">
+                    {% if ps == 'paid' %}✅ 已付款
+                    {% elif ps == 'waived' %}🔵 免收費
+                    {% else %}⬜ 未付款{% endif %}
+                </button>
+                {% endif %}
+            </td>
+            {% endif %}
+            <td style="padding:10px 8px; text-align:center;">
+                <div style="display:flex; flex-direction:column; gap:4px; align-items:center;">
+                {% if passed or course.absence_limit is none or enroll.user_id in returning_users %}
+                <button onclick="toggleComplete('{{ course.id }}', '{{ enroll.id }}', this)"
+                    style="padding:4px 12px; border:none; border-radius:20px; cursor:pointer; font-size:0.8rem; font-weight:bold;
+                           background:#e3f2fd; color:#1565c0; white-space:nowrap;">
+                    標記完訓
+                </button>
+                {% else %}
+                <button onclick="forceComplete('{{ course.id }}', '{{ enroll.id }}', this)"
+                    style="padding:4px 12px; border:1px dashed #e57373; border-radius:20px; cursor:pointer; font-size:0.8rem;
+                           background:white; color:#e57373; white-space:nowrap;">
+                    強制完訓
+                </button>
+                {% endif %}
+                {% if enroll.user_id not in returning_users %}
+                <button onclick="markAbsent('{{ course.id }}', '{{ enroll.id }}', this)"
+                    style="padding:4px 12px; border:none; border-radius:20px; cursor:pointer; font-size:0.78rem;
+                           background:#fff3e0; color:#e65100; white-space:nowrap;">
+                    ⚠️ 缺勤未通過
+                </button>
+                {% endif %}
+                </div>
+            </td>
+            <td style="padding:10px 8px; text-align:center;">
+                <button onclick="cancelEnrollment('{{ course.id }}', '{{ enroll.id }}', this)"
+                    style="padding:4px 10px; border:none; border-radius:20px; cursor:pointer; font-size:0.78rem;
+                           background:#ffebee; color:#c62828;" title="取消報名">
+                    ✕
+                </button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:60px 0; color:#999; background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <div style="font-size:3rem;">📭</div>
+        <p style="margin-top:12px;">本期尚無報名者</p>
+    </div>
+    {% endif %}
+</div>
+
+
+<!-- ===== Tab 2：缺勤未通過 ===== -->
+<div id="panel-absent" style="display:none; margin-top:16px;">
+    {% if absent_records %}
+    <div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    {% for enroll in absent_records %}
+    {% set user = user_map.get(enroll.user_id, {}) %}
+    {% set display = user.real_name or user.display_name or '未知' %}
+    <div style="display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid #f5f5f5; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:140px;">
+            {% if user.picture_url %}
+            <img src="{{ user.picture_url }}" style="width:34px; height:34px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+            {% else %}
+            <div style="width:34px; height:34px; border-radius:50%; background:#e0e0e0; flex-shrink:0;"></div>
+            {% endif %}
+            <div>
+                <div style="font-weight:600; font-size:0.92rem;">{{ user.real_name or user.display_name or '未知' }}{% if user.real_name and user.display_name and user.real_name != user.display_name %}<span style="font-weight:400; color:#999;">（{{ user.display_name }}）</span>{% endif %}</div>
+            </div>
+        </div>
+        {% if enroll.user_id in completed_user_ids %}
+        <span style="padding:4px 12px; background:#fff8e1; color:#f57f17; border-radius:20px; font-size:0.82rem; font-weight:bold;">🔄 回鍋</span>
+        {% else %}
+        <span style="padding:4px 12px; background:#fff3e0; color:#e65100; border-radius:20px; font-size:0.82rem; font-weight:bold;">⚠️ 缺勤未通過</span>
+        {% endif %}
+        <span style="font-size:0.8rem; color:#aaa;">報名：{{ enroll.created_at[:10] if enroll.created_at else '—' }}</span>
+        <button onclick="restoreEnrollment('{{ course.id }}', '{{ enroll.id }}', this)"
+            style="padding:4px 12px; background:#e3f2fd; color:#1565c0; border:none; border-radius:20px; cursor:pointer; font-size:0.78rem;">
+            ↩ 還原報名
+        </button>
+    </div>
+    {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:40px 0; color:#aaa; background:white; border-radius:12px;">
+        <div style="font-size:2.5rem;">✅</div>
+        <p style="margin-top:10px; font-size:0.9rem;">本期無缺勤未通過記錄</p>
+    </div>
+    {% endif %}
+</div>
+
+
+<!-- ===== Tab 3：歷史完訓人員 ===== -->
+<div id="panel-grad" style="display:none; margin-top:16px;">
+    {% if completed_records %}
+    <div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    {% for enroll in completed_records %}
+    {% set user = user_map.get(enroll.user_id, {}) %}
+    {% set display = user.real_name or user.display_name or '未知' %}
+    {% set attended_count = namespace(val=0) %}
+    {% for s in sessions %}{% if enroll.user_id in att_map.get(s.id, []) %}{% set attended_count.val = attended_count.val + 1 %}{% endif %}{% endfor %}
+    <div style="display:flex; align-items:center; gap:12px; padding:14px 18px; border-bottom:1px solid #f5f5f5; flex-wrap:wrap;">
+        <!-- 頭像 + 姓名 -->
+        <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:140px;">
+            {% if user.picture_url %}
+            <img src="{{ user.picture_url }}" style="width:34px; height:34px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+            {% else %}
+            <div style="width:34px; height:34px; border-radius:50%; background:#e0e0e0; flex-shrink:0;"></div>
+            {% endif %}
+            <div>
+                <div style="font-weight:600; font-size:0.92rem;">{{ user.real_name or user.display_name or '未知' }}{% if user.real_name and user.display_name and user.real_name != user.display_name %}<span style="font-weight:400; color:#999;">（{{ user.display_name }}）</span>{% endif %}</div>
+            </div>
+            {% if enroll.user_id in returning_users %}
+            <span style="font-size:0.72rem; color:#f57f17; background:#fff8e1; padding:2px 6px; border-radius:10px; white-space:nowrap;">🔄 本期回鍋中</span>
+            {% endif %}
+        </div>
+        <!-- 完訓日期 -->
+        <div style="font-size:0.82rem; color:#888; white-space:nowrap;">
+            🎓 完訓於 {{ enroll.completed_at[:10] if enroll.completed_at else '—' }}
+        </div>
+        <!-- 取消完訓按鈕 -->
+        <button onclick="cancelComplete('{{ course.id }}', '{{ enroll.id }}', this)"
+            style="padding:5px 14px; border:1px solid #e0e0e0; border-radius:20px; cursor:pointer; font-size:0.82rem; background:white; color:#999; white-space:nowrap;">
+            取消完訓
+        </button>
+    </div>
+    {% endfor %}
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:60px 0; color:#999; background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+        <div style="font-size:3rem;">🎓</div>
+        <p style="margin-top:12px;">尚無歷史完訓記錄</p>
+    </div>
+    {% endif %}
+</div>
+
+
+<!-- ===== Tab 3：新增學員 ===== -->
+<div id="panel-add" style="display:none; margin-top:16px;">
+    <div style="display:flex; gap:10px; align-items:center; margin-bottom:16px; flex-wrap:wrap;">
+        <input type="text" id="add-search" placeholder="搜尋姓名或小組..." oninput="filterAdd(this.value)"
+            style="flex:1; min-width:200px; max-width:360px; padding:9px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+        <div style="display:flex; align-items:center; gap:6px;">
+            <input type="checkbox" id="mark-complete-add" style="width:16px; height:16px;">
+            <label for="mark-complete-add" style="font-size:0.9rem; cursor:pointer; white-space:nowrap; color:#555;">加入時直接標記完訓</label>
+        </div>
+    </div>
+
+    <div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    {% for user in all_users %}
+    {% set is_enrolled = user.id in enrolled_ids %}
+    {% set display = user.real_name or user.display_name or '未知' %}
+    {% set groups = (user.group_tags or []) | join('、') %}
+    <div class="add-row" data-name="{{ display|lower }}" data-groups="{{ groups|lower }}"
+        style="display:flex; align-items:center; justify-content:space-between; padding:12px 18px;
+               border-bottom:1px solid #f5f5f5; gap:12px;
+               {% if is_enrolled %}background:#f9fbe7;{% endif %}">
+        <div style="display:flex; align-items:center; gap:10px; flex:1; min-width:0;">
+            {% if user.picture_url %}
+            <img src="{{ user.picture_url }}" style="width:36px; height:36px; border-radius:50%; object-fit:cover; flex-shrink:0;">
+            {% else %}
+            <div style="width:36px; height:36px; border-radius:50%; background:#e0e0e0; flex-shrink:0;"></div>
+            {% endif %}
+            <div style="min-width:0;">
+                <div style="font-weight:600; font-size:0.92rem;">{{ display }}</div>
+                {% if groups %}
+                <div style="font-size:0.78rem; color:#888; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ groups }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% if is_enrolled %}
+        <span style="background:#e8f5e9; color:#2e7d32; padding:5px 14px; border-radius:20px; font-size:0.85rem; font-weight:bold; flex-shrink:0;">
+            ✅ 已加入
+        </span>
+        {% else %}
+        <button onclick="enrollUser('{{ user.id }}', this)"
+            style="padding:6px 18px; background:#06C755; color:white; border:none; border-radius:20px;
+                   cursor:pointer; font-weight:bold; font-size:0.85rem; flex-shrink:0;">
+            加入
+        </button>
+        {% endif %}
+    </div>
+    {% endfor %}
+    </div>
+</div>
+
+
+<script>
+// ── Tab 切換 ──────────────────────────
+const TABS = ['attend', 'absent', 'grad', 'add'];
+function switchTab(tab) {
+    TABS.forEach(t => {
+        document.getElementById('panel-' + t).style.display = t === tab ? 'block' : 'none';
+        const btn = document.getElementById('tab-' + t);
+        btn.style.color = t === tab ? '#06C755' : '#999';
+        btn.style.borderBottomColor = t === tab ? '#06C755' : 'transparent';
+    });
+}
+
+// ── 搜尋 ──────────────────────────
+function filterAttend(kw) {
+    kw = kw.trim().toLowerCase();
+    document.querySelectorAll('#panel-attend tbody tr').forEach(row => {
+        row.style.display = (!kw || (row.dataset.name || '').includes(kw)) ? '' : 'none';
+    });
+}
+function filterAdd(kw) {
+    kw = kw.trim().toLowerCase();
+    document.querySelectorAll('.add-row').forEach(row => {
+        const match = (row.dataset.name || '').includes(kw) || (row.dataset.groups || '').includes(kw);
+        row.style.display = (!kw || match) ? '' : 'none';
+    });
+}
+
+// ── 新增學員 ──────────────────────────
+function enrollUser(userId, btn) {
+    const markCompleted = document.getElementById('mark-complete-add').checked;
+    btn.disabled = true; btn.textContent = '加入中...';
+    fetch(`/admin/courses/{{ course.id }}/roster/enroll`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_id: userId, mark_completed: markCompleted })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else { alert(d.error || '加入失敗'); btn.disabled = false; btn.textContent = '加入'; }
+    });
+}
+
+// ── 出席切換 ──────────────────────────
+function toggleAttendance(courseId, sessionId, userId, btn) {
+    btn.disabled = true;
+    fetch(`/admin/courses/${courseId}/sessions/${sessionId}/attendance/${userId}/toggle`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); else btn.disabled = false; });
+}
+
+// ── 完訓切換（標記完訓：enrolled → completed）──────────────────────────
+function toggleComplete(courseId, enrollId, btn) {
+    btn.disabled = true; btn.textContent = '處理中...';
+    fetch(`/admin/courses/${courseId}/roster/${enrollId}/toggle-complete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); else { alert(d.error || '操作失敗'); btn.disabled = false; } });
+}
+function forceComplete(courseId, enrollId, btn) {
+    if (!confirm('缺勤已超標，確定強制完訓嗎？')) return;
+    toggleComplete(courseId, enrollId, btn);
+}
+
+// ── 取消完訓（completed → enrolled）──────────────────────────
+function cancelComplete(courseId, enrollId, btn) {
+    if (!confirm('確定取消完訓，將此紀錄退回「報名中」？')) return;
+    btn.disabled = true;
+    fetch(`/admin/courses/${courseId}/roster/${enrollId}/toggle-complete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); else { alert(d.error || '操作失敗'); btn.disabled = false; } });
+}
+
+// ── 標記缺勤未通過 ──────────────────────────
+function markAbsent(courseId, enrollId, btn) {
+    if (!confirm('將此學員標記為「缺勤未通過」？\n（可在「缺勤未通過」Tab 中還原）')) return;
+    btn.disabled = true; btn.textContent = '處理中...';
+    fetch(`/admin/courses/${courseId}/roster/${enrollId}/mark-absent`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) location.reload();
+            else { btn.disabled = false; btn.textContent = '⚠️ 缺勤未通過'; alert(d.error || '操作失敗'); }
+        });
+}
+
+// ── 還原報名 ──────────────────────────
+function restoreEnrollment(courseId, enrollId, btn) {
+    if (!confirm('還原為「報名中」狀態？')) return;
+    btn.disabled = true; btn.textContent = '處理中...';
+    fetch(`/admin/courses/${courseId}/roster/${enrollId}/restore`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) location.reload();
+            else { btn.disabled = false; btn.textContent = '↩ 還原報名'; alert(d.error || '操作失敗'); }
+        });
+}
+
+// ── 取消報名 ──────────────────────────
+function cancelEnrollment(courseId, enrollId, btn) {
+    if (!confirm('確定取消此學員的報名嗎？')) return;
+    btn.disabled = true;
+    fetch(`/admin/courses/${courseId}/roster/${enrollId}/cancel`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                const row = btn.closest('tr');
+                row.style.opacity = '0'; row.style.transition = 'opacity 0.3s';
+                setTimeout(() => location.reload(), 350);
+            } else { alert(d.error || '操作失敗'); btn.disabled = false; }
+        });
+}
+
+// ── 教材切換 ──────────────────────────
+function toggleMaterial(courseId, enrollId, btn) {
+    const newVal = btn.dataset.val !== 'true';  // 取反
+    btn.disabled = true;
+    fetch(`/admin/courses/${courseId}/roster/${enrollId}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': '{{ session._csrf_token }}' },
+        body: JSON.stringify({ needs_material: newVal })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            btn.dataset.val = newVal ? 'true' : 'false';
+            btn.textContent = newVal ? '✓' : '—';
+            btn.title = newVal ? '需要教材（點擊取消）' : '未購教材（點擊標記）';
+            btn.style.background = newVal ? '#e8f5e9' : '#f5f5f5';
+            btn.style.color = newVal ? '#2e7d32' : '#bbb';
+        } else { alert(d.error || '操作失敗'); }
+        btn.disabled = false;
+    })
+    .catch(() => { btn.disabled = false; alert('網路錯誤'); });
+}
+
+// ── 繳費狀態切換 ──────────────────────────
+function toggleCoursePayment(courseId, enrollId, btn) {
+    btn.disabled = true;
+    fetch(`/admin/courses/${courseId}/roster/${enrollId}/payment`, {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': '{{ session._csrf_token }}' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            const s = d.payment_status;
+            const labels = { paid: '✅ 已付款', waived: '🔵 免收費', unpaid: '⬜ 未付款' };
+            const colors = {
+                paid:   'background:#e8f5e9; color:#2e7d32;',
+                waived: 'background:#e3f2fd; color:#1565c0;',
+                unpaid: 'background:#ffebee; color:#c62828;'
+            };
+            btn.textContent = labels[s] || s;
+            btn.style.cssText = `padding:5px 12px; border:none; border-radius:20px; cursor:pointer; font-size:0.8rem; font-weight:bold; white-space:nowrap; ${colors[s] || ''}`;
+            btn.dataset.status = s;
+        } else {
+            alert(d.error || '操作失敗');
+        }
+        btn.disabled = false;
+    })
+    .catch(() => { btn.disabled = false; alert('網路錯誤，請重試'); });
+}
+
+// ── 發送課程通知 ──────────────────────────
+function openNotifyPanel() {
+    document.getElementById('notify-overlay').style.display = 'block';
+    document.getElementById('notify-panel').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+function closeNotifyPanel() {
+    document.getElementById('notify-overlay').style.display = 'none';
+    document.getElementById('notify-panel').style.display = 'none';
+    document.body.style.overflow = '';
+}
+function sendCourseNotify() {
+    var msg = document.getElementById('notify-msg').value.trim();
+    if (!msg) { alert('請填寫通知內容'); return; }
+    var resultEl = document.getElementById('notify-result');
+    resultEl.textContent = '發送中...';
+    fetch('/admin/courses/{{ course.id }}/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            resultEl.textContent = '✅ 已發送給 ' + d.count + ' 位學員';
+            resultEl.style.color = '#2e7d32';
+            setTimeout(closeNotifyPanel, 1800);
+        } else {
+            resultEl.textContent = '❌ ' + (d.error || '發送失敗');
+            resultEl.style.color = '#c62828';
+        }
+    });
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') closeNotifyPanel();
+});
+
+// ── 一鍵完訓達標者 ──────────────────────────
+function batchComplete() {
+    if (!confirm('將所有達標且尚未完訓的學員一次標記完訓，確定嗎？')) return;
+    fetch(`/admin/courses/{{ course.id }}/roster/batch-complete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) { alert(`已完訓 ${d.count} 位學員`); location.reload(); }
+            else alert(d.error || '操作失敗');
+        });
+}
+</script>
+
+<!-- 發送通知 Overlay + Panel -->
+<div id="notify-overlay" onclick="closeNotifyPanel()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9998;"></div>
+<div id="notify-panel"
+    style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+           width:min(480px,92vw); background:white; border-radius:16px; z-index:9999;
+           padding:28px 24px; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 6px;">📢 發送課程通知</h3>
+    <p style="color:#888; font-size:0.85rem; margin:0 0 18px;">將通知發送給目前所有已報名「{{ course.title }}」的學員</p>
+    <label style="font-size:0.82rem; font-weight:600; color:#555; display:block; margin-bottom:6px;">通知內容 <span style="color:#c62828;">*</span></label>
+    <textarea id="notify-msg" rows="3"
+        style="width:100%; padding:10px 14px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:0.9rem; resize:vertical; margin-bottom:14px;"
+        placeholder="例：本週第 3 堂地點改為 A 館，請注意！"></textarea>
+    <div id="notify-result" style="font-size:0.85rem; margin-bottom:12px; min-height:20px;"></div>
+    <div style="display:flex; gap:10px;">
+        <button onclick="sendCourseNotify()"
+            style="padding:10px 24px; background:#e65100; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+            📢 發送
+        </button>
+        <button onclick="closeNotifyPanel()"
+            style="padding:10px 20px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">
+            取消
+        </button>
+    </div>
+</div>
+
+{% endblock %}

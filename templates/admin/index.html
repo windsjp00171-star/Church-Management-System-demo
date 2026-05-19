@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}後台管理{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <div class="page-title">🛠 後台管理</div>
+        <div class="page-subtitle">{{ church_name }} 教會入口整合系統</div>
+    </div>
+</div>
+
+<!-- 主要功能（一般管理員） -->
+<div class="section-label">活動管理 / 福音</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+
+    <a href="/admin/events" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎉</div>
+            <div class="admin-card-name">活動管理</div>
+            <div class="admin-card-desc">建立、編輯教會活動</div>
+        </div>
+    </a>
+
+    <a href="/admin/calendar" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fff7ed; color:#ea580c;">📅</div>
+            <div class="admin-card-name">行事曆</div>
+            <div class="admin-card-desc">教會行事管理</div>
+        </div>
+    </a>
+
+    <a href="/admin/gospel" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf6ec; color:#8b5a2b;">✝️</div>
+            <div class="admin-card-name">福音關懷</div>
+            <div class="admin-card-desc">詢問紀錄與跟進管理</div>
+        </div>
+    </a>
+
+    <a href="/admin/visitor-forms" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fff0f6; color:#c2185b;">📋</div>
+            <div class="admin-card-name">留名單</div>
+            <div class="admin-card-desc">新朋友留名單照片管理</div>
+        </div>
+    </a>
+
+</div>
+
+<div class="section-label">學程與認證</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+
+    <a href="/admin/courses" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#eff6ff; color:#1d6fe5;">📚</div>
+            <div class="admin-card-name">門訓課程</div>
+            <div class="admin-card-desc">課程管理與出席追蹤</div>
+        </div>
+    </a>
+
+    <a href="/admin/courses/group-overview" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#e3f2fd; color:#1565c0;">📋</div>
+            <div class="admin-card-name">小組總覽</div>
+            <div class="admin-card-desc">各小組門訓出席狀況</div>
+        </div>
+    </a>
+
+    <a href="/admin/certifications" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎓</div>
+            <div class="admin-card-name">學程認證管理</div>
+            <div class="admin-card-desc">查看及補登認證記錄</div>
+        </div>
+    </a>
+
+    <a href="/admin/materials" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fff8e1; color:#f57f17;">📦</div>
+            <div class="admin-card-name">教材庫存</div>
+            <div class="admin-card-desc">進銷存追蹤與記錄</div>
+        </div>
+    </a>
+
+</div>
+
+{% if session.get('is_super_admin') %}
+<div class="section-label">會員管理</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+
+    <a href="/admin/users" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf4ff; color:#9333ea;">👥</div>
+            <div class="admin-card-name">會員管理</div>
+            <div class="admin-card-desc">查看所有會員資料</div>
+        </div>
+    </a>
+
+</div>
+
+<div class="section-label">系統設定</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+
+    <a href="/admin/groups" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🏘</div>
+            <div class="admin-card-name">小組管理</div>
+            <div class="admin-card-desc">新增或移除小組標籤</div>
+        </div>
+    </a>
+
+    <a href="/admin/verses" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f5f3ff; color:#7c3aed;">🎴</div>
+            <div class="admin-card-name">每日經文</div>
+            <div class="admin-card-desc">管理每日祝福經文庫</div>
+        </div>
+    </a>
+
+    <a href="/admin/portal-links" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#eff6ff; color:#1d6fe5;">🔗</div>
+            <div class="admin-card-name">快捷連結</div>
+            <div class="admin-card-desc">管理首頁功能卡片</div>
+        </div>
+    </a>
+
+    <a href="/admin/bulletins" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fff8e1; color:#f59e0b;">📰</div>
+            <div class="admin-card-name">週報管理</div>
+            <div class="admin-card-desc">上傳與管理每週週報 PDF</div>
+        </div>
+    </a>
+
+    <a href="/admin/group-discussions" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">▶</div>
+            <div class="admin-card-name">小組討論</div>
+            <div class="admin-card-desc">排程本週影片與討論問題</div>
+        </div>
+    </a>
+
+    <a href="/admin/announcements" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fef2f2; color:#ef4444;">📢</div>
+            <div class="admin-card-name">公告廣播</div>
+            <div class="admin-card-desc">發送站內通知給全體會員</div>
+        </div>
+    </a>
+
+</div>
+{% endif %}
+
+<style>
+.admin-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    padding: 22px 20px;
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    transition: transform var(--transition), box-shadow var(--transition);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.admin-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+.admin-card-icon {
+    width: 44px; height: 44px;
+    border-radius: var(--radius);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.3rem;
+}
+.admin-card-name {
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--text-1);
+}
+.admin-card-desc {
+    font-size: 0.8rem;
+    color: var(--text-3);
+}
+</style>
+{% endblock %}

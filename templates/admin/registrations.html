@@ -1,0 +1,660 @@
+{% extends "base.html" %}
+{% block title %}報名名單 - {{ event.title }}{% endblock %}
+{% block content %}
+
+<!-- 頁首 -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/events" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回活動管理</a>
+        <h2 style="margin-top:6px;">📋 報名名單</h2>
+        <p style="color:#555; margin-top:4px;">{{ event.title }}</p>
+    </div>
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <span style="background:#e8f5e9; color:#2e7d32; padding:6px 14px; border-radius:20px; font-weight:bold;">
+            已報名 {{ regs|length }} 人{% if event.capacity %} / 上限 {{ event.capacity }} 人{% endif %}
+        </span>
+        <a href="/admin/events/{{ event.id }}/registrations/export"
+           style="padding:6px 16px; background:#1565c0; color:white; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold;">
+            📥 匯出 Excel
+        </a>
+        <button onclick="openNotifyPanel()"
+           style="padding:6px 16px; background:#fff3e0; color:#e65100; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+            📢 發送通知
+        </button>
+        {% if event.checkin_enabled %}
+        <a href="/admin/events/{{ event.id }}/checkin-live"
+           style="padding:6px 16px; background:#e8f5e9; color:#2e7d32; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold;">
+            🟢 即時簽到
+        </a>
+        <a href="/admin/events/{{ event.id }}/qrcode"
+           style="padding:6px 16px; background:#fff3e0; color:#e65100; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold;">
+            📱 QR Code
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 活動資訊小卡 -->
+<div style="background:white; border-radius:10px; padding:16px 20px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06); color:#555; font-size:0.9rem; display:flex; gap:24px; flex-wrap:wrap;">
+    {% if event.event_start %}
+    <span>🕐 {{ event.event_start| taipei_time }}</span>
+    {% endif %}
+    {% if event.location %}
+    <span>📍 {{ event.location }}</span>
+    {% endif %}
+    {% if event.fee %}
+    <span>💰 {{ event.fee }} 元</span>
+    {% endif %}
+    <span style="font-weight:bold; color:{{ '#2e7d32' if event.is_open else '#c62828' }};">
+        {{ '報名開放中' if event.is_open else '報名已關閉' }}
+    </span>
+</div>
+
+{% if event.whitelist_enabled %}
+<!-- 白名單管理區 -->
+<div style="background:white; border-radius:12px; padding:20px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border-left:4px solid #f9a825;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+        <p style="font-weight:bold; color:#333; margin:0;">🔒 限定報名名單 <span id="wl-count" style="font-size:0.85rem; color:#888; font-weight:normal;"></span></p>
+        <button onclick="toggleWlPanel()" style="padding:5px 14px; background:#fff8e1; color:#f57f17; border:1px solid #ffe082; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+            ＋ 加入名單
+        </button>
+    </div>
+    <!-- 加人搜尋（預設收合） -->
+    <div id="wl-add-panel" style="display:none; margin-bottom:14px; padding:14px; background:#fffde7; border-radius:8px;">
+        <div style="position:relative;">
+            <input id="wl-search" type="text" placeholder="搜尋姓名加入名單..."
+                oninput="wlSearch(this.value)"
+                style="width:100%; padding:9px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+            <div id="wl-results" style="position:absolute; left:0; right:0; top:100%; background:white; border:1px solid #eee; border-radius:8px; display:none; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:10; max-height:200px; overflow-y:auto;"></div>
+        </div>
+    </div>
+    <!-- 名單列表 -->
+    <div id="wl-list"><p style="color:#999; font-size:0.85rem;">載入中...</p></div>
+</div>
+{% endif %}
+
+{% if regs %}
+<!-- 搜尋框 -->
+<div style="margin-bottom:16px;">
+    <input id="search-input" type="text" placeholder="搜尋姓名..."
+        oninput="filterTable(this.value)"
+        style="width:100%; max-width:320px; padding:10px 14px; border:1px solid #ddd;
+               border-radius:8px; font-size:0.95rem;">
+</div>
+
+<!-- 統計列：報到進度 -->
+{% set checked_count = regs | selectattr('checked_in') | list | length %}
+<div style="background:white; border-radius:10px; padding:16px 20px; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <span style="font-size:0.9rem; color:#555;">報到進度</span>
+        <span style="font-weight:bold; color:#2e7d32;">{{ checked_count }} / {{ regs|length }} 人</span>
+    </div>
+    <div style="background:#e0e0e0; border-radius:10px; height:8px; overflow:hidden;">
+        <div style="background:#06C755; height:100%; width:{{ (checked_count / regs|length * 100)|int if regs else 0 }}%;"></div>
+    </div>
+</div>
+{% if event.meal_options and event.meal_options.enabled %}
+{% set meal_ordered_count = regs | selectattr('meal_selections') | list | length %}
+{% set meal_total_sum = regs | selectattr('meal_total') | sum(attribute='meal_total') %}
+<div style="background:#fff3e0; border-radius:10px; padding:14px 20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
+    <span style="font-size:0.9rem; color:#e65100; font-weight:bold;">🍱 餐點統計</span>
+    <span style="font-size:0.9rem; color:#555;">訂餐人數：<strong>{{ meal_ordered_count }}</strong> 人</span>
+    <span style="font-size:0.9rem; color:#555;">餐費合計：<strong>${{ meal_total_sum }}</strong></span>
+    <div style="margin-left:auto; display:flex; gap:8px; flex-wrap:wrap;">
+    {% for opt in event.meal_options.options %}{% if opt.enabled %}
+    <span style="background:#fff; border:1px solid #ffcc80; border-radius:20px; padding:3px 10px; font-size:0.8rem; color:#e65100;">
+        {{ opt.label }}：<strong>{{ regs | selectattr('meal_selections') | list | selectattr('meal_selections', 'ne', none) | list | length }}</strong> 訂
+    </span>
+    {% endif %}{% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 名單表格 -->
+<div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse;">
+            <thead>
+                <tr style="background:#f5f5f5; font-size:0.85rem; color:#666;">
+                    <th style="padding:12px 16px; text-align:left; white-space:nowrap;">#</th>
+                    <th style="padding:12px 16px; text-align:left; white-space:nowrap;">姓名</th>
+                    <!-- 自訂欄位標題 -->
+                    {% for field in fields %}
+                    <th style="padding:12px 16px; text-align:left; white-space:nowrap;
+                        {% if field.is_archived %}color:#bbb;{% endif %}">
+                        {{ field.label }}{% if field.is_archived %} <span style="font-size:0.7rem;">(已移除)</span>{% endif %}
+                    </th>
+                    {% endfor %}
+                    <th style="padding:12px 16px; text-align:left; white-space:nowrap;">報名時間</th>
+                    {% if event.meal_options and event.meal_options.enabled %}
+                    <th style="padding:12px 16px; text-align:center; white-space:nowrap;">🍱 餐點</th>
+                    {% endif %}
+                    {% if event.fee %}
+                    <th style="padding:12px 16px; text-align:center; white-space:nowrap;">💰 付款</th>
+                    {% endif %}
+                    <th style="padding:12px 16px; text-align:center; white-space:nowrap;">報到</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for reg in regs %}
+                {% set user = user_map.get(reg.user_id, {}) %}
+                {% set override_name = name_override_map.get(reg.id) if name_override_map else none %}
+                {% set display_name = override_name or (user.real_name or user.display_name if reg.user_id else none) or (reg.guest_name or '外部來賓') %}
+                {# data-name 供搜尋 JS 使用 #}
+                {% set my_answers = answer_map.get(reg.id, {}) %}
+                <tr data-name="{{ display_name|lower }}"
+                    style="border-top:1px solid #f0f0f0; {% if reg.checked_in %}background:#f9fbe7;{% endif %}">
+                    <!-- 序號 -->
+                    <td style="padding:14px 16px; color:#999; font-size:0.85rem;">{{ loop.index }}</td>
+
+                    <!-- 姓名 -->
+                    <td style="padding:14px 16px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            {% if not reg.user_id %}
+                            <span style="font-size:1rem;">📋</span>
+                            {% endif %}
+                            <div>
+                                <span style="font-weight:500;">{{ display_name }}</span>
+                                {% if not reg.user_id %}
+                                <span style="font-size:0.75rem; color:#1565c0; margin-left:4px;">外部</span>
+                                {% if reg.guest_phone %}<div style="font-size:0.75rem; color:#aaa;">{{ reg.guest_phone }}</div>{% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </td>
+
+                    <!-- 自訂欄位答案 -->
+                    {% for field in fields %}
+                    <td style="padding:14px 16px; font-size:0.9rem;
+                        {% if field.is_archived %}color:#bbb;{% else %}color:#444;{% endif %}">
+                        {{ my_answers.get(field.id, '—') }}
+                    </td>
+                    {% endfor %}
+
+                    <!-- 報名時間 -->
+                    <td style="padding:14px 16px; color:#888; font-size:0.85rem; white-space:nowrap;">
+                        {{ reg.created_at| taipei_time if reg.created_at else '—' }}
+                    </td>
+
+                    {% if event.meal_options and event.meal_options.enabled %}
+                    <td style="padding:14px 16px; text-align:center; font-size:0.82rem;">
+                        {% if reg.meal_selections and reg.meal_selections|length > 0 %}
+                        {% set mmap = {} %}{% for o in event.meal_options.options %}{% if o.enabled %}{% set _ = mmap.update({o.id: o.label or o.meal}) %}{% endif %}{% endfor %}
+                        <div style="color:#1565c0; line-height:1.6;">
+                            {% for mid in reg.meal_selections %}{{ mmap.get(mid, mid) }}<br>{% endfor %}
+                        </div>
+                        {% if reg.meal_total %}<div style="font-weight:bold; color:#e65100;">${{ reg.meal_total }}</div>{% endif %}
+                        {% else %}<span style="color:#ccc;">—</span>{% endif %}
+                    </td>
+                    {% endif %}
+
+                    <!-- 付款狀態（只在有費用時顯示） -->
+                    {% if event.fee %}
+                    <td style="padding:14px 16px; text-align:center;">
+                        {% set ps = reg.payment_status or 'unpaid' %}
+                        <button onclick="togglePayment('{{ reg.id }}', this)"
+                            data-status="{{ ps }}"
+                            style="padding:5px 14px; border:none; border-radius:20px; cursor:pointer; font-size:0.82rem; font-weight:bold;
+                                   background:{{ '#e8f5e9' if ps=='paid' else ('#e3f2fd' if ps=='waived' else '#fff3e0') }};
+                                   color:{{ '#2e7d32' if ps=='paid' else ('#1565c0' if ps=='waived' else '#e65100') }};">
+                            {{ '已付款' if ps=='paid' else ('免收費' if ps=='waived' else '未付款') }}
+                        </button>
+                    </td>
+                    {% endif %}
+
+                    <!-- 報到按鈕 -->
+                    <td style="padding:14px 16px; text-align:center;">
+                        <div style="display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;">
+                            <button onclick="toggleCheckin('{{ reg.id }}', this)"
+                                data-checked="{{ 'true' if reg.checked_in else 'false' }}"
+                                style="padding:6px 14px; border:none; border-radius:20px; cursor:pointer; font-size:0.82rem; font-weight:bold;
+                                       background:{{ '#06C755' if reg.checked_in else '#e0e0e0' }};
+                                       color:{{ 'white' if reg.checked_in else '#555' }};">
+                                {{ '✓ 已報到' if reg.checked_in else '未報到' }}
+                            </button>
+                            <button onclick="cancelReg('{{ event.id }}', '{{ reg.id }}', this)"
+                                style="padding:6px 10px; border:none; border-radius:20px; cursor:pointer; font-size:0.78rem;
+                                       background:#ffebee; color:#c62828;"
+                                title="刪除此報名">
+                                ✕
+                            </button>
+                            <button onclick="openEditModal(this)"
+                                data-reg-id="{{ reg.id }}"
+                                data-is-guest="{{ 'true' if not reg.user_id else 'false' }}"
+                                data-guest-name="{{ reg.guest_name or '' | e }}"
+                                data-guest-phone="{{ reg.guest_phone or '' }}"
+                                data-answers='{{ answer_map.get(reg.id, {}) | tojson }}'
+                                style="padding:6px 10px; border:none; border-radius:20px; cursor:pointer; font-size:0.78rem;
+                                       background:#e3f2fd; color:#1565c0;"
+                                title="編輯報名資料">
+                                ✏️
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% else %}
+<!-- 尚無報名 -->
+<div style="text-align:center; padding:60px 0; color:#999; background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="font-size:3rem;">📭</div>
+    <p style="margin-top:12px;">目前還沒有人報名</p>
+</div>
+{% endif %}
+
+<!-- ══ 編輯報名資料 Drawer ══ -->
+<!-- 半透明遮罩 -->
+<div id="edit-overlay" onclick="closeEditModal()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9998; transition:opacity 0.25s;"></div>
+<!-- 右側滑入面板 -->
+<div id="edit-modal"
+    style="display:none; position:fixed; top:0; right:0; bottom:0; width:min(500px,100vw);
+           background:white; z-index:9999; overflow-y:auto;
+           box-shadow:-6px 0 32px rgba(0,0,0,0.18); padding:28px 24px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; position:sticky; top:0; background:white; padding-bottom:14px; border-bottom:1px solid #f0f0f0; z-index:1;">
+            <h3 style="margin:0;">✏️ 編輯報名資料</h3>
+            <button onclick="closeEditModal()" style="background:#f5f5f5; border:none; font-size:1.1rem; cursor:pointer; color:#666; padding:6px 12px; border-radius:8px;">✕ 關閉</button>
+        </div>
+
+        <!-- 外部來賓：姓名 + 電話 -->
+        <div id="edit-guest-section" style="display:none; margin-bottom:20px; padding:16px; background:#f9fbe7; border-radius:10px; border:1px solid #c5e1a5;">
+            <p style="font-weight:bold; margin:0 0 12px; color:#2e7d32; font-size:0.9rem;">📋 外部來賓資料</p>
+            <div style="margin-bottom:12px;">
+                <label style="font-size:0.85rem; font-weight:bold; display:block; margin-bottom:4px;">姓名 *</label>
+                <input id="edit-guest-name" type="text" placeholder="請輸入姓名"
+                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+            </div>
+            <div>
+                <label style="font-size:0.85rem; font-weight:bold; display:block; margin-bottom:4px;">電話（選填）</label>
+                <input id="edit-guest-phone" type="tel" placeholder="09xx-xxxxxx"
+                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+            </div>
+        </div>
+
+        <!-- 自訂欄位 -->
+        <div id="edit-fields-section">
+            <p style="font-weight:bold; margin:0 0 12px; color:#333; font-size:0.9rem;">📝 活動欄位資料</p>
+            {% for field in fields %}
+            <div style="margin-bottom:14px;">
+                <label style="font-size:0.85rem; font-weight:bold; display:block; margin-bottom:4px; color:#555;">
+                    {{ field.label }}{% if field.is_required %} <span style="color:#e53935;">*</span>{% endif %}
+                </label>
+                {% if field.field_type == 'radio' %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 12px; border:1px solid #e0e0e0; border-radius:8px;">
+                        <input type="radio" name="edit_field_{{ field.id }}" value="{{ opt.strip() }}"
+                            data-field-id="{{ field.id }}" style="accent-color:#06C755;">
+                        <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% elif field.field_type == 'select' %}
+                <select data-field-id="{{ field.id }}"
+                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem;">
+                    <option value="">請選擇...</option>
+                    {% for opt in field.options.split('\n') if field.options and opt.strip() %}
+                    <option value="{{ opt.strip() }}">{{ opt.strip() }}</option>
+                    {% endfor %}
+                </select>
+                {% elif field.field_type == 'textarea' %}
+                <textarea data-field-id="{{ field.id }}" rows="3"
+                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; resize:vertical; box-sizing:border-box;"></textarea>
+                {% else %}
+                <input type="{{ 'number' if field.field_type == 'number' else ('date' if field.field_type == 'date' else 'text') }}"
+                    data-field-id="{{ field.id }}"
+                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;"
+                    placeholder="{{ field.label }}">
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% if not fields %}
+            <p style="color:#aaa; font-size:0.88rem; text-align:center; padding:12px 0;">此活動沒有自訂欄位</p>
+            {% endif %}
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:20px; position:sticky; bottom:0; background:white; padding-top:14px; border-top:1px solid #f0f0f0;">
+            <button onclick="saveEditModal()"
+                style="flex:1; padding:11px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.95rem;">
+                儲存
+            </button>
+            <button onclick="closeEditModal()"
+                style="padding:11px 20px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">
+                取消
+            </button>
+        </div>
+</div>
+
+<script>
+let _editRegId = null;
+let _editIsGuest = false;
+
+function openEditModal(btn) {
+    _editRegId = btn.dataset.regId;
+    _editIsGuest = btn.dataset.isGuest === 'true';
+    const guestName = btn.dataset.guestName || '';
+    const guestPhone = btn.dataset.guestPhone || '';
+    let existingAnswers = {};
+    try { existingAnswers = JSON.parse(btn.dataset.answers || '{}'); } catch(e) {}
+
+    // 外部來賓區
+    const guestSection = document.getElementById('edit-guest-section');
+    guestSection.style.display = _editIsGuest ? 'block' : 'none';
+    if (_editIsGuest) {
+        document.getElementById('edit-guest-name').value = guestName;
+        document.getElementById('edit-guest-phone').value = guestPhone;
+    }
+
+    // 預填自訂欄位現有答案（先清除再填）
+    document.querySelectorAll('#edit-fields-section [data-field-id]').forEach(el => {
+        const fid = el.dataset.fieldId;
+        const val = existingAnswers[fid] || '';
+        if (el.tagName === 'INPUT' && el.type === 'radio') {
+            el.checked = (el.value === val);
+        } else {
+            el.value = val;
+        }
+    });
+
+    document.getElementById('edit-overlay').style.display = 'block';
+    document.getElementById('edit-modal').style.display = 'block';
+    // 防止背景捲動
+    document.body.style.overflow = 'hidden';
+}
+
+function closeEditModal() {
+    document.getElementById('edit-overlay').style.display = 'none';
+    document.getElementById('edit-modal').style.display = 'none';
+    document.body.style.overflow = '';
+    _editRegId = null;
+}
+
+function saveEditModal() {
+    if (!_editRegId) return;
+
+    const payload = { answers: [] };
+
+    // 外部來賓姓名/電話
+    if (_editIsGuest) {
+        const name = document.getElementById('edit-guest-name').value.trim();
+        if (!name) { alert('請填寫姓名'); return; }
+        payload.guest_name = name;
+        payload.guest_phone = document.getElementById('edit-guest-phone').value.trim();
+    }
+
+    // 收集自訂欄位
+    const seen = {};
+    document.querySelectorAll('#edit-fields-section [data-field-id]').forEach(el => {
+        const fid = el.dataset.fieldId;
+        if (seen[fid]) return;
+        let val = '';
+        if (el.tagName === 'INPUT' && el.type === 'radio') {
+            // radio 群組：找選中的
+            const checked = document.querySelector(`input[name="edit_field_${fid}"]:checked`);
+            val = checked ? checked.value : '';
+        } else {
+            val = el.value.trim();
+        }
+        seen[fid] = true;
+        if (val) payload.answers.push({ field_id: fid, answer: val });
+    });
+
+    fetch(`/admin/events/{{ event.id }}/registrations/${_editRegId}/edit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).then(r => r.json()).then(d => {
+        if (d.success) { closeEditModal(); location.reload(); }
+        else alert(d.error || '儲存失敗');
+    });
+}
+
+// ESC 鍵關閉 Drawer
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') { closeEditModal(); closeNotifyPanel(); }
+});
+
+// ── 發送活動通知 ──────────────────────────
+function openNotifyPanel() {
+    document.getElementById('notify-overlay').style.display = 'block';
+    document.getElementById('notify-panel').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+}
+function closeNotifyPanel() {
+    document.getElementById('notify-overlay').style.display = 'none';
+    document.getElementById('notify-panel').style.display = 'none';
+    document.body.style.overflow = '';
+}
+function sendEventNotify() {
+    var msg = document.getElementById('notify-msg').value.trim();
+    var resultEl = document.getElementById('notify-result');
+    resultEl.textContent = '發送中...';
+    fetch('/admin/events/{{ event.id }}/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            resultEl.textContent = '✅ 已發送給 ' + d.count + ' 位報名者';
+            resultEl.style.color = '#2e7d32';
+            setTimeout(closeNotifyPanel, 1800);
+        } else {
+            resultEl.textContent = '❌ ' + (d.error || '發送失敗');
+            resultEl.style.color = '#c62828';
+        }
+    });
+}
+</script>
+
+<!-- 發送通知 Overlay + Panel -->
+<div id="notify-overlay" onclick="closeNotifyPanel()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9998;"></div>
+<div id="notify-panel"
+    style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+           width:min(480px,92vw); background:white; border-radius:16px; z-index:9999;
+           padding:28px 24px; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 6px;">📢 發送活動通知</h3>
+    <p style="color:#888; font-size:0.85rem; margin:0 0 18px;">將通知發送給所有已報名「{{ event.title }}」的人</p>
+    <label style="font-size:0.82rem; font-weight:600; color:#555; display:block; margin-bottom:6px;">附加訊息（選填）</label>
+    <textarea id="notify-msg" rows="3"
+        style="width:100%; padding:10px 14px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:0.9rem; resize:vertical; margin-bottom:14px;"
+        placeholder="例：請記得自備筆記本，活動改為室內舉行..."></textarea>
+    <div id="notify-result" style="font-size:0.85rem; margin-bottom:12px; min-height:20px;"></div>
+    <div style="display:flex; gap:10px;">
+        <button onclick="sendEventNotify()"
+            style="padding:10px 24px; background:#e65100; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+            📢 發送
+        </button>
+        <button onclick="closeNotifyPanel()"
+            style="padding:10px 20px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">
+            取消
+        </button>
+    </div>
+</div>
+
+<script>
+// 姓名即時搜尋
+function filterTable(keyword) {
+    const kw = keyword.trim().toLowerCase();
+    document.querySelectorAll('tbody tr').forEach(row => {
+        const name = (row.dataset.name || '').toLowerCase();
+        row.style.display = (!kw || name.includes(kw)) ? '' : 'none';
+    });
+}
+
+// 付款狀態三態切換：未付款 → 已付款 → 免收費 → 未付款
+function togglePayment(regId, btn) {
+    btn.disabled = true;
+    const eventId = '{{ event.id }}';
+
+    fetch(`/admin/events/${eventId}/registrations/${regId}/payment`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                const ps = data.payment_status;
+                const labels = { paid: '已付款', waived: '免收費', unpaid: '未付款' };
+                const colors = {
+                    paid:   { bg: '#e8f5e9', text: '#2e7d32' },
+                    waived: { bg: '#e3f2fd', text: '#1565c0' },
+                    unpaid: { bg: '#fff3e0', text: '#e65100' },
+                };
+                btn.textContent = labels[ps] || ps;
+                btn.style.background = colors[ps]?.bg || '#f5f5f5';
+                btn.style.color = colors[ps]?.text || '#333';
+            } else {
+                alert(data.error || '操作失敗');
+            }
+            btn.disabled = false;
+        })
+        .catch(() => { alert('網路錯誤'); btn.disabled = false; });
+}
+
+function toggleCheckin(regId, btn) {
+    btn.disabled = true;
+    const eventId = '{{ event.id }}';
+
+    fetch(`/admin/events/${eventId}/registrations/${regId}/checkin`, { method: 'POST' })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) {
+                // 更新按鈕樣式
+                if (data.checked_in) {
+                    btn.textContent = '✓ 已報到';
+                    btn.style.background = '#06C755';
+                    btn.style.color = 'white';
+                    btn.closest('tr').style.background = '#f9fbe7';
+                } else {
+                    btn.textContent = '未報到';
+                    btn.style.background = '#e0e0e0';
+                    btn.style.color = '#555';
+                    btn.closest('tr').style.background = '';
+                }
+            } else {
+                alert(data.error || '操作失敗');
+            }
+            btn.disabled = false;
+        })
+        .catch(() => {
+            alert('網路錯誤，請稍後再試');
+            btn.disabled = false;
+        });
+}
+
+// ── 刪除報名 ──────────────────────────
+function cancelReg(eventId, regId, btn) {
+    if (!confirm('確定要刪除此報名紀錄嗎？')) return;
+    btn.disabled = true;
+    fetch(`/admin/events/${eventId}/registrations/${regId}/cancel`, { method: 'POST' })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) {
+                const row = btn.closest('tr');
+                row.style.opacity = '0';
+                row.style.transition = 'opacity 0.3s';
+                setTimeout(() => row.remove(), 300);
+            } else { alert(d.error || '刪除失敗'); btn.disabled = false; }
+        });
+}
+
+// ── 白名單管理 ──────────────────────────
+{% if event.whitelist_enabled %}
+const WL_EVENT_ID = '{{ event.id }}';
+let wlSearchTimer = null;
+
+loadWhitelist();
+
+function loadWhitelist() {
+    fetch(`/admin/api/whitelist/event/${WL_EVENT_ID}`)
+        .then(r => r.json())
+        .then(rows => {
+            document.getElementById('wl-count').textContent = `（${rows.length} 人）`;
+            const container = document.getElementById('wl-list');
+            if (!rows.length) {
+                container.innerHTML = '<p style="color:#aaa; font-size:0.85rem;">尚無名單，請新增</p>';
+                return;
+            }
+            container.innerHTML = rows.map(r => {
+                const u = r.user || {};
+                const name = u.real_name || u.display_name || '未知';
+                const tags = (u.group_tags || []).join('、');
+                return `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f5f5f5;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${u.picture_url || ''}" style="width:30px; height:30px; border-radius:50%;" onerror="this.style.display='none'">
+                        <div>
+                            <span style="font-weight:500; font-size:0.9rem;">${name}</span>
+                            ${tags ? `<span style="font-size:0.78rem; color:#aaa; margin-left:6px;">${tags}</span>` : ''}
+                        </div>
+                    </div>
+                    <button onclick="wlRemove('${r.user_id}', this)"
+                        style="padding:4px 12px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">
+                        移除
+                    </button>
+                </div>`;
+            }).join('');
+        });
+}
+
+function toggleWlPanel() {
+    const panel = document.getElementById('wl-add-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (panel.style.display === 'block') document.getElementById('wl-search').focus();
+}
+
+function wlSearch(kw) {
+    clearTimeout(wlSearchTimer);
+    const box = document.getElementById('wl-results');
+    if (!kw.trim()) { box.style.display = 'none'; return; }
+    wlSearchTimer = setTimeout(() => {
+        fetch(`/admin/api/users/search?q=${encodeURIComponent(kw)}`)
+            .then(r => r.json())
+            .then(users => {
+                if (!users.length) { box.innerHTML = '<p style="padding:10px 14px; color:#999; font-size:0.85rem;">找不到符合的用戶</p>'; box.style.display = 'block'; return; }
+                box.innerHTML = users.map(u => `
+                    <div onclick='wlAdd("${u.id}", this)'
+                        style="padding:10px 14px; cursor:pointer; display:flex; align-items:center; gap:10px; border-bottom:1px solid #f5f5f5;"
+                        onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                        <img src="${u.picture_url||''}" style="width:28px;height:28px;border-radius:50%;" onerror="this.style.display='none'">
+                        <div>
+                            <div style="font-weight:500; font-size:0.88rem;">${u.real_name || u.display_name}</div>
+                            ${u.real_name ? `<div style="font-size:0.75rem; color:#aaa;">LINE：${u.display_name}</div>` : ''}
+                        </div>
+                    </div>`).join('');
+                box.style.display = 'block';
+            });
+    }, 300);
+}
+
+function wlAdd(userId, el) {
+    document.getElementById('wl-results').style.display = 'none';
+    document.getElementById('wl-search').value = '';
+    fetch(`/admin/api/whitelist/event/${WL_EVENT_ID}/add`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_id: userId })
+    }).then(r => r.json()).then(d => {
+        if (d.success) loadWhitelist();
+        else alert(d.error || '加入失敗');
+    });
+}
+
+function wlRemove(userId, btn) {
+    btn.disabled = true;
+    fetch(`/admin/api/whitelist/event/${WL_EVENT_ID}/${userId}/remove`, { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.success) loadWhitelist();
+            else { alert(d.error || '移除失敗'); btn.disabled = false; }
+        });
+}
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#wl-search') && !e.target.closest('#wl-results'))
+        document.getElementById('wl-results').style.display = 'none';
+});
+{% endif %}
+</script>
+
+{% endblock %}

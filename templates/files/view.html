@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+{% block title %}{{ file.name }} — 資料交換中心{% endblock %}
+{% block content %}
+<div class="page-header">
+  <a href="javascript:history.back()" class="btn-secondary">← 返回</a>
+  <div class="header-actions">
+    <button class="btn-secondary" onclick="openModal('shareLinkModal')">🔗 分享連結</button>
+    <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="btn-primary">↓ 下載</a>
+  </div>
+</div>
+
+<h2 class="file-title">{{ file.name }}</h2>
+
+{% set stream_url = url_for('files.stream_file', file_id=file.id) %}
+{% if preview_url %}
+  {% if preview_type == 'direct' %}
+    {% if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp'] %}
+    <div class="preview-container">
+      <img src="{{ stream_url }}" alt="{{ file.name }}" class="preview-image">
+    </div>
+    {% elif ext == '.pdf' %}
+    <div class="preview-container">
+      <iframe src="{{ stream_url }}" class="preview-iframe"></iframe>
+    </div>
+    {% elif ext in ['.mp4', '.webm'] %}
+    <div class="preview-container">
+      <video src="{{ stream_url }}" controls class="preview-video"></video>
+    </div>
+    {% endif %}
+  {% elif preview_type == 'office' %}
+  <div class="preview-container">
+    <iframe src="{{ preview_url }}" class="preview-iframe"></iframe>
+  </div>
+  {% endif %}
+{% else %}
+<div class="no-preview">
+  <p>此檔案格式無法線上預覽</p>
+  <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="btn-primary">↓ 下載檔案</a>
+</div>
+{% endif %}
+
+<!-- 分享連結 Modal -->
+<div id="shareLinkModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>🔗 產生分享連結</h3>
+      <button onclick="closeModal('shareLinkModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label>連結有效期限</label>
+      <div class="expires-options">
+        <label class="expires-btn"><input type="radio" name="expires" value="1h"> 1 小時</label>
+        <label class="expires-btn"><input type="radio" name="expires" value="24h" checked> 24 小時</label>
+        <label class="expires-btn"><input type="radio" name="expires" value="7d"> 7 天</label>
+      </div>
+    </div>
+    <button class="btn-primary btn-full" onclick="generateLink()">產生連結</button>
+    <div id="shareLinkResult" style="display:none; margin-top:1rem;">
+      <label class="form-group" style="display:block; font-size:0.85rem; color:var(--color-text-muted); margin-bottom:0.4rem;">下載連結（複製後傳給對方）</label>
+      <div class="share-link-row">
+        <input type="text" id="shareLinkUrl" readonly class="share-link-input">
+        <button class="btn-secondary" onclick="copyLink()">複製</button>
+      </div>
+      <p id="shareLinkExpiry" class="share-link-hint"></p>
+    </div>
+  </div>
+</div>
+
+{% if is_owner %}
+<div class="owner-actions">
+  <h4>🔧 檔案管理（僅上傳者可見）</h4>
+  {% if file.protection == 'password' %}
+  <div class="action-row">
+    <span class="protection-badge">🔒 目前有密碼保護</span>
+    <button class="btn-secondary" onclick="openModal('changePasswordModal')">更改密碼</button>
+    <button class="btn-danger" onclick="removePassword()">移除密碼</button>
+  </div>
+  {% else %}
+  <div class="action-row">
+    <span class="protection-badge">🔓 目前無密碼保護</span>
+    <button class="btn-secondary" onclick="openModal('changePasswordModal')">設定密碼</button>
+  </div>
+  {% endif %}
+</div>
+
+<div id="changePasswordModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>{{ '更改' if file.protection == 'password' else '設定' }}密碼</h3>
+      <button onclick="closeModal('changePasswordModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label>新密碼</label>
+      <input type="password" id="newPasswordInput" placeholder="輸入新密碼">
+    </div>
+    <div class="form-actions">
+      <button onclick="closeModal('changePasswordModal')" class="btn-secondary">取消</button>
+      <button onclick="setPassword()" class="btn-primary">確認</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function generateLink() {
+  const expires = document.querySelector('[name="expires"]:checked')?.value || '24h';
+  const form = new FormData();
+  form.append('expires', expires);
+  const res = await fetch('{{ url_for("files.share_link", file_id=file.id) }}', { method: 'POST', body: form });
+  const data = await res.json();
+  if (data.url) {
+    document.getElementById('shareLinkUrl').value = data.url;
+    const labels = { '1h': '1 小時', '24h': '24 小時', '7d': '7 天' };
+    document.getElementById('shareLinkExpiry').textContent = `此連結 ${labels[data.expires]} 後自動失效，任何人拿到連結都能下載`;
+    document.getElementById('shareLinkResult').style.display = 'block';
+  }
+}
+
+async function copyLink() {
+  const input = document.getElementById('shareLinkUrl');
+  await navigator.clipboard.writeText(input.value);
+  const btn = event.target;
+  btn.textContent = '已複製 ✓';
+  setTimeout(() => btn.textContent = '複製', 2000);
+}
+
+async function setPassword() {
+  const pw = document.getElementById('newPasswordInput').value.trim();
+  if (!pw) { alert('請輸入密碼'); return; }
+  const form = new FormData();
+  form.append('new_password', pw);
+  const res = await fetch('{{ url_for("files.set_password", file_id=file.id) }}', { method: 'POST', body: form });
+  const data = await res.json();
+  if (data.success) { location.reload(); }
+  else { alert(data.error || '設定失敗'); }
+}
+
+async function removePassword() {
+  if (!confirm('確定移除密碼保護？')) return;
+  const res = await fetch('{{ url_for("files.remove_password", file_id=file.id) }}', { method: 'POST' });
+  const data = await res.json();
+  if (data.success) { location.reload(); }
+  else { alert(data.error || '移除失敗'); }
+}
+</script>
+{% endblock %}

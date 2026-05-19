@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}門訓課程管理{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <a href="/admin" class="breadcrumb">← 返回後台</a>
+        <div class="page-title">📚 門訓課程管理</div>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <a href="/admin/course-categories" class="btn btn-outline btn-sm">🗂️ 學程管理</a>
+        <a href="/admin/calendar" class="btn btn-outline btn-sm">📅 行事曆</a>
+        <a href="/admin/courses/new" class="btn btn-primary">＋ 建立課程</a>
+    </div>
+</div>
+
+<!-- 快速功能卡片 -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:24px;">
+    <a href="/admin/courses/group-overview" style="text-decoration:none;">
+        <div style="background:linear-gradient(135deg,#e3f2fd,#bbdefb); border:1px solid #90caf9;
+            border-radius:var(--radius-lg); padding:18px 20px; display:flex; align-items:center; gap:14px;
+            transition:transform 0.15s; box-shadow:0 2px 8px rgba(29,111,229,0.1);"
+            onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
+            <div style="font-size:1.8rem; flex-shrink:0;">📋</div>
+            <div>
+                <div style="font-weight:700; font-size:0.95rem; color:#1565c0;">小組總覽</div>
+                <div style="font-size:0.78rem; color:#1976d2; margin-top:2px;">各小組門訓出席狀況</div>
+            </div>
+        </div>
+    </a>
+</div>
+
+{% if courses %}
+<div style="display:flex; flex-direction:column; gap:10px;">
+{% for course in courses %}
+<div class="card" style="padding:16px 20px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+
+        <!-- 左側資訊 -->
+        <div style="flex:1; min-width:0;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:6px;">
+                <span style="font-weight:700; font-size:0.97rem; color:var(--text-1);">{{ course.title }}</span>
+                {% if course.period %}
+                <span class="badge badge-purple">{{ course.period }}</span>
+                {% endif %}
+                <span class="badge {{ 'badge-green' if course.is_open else 'badge-red' }}">
+                    {{ '開放報名' if course.is_open else '報名關閉' }}
+                </span>
+            </div>
+            <div style="font-size:0.82rem; color:var(--text-3); display:flex; flex-wrap:wrap; gap:12px;">
+                <span>🗓 {{ course.total_sessions }} 堂</span>
+                <span>👥 {{ course.enrolled_count }} 人</span>
+                {% if course.material_fee %}<span>💰 ${{ course.material_fee }}</span>{% endif %}
+                {% if course.description %}
+                <span style="max-width:320px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">
+                    {{ course.description[:50] }}{% if course.description|length > 50 %}…{% endif %}
+                </span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- 右側操作 -->
+        <div style="display:flex; gap:6px; flex-wrap:wrap; flex-shrink:0; align-items:center;">
+            <a href="/admin/courses/{{ course.id }}/roster"
+                style="padding:8px 18px; background:#1d6fe5; color:white; border-radius:var(--radius-sm);
+                       text-decoration:none; font-size:0.88rem; font-weight:700; white-space:nowrap;
+                       box-shadow:0 2px 6px rgba(29,111,229,0.3);">👥 報名名單</a>
+            <a href="/admin/courses/{{ course.id }}" class="btn btn-sm" style="background:var(--green-bg); color:#16a34a;">堂次</a>
+            <button onclick="showQR('enroll','{{ course.id }}','{{ course.title|replace("'","\\\'") }}')"
+                class="btn btn-sm" style="background:var(--purple-bg); color:var(--purple);">🔗 QR</button>
+            {% if course.shared_checkin_token %}
+            <button onclick="showQR('checkin','{{ course.id }}','{{ course.title|replace("'","\\\'") }}','{{ course.shared_checkin_token }}')"
+                class="btn btn-sm btn-outline">📲 簽到</button>
+            {% endif %}
+            <a href="/admin/courses/{{ course.id }}/edit" class="btn btn-sm" style="background:var(--orange-bg); color:var(--orange);">編輯</a>
+            <button onclick="toggleCourse('{{ course.id }}', this)"
+                class="btn btn-sm {{ 'btn-danger' if course.is_open else '' }}"
+                style="{{ '' if course.is_open else 'background:var(--green-bg);color:#16a34a;' }}">
+                {{ '關閉報名' if course.is_open else '開放報名' }}
+            </button>
+            <button onclick="deleteCourse('{{ course.id }}', this)"
+                class="btn btn-sm btn-secondary">刪除</button>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="icon">📚</div>
+    <p>還沒有任何課程，點「建立課程」開始吧！</p>
+</div>
+{% endif %}
+
+<script>
+function toggleCourse(id, btn) {
+    btn.disabled = true;
+    fetch(`/admin/courses/${id}/toggle`, { method:'POST' })
+        .then(r => r.json()).then(() => location.reload());
+}
+function deleteCourse(id, btn) {
+    if (!confirm('確定要刪除此課程嗎？所有堂次與報名記錄都會一併刪除！')) return;
+    btn.disabled = true;
+    fetch(`/admin/courses/${id}/delete`, { method:'POST' })
+        .then(r => r.json()).then(() => location.reload());
+}
+function showQR(type, courseId, title, token) {
+    const url = type === 'enroll'
+        ? `${location.origin}/courses/${courseId}`
+        : `${location.origin}/course-shared-checkin/${token}`;
+    document.getElementById('qr-modal-title').textContent =
+        type === 'enroll' ? '🔗 課程報名連結' : '📲 課程通用簽到';
+    document.getElementById('qr-modal-subtitle').textContent = title;
+    document.getElementById('qr-modal-img').src =
+        `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(url)}`;
+    document.getElementById('qr-modal-url').value = url;
+    document.getElementById('qr-modal').style.display = 'flex';
+}
+function copyQRUrl() {
+    const input = document.getElementById('qr-modal-url');
+    input.select(); document.execCommand('copy');
+    const btn = document.getElementById('qr-copy-btn');
+    btn.textContent = '✅ 已複製';
+    setTimeout(() => btn.textContent = '📋 複製', 1500);
+}
+</script>
+
+<!-- QR Modal -->
+<div id="qr-modal" onclick="if(event.target===this)this.style.display='none'"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45);
+           z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div class="card" style="max-width:340px; width:100%; text-align:center; position:relative; padding:28px 24px;">
+        <button onclick="document.getElementById('qr-modal').style.display='none'"
+            style="position:absolute; top:12px; right:14px; background:none; border:none;
+                   font-size:1.2rem; cursor:pointer; color:var(--text-4);">✕</button>
+        <div style="font-weight:700; font-size:1rem; margin-bottom:4px;" id="qr-modal-title"></div>
+        <div style="color:var(--text-3); font-size:0.85rem; margin-bottom:16px;" id="qr-modal-subtitle"></div>
+        <div style="background:var(--bg); border-radius:var(--radius); padding:14px; margin-bottom:16px; display:inline-block;">
+            <img id="qr-modal-img" src="" alt="QR" style="width:220px; height:220px; display:block;">
+        </div>
+        <div style="display:flex; gap:8px;">
+            <input id="qr-modal-url" type="text" readonly class="form-input" style="font-size:0.78rem; flex:1;">
+            <button id="qr-copy-btn" onclick="copyQRUrl()" class="btn btn-primary">📋 複製</button>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

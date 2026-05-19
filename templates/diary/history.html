@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% set subtitle = "按書卷瀏覽" %}
+{% block content %}
+
+<div class="calendar-card">
+  <h2 style="margin:0 0 12px;">📖 按書卷瀏覽</h2>
+
+  <!-- 書卷篩選器 -->
+  <div class="book-filter-scroll">
+    {% for book in all_books %}
+      <a
+        href="{{ url_for('diary.history', book=book) }}"
+        class="book-chip {% if book == selected_book %}active{% endif %}"
+      >{{ book }}</a>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- 日期清單 -->
+<div class="calendar-card">
+  <div style="font-weight:700; font-size:17px; margin-bottom:4px;">{{ selected_book }}</div>
+  <div class="muted" style="font-size:13px; margin-bottom:14px;">
+    共 {{ date_items | length }} 天・點日期進入該日日記
+  </div>
+
+  {% if date_items %}
+    <div class="history-list">
+      {% for item in date_items %}
+        {% if item.is_future %}
+          <div class="history-row future">
+            <span class="history-date">{{ item.date }}</span>
+            <span class="history-range muted">{{ item.range }}</span>
+            <span class="history-badge future-badge">未到</span>
+          </div>
+        {% elif item.is_written %}
+          <div class="history-row written history-expandable" onclick="toggleEntry(this)">
+            <span class="history-date">{{ item.date }}</span>
+            <span class="history-range">{{ item.range }}</span>
+            <span class="history-badge written-badge">已寫 ▾</span>
+            <div class="history-entry-content">{{ item.content }}</div>
+          </div>
+        {% else %}
+          <a href="{{ url_for('diary.index', d=item.date) }}" class="history-row unwritten">
+            <span class="history-date">{{ item.date }}</span>
+            <span class="history-range">{{ item.range }}</span>
+            <span class="history-badge unwritten-badge">未寫</span>
+          </a>
+        {% endif %}
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="muted" style="text-align:center; padding:24px 0;">這卷書還沒有排程</div>
+  {% endif %}
+</div>
+
+<style>
+.book-filter-scroll {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.book-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 600;
+  text-decoration: none;
+  background: #f0f0f0;
+  color: #444;
+  white-space: nowrap;
+}
+
+.book-chip.active {
+  background: #111;
+  color: #fff;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  text-decoration: none;
+  color: #1b1b1b;
+}
+
+.history-row.written   { background: #d7f5df; }
+.history-row.unwritten { background: #ffd8d8; }
+.history-row.future    { background: #e8e8e8; color: #888; }
+
+.history-date {
+  font-weight: 700;
+  font-size: 15px;
+  min-width: 96px;
+}
+
+.history-range {
+  flex: 1;
+  font-size: 14px;
+}
+
+.history-badge {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
+
+.written-badge   { background: #a8e6b8; color: #1b5e20; }
+.unwritten-badge { background: #ffb3b3; color: #7f0000; }
+.future-badge    { background: #d0d0d0; color: #555; }
+
+.history-expandable { cursor: pointer; flex-wrap: wrap; }
+.history-expandable:hover { filter: brightness(0.96); }
+
+.history-entry-content {
+  display: none;
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(0,0,0,0.08);
+  font-size: 15px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  color: #222;
+}
+
+.history-expandable.open .history-entry-content {
+  display: block;
+}
+
+.history-expandable.open .history-badge::after {
+  content: '';
+}
+.history-expandable.open .written-badge {
+  background: #a8e6b8;
+}
+</style>
+
+<script>
+function toggleEntry(el) {
+  el.classList.toggle("open");
+  var badge = el.querySelector(".written-badge");
+  if (el.classList.contains("open")) {
+    badge.textContent = "已寫 ▴";
+  } else {
+    badge.textContent = "已寫 ▾";
+  }
+}
+</script>
+
+{% endblock %}

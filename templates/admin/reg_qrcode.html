@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}報名 QR Code - {{ event.title }}{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/events" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回活動管理</a>
+        <h2 style="margin-top:6px;">📲 報名 QR Code</h2>
+        <p style="color:#555; margin-top:4px;">{{ event.title }}</p>
+    </div>
+</div>
+
+<!-- 說明標籤 -->
+<div style="margin-bottom:20px;">
+    <span style="background:#e8f5e9; color:#2e7d32; padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:bold;">
+        掃碼即可進入報名頁面
+    </span>
+    {% if event.event_start %}
+    <span style="margin-left:8px; color:#888; font-size:0.85rem;">
+        🕐 {{ event.event_start| taipei_time }}
+        {% if event.location %} ．📍 {{ event.location }}{% endif %}
+    </span>
+    {% endif %}
+</div>
+
+<!-- QR Code 卡片 -->
+<div style="background:white; border-radius:16px; padding:32px; text-align:center; box-shadow:0 2px 16px rgba(0,0,0,0.08); margin-bottom:20px;">
+
+    <div id="qrcode" style="display:inline-block; padding:16px; background:white; border-radius:12px; border:2px solid #e0e0e0;"></div>
+
+    <p style="margin-top:20px; font-size:0.95rem; color:#444; font-weight:500;">掃描 QR Code，立即線上報名</p>
+    <p style="font-size:0.85rem; color:#888; margin-top:4px;">可投影在螢幕上，或印出來讓會友掃描</p>
+
+    <!-- 操作按鈕 -->
+    <div style="display:flex; gap:12px; justify-content:center; margin-top:24px; flex-wrap:wrap;">
+        <button onclick="downloadQR()"
+            style="padding:10px 24px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.95rem;">
+            下載 QR Code 圖片
+        </button>
+        <button onclick="window.print()"
+            style="padding:10px 24px; background:#e3f2fd; color:#1565c0; border:none; border-radius:8px; cursor:pointer; font-weight:bold; font-size:0.95rem;">
+            列印
+        </button>
+    </div>
+</div>
+
+<!-- 報名連結（可複製） -->
+<div style="background:white; border-radius:12px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:16px;">
+    <p style="font-size:0.85rem; color:#888; margin-bottom:8px;">報名連結（可直接傳送給會友）</p>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <input id="reg-url" type="text" value="{{ reg_url }}" readonly
+            style="flex:1; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem; background:#f9f9f9; color:#555;">
+        <button onclick="copyUrl()"
+            style="padding:10px 16px; background:#f5f5f5; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap;">
+            複製連結
+        </button>
+    </div>
+    <p style="font-size:0.8rem; color:#06C755; margin-top:8px;">
+        此連結可放心公開分享，會友點入後需以 LINE 登入才能報名。
+    </p>
+</div>
+
+<!-- 全螢幕投影按鈕 -->
+<div style="text-align:center; margin-top:16px;">
+    <button onclick="openFullscreen()"
+        style="padding:12px 32px; background:#333; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.95rem;">
+        全螢幕投影模式
+    </button>
+</div>
+
+<!-- 全螢幕 overlay -->
+<div id="fullscreen-overlay" style="display:none; position:fixed; inset:0; background:white; z-index:9999; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px;">
+    <p style="font-size:1.5rem; font-weight:bold; color:#222; margin-bottom:8px;">{{ event.title }}</p>
+    {% if event.event_start %}
+    <p style="color:#888; margin-bottom:8px;">{{ event.event_start| taipei_time }}
+        {% if event.location %} ．{{ event.location }}{% endif %}
+    </p>
+    {% endif %}
+    <p style="color:#06C755; font-size:1.1rem; margin-bottom:24px; font-weight:bold;">掃描 QR Code 立即線上報名</p>
+    <div id="qrcode-fullscreen" style="display:inline-block; padding:20px; background:white; border:3px solid #e0e0e0; border-radius:16px;"></div>
+    <button onclick="closeFullscreen()"
+        style="margin-top:36px; padding:10px 28px; background:#f5f5f5; border:none; border-radius:8px; cursor:pointer; color:#666;">
+        離開投影模式
+    </button>
+</div>
+
+<!-- qrcode.js -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+<script>
+const REG_URL = {{ reg_url | tojson }};
+
+const qr = new QRCode(document.getElementById('qrcode'), {
+    text: REG_URL,
+    width: 240,
+    height: 240,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+});
+
+const qrFull = new QRCode(document.getElementById('qrcode-fullscreen'), {
+    text: REG_URL,
+    width: 400,
+    height: 400,
+    colorDark: '#000000',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+});
+
+function downloadQR() {
+    const canvas = document.querySelector('#qrcode canvas');
+    if (!canvas) { alert('QR Code 尚未產生，請稍後再試'); return; }
+    const link = document.createElement('a');
+    link.download = '報名QRCode_{{ event.title }}.png';
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+}
+
+function copyUrl() {
+    const input = document.getElementById('reg-url');
+    input.select();
+    navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
+    alert('連結已複製！');
+}
+
+function openFullscreen() {
+    const overlay = document.getElementById('fullscreen-overlay');
+    overlay.style.display = 'flex';
+    if (overlay.requestFullscreen) overlay.requestFullscreen();
+}
+
+function closeFullscreen() {
+    document.getElementById('fullscreen-overlay').style.display = 'none';
+    if (document.exitFullscreen) document.exitFullscreen();
+}
+
+window.addEventListener('beforeprint', () => {
+    document.body.innerHTML = `
+        <div style="text-align:center; padding:40px;">
+            <h2 style="font-size:1.6rem;">{{ event.title }}</h2>
+            {% if event.event_start %}
+            <p style="color:#666; margin:8px 0;">{{ event.event_start| taipei_time }}</p>
+            {% endif %}
+            <div style="margin:24px auto; display:inline-block;">${document.getElementById('qrcode').innerHTML}</div>
+            <p style="color:#444; margin-top:16px; font-size:1.1rem;">掃描 QR Code 線上報名</p>
+        </div>`;
+});
+</script>
+
+<style>
+@media print {
+    nav, .no-print { display: none !important; }
+}
+</style>
+
+{% endblock %}

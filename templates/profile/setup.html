@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}建立個人資料{% endblock %}
+{% block content %}
+
+<div style="max-width:440px; margin:0 auto; padding-top:20px;">
+
+    <div style="text-align:center; margin-bottom:28px;">
+        {% if session.get('picture_url') %}
+        <img src="{{ session.picture_url }}"
+            style="width:72px; height:72px; border-radius:50%; object-fit:cover; margin-bottom:12px; box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+        {% endif %}
+        <h2 style="margin:0;">嗨，{{ session.get('display_name') }}！</h2>
+        <p style="color:#888; margin-top:8px; font-size:0.95rem;">請先填寫基本資料，只需要 30 秒</p>
+    </div>
+
+    <div style="background:white; border-radius:16px; padding:28px; box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+
+        <!-- ① 身分選擇 -->
+        <div style="margin-bottom:24px;">
+            <label style="font-weight:bold; display:block; margin-bottom:12px;">
+                你是？ <span style="color:#c62828;">*</span>
+            </label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+                <label id="type-member-label"
+                    onclick="selectType('member')"
+                    style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                           gap:6px; padding:16px 10px; border:2px solid #06C755; border-radius:12px;
+                           cursor:pointer; background:#e8f5e9; text-align:center; transition:all 0.15s;">
+                    <input type="radio" name="member_type" value="member" checked style="display:none;">
+                    <span style="font-size:1.5rem;">🏠</span>
+                    <span style="font-weight:bold; font-size:0.9rem; color:#2e7d32;">本教會會友</span>
+                    <span style="font-size:0.75rem; color:#666;">已受洗或慕道中</span>
+                </label>
+                <label id="type-visitor-label"
+                    onclick="selectType('visitor')"
+                    style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                           gap:6px; padding:16px 10px; border:2px solid #ddd; border-radius:12px;
+                           cursor:pointer; background:white; text-align:center; transition:all 0.15s;">
+                    <input type="radio" name="member_type" value="visitor" style="display:none;">
+                    <span style="font-size:1.5rem;">🙋</span>
+                    <span style="font-weight:bold; font-size:0.9rem; color:#333;">外部人員 / 訪客</span>
+                    <span style="font-size:0.75rem; color:#666;">教會外的朋友</span>
+                </label>
+            </div>
+        </div>
+
+        <!-- ② 真實姓名 -->
+        <div style="margin-bottom:20px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">
+                真實姓名 <span style="color:#c62828;">*</span>
+            </label>
+            <input id="f-name" type="text" placeholder="請輸入你的真實中文姓名"
+                style="width:100%; padding:12px 14px; border:1.5px solid #ddd; border-radius:8px;
+                       font-size:1rem; box-sizing:border-box; outline:none;"
+                onfocus="this.style.borderColor='#06C755'" onblur="this.style.borderColor='#ddd'">
+            <p style="font-size:0.8rem; color:#aaa; margin-top:4px;">LINE 暱稱不一定是真名，這裡需要真實姓名方便核對</p>
+        </div>
+
+        <!-- ③ 小組（僅會友顯示） -->
+        <div id="group-section" style="margin-bottom:28px;">
+            {% set primary_groups = groups | selectattr('is_primary', 'ne', false) | list %}
+            {% set secondary_groups = groups | selectattr('is_primary', 'equalto', false) | list %}
+
+            {% if primary_groups %}
+            <label style="font-weight:bold; display:block; margin-bottom:8px;">所屬小組</label>
+            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
+                {% for g in primary_groups %}
+                <label style="display:flex; align-items:center; gap:6px; padding:7px 14px;
+                              border:1px solid #ddd; border-radius:20px; cursor:pointer; font-size:0.9rem;
+                              background:white; transition:all 0.15s;"
+                    onclick="toggleTag(this)">
+                    <input type="checkbox" name="group_tag" value="{{ g.name }}" style="display:none;">
+                    {{ g.name }}
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {% if secondary_groups %}
+            <label style="font-weight:600; display:block; margin-bottom:8px; color:#888; font-size:0.88rem;">服事團隊（選填）</label>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                {% for g in secondary_groups %}
+                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px;
+                              border:1px solid #ddd; border-radius:20px; cursor:pointer; font-size:0.85rem;
+                              background:white; transition:all 0.15s;"
+                    onclick="toggleTag(this, true)">
+                    <input type="checkbox" name="group_tag" value="{{ g.name }}" style="display:none;">
+                    {{ g.name }}
+                </label>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- ③ 訪客說明（僅訪客顯示） -->
+        <div id="visitor-note" style="display:none; margin-bottom:28px;">
+            <div style="background:#f0f4ff; border-radius:10px; padding:14px 16px; font-size:0.88rem; color:#3949ab; line-height:1.7;">
+                🙏 歡迎參加我們的活動！<br>
+                你的資料只會用於活動報名與聯絡，不會另作他用。
+            </div>
+        </div>
+
+        <button onclick="submitProfile()"
+            style="width:100%; padding:14px; background:#06C755; color:white; border:none;
+                   border-radius:10px; font-size:1.05rem; font-weight:bold; cursor:pointer;">
+            完成，開始使用
+        </button>
+    </div>
+</div>
+
+<script>
+let currentType = 'member';
+
+function selectType(type) {
+    currentType = type;
+    const memberLabel  = document.getElementById('type-member-label');
+    const visitorLabel = document.getElementById('type-visitor-label');
+    const groupSection = document.getElementById('group-section');
+    const visitorNote  = document.getElementById('visitor-note');
+
+    document.querySelector('input[value="' + type + '"]').checked = true;
+
+    if (type === 'member') {
+        memberLabel.style.borderColor  = '#06C755';
+        memberLabel.style.background   = '#e8f5e9';
+        visitorLabel.style.borderColor = '#ddd';
+        visitorLabel.style.background  = 'white';
+        groupSection.style.display = 'block';
+        visitorNote.style.display  = 'none';
+    } else {
+        visitorLabel.style.borderColor = '#3949ab';
+        visitorLabel.style.background  = '#f0f4ff';
+        memberLabel.style.borderColor  = '#ddd';
+        memberLabel.style.background   = 'white';
+        groupSection.style.display = 'none';
+        visitorNote.style.display  = 'block';
+    }
+}
+
+function toggleTag(el, isSecondary) {
+    const cb = el.querySelector('input');
+    cb.checked = !cb.checked;
+    if (isSecondary) {
+        el.style.background   = cb.checked ? '#fff8e1' : 'white';
+        el.style.borderColor  = cb.checked ? '#f0a500' : '#ddd';
+        el.style.color        = cb.checked ? '#e65100' : '#888';
+    } else {
+        el.style.background   = cb.checked ? '#e8f5e9' : 'white';
+        el.style.borderColor  = cb.checked ? '#06C755' : '#ddd';
+        el.style.color        = cb.checked ? '#2e7d32' : '#333';
+    }
+    el.style.fontWeight = cb.checked ? 'bold' : 'normal';
+}
+
+function submitProfile() {
+    const nameEl = document.getElementById('f-name');
+    const name   = nameEl.value.trim();
+    if (!name) {
+        nameEl.style.borderColor = '#c62828';
+        nameEl.focus();
+        return;
+    }
+
+    const group_tags = currentType === 'member'
+        ? [...document.querySelectorAll('[name="group_tag"]:checked')].map(c => c.value)
+        : [];
+
+    fetch('/profile/setup', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ real_name: name, group_tags, member_type: currentType })
+    })
+    .then(r => {
+        if (!r.ok) return r.text().then(t => { throw new Error(t); });
+        return r.json();
+    })
+    .then(d => {
+        if (d.success) window.location.href = d.next;
+        else alert(d.error || '儲存失敗');
+    })
+    .catch(err => alert('錯誤：' + err.message));
+}
+</script>
+{% endblock %}

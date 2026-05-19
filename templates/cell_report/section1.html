@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}小組回報 - 步驟一{% endblock %}
+{% block content %}
+<div class="container" style="max-width:600px; margin:40px auto; padding:0 16px;">
+  <div style="margin-bottom:8px; color:#888; font-size:0.9rem;">
+    <a href="{{ url_for('cell_report.portal') }}" style="color:#06C755;">← 返回小組選擇</a>
+  </div>
+
+  <h1 style="font-size:1.3rem; font-weight:700; margin-bottom:4px;">{{ group.name }}</h1>
+  <p style="color:#888; margin-bottom:24px;">步驟 1／3 — 填寫聚會日期與出席人數</p>
+
+  {% if is_backfill %}
+    <div style="padding:10px 14px; background:#fff3cd; border-radius:8px; margin-bottom:16px; font-size:0.9rem; color:#856404;">
+      補登模式：正在填寫非本週聚會的回報。
+    </div>
+  {% endif %}
+
+  <form method="post" style="display:flex; flex-direction:column; gap:20px;">
+    <div>
+      <label style="display:block; font-weight:600; margin-bottom:8px;">聚會日期</label>
+      <input type="date" name="week_date"
+             value="{{ (report.week_date if report and report.week_date else this_week.isoformat()) }}"
+             style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+    </div>
+
+    <div>
+      <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+        <input type="checkbox" name="no_meeting" id="no_meeting"
+               {% if report and report.get('no_meeting') %}checked{% endif %}
+               onchange="toggleNoMeeting(this.checked)"
+               style="width:18px; height:18px;">
+        <span style="font-weight:600;">本週無聚會</span>
+      </label>
+    </div>
+
+    <div id="no_meeting_reason_block"
+         style="display:{% if report and report.get('no_meeting') %}block{% else %}none{% endif %};">
+      <label style="display:block; font-weight:600; margin-bottom:8px;">無聚會原因</label>
+      <input type="text" name="no_meeting_reason"
+             value="{{ (report.no_meeting_reason if report else '') or '' }}"
+             placeholder="例：颱風假、國定假日..."
+             style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+    </div>
+
+    <div id="attendance_block"
+         style="display:{% if report and report.get('no_meeting') %}none{% else %}block{% endif %};">
+      <label style="display:block; font-weight:600; margin-bottom:8px;">出席人數（含組長）</label>
+      <input type="number" name="attendance_count" min="0"
+             value="{{ (report.attendance_count if report and report.get('attendance_count') is not none else '') }}"
+             placeholder="0"
+             style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+    </div>
+
+    <button type="submit"
+            style="padding:14px; background:#06C755; color:#fff; border:none; border-radius:10px;
+                   font-size:1rem; font-weight:700; cursor:pointer;">
+      下一步：填寫出席紀錄 →
+    </button>
+  </form>
+</div>
+
+<script>
+function toggleNoMeeting(checked) {
+  document.getElementById('no_meeting_reason_block').style.display = checked ? 'block' : 'none';
+  document.getElementById('attendance_block').style.display = checked ? 'none' : 'block';
+}
+</script>
+{% endblock %}

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>報名確認 — {{ event.title }}</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: sans-serif;
+            background: #f0f4f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px 24px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .event-name {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #222;
+            margin-bottom: 6px;
+        }
+        .event-info {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 28px;
+            line-height: 1.8;
+        }
+        .question {
+            font-size: 1.05rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+        .choice-btn {
+            display: block;
+            width: 100%;
+            padding: 18px 16px;
+            border-radius: 14px;
+            border: 2px solid #e0e0e0;
+            background: white;
+            cursor: pointer;
+            margin-bottom: 12px;
+            text-align: left;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .choice-btn:hover { border-color: #06C755; background: #f0faf3; }
+        .choice-btn .label {
+            font-size: 1rem;
+            font-weight: bold;
+            color: #222;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .choice-btn .desc {
+            font-size: 0.82rem;
+            color: #888;
+        }
+        .choice-btn .icon { font-size: 1.4rem; margin-right: 8px; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="event-name">{{ event.title }}</div>
+        <div class="event-info">
+            {% if event.event_start %}📅 {{ event.event_start[:10] }}{% endif %}
+            {% if event.location %}&nbsp;·&nbsp;📍 {{ event.location }}{% endif %}
+        </div>
+
+        <div class="question">你的身分是？</div>
+
+        <button class="choice-btn" onclick="goMember()">
+            <span class="icon">⛪</span>
+            <span class="label">我是教會會友</span>
+            <span class="desc">使用 LINE 帳號登入報名</span>
+        </button>
+
+        <button class="choice-btn" onclick="goExternal()">
+            <span class="icon">👤</span>
+            <span class="label">我是外部朋友</span>
+            <span class="desc">直接填寫姓名報名，無需 LINE</span>
+        </button>
+    </div>
+
+    <script>
+        const eventId = {{ event.id | tojson }};
+
+        function goMember() {
+            const next = encodeURIComponent(window.location.href);
+            window.location.href = '/auth/?next=' + next;
+        }
+
+        function goExternal() {
+            window.location.href = '/event/' + eventId + '/external-form';
+        }
+    </script>
+</body>
+</html>

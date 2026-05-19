@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}{{ bulletin.title }}{% endblock %}
+{% block content %}
+
+<style>
+@keyframes portalSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.pa {
+    animation: portalSlideUp 0.45s cubic-bezier(0.22,1,0.36,1) both;
+    animation-delay: var(--d, 0ms);
+}
+</style>
+
+<div class="page-header pa" style="--d:0ms">
+    <div class="page-header-left">
+        <a href="/bulletins" class="breadcrumb">← 返回週報列表</a>
+        <div class="page-title">{{ bulletin.title }}</div>
+        <div style="font-size:0.82rem; color:var(--text-4); margin-top:2px;">{{ bulletin.bulletin_date }}</div>
+    </div>
+    <a href="{{ bulletin.pdf_url }}" target="_blank" class="btn btn-outline btn-sm">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+             style="margin-right:4px; vertical-align:-2px;">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="7 10 12 15 17 10"/>
+            <line x1="12" x2="12" y1="15" y2="3"/>
+        </svg>
+        下載 PDF
+    </a>
+</div>
+
+<!-- PDF 閱讀器 -->
+<div class="card pa" style="--d:80ms; padding:0; overflow:hidden;">
+    <iframe id="pdf-viewer"
+        src="{{ viewer_url }}"
+        style="width:100%; height:82vh; border:none; display:block;"
+        allowfullscreen>
+    </iframe>
+</div>
+
+<!-- 載入失敗備援 -->
+<div id="fallback" style="display:none;" class="card pa" style="--d:80ms; text-align:center; padding:48px 20px;">
+    <svg width="48" height="48" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+         style="color:var(--text-4); margin-bottom:16px;">
+        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/>
+        <polyline points="14 2 14 8 20 8"/>
+    </svg>
+    <p style="color:var(--text-3); margin-bottom:20px;">無法在瀏覽器中預覽，請直接開啟 PDF</p>
+    <a href="{{ bulletin.pdf_url }}" target="_blank" class="btn btn-primary">開啟 PDF</a>
+</div>
+
+<script>
+// Google Docs Viewer 載入逾時就顯示備援按鈕
+const iframe = document.getElementById('pdf-viewer');
+let loaded = false;
+
+iframe.addEventListener('load', () => { loaded = true; });
+
+setTimeout(() => {
+    if (!loaded) {
+        iframe.style.display = 'none';
+        document.getElementById('fallback').style.display = 'block';
+    }
+}, 8000);
+</script>
+
+{% endblock %}

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>登入 - 教會入口整合系統</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 24px 16px;
+            background: #f5f5f5;
+            font-family: sans-serif;
+            box-sizing: border-box;
+        }
+        .card {
+            background: white;
+            padding: 48px 40px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            text-align: center;
+            width: min(100%, 380px);
+            box-sizing: border-box;
+        }
+        h1 { font-size: 1.5rem; margin-bottom: 8px; }
+        p  { color: #666; margin-bottom: 32px; }
+        .line-btn {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: #06C755;
+            color: white;
+            text-decoration: none;
+            padding: 14px 28px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: bold;
+        }
+        .line-btn:hover { background: #05a847; }
+        .pwa-hint {
+            display: none;
+            margin-top: 16px;
+            font-size: 0.8rem;
+            color: #aaa;
+            line-height: 1.5;
+        }
+        .privacy-note {
+            margin: 18px 0 0;
+            font-size: 0.78rem;
+            color: #999;
+            text-align: center;
+        }
+        .privacy-note a { color:#06C755; }
+        @media (max-width: 420px) {
+            .card { padding: 36px 24px; }
+            h1 { font-size: 1.35rem; }
+            .line-btn { width: 100%; justify-content: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>⛪ {{ church_name }}</h1>
+        <p style="color:#666; font-size:0.85rem; margin:-8px 0 4px;">教會入口整合系統</p>
+        <p id="liff-status">登入中，請稍候...</p>
+
+        <a href="{{ url_for('auth.login') }}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}"
+           class="line-btn" id="login-btn">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg"
+                 width="24" height="24" alt="LINE">
+            使用 LINE 登入
+        </a>
+
+        <div class="pwa-hint" id="pwa-hint">
+            💡 從 LINE 中開啟連結可自動登入，免點按鈕
+        </div>
+    </div>
+    {% if privacy_policy_url %}
+    <p class="privacy-note">
+        使用本系統即表示您同意我們的
+        <a href="{{ privacy_policy_url }}" target="_blank" rel="noopener">隱私權政策</a>
+    </p>
+    {% endif %}
+
+    <!-- LIFF SDK（僅用於 LINE in-app 自動登入） -->
+    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    <script>
+    var loginBtn = document.getElementById('login-btn');
+    var statusEl = document.getElementById('liff-status');
+    var nextUrl  = new URLSearchParams(window.location.search).get('next') || '';
+
+    // PWA standalone 模式：顯示提示
+    if (window.matchMedia('(display-mode: standalone)').matches) {
+        document.getElementById('pwa-hint').style.display = 'block';
+    }
+
+    // 若 LIFF 5 秒內沒有回應，直接顯示 OAuth 按鈕
+    var liffTimer = setTimeout(function() { showOAuthBtn(); }, 5000);
+
+    liff.init({ liffId: "{{ line_liff_id }}" })
+        .then(function() {
+            clearTimeout(liffTimer);
+            if (!liff.isInClient()) {
+                // 外部瀏覽器 / PWA → 純 OAuth2，不跑 LIFF
+                showOAuthBtn();
+                return;
+            }
+
+            // ── LINE 內部瀏覽器 → LIFF 自動登入 ──
+            if (!liff.isLoggedIn()) {
+                var base = window.location.origin + window.location.pathname;
+                var redirectUri = nextUrl ? base + '?next=' + encodeURIComponent(nextUrl) : base;
+                liff.login({ redirectUri: redirectUri });
+                return;
+            }
+            doLiffLogin();
+        })
+        .catch(function() {
+            clearTimeout(liffTimer);
+            // LIFF 載入失敗 → fallback OAuth2
+            showOAuthBtn();
+        });
+
+    function showOAuthBtn() {
+        statusEl.textContent = '請用 LINE 帳號登入以繼續';
+        loginBtn.style.display = 'inline-flex';
+    }
+
+    function doLiffLogin() {
+        statusEl.textContent = '登入中，請稍候...';
+        var idToken = liff.getIDToken();
+        if (!idToken) {
+            // LIFF context 異常（從非 LIFF URL 開啟）→ 改走 OAuth
+            showOAuthBtn();
+            return;
+        }
+        fetch('/auth/liff-login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_token: idToken, next_url: nextUrl })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(data) {
+            if (data.redirect) {
+                window.location.href = data.redirect;
+            } else {
+                statusEl.textContent = data.error || '登入失敗，請關閉重新開啟';
+                showOAuthBtn();
+            }
+        })
+        .catch(function() {
+            statusEl.textContent = '網路錯誤，請重試';
+            showOAuthBtn();
+        });
+    }
+    </script>
+</body>
+</html>

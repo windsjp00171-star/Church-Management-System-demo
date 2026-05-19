@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}門訓學程{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <a href="/" class="breadcrumb">← 返回首頁</a>
+        <div class="page-title">📚 門訓學程</div>
+    </div>
+    <a href="/my-courses" class="btn btn-outline">我的學程 →</a>
+</div>
+
+{% if courses %}
+<div style="display:flex; flex-direction:column; gap:12px;">
+{% for course in courses %}
+<div class="card" style="padding:20px 22px;">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:0;">
+
+            <!-- 標題列 -->
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+                <h3 style="font-size:1.05rem; font-weight:700; color:var(--text-1); margin:0;">{{ course.title }}</h3>
+                {% if course.period %}
+                <span class="badge badge-purple">{{ course.period }}</span>
+                {% endif %}
+                {% if course.my_status == 'completed' %}
+                <span class="badge badge-green">✅ 已完課</span>
+                {% elif course.my_status == 'enrolled' %}
+                <span class="badge badge-blue">📖 就讀中</span>
+                {% endif %}
+            </div>
+
+            <!-- 資訊列 -->
+            <div style="display:flex; flex-wrap:wrap; gap:14px; font-size:0.82rem; color:var(--text-3);">
+                <span>🗓 共 {{ course.total_sessions }} 堂</span>
+                <span>👥 {{ course.enrolled_count }} 人報名</span>
+                {% if course.reg_deadline %}
+                <span style="color:var(--orange);">⏰ 截止 {{ course.reg_deadline[:10] }}</span>
+                {% endif %}
+                {% if course.material_fee %}
+                <span style="color:var(--orange);">💰 教材費 ${{ course.material_fee }}</span>
+                {% endif %}
+                {% if course.prereq_title %}
+                <span style="color:var(--red);">⚠️ 需先完成「{{ course.prereq_title }}」</span>
+                {% endif %}
+            </div>
+
+            {% if course.description %}
+            <p style="color:var(--text-3); font-size:0.85rem; margin-top:8px; line-height:1.5;">
+                {{ course.description[:80] }}{% if course.description|length > 80 %}…{% endif %}
+            </p>
+            {% endif %}
+        </div>
+
+        <a href="/courses/{{ course.id }}" class="btn btn-primary" style="flex-shrink:0;">查看詳情</a>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <div class="icon">📚</div>
+    <p>目前沒有開放中的學程</p>
+</div>
+{% endif %}
+
+{% endblock %}

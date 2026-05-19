@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+{% block content %}
+
+<div style="text-align:center; margin-bottom:16px;">
+  <a href="{{ url_for('diary.index') }}" class="secondary-btn" style="font-size:13px;">← 回主頁</a>
+</div>
+
+<div class="stars-card">
+
+  <div class="stars-header">
+    <div class="stars-title" id="stage-title">✦ 我的靈修星空</div>
+    <div class="stars-count" id="stars-count">
+      你已寫下 <strong>{{ count }}</strong> 篇靈修
+    </div>
+  </div>
+
+  <div id="stage-tabs" style="display:flex; justify-content:center; gap:8px; margin-bottom:10px;"></div>
+
+  <div class="stars-canvas-wrap">
+    <canvas id="starCanvas"></canvas>
+    {% if count == 0 %}
+    <div class="stars-empty">
+      <div>還沒有星星</div>
+      <div style="font-size:13px; margin-top:6px; opacity:0.6;">寫下第一篇靈修，開始描繪十字架 ✝</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="stars-verse">
+    「他數點星宿的數目，一一稱它的名字。」<br>
+    <span>詩篇 147:4</span>
+  </div>
+
+</div>
+
+<script>
+const DATES = {{ dates | tojson }};
+
+function cyrb53(str, seed) {
+  let h1 = 0xdeadbeef ^ (seed|0), h2 = 0x41c6ce57 ^ (seed|0);
+  for (let i=0; i<str.length; i++) {
+    const ch = str.charCodeAt(i);
+    h1 = Math.imul(h1^ch, 2654435761);
+    h2 = Math.imul(h2^ch, 1597334677);
+  }
+  h1 = Math.imul(h1^(h1>>>16), 2246822507) ^ Math.imul(h2^(h2>>>13), 3266489909);
+  h2 = Math.imul(h2^(h2>>>16), 2246822507) ^ Math.imul(h1^(h1>>>13), 3266489909);
+  return (h1>>>0) / 4294967295;
+}
+
+const COLORS = ["255,248,220","255,228,160","210,235,255"];
+
+// ═══════════════════════════════════════════════════════════
+// 三階段靈修星圖
+// Stage 1: 十字架  (~50 顆，信仰的根基)
+// Stage 2: 聖靈鴿子 (~140 顆，靈裡的更新)
+// Stage 3: 耶穌畫像 (~200 顆，認識那一位)
+// 合計 ~390 顆 ≈ 一年每日靈修完整走完
+// ═══════════════════════════════════════════════════════════
+
+function makeDots(fn) {
+  const pts = [];
+  function add(x,y){ pts.push([+Math.max(0.03,Math.min(0.97,x)).toFixed(3),+Math.max(0.02,Math.min(0.97,y)).toFixed(3)]); }
+  function bez(x0,y0,x1,y1,x2,y2,n){ for(let i=0;i<=n;i++){const t=i/n;add((1-t)*(1-t)*x0+2*(1-t)*t*x1+t*t*x2,(1-t)*(1-t)*y0+2*(1-t)*t*y1+t*t*y2);} }
+  fn(add, bez);
+  return pts;
+}
+
+// ── Stage 1: 十字架 ─────────────────────────────────────────
+// 從中心向外擴展，讓十字形狀早早顯現
+const CROSS_DOTS = makeDots(function(add) {
+  // 縱臂：從交叉點向上、向下擴展（共 22 pts）
+  for (let i=0; i<=10; i++) add(0.500, 0.320 - i*0.026); // 向上
+  for (let i=1; i<=11; i++) add(0.500, 0.320 + i*0.052); // 向下（下臂較長）
+  // 橫臂：從交叉點向左右擴展（共 14 pts）
+  for (let i=1; i<=7; i++) { add(0.500 - i*0.032, 0.320); add(0.500 + i*0.032, 0.320); }
+  // 端點裝飾（8 pts）
+  add(0.478,0.045); add(0.522,0.045);   // 頂端
+  add(0.478,0.905); add(0.522,0.905);   // 底端
+  add(0.218,0.305); add(0.218,0.335);   // 左端
+  add(0.782,0.305); add(0.782,0.335);   // 右端
+  // 交叉處加厚（4 pts）
+  add(0.474,0.308); add(0.526,0.308); add(0.474,0.332); add(0.526,0.332);
+});
+
+// ── Stage 2: 聖靈鴿子 ─────────────────────────────────────
+const DOVE_DOTS = makeDots(function(add, bez) {
+  for (let i=0;i<10;i++){const a=i/10*Math.PI*2; add(0.500+0.082*Math.cos(a),0.572+0.056*Math.sin(a));} // 身體
+  for (let i=0;i<8;i++){const a=i/8*Math.PI*2; add(0.500+0.052*Math.cos(a),0.436+0.040*Math.sin(a));}  // 頭
+  add(0.487,0.393); add(0.500,0.375); add(0.513,0.393);                                                   // 嘴
+  bez(0.418,0.552, 0.195,0.150, 0.048,0.210, 11);  // 左翼前緣
+  bez(0.582,0.552, 0.805,0.150, 0.952,0.210, 11);  // 右翼前緣
+  bez(0.428,0.598, 0.235,0.438, 0.088,0.318, 9);   // 左翼後緣
+  bez(0.572,0.598, 0.765,0.438, 0.912,0.318, 9);   // 右翼後緣
+  for(let i=0;i<12;i++){const t=i/11;const a=-0.40*Math.PI+t*0.80*Math.PI;const r=0.168+Math.sin(t*Math.PI)*0.040; add(0.500+r*Math.sin(a),0.632+r*Math.cos(a));} // 尾羽
+  add(0.488,0.478); add(0.494,0.500); add(0.506,0.500); add(0.512,0.478); // 頸部
+  add(0.504,0.430); // 眼
+  for(let i=0;i<5;i++){const t=i/4;const x=0.095+t*0.285;const yT=0.178+t*0.325;const yB=0.288+t*0.265;for(let j=0;j<3;j++)add(x,yT+j/2*(yB-yT));} // 左翼填
+  for(let i=0;i<5;i++){const t=i/4;const x=0.905-t*0.285;const yT=0.178+t*0.325;const yB=0.288+t*0.265;for(let j=0;j<3;j++)add(x,yT+j/2*(yB-yT));} // 右翼填
+  add(0.050,0.198); add(0.078,0.176); add(0.108,0.166); add(0.138,0.178);
+  add(0.950,0.198); add(0.922,0.176); add(0.892,0.166); add(0.862,0.178); // 翼尖
+  for(let i=0;i<6;i++){const t=i/5; add(0.112+t*0.238,0.352+t*0.148); add(0.888-t*0.238,0.352+t*0.148);} // 翼紋
+  for(let i=0;i<8;i++){const t=i/7;const a=-0.30*Math.PI+t*0.60*Math.PI; add(0.500+0.118*Math.sin(a),0.648+0.118*Math.cos(a));} // 尾填
+  for(let i=0;i<6;i++){const a=-0.5*Math.PI+(i/5)*Math.PI; add(0.500+0.048*Math.cos(a),0.560+0.032*Math.sin(a));} // 身體高光
+});
+
+// ── Stage 3: 耶穌畫像 ─────────────────────────────────────
+const JESUS_DOTS = makeDots(function(add, bez) {
+  // 1. 光圈 halo (20)
+  for(let i=0;i<20;i++){const a=i/20*Math.PI*2-Math.PI/2; add(0.500+0.225*Math.cos(a),0.200+0.158*Math.sin(a));}
+  // 2. 左眼 (5)
+  for(let i=0;i<5;i++) add(0.405+0.034*Math.cos(i/5*Math.PI*2),0.428+0.020*Math.sin(i/5*Math.PI*2));
+  // 3. 右眼 (5)
+  for(let i=0;i<5;i++) add(0.595+0.034*Math.cos(i/5*Math.PI*2),0.428+0.020*Math.sin(i/5*Math.PI*2));
+  // 4. 臉部輪廓 (15)
+  for(let i=0;i<=14;i++){const a=-Math.PI*0.72+(i/14)*Math.PI*1.44; add(0.500+0.158*Math.cos(a),0.445+0.218*Math.sin(a));}
+  // 5. 鼻子 (4)
+  add(0.472,0.492); add(0.500,0.512); add(0.528,0.492); add(0.500,0.472);
+  // 6. 嘴 (5)
+  add(0.442,0.558); add(0.469,0.572); add(0.500,0.578); add(0.531,0.572); add(0.558,0.558);
+  // 7. 眉毛 (6)
+  add(0.372,0.402); add(0.402,0.392); add(0.432,0.402); add(0.568,0.402); add(0.598,0.392); add(0.628,0.402);
+  // 8. 左髮外緣 (12)
+  for(let i=0;i<12;i++){const t=i/11; add(0.335-t*0.115+Math.sin(t*Math.PI)*0.025,0.278+t*0.605);}
+  // 9. 右髮外緣 (12)
+  for(let i=0;i<12;i++){const t=i/11; add(0.665+t*0.115-Math.sin(t*Math.PI)*0.025,0.278+t*0.605);}
+  // 10. 鬍鬚輪廓 (14)
+  for(let i=0;i<14;i++){const a=-Math.PI*0.08+(i/13)*Math.PI*1.16; add(0.500+0.142*Math.cos(a),0.718+0.138*Math.sin(a));}
+  // 11. 下巴連接 (5)
+  add(0.400,0.602); add(0.435,0.618); add(0.500,0.622); add(0.565,0.618); add(0.600,0.602);
+  // 12. 左髮內緣 (8)
+  for(let i=0;i<8;i++){const t=i/7; add(0.285-t*0.025,0.402+t*0.422);}
+  // 13. 右髮內緣 (8)
+  for(let i=0;i<8;i++){const t=i/7; add(0.715+t*0.025,0.402+t*0.422);}
+  // 14. 頭頂填充 (7)
+  for(let i=0;i<7;i++){const a=Math.PI*(-0.4+(i/6)*0.8)-Math.PI/2; add(0.500+0.102*Math.cos(a),0.322+0.096*Math.sin(a));}
+  // 15. 鬍鬚填充 (10)
+  for(let i=0;i<10;i++){const t=i/9; add(0.415+t*0.170,0.672+Math.sin(t*Math.PI)*0.058);}
+  // 16. 左髮中段 (6)
+  for(let i=0;i<6;i++) add(0.260, 0.452+(i/5)*0.262);
+  // 17. 右髮中段 (6)
+  for(let i=0;i<6;i++) add(0.740, 0.452+(i/5)*0.262);
+  // 18. 鬍下緣 (8)
+  for(let i=0;i<8;i++){const t=i/7; add(0.426+t*0.148,0.762+Math.sin(t*Math.PI)*0.040);}
+  // 19. 臉頰 (4)
+  add(0.362,0.522); add(0.370,0.560); add(0.638,0.522); add(0.630,0.560);
+  // 20. 額頭 (3)
+  add(0.443,0.345); add(0.500,0.337); add(0.557,0.345);
+  // 21. 光圈填充 (10)
+  for(let i=0;i<10;i++){const a=i/10*Math.PI*2; add(0.500+0.180*Math.cos(a),0.200+0.128*Math.sin(a));}
+  // 22. 頸部 (5)
+  add(0.470,0.665); add(0.485,0.685); add(0.500,0.690); add(0.515,0.685); add(0.530,0.665);
+  // 23. 更多髮填 (12)
+  for(let i=0;i<6;i++){const t=i/5; add(0.235+t*0.040,0.500+t*0.200); add(0.765-t*0.040,0.500+t*0.200);}
+});
+
+// ── 計算當前階段 ──────────────────────────────────────────
+const STAGES = [
+  { name:"十字架",   emoji:"✝",  sub:"信仰的根基", dots: CROSS_DOTS },
+  { name:"聖靈鴿子", emoji:"🕊", sub:"靈裡的更新", dots: DOVE_DOTS  },
+  { name:"耶穌",     emoji:"✦",  sub:"認識那一位", dots: JESUS_DOTS },
+];
+
+let remaining = DATES.length;
+let stageIdx = 0;
+for (let i=0; i<STAGES.length-1; i++) {
+  if (remaining > STAGES[i].dots.length) { remaining -= STAGES[i].dots.length; stageIdx = i+1; }
+  else break;
+}
+const curStage   = STAGES[stageIdx];
+const litCount   = Math.min(remaining, curStage.dots.length);
+const UNLIT_DOTS = curStage.dots.slice(litCount);
+
+const LIT_STARS = curStage.dots.slice(0, litCount).map(function(dot, i) {
+  // i 相對於本階段，全域索引 = 前幾階段總數 + i
+  const offset = STAGES.slice(0, stageIdx).reduce(function(s,st){return s+st.dots.length;},0);
+  const d = DATES[offset + i];
+  return { xp:dot[0], yp:dot[1],
+    size:  0.75 + cyrb53(d,3)*0.95,
+    color: COLORS[Math.floor(cyrb53(d,4)*3)],
+    phase: cyrb53(d,5)*Math.PI*2,
+    speed: 0.45 + cyrb53(d,6)*1.2,
+    ray:   cyrb53(d,7) > 0.50,
+  };
+});
+
+// 超過全部 390 篇的：散落背景
+const totalDots = STAGES.reduce(function(s,st){return s+st.dots.length;},0);
+const EXTRA_STARS = DATES.slice(totalDots).map(function(d){
+  return { xp:cyrb53(d,1)*0.86+0.07, yp:cyrb53(d,2)*0.80+0.08,
+    size:0.55+cyrb53(d,3)*0.65, color:COLORS[Math.floor(cyrb53(d,4)*3)],
+    phase:cyrb53(d,5)*Math.PI*2, speed:0.45+cyrb53(d,6)*1.2, ray:false };
+});
+
+// ── 目前瀏覽的階段（可切換，預設為當前進行中的）
+let viewIdx = stageIdx;
+
+// ── 產生階段切換按鈕 ──────────────────────────────────────
+(function(){
+  const tabsEl = document.getElementById("stage-tabs");
+  if (!tabsEl) return;
+  STAGES.forEach(function(st, i) {
+    // 只顯示已到達的階段
+    const reached = i <= stageIdx;
+    if (!reached) return;
+    const btn = document.createElement("button");
+    btn.id = "tab-" + i;
+    btn.textContent = st.emoji + " " + st.name;
+    btn.style.cssText = "background:none;border:1px solid rgba(200,200,255,0.2);color:#a0b4d8;"
+      + "border-radius:20px;padding:4px 14px;font-size:12px;cursor:pointer;transition:all 0.2s;";
+    btn.onclick = function(){ setView(i); };
+    tabsEl.appendChild(btn);
+  });
+  updateTabs();
+})();
+
+function updateTabs() {
+  STAGES.forEach(function(_, i) {
+    const btn = document.getElementById("tab-" + i);
+    if (!btn) return;
+    if (i === viewIdx) {
+      btn.style.background = "rgba(200,200,255,0.15)";
+      btn.style.color = "#e0e8ff";
+      btn.style.borderColor = "rgba(200,200,255,0.45)";
+    } else {
+      btn.style.background = "none";
+      btn.style.color = "#6a80a8";
+      btn.style.borderColor = "rgba(200,200,255,0.15)";
+    }
+  });
+  // 更新標題與進度
+  const st = STAGES[viewIdx];
+  const titleEl = document.getElementById("stage-title");
+  const countEl = document.getElementById("stars-count");
+  if (titleEl) titleEl.textContent = st.emoji + " " + st.name + "　" + st.sub;
+  if (countEl && DATES.length > 0) {
+    if (viewIdx < stageIdx) {
+      // 已完成的階段
+      countEl.innerHTML = st.emoji + " <strong>" + st.name + "</strong> ✓ 完成";
+    } else {
+      // 當前進行中
+      const pct = Math.min(100, Math.round(litCount / curStage.dots.length * 100));
+      countEl.innerHTML = "<strong>" + st.name + "</strong> 完成 <strong>" + pct + "%</strong>"
+        + "&nbsp;·&nbsp;共寫 <strong>" + DATES.length + "</strong> 篇";
+    }
+  }
+}
+
+function setView(i) {
+  viewIdx = i;
+  updateTabs();
+}
+
+// ── 根據 viewIdx 決定要畫哪個階段 ────────────────────────
+function getViewDots() {
+  const st = STAGES[viewIdx];
+  if (viewIdx < stageIdx) {
+    // 已完成的階段：全部點亮
+    const offset = STAGES.slice(0, viewIdx).reduce(function(s,x){return s+x.dots.length;},0);
+    return {
+      lit: st.dots.map(function(dot, i){
+        const d = DATES[offset + i];
+        return { xp:dot[0], yp:dot[1],
+          size:0.75+cyrb53(d,3)*0.95, color:COLORS[Math.floor(cyrb53(d,4)*3)],
+          phase:cyrb53(d,5)*Math.PI*2, speed:0.45+cyrb53(d,6)*1.2, ray:cyrb53(d,7)>0.50 };
+      }),
+      unlit: [],
+    };
+  } else {
+    // 當前進行中的階段
+    return { lit: LIT_STARS, unlit: UNLIT_DOTS };
+  }
+}
+
+// 背景氣氛小點
+const BG_DATA = Array.from({length:40},function(_,i){
+  const k="bg"+i;
+  return{xp:cyrb53(k,7),yp:cyrb53(k,8),r:0.18+cyrb53(k,9)*0.38,phase:cyrb53(k,10)*Math.PI*2,speed:0.12+cyrb53(k,11)*0.35};
+});
+
+let canvas, ctx, W, H, raf;
+
+function resize() {
+  canvas = document.getElementById("starCanvas");
+  const wrap = canvas.parentElement;
+  W = wrap.clientWidth;
+  H = Math.max(300, Math.min(W * 0.72, 500));
+  canvas.width  = W * devicePixelRatio;
+  canvas.height = H * devicePixelRatio;
+  canvas.style.width  = W + "px";
+  canvas.style.height = H + "px";
+  ctx = canvas.getContext("2d");
+  ctx.scale(devicePixelRatio, devicePixelRatio);
+}
+
+function drawStar(s, t) {
+  const x = s.xp * W, y = s.yp * H;
+  const tw      = Math.sin(t * s.speed * 0.0009 + s.phase);
+  const alpha   = 0.76 + tw * 0.19;
+  const sizeNow = s.size * (1 + tw * 0.13);
+
+  const glow = ctx.createRadialGradient(x,y,0, x,y, sizeNow*3.6);
+  glow.addColorStop(0,   "rgba("+s.color+","+(alpha*0.62)+")");
+  glow.addColorStop(0.5, "rgba("+s.color+","+(alpha*0.09)+")");
+  glow.addColorStop(1,   "rgba("+s.color+",0)");
+  ctx.fillStyle = glow;
+  ctx.beginPath(); ctx.arc(x,y, sizeNow*3.6, 0, Math.PI*2); ctx.fill();
+
+  if (s.ray) {
+    const rl = sizeNow*5.8;
+    ctx.save();
+    ctx.strokeStyle = "rgba("+s.color+","+(alpha*0.32)+")";
+    ctx.lineWidth = sizeNow*0.52; ctx.lineCap="round";
+    ctx.beginPath(); ctx.moveTo(x-rl,y); ctx.lineTo(x+rl,y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x,y-rl); ctx.lineTo(x,y+rl); ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.fillStyle = "rgba("+s.color+","+Math.min(alpha+0.14,1)+")";
+  ctx.beginPath(); ctx.arc(x,y, sizeNow, 0, Math.PI*2); ctx.fill();
+}
+
+function drawFrame(t) {
+  // 背景
+  const bg = ctx.createRadialGradient(W/2,H/2,0, W/2,H/2, W*0.85);
+  bg.addColorStop(0, "#182038"); bg.addColorStop(1, "#06080f");
+  ctx.fillStyle = bg; ctx.fillRect(0,0,W,H);
+
+  // 背景氣氛點
+  BG_DATA.forEach(function(s) {
+    const tw = 0.10 + 0.09*Math.sin(t*s.speed*0.0008+s.phase);
+    ctx.beginPath(); ctx.arc(s.xp*W, s.yp*H, s.r, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(200,215,255,"+tw+")"; ctx.fill();
+  });
+
+  const view = getViewDots();
+
+  // 未點亮部分（極淡輪廓）
+  view.unlit.forEach(function(dot) {
+    ctx.beginPath(); ctx.arc(dot[0]*W, dot[1]*H, 0.85, 0, Math.PI*2);
+    ctx.fillStyle = "rgba(160,185,230,0.08)"; ctx.fill();
+  });
+
+  // 已點亮的靈修星星
+  view.lit.forEach(function(s) { drawStar(s, t); });
+
+  // 完成所有階段後的額外星星（散在背景，只在當前階段顯示）
+  if (viewIdx === stageIdx) {
+    EXTRA_STARS.forEach(function(s) { drawStar(s, t); });
+  }
+}
+
+function loop(t) { drawFrame(t); raf = requestAnimationFrame(loop); }
+function start() { if (raf) cancelAnimationFrame(raf); resize(); raf = requestAnimationFrame(loop); }
+
+start();
+window.addEventListener("resize", start);
+</script>
+
+{% endblock %}

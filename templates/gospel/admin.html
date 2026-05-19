@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+{% block title %}福音關懷管理{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <h2 style="margin:0;">✝️ 福音關懷管理</h2>
+        <p style="color:#888; font-size:0.88rem; margin-top:4px;">來自「認識信仰」頁面的詢問紀錄</p>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="/gospel" target="_blank"
+            style="padding:9px 18px; background:#fff8e1; color:#c47800; border:1px solid #e8d080;
+                   border-radius:8px; text-decoration:none; font-size:0.88rem; font-weight:600;">
+            👁 預覽福音頁
+        </a>
+        {% if session.is_super_admin %}
+        <a href="/admin/gospel/cards"
+            style="padding:9px 18px; background:#f3e5f5; color:#6a1b9a; border:1px solid #ce93d8;
+                   border-radius:8px; text-decoration:none; font-size:0.88rem; font-weight:600;">
+            📝 管理卡片內容
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- 統計列 -->
+<div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:20px;">
+    <a href="/admin/gospel?status=all" style="text-decoration:none;">
+        <div style="background:{% if status_filter=='all' %}#e3f2fd{% else %}white{% endif %}; border-radius:10px; padding:10px 18px; border:1.5px solid {% if status_filter=='all' %}#1565c0{% else %}#e0e0e0{% endif %};">
+            <span style="color:#555; font-size:0.85rem;">全部</span>
+            <strong style="display:block; font-size:1.3rem; color:#1565c0;">{{ counts.all }}</strong>
+        </div>
+    </a>
+    <a href="/admin/gospel?status=pending" style="text-decoration:none;">
+        <div style="background:{% if status_filter=='pending' %}#fff3e0{% else %}white{% endif %}; border-radius:10px; padding:10px 18px; border:1.5px solid {% if status_filter=='pending' %}#e65100{% else %}#e0e0e0{% endif %};">
+            <span style="color:#555; font-size:0.85rem;">⏳ 待跟進</span>
+            <strong style="display:block; font-size:1.3rem; color:#e65100;">{{ counts.pending }}</strong>
+        </div>
+    </a>
+    <a href="/admin/gospel?status=following" style="text-decoration:none;">
+        <div style="background:{% if status_filter=='following' %}#e8f5e9{% else %}white{% endif %}; border-radius:10px; padding:10px 18px; border:1.5px solid {% if status_filter=='following' %}#2e7d32{% else %}#e0e0e0{% endif %};">
+            <span style="color:#555; font-size:0.85rem;">🤝 跟進中</span>
+            <strong style="display:block; font-size:1.3rem; color:#2e7d32;">{{ counts.following }}</strong>
+        </div>
+    </a>
+    <a href="/admin/gospel?status=done" style="text-decoration:none;">
+        <div style="background:{% if status_filter=='done' %}#f3e5f5{% else %}white{% endif %}; border-radius:10px; padding:10px 18px; border:1.5px solid {% if status_filter=='done' %}#6a1b9a{% else %}#e0e0e0{% endif %};">
+            <span style="color:#555; font-size:0.85rem;">✅ 已完成</span>
+            <strong style="display:block; font-size:1.3rem; color:#6a1b9a;">{{ counts.done }}</strong>
+        </div>
+    </a>
+</div>
+
+<!-- 名單 -->
+{% if inquiries %}
+<div style="display:flex; flex-direction:column; gap:12px;">
+{% for inq in inquiries %}
+<div style="background:white; border-radius:14px; padding:20px 22px; box-shadow:0 2px 8px rgba(0,0,0,0.06);
+            border-left:4px solid {% if inq.status=='pending' %}#e65100{% elif inq.status=='following' %}#2e7d32{% else %}#6a1b9a{% endif %};"
+     id="inq-{{ inq.id }}">
+    <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:12px;">
+
+        <!-- 左側：基本資料 -->
+        <div style="flex:1; min-width:220px;">
+            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom:6px;">
+                <span style="font-weight:700; font-size:1rem; color:#222;">{{ inq.name }}</span>
+                <span style="font-size:0.78rem; padding:2px 10px; border-radius:20px; font-weight:600;
+                    {% if inq.status=='pending' %}background:#fff3e0; color:#e65100;
+                    {% elif inq.status=='following' %}background:#e8f5e9; color:#2e7d32;
+                    {% else %}background:#f3e5f5; color:#6a1b9a;{% endif %}">
+                    {{ inq.status_label }}
+                </span>
+            </div>
+            <div style="font-size:0.88rem; color:#555; margin-bottom:4px;">
+                📱 {{ inq.contact }}
+            </div>
+            {% if inq.message %}
+            <div style="font-size:0.88rem; color:#666; background:#f9f9f9; padding:8px 12px; border-radius:8px; margin-top:8px; line-height:1.6;">
+                💬 {{ inq.message }}
+            </div>
+            {% endif %}
+            <div style="font-size:0.75rem; color:#bbb; margin-top:8px;">
+                {{ inq.created_at| taipei_time if inq.created_at else '' }}
+                {% if inq.assigned_name %}· 指派給 <strong style="color:#1565c0;">{{ inq.assigned_name }}</strong>{% endif %}
+            </div>
+            {% if inq.notes %}
+            <div style="font-size:0.83rem; color:#555; background:#fffde7; border-left:3px solid #f9a825;
+                        padding:8px 12px; border-radius:0 8px 8px 0; margin-top:8px;">
+                📝 {{ inq.notes }}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- 右側：操作 -->
+        <div style="display:flex; flex-direction:column; gap:8px; min-width:200px;">
+            <select onchange="updateStatus('{{ inq.id }}', this.value)"
+                style="padding:7px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem; background:white; cursor:pointer;">
+                {% for k, v in status_labels.items() %}
+                <option value="{{ k }}" {% if inq.status == k %}selected{% endif %}>{{ v }}</option>
+                {% endfor %}
+            </select>
+
+            <select onchange="assignLeader('{{ inq.id }}', this.value)"
+                style="padding:7px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.85rem; background:white; cursor:pointer;">
+                <option value="">— 指派給小組長 —</option>
+                {% for leader in leaders %}
+                <option value="{{ leader.id }}"
+                    {% if inq.assigned_to == leader.id %}selected{% endif %}>
+                    {{ leader.real_name or leader.display_name }}
+                </option>
+                {% endfor %}
+            </select>
+
+            <button onclick="openNotes('{{ inq.id }}', `{{ (inq.notes or '')|replace('`','') }}`)"
+                style="padding:7px 12px; background:#fff3e0; color:#e65100; border:none; border-radius:8px;
+                       cursor:pointer; font-size:0.82rem; font-weight:600; text-align:left;">
+                📝 {{ '編輯備註' if inq.notes else '新增備註' }}
+            </button>
+
+            {% if session.is_super_admin %}
+            <button onclick="deleteInquiry('{{ inq.id }}')"
+                style="padding:7px 12px; background:#ffebee; color:#c62828; border:none; border-radius:8px;
+                       cursor:pointer; font-size:0.82rem;">
+                🗑 刪除
+            </button>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div style="text-align:center; padding:60px 0; color:#aaa; background:white; border-radius:14px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="font-size:3rem; margin-bottom:14px;">✝️</div>
+    <p>目前沒有詢問紀錄</p>
+</div>
+{% endif %}
+
+<!-- 備註 Modal -->
+<div id="notes-overlay" onclick="closeNotes()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:9000;"></div>
+<div id="notes-panel"
+    style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
+           width:min(460px,92vw); background:white; border-radius:16px; z-index:9001;
+           padding:28px 24px; box-shadow:0 20px 60px rgba(0,0,0,0.2);">
+    <h3 style="margin:0 0 16px; color:#333;">📝 跟進備註</h3>
+    <input type="hidden" id="notes-id">
+    <textarea id="notes-text" rows="4"
+        style="width:100%; padding:10px 14px; border:1.5px solid #e0e0e0; border-radius:8px;
+               font-size:0.9rem; resize:vertical; font-family:inherit; outline:none; margin-bottom:14px;"
+        placeholder="記錄跟進狀況、通話紀錄等..."></textarea>
+    <div style="display:flex; gap:10px;">
+        <button onclick="saveNotes()"
+            style="flex:1; padding:10px; background:#e65100; color:white; border:none; border-radius:8px;
+                   cursor:pointer; font-weight:bold;">💾 儲存</button>
+        <button onclick="closeNotes()"
+            style="padding:10px 18px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">取消</button>
+    </div>
+</div>
+
+<script>
+function updateStatus(id, status) {
+    fetch(`/admin/gospel/${id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '更新失敗');
+    });
+}
+
+function assignLeader(id, assigned_to) {
+    fetch(`/admin/gospel/${id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assigned_to })
+    }).then(r => r.json()).then(d => {
+        if (!d.success) alert(d.error || '指派失敗');
+    });
+}
+
+function openNotes(id, notes) {
+    document.getElementById('notes-id').value = id;
+    document.getElementById('notes-text').value = notes;
+    document.getElementById('notes-overlay').style.display = 'block';
+    document.getElementById('notes-panel').style.display = 'block';
+    document.body.style.overflow = 'hidden';
+    setTimeout(() => document.getElementById('notes-text').focus(), 100);
+}
+function closeNotes() {
+    document.getElementById('notes-overlay').style.display = 'none';
+    document.getElementById('notes-panel').style.display = 'none';
+    document.body.style.overflow = '';
+}
+function saveNotes() {
+    const id    = document.getElementById('notes-id').value;
+    const notes = document.getElementById('notes-text').value.trim();
+    fetch(`/admin/gospel/${id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ notes })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '儲存失敗');
+    });
+}
+
+function deleteInquiry(id) {
+    if (!confirm('確定刪除這筆詢問紀錄？')) return;
+    fetch(`/admin/gospel/${id}/delete`, { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.success) document.getElementById('inq-' + id).remove();
+            else alert(d.error || '刪除失敗');
+        });
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNotes(); });
+</script>
+
+{% endblock %}

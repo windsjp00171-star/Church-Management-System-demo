@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}教材庫存管理{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/courses" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回課程管理</a>
+        <h2 style="margin-top:6px;">📦 教材庫存管理</h2>
+        <p style="color:#888; font-size:0.85rem; margin-top:4px;">每個學程對應一份教材，報名時自動扣庫存，取消報名自動退回。</p>
+    </div>
+    <button onclick="showAddForm()"
+        style="padding:9px 20px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+        ＋ 新增教材
+    </button>
+</div>
+
+<!-- 新增表單 -->
+<div id="add-form" style="display:none; background:#f9fbe7; border:1px solid #c5e1a5; border-radius:12px; padding:20px; margin-bottom:24px;">
+    <p style="font-weight:bold; margin:0 0 14px;">新增教材品項</p>
+    <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px; align-items:end;">
+        <div>
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">教材名稱 *</label>
+            <input id="n-name" type="text" placeholder="例：全人更新營教材"
+                style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <div>
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">對應學程</label>
+            <select id="n-cat"
+                style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+                <option value="">— 不指定 —</option>
+                {% for c in categories %}
+                <option value="{{ c.id }}">{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">說明（選填）</label>
+            <input id="n-desc" type="text" placeholder="版本、備註…"
+                style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <div>
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">單位</label>
+            <input id="n-unit" type="text" value="本"
+                style="width:100%; padding:9px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <div>
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">售價（元）</label>
+            <input id="n-price" type="number" value="0" min="0"
+                style="width:100%; padding:9px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <div>
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">現有庫存（本）</label>
+            <input id="n-stock" type="number" value="0" min="0"
+                style="width:100%; padding:9px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <div>
+            <label style="font-size:0.82rem; color:#666; display:block; margin-bottom:4px;">進貨單價（元）</label>
+            <input id="n-cost" type="number" value="0" min="0"
+                style="width:100%; padding:9px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <div style="display:flex; gap:8px; align-items:flex-end;">
+            <button onclick="submitAdd()"
+                style="padding:9px 20px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; white-space:nowrap;">新增</button>
+            <button onclick="document.getElementById('add-form').style.display='none'"
+                style="padding:9px 14px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">取消</button>
+        </div>
+    </div>
+</div>
+
+<!-- 教材列表 -->
+{% if materials %}
+<div style="display:grid; gap:14px;">
+{% for m in materials %}
+<div style="background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); padding:18px 20px;">
+    <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+
+        <!-- 教材資訊 -->
+        <div style="flex:2; min-width:160px;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                <span style="font-weight:700; font-size:0.95rem;">{{ m.name }}</span>
+                {% if m.category_id and cat_map.get(m.category_id) %}
+                <span style="background:#eff6ff; color:#1565c0; padding:2px 8px; border-radius:12px; font-size:0.75rem; font-weight:600;">
+                    {{ cat_map[m.category_id] }}
+                </span>
+                {% else %}
+                <span style="background:#f5f5f5; color:#aaa; padding:2px 8px; border-radius:12px; font-size:0.75rem;">未指定學程</span>
+                {% endif %}
+            </div>
+            {% if m.description %}<div style="font-size:0.82rem; color:#888; margin-top:4px;">{{ m.description }}</div>{% endif %}
+            <div style="font-size:0.8rem; color:#aaa; margin-top:4px;">售價 ${{ m.selling_price }} / {{ m.unit }}</div>
+        </div>
+
+        <!-- 庫存數字 -->
+        <div style="display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
+            <div style="text-align:center; min-width:60px;">
+                <div style="font-size:1.6rem; font-weight:800;
+                    color:{% if m.stock <= 0 %}#c62828{% elif m.stock <= 5 %}#e65100{% else %}#1b5e20{% endif %};">
+                    {{ m.stock }}
+                </div>
+                <div style="font-size:0.72rem; color:#888;">現有（{{ m.unit }}）</div>
+            </div>
+            <div style="text-align:center; min-width:60px;">
+                <div style="font-size:1.6rem; font-weight:800; color:#555;">{{ m.total_sold_qty }}</div>
+                <div style="font-size:0.72rem; color:#888;">累計銷售</div>
+            </div>
+            <div style="text-align:center; min-width:70px;">
+                <div style="font-size:1.3rem; font-weight:700; color:#555;">${{ m.total_purchased_cost }}</div>
+                <div style="font-size:0.72rem; color:#888;">進貨成本</div>
+            </div>
+        </div>
+
+        <!-- 操作 -->
+        <div style="display:flex; gap:8px; margin-left:auto; align-items:center; flex-wrap:wrap;">
+            <a href="/admin/materials/{{ m.id }}"
+                style="padding:7px 16px; background:#e3f2fd; color:#1565c0; border:none; border-radius:8px; font-size:0.85rem; text-decoration:none; font-weight:bold;">
+                📋 明細
+            </a>
+            <button onclick="deleteM('{{ m.id }}', '{{ m.name }}')"
+                style="padding:7px 14px; background:#f5f5f5; color:#999; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem;">
+                刪除
+            </button>
+        </div>
+    </div>
+
+    {% if m.stock <= 0 %}
+    <div style="margin-top:10px; background:#ffebee; color:#c62828; padding:8px 12px; border-radius:8px; font-size:0.82rem;">
+        ⚠️ 庫存已見底，請盡快補貨
+    </div>
+    {% elif m.stock <= 5 %}
+    <div style="margin-top:10px; background:#fff8e1; color:#e65100; padding:8px 12px; border-radius:8px; font-size:0.82rem;">
+        📦 庫存偏低，建議盡快補貨
+    </div>
+    {% endif %}
+</div>
+{% endfor %}
+</div>
+
+{% else %}
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="font-size:3rem;">📦</div>
+    <p style="margin-top:12px;">尚未建立任何教材，點上方「新增教材」開始吧</p>
+</div>
+{% endif %}
+
+<script>
+function showAddForm() {
+    document.getElementById('add-form').style.display = 'block';
+    document.getElementById('n-name').focus();
+}
+
+function submitAdd() {
+    const name = document.getElementById('n-name').value.trim();
+    if (!name) { document.getElementById('n-name').focus(); return; }
+    fetch('/admin/materials/new', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            name,
+            category_id: document.getElementById('n-cat').value || null,
+            description: document.getElementById('n-desc').value.trim() || null,
+            unit: document.getElementById('n-unit').value.trim() || '本',
+            selling_price: parseInt(document.getElementById('n-price').value) || 0,
+            init_stock: parseInt(document.getElementById('n-stock').value) || 0,
+            init_cost: parseInt(document.getElementById('n-cost').value) || 0,
+        })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '新增失敗');
+    });
+}
+
+function deleteM(id, name, force = false) {
+    const msg = force
+        ? `⚠️ 確定強制刪除「${name}」？\n所有進貨／銷售記錄將一併清除，無法復原！`
+        : `確定刪除「${name}」？`;
+    if (!confirm(msg)) return;
+    fetch(`/admin/materials/${id}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ force }),
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else if (!force && d.error && d.error.includes('異動記錄')) {
+            if (confirm(`「${name}」有進貨／銷售記錄。\n確定要連同所有記錄一起強制刪除？\n（此操作無法復原）`)) {
+                deleteM(id, name, true);
+            }
+        } else {
+            alert(d.error || '刪除失敗');
+        }
+    });
+}
+
+document.getElementById('n-name').addEventListener('keydown', e => { if (e.key === 'Enter') submitAdd(); });
+</script>
+{% endblock %}

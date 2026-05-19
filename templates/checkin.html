@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>電子簽到</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: sans-serif;
+            background: #f0f4f0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 16px;
+        }
+        .card {
+            background: white;
+            border-radius: 20px;
+            padding: 32px 24px;
+            max-width: 420px;
+            width: 100%;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .event-name {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #222;
+            margin-bottom: 6px;
+        }
+        .event-info {
+            font-size: 0.85rem;
+            color: #888;
+            margin-bottom: 24px;
+            line-height: 1.8;
+        }
+        .user-badge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            background: #f5f5f5;
+            border-radius: 50px;
+            padding: 10px 20px;
+            margin-bottom: 24px;
+        }
+        .user-badge img {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+        }
+        .user-badge span { font-weight: bold; color: #333; }
+        .btn-checkin {
+            width: 100%;
+            padding: 16px;
+            background: #06C755;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            letter-spacing: 0.05em;
+        }
+        .btn-checkin:disabled { background: #ccc; cursor: not-allowed; }
+        .icon { font-size: 4rem; margin-bottom: 16px; }
+        .title { font-size: 1.3rem; font-weight: bold; margin-bottom: 8px; }
+        .subtitle { color: #666; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; }
+        .error-card { border: 2px solid #ffcdd2; }
+        .success-card { border: 2px solid #a5d6a7; }
+        /* 多筆報名選單 */
+        .reg-item {
+            background: #f8f8f8;
+            border: 1px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 12px;
+            text-align: left;
+        }
+        .reg-item.checked { background: #e8f5e9; border-color: #a5d6a7; }
+        .reg-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+        .reg-item-title { font-weight: bold; color: #333; font-size: 0.95rem; }
+        .reg-item-answers { font-size: 0.85rem; color: #666; line-height: 1.6; }
+        .btn-item-checkin {
+            background: #06C755;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            width: 100%;
+        }
+        .btn-item-checkin:disabled { background: #ccc; cursor: not-allowed; }
+
+        /* ===== 🎉 Party Animation ===== */
+        @keyframes balloonRise {
+            0%   { bottom: -160px; opacity: 0; }
+            8%   { opacity: 1; }
+            82%  { opacity: 1; }
+            100% { bottom: 115vh; opacity: 0; }
+        }
+        @keyframes balloonSway {
+            0%, 100% { transform: rotate(-5deg); }
+            50%       { transform: rotate(5deg) translateX(16px); }
+        }
+        @keyframes partyBodyBg {
+            0%   { background: #f0f4f0; }
+            15%  { background: #fdf0ff; }
+            45%  { background: #f0fff8; }
+            75%  { background: #fffde7; }
+            100% { background: #f0f4f0; }
+        }
+        .party-balloon {
+            position: fixed;
+            pointer-events: none;
+            z-index: 9998;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            animation: balloonRise var(--rise-dur, 5s) ease-out forwards;
+        }
+        .balloon-body {
+            width: 64px; height: 78px;
+            border-radius: 50% 50% 50% 50% / 40% 40% 60% 60%;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: inset -8px -10px 18px rgba(0,0,0,0.15),
+                        inset 5px 5px 12px rgba(255,255,255,0.4),
+                        0 4px 14px rgba(0,0,0,0.1);
+            position: relative;
+            animation: balloonSway var(--sway-dur, 2.8s) ease-in-out infinite;
+        }
+        .balloon-knot {
+            position: absolute; bottom: -9px; left: 50%;
+            transform: translateX(-50%);
+            width: 0; height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+        }
+        .balloon-string { width: 1.5px; height: 55px; background: rgba(60,60,60,0.22); }
+        .balloon-label {
+            font-size: 0.6rem; font-weight: 800;
+            color: rgba(255,255,255,0.95);
+            text-shadow: 0 1px 4px rgba(0,0,0,0.3);
+            text-align: center;
+            padding: 3px 5px;
+            max-width: 54px;
+            word-break: break-all;
+            line-height: 1.3;
+        }
+        #party-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none; z-index: 9999;
+        }
+    </style>
+</head>
+<body>
+
+{% if error %}
+<!-- 錯誤狀態 -->
+<div class="card error-card">
+    <div class="icon">⚠️</div>
+    <div class="title" style="color:#c62828;">無法完成簽到</div>
+    <p class="subtitle" style="margin-top:8px;">{{ error }}</p>
+    {% if event %}
+    <p style="margin-top:20px; font-size:0.8rem; color:#bbb;">活動：{{ event.title }}</p>
+    {% endif %}
+</div>
+
+{% elif multi_regs is defined and multi_regs %}
+<!-- ===== 多筆報名：選擇要簽到哪一筆 ===== -->
+<div class="card" style="max-width:480px;">
+    <div style="font-size:2rem; margin-bottom:8px;">📋</div>
+    <div class="event-name">{{ event.title }}</div>
+    <div class="event-info">
+        {% if event.event_start %}🕐 {{ event.event_start| taipei_time }}<br>{% endif %}
+        {% if event.location %}📍 {{ event.location }}{% endif %}
+    </div>
+
+    <div class="user-badge">
+        <span>{{ session.display_name }}</span>
+    </div>
+
+    <p style="font-size:0.9rem; color:#555; margin-bottom:16px; text-align:left;">
+        您有 <strong>{{ multi_regs|length }}</strong> 筆報名紀錄，請選擇要簽到的那一筆：
+    </p>
+
+    <div id="reg-list">
+    {% for reg in multi_regs %}
+    <div class="reg-item {% if reg.checked_in %}checked{% endif %}" id="item-{{ reg.id }}">
+        <div class="reg-item-header">
+            <span class="reg-item-title">
+                {%- if name_map and name_map.get(reg.id) -%}
+                    {{ name_map[reg.id] }}
+                {%- else -%}
+                    報名 #{{ loop.index }}
+                {%- endif -%}
+            </span>
+            {% if reg.checked_in %}
+            <span style="color:#2e7d32; font-size:0.85rem; font-weight:bold;">✅ 已簽到</span>
+            {% endif %}
+        </div>
+        {% set answers = answer_map.get(reg.id, []) %}
+        {% if answers %}
+        <div class="reg-item-answers">
+            {% for ans in answers[:3] %}{# 最多顯示前 3 個答案 #}
+            <div><strong>{{ ans.label }}：</strong>{{ ans.answer }}</div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="reg-item-answers" style="color:#aaa;">（無填寫資料）</div>
+        {% endif %}
+        {% if not reg.checked_in %}
+        <button class="btn-item-checkin" id="btn-{{ reg.id }}"
+            onclick="doCheckinItem('{{ reg.id }}', this)">
+            簽到這一筆
+        </button>
+        {% endif %}
+    </div>
+    {% endfor %}
+    </div>
+
+    <div id="error-msg" style="display:none; margin-top:12px; color:#c62828; background:#ffebee; padding:10px 14px; border-radius:8px; font-size:0.9rem;"></div>
+</div>
+
+{% elif auto_checked_in %}
+<!-- ⚡ 掃碼即自動簽到成功 -->
+<div class="card success-card">
+    <div class="icon">⚡</div>
+    <div class="title" style="color:#2e7d32;">簽到成功！</div>
+    {% if event %}
+    <p class="subtitle" style="margin-top:8px; color:#444;">{{ event.title }}</p>
+    {% endif %}
+    <div class="user-badge" style="margin-top:20px;">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" alt="頭像">
+        {% endif %}
+        <span>{{ session.display_name }}</span>
+    </div>
+    <p style="font-size:0.85rem; color:#2e7d32; margin-top:8px; font-weight:bold;">歡迎出席！</p>
+</div>
+
+{% elif already_checked_in %}
+<!-- 已簽到 -->
+<div class="card success-card">
+    <div class="icon">✅</div>
+    <div class="title" style="color:#2e7d32;">您已完成簽到</div>
+    {% if event %}
+    <p class="subtitle" style="margin-top:12px;">{{ event.title }}</p>
+    {% endif %}
+    <div class="user-badge" style="margin-top:20px;">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" alt="頭像">
+        {% endif %}
+        <span>{{ session.display_name }}</span>
+    </div>
+    <p style="font-size:0.8rem; color:#bbb; margin-top:4px;">歡迎您出席！</p>
+</div>
+
+{% elif not can_checkin %}
+<!-- 無報名資格（僅限報名者模式） -->
+<div class="card error-card">
+    <div class="icon">🔒</div>
+    <div class="title" style="color:#c62828;">無法簽到</div>
+    <p class="subtitle" style="margin-top:8px;">{{ no_register_error }}</p>
+    {% if event %}
+    <p style="margin-top:20px; font-size:0.85rem; color:#555;">
+        <a href="/event/{{ event.id }}" style="color:#06C755; text-decoration:none;">
+            前往報名頁面 →
+        </a>
+    </p>
+    {% endif %}
+</div>
+
+{% else %}
+<!-- 正常簽到畫面（單筆） -->
+<div class="card" id="main-card">
+    <div style="margin-bottom:20px;">
+        <div style="font-size:2rem; margin-bottom:8px;">📱</div>
+        <div class="event-name">{{ event.title }}</div>
+        <div class="event-info">
+            {% if event.event_start %}
+            🕐 {{ event.event_start| taipei_time }}<br>
+            {% endif %}
+            {% if event.location %}
+            📍 {{ event.location }}
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="user-badge">
+        <span>{{ session.display_name }}</span>
+    </div>
+
+    <button class="btn-checkin" id="checkin-btn" onclick="doCheckin()">
+        我要簽到
+    </button>
+    <p style="font-size:0.8rem; color:#bbb; margin-top:16px;">點擊後將記錄您的到場</p>
+</div>
+
+<!-- 成功畫面（隱藏） -->
+<div class="card success-card" id="success-card" style="display:none;">
+    <div class="icon">🎉</div>
+    <div class="title" style="color:#2e7d32;">簽到成功！</div>
+    <p class="subtitle" style="margin-top:8px; color:#444;">{{ event.title }}</p>
+    <div class="user-badge" style="margin-top:20px;">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" alt="頭像">
+        {% endif %}
+        <span>{{ session.display_name }}</span>
+    </div>
+    <p style="font-size:0.85rem; color:#2e7d32; margin-top:8px; font-weight:bold;">歡迎出席！</p>
+</div>
+
+<div id="error-msg" style="display:none; margin-top:16px; color:#c62828; background:#ffebee; padding:12px 16px; border-radius:10px; font-size:0.9rem; max-width:420px; width:100%; text-align:center;"></div>
+
+{% endif %}
+
+<script>
+// ===== 🎉 Party Animation =====
+// name: 要顯示在氣球上的名字（被簽到者，不一定是目前登入的人）
+function launchParty(name) {
+    document.body.style.animation = 'partyBodyBg 5s ease-out forwards';
+    startConfetti();
+    const count = 7 + Math.floor(Math.random() * 4);
+    for (let i = 0; i < count; i++) {
+        setTimeout(() => spawnBalloon(name), i * 280 + Math.random() * 150);
+    }
+}
+
+function startConfetti() {
+    const canvas = document.createElement('canvas');
+    canvas.id = 'party-canvas';
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    document.body.appendChild(canvas);
+    const ctx = canvas.getContext('2d');
+
+    const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff',
+                    '#ff9f1c','#ff4d6d','#38b6ff','#ff85c2','#a8ff78'];
+    const pieces = [];
+    for (let i = 0; i < 160; i++) {
+        const circle = Math.random() > 0.55;
+        pieces.push({
+            x: Math.random() * canvas.width,
+            y: -20 - Math.random() * canvas.height * 0.6,
+            w: circle ? 5 + Math.random()*7 : 7 + Math.random()*11,
+            h: circle ? 0 : 4 + Math.random()*6,
+            circle,
+            color: COLORS[Math.floor(Math.random() * COLORS.length)],
+            rot: Math.random() * Math.PI * 2,
+            rotV: (Math.random() - 0.5) * 0.18,
+            vx: (Math.random() - 0.5) * 2.8,
+            vy: 1.6 + Math.random() * 2.8,
+            alpha: 1,
+        });
+    }
+
+    let frame = 0;
+    const MAX = 300;
+    function draw() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        pieces.forEach(p => {
+            p.x += p.vx; p.y += p.vy; p.rot += p.rotV; p.vy += 0.045;
+            if (frame > MAX - 70) p.alpha -= 0.014;
+            ctx.globalAlpha = Math.max(0, p.alpha);
+            ctx.fillStyle = p.color;
+            if (p.circle) {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.w / 2, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                ctx.save();
+                ctx.translate(p.x, p.y);
+                ctx.rotate(p.rot);
+                ctx.fillRect(-p.w / 2, -p.h / 2, p.w, p.h);
+                ctx.restore();
+            }
+        });
+        ctx.globalAlpha = 1;
+        frame++;
+        if (frame < MAX) requestAnimationFrame(draw);
+        else canvas.remove();
+    }
+    draw();
+}
+
+function spawnBalloon(name) {
+    const COLORS = ['#ff6b6b','#ffd93d','#6bcb77','#4d96ff','#c77dff',
+                    '#ff9f1c','#ff85c2','#38b6ff','#f9844a'];
+    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+    const x = 4 + Math.random() * 88;
+    const riseDur = (4.5 + Math.random() * 3.5).toFixed(1) + 's';
+    const swayDur = (2 + Math.random() * 2).toFixed(1) + 's';
+
+    const el = document.createElement('div');
+    el.className = 'party-balloon';
+    el.style.left = x + '%';
+    el.style.setProperty('--rise-dur', riseDur);
+
+    el.innerHTML = `
+        <div class="balloon-body" style="background:${color}; --sway-dur:${swayDur}">
+            <div class="balloon-label">${name || ''}</div>
+            <div class="balloon-knot" style="border-top-color:${color}"></div>
+        </div>
+        <div class="balloon-string"></div>
+    `;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), parseFloat(riseDur) * 1000 + 600);
+}
+
+// ===== 單筆簽到
+function doCheckin() {
+    const btn = document.getElementById('checkin-btn');
+    btn.disabled = true;
+    btn.textContent = '簽到中...';
+
+    fetch('/checkin/{{ event.id }}/{{ event.checkin_token }}/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('main-card').style.display = 'none';
+            document.getElementById('success-card').style.display = 'block';
+            {% if event and event.party_animation %}launchParty('{{ session.display_name | default("") | e }}');{% endif %}
+        } else {
+            btn.disabled = false;
+            btn.textContent = '我要簽到';
+            showError(data.error || '簽到失敗，請再試一次');
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.textContent = '我要簽到';
+        showError('網路錯誤，請重新整理後再試');
+    });
+}
+
+// 多筆：針對指定報名 ID 簽到
+function doCheckinItem(regId, btn) {
+    btn.disabled = true;
+    btn.textContent = '簽到中...';
+
+    fetch('/checkin/{{ event.id }}/{{ event.checkin_token }}/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reg_id: regId })
+    })
+    .then(res => res.json())
+    .then(data => {
+        if (data.success) {
+            // 更新該筆卡片樣式為已簽到
+            const item = document.getElementById('item-' + regId);
+            if (item) {
+                item.classList.add('checked');
+                btn.remove();
+                const header = item.querySelector('.reg-item-header');
+                const badge = document.createElement('span');
+                badge.style = 'color:#2e7d32; font-size:0.85rem; font-weight:bold;';
+                badge.textContent = '✅ 已簽到';
+                header.appendChild(badge);
+            }
+            {% if event and event.party_animation %}launchParty('{{ session.display_name | default("") | e }}');{% endif %}
+        } else {
+            btn.disabled = false;
+            btn.textContent = '簽到這一筆';
+            showError(data.error || '簽到失敗，請再試一次');
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.textContent = '簽到這一筆';
+        showError('網路錯誤，請重新整理後再試');
+    });
+}
+
+function showError(msg) {
+    const el = document.getElementById('error-msg');
+    if (el) { el.textContent = msg; el.style.display = 'block'; }
+}
+
+// ===== auto_checked_in 掃碼即簽到：頁面載入後自動觸發 =====
+{% if auto_checked_in and event and event.party_animation %}
+setTimeout(() => launchParty('{{ session.display_name | default("") | e }}'), 450);
+{% endif %}
+
+// ===== 同工代簽 =====
+{% if is_admin and event %}
+let proxyTimer = null;
+
+function toggleProxy() {
+    const box = document.getElementById('proxy-box');
+    const btn = document.getElementById('proxy-toggle');
+    if (box.style.display === 'none') {
+        box.style.display = 'block';
+        btn.textContent = '▲ 收起';
+        document.getElementById('proxy-input').focus();
+    } else {
+        box.style.display = 'none';
+        btn.textContent = '🙋 幫別人簽到';
+    }
+}
+
+function proxySearch(q) {
+    clearTimeout(proxyTimer);
+    const el = document.getElementById('proxy-results');
+    if (!q.trim()) { el.innerHTML = ''; return; }
+    proxyTimer = setTimeout(() => {
+        fetch(`/checkin/{{ event.id }}/{{ event.checkin_token }}/proxy-search?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(results => {
+                if (!Array.isArray(results) || !results.length) {
+                    el.innerHTML = '<p style="color:#888;font-size:0.9rem;margin:8px 0;">找不到符合的會友</p>';
+                    return;
+                }
+                el.innerHTML = results.map(p => `
+                    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
+                                background:white;border-radius:10px;margin-bottom:6px;
+                                border:1px solid ${p.checked_in ? '#c8e6c9' : '#e0e0e0'};">
+                        ${p.picture_url
+                            ? `<img src="${p.picture_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+                            : '<div style="width:36px;height:36px;border-radius:50%;background:#eee;flex-shrink:0;"></div>'}
+                        <div style="flex:1;font-weight:bold;font-size:0.95rem;">${escHtml(p.name)}</div>
+                        ${p.checked_in
+                            ? '<span style="color:#2e7d32;font-size:0.85rem;font-weight:bold;white-space:nowrap;">✅ 已簽到</span>'
+                            : `<button onclick="doProxy('${p.user_id}', ${p.reg_id ? `'${p.reg_id}'` : 'null'}, this)"
+                                style="padding:7px 14px;background:#06C755;color:white;border:none;
+                                       border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:bold;white-space:nowrap;">
+                                代為簽到
+                               </button>`
+                        }
+                    </div>`).join('');
+            })
+            .catch(() => {
+                el.innerHTML = '<p style="color:#c62828;font-size:0.9rem;margin:8px 0;">搜尋失敗，請重試</p>';
+            });
+    }, 300);
+}
+
+function doProxy(userId, regId, btn) {
+    btn.disabled = true;
+    btn.textContent = '簽到中...';
+    // 取出同一列的名字（用於動畫顯示被簽到者）
+    const nameEl = btn.closest('div[style]')?.querySelector('div[style*="font-weight:bold"]');
+    const proxyName = nameEl ? nameEl.textContent.trim() : '';
+    fetch(`/checkin/{{ event.id }}/{{ event.checkin_token }}/proxy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, reg_id: regId || null })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) {
+            btn.outerHTML = '<span style="color:#2e7d32;font-size:0.85rem;font-weight:bold;white-space:nowrap;">✅ 已簽到</span>';
+            {% if event and event.party_animation %}launchParty(proxyName);{% endif %}
+        } else {
+            btn.disabled = false;
+            btn.textContent = '代為簽到';
+            alert(d.error || '簽到失敗');
+        }
+    })
+    .catch(() => {
+        btn.disabled = false;
+        btn.textContent = '代為簽到';
+        alert('網路錯誤，請重試');
+    });
+}
+
+function escHtml(str) {
+    return String(str)
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;')
+        .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+{% endif %}
+</script>
+
+{% if is_admin and event %}
+<!-- 同工代簽區塊 -->
+<div style="max-width:420px;width:100%;margin-top:16px;">
+    <button id="proxy-toggle" onclick="toggleProxy()"
+        style="width:100%;padding:12px;background:#fff3e0;color:#e65100;
+               border:1px solid #ffcc80;border-radius:12px;font-size:0.95rem;
+               font-weight:bold;cursor:pointer;">
+        🙋 幫別人簽到
+    </button>
+    <div id="proxy-box" style="display:none;background:#fff8f0;border:1px solid #ffcc80;
+         border-radius:12px;padding:16px;margin-top:8px;">
+        <div style="font-size:0.85rem;color:#e65100;font-weight:bold;margin-bottom:10px;">同工代簽模式</div>
+        <div style="display:flex;gap:8px;">
+            <input id="proxy-input" type="text" placeholder="輸入姓名搜尋..."
+                oninput="proxySearch(this.value)"
+                style="flex:1;padding:10px 12px;border:1px solid #ffcc80;border-radius:8px;
+                       font-size:0.95rem;outline:none;background:white;">
+            <button onclick="proxySearch(document.getElementById('proxy-input').value)"
+                style="padding:10px 14px;background:#e65100;color:white;border:none;
+                       border-radius:8px;font-size:0.9rem;font-weight:bold;cursor:pointer;">
+                搜尋
+            </button>
+        </div>
+        <div id="proxy-results" style="margin-top:10px;"></div>
+    </div>
+</div>
+{% endif %}
+
+</body>
+</html>

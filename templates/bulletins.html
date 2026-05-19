@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}週報{% endblock %}
+{% block content %}
+
+<style>
+@keyframes portalSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+.pa {
+    animation: portalSlideUp 0.45s cubic-bezier(0.22,1,0.36,1) both;
+    animation-delay: var(--d, 0ms);
+}
+
+/* 年份篩選 */
+.year-filter-btn {
+    padding: 6px 16px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+    background: white;
+    color: var(--text-3);
+    cursor: pointer;
+    font-size: 0.88rem;
+    font-weight: 500;
+    transition: all 0.15s;
+}
+.year-filter-btn.active {
+    background: var(--green);
+    border-color: var(--green);
+    color: white;
+    font-weight: 700;
+}
+
+/* 週報列表項目 */
+.bulletin-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 18px;
+    text-decoration: none;
+    color: inherit;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+}
+.bulletin-item:last-child { border-bottom: none; }
+.bulletin-item:hover { background: #f8f9fa; }
+.bulletin-item:first-child { border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+.bulletin-item:last-child  { border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+.bulletin-item:only-child  { border-radius: var(--radius-lg); }
+
+.b-icon {
+    width: 42px; height: 42px;
+    border-radius: 10px;
+    background: #f3e8ff;
+    color: #7c3aed;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+}
+.b-body { flex: 1; min-width: 0; }
+.b-title {
+    font-weight: 600; font-size: 0.95rem;
+    color: var(--text-1);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.b-date { font-size: 0.8rem; color: var(--text-4); margin-top: 2px; }
+.b-arrow {
+    color: var(--text-4);
+    flex-shrink: 0;
+}
+</style>
+
+<div class="page-header pa" style="--d:0ms">
+    <div class="page-header-left">
+        <a href="/" class="breadcrumb">← 返回首頁</a>
+        <div class="page-title">每週週報</div>
+    </div>
+</div>
+
+<!-- 年份篩選器 -->
+{% if years %}
+<div class="pa" style="--d:60ms; display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px;">
+    <button onclick="filterYear('all')" id="btn-all" class="year-filter-btn active">全部</button>
+    {% for year in years %}
+    <button onclick="filterYear('{{ year }}')" id="btn-{{ year }}" class="year-filter-btn">{{ year }} 年</button>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- 週報列表 -->
+{% if bulletins %}
+<div id="bulletin-list" class="card pa" style="--d:120ms; padding:0; overflow:hidden;">
+    {% for b in bulletins %}
+    <a href="/bulletins/{{ b.id }}"
+        class="bulletin-item"
+        data-year="{{ b.bulletin_date[:4] }}">
+        <div class="b-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/>
+                <polyline points="14 2 14 8 20 8"/>
+                <line x1="16" x2="8" y1="13" y2="13"/>
+                <line x1="16" x2="8" y1="17" y2="17"/>
+                <line x1="10" x2="8" y1="9" y2="9"/>
+            </svg>
+        </div>
+        <div class="b-body">
+            <div class="b-title">{{ b.title }}</div>
+            <div class="b-date">{{ b.bulletin_date }}</div>
+        </div>
+        <div class="b-arrow">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m9 18 6-6-6-6"/>
+            </svg>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state pa" style="--d:120ms">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none"
+         stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"
+         style="color:var(--text-4); margin-bottom:12px;">
+        <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5Z"/>
+        <polyline points="14 2 14 8 20 8"/>
+    </svg>
+    <p>尚未上傳任何週報</p>
+</div>
+{% endif %}
+
+<script>
+let activeYear = 'all';
+
+function filterYear(year) {
+    activeYear = year;
+
+    // 更新按鈕樣式
+    document.querySelectorAll('[id^="btn-"]').forEach(btn => {
+        btn.classList.toggle('active', btn.id === `btn-${year}`);
+    });
+
+    // 顯示/隱藏項目
+    document.querySelectorAll('.bulletin-item').forEach(item => {
+        item.style.display = (year === 'all' || item.dataset.year === year) ? 'flex' : 'none';
+    });
+}
+</script>
+
+{% endblock %}

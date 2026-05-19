@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block content %}
+
+<section class="diary-card">
+  <h2>查閱</h2>
+  <div class="muted">牧者：{{ display_name }}</div>
+</section>
+
+<section class="diary-card">
+  <h2>可查閱名單</h2>
+
+  {% if owners and owners|length > 0 %}
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      {% for o in owners %}
+        <a href="{{ url_for('diary.pastor_view', owner_uid=o.line_user_id) }}" class="secondary-btn" style="text-align:left; display:flex; align-items:center; gap:10px;">
+          {% if o.picture_url %}
+            <img src="{{ o.picture_url }}" alt="" style="width:32px; height:32px; border-radius:50%;">
+          {% endif %}
+          <span>{{ o.display_name or "（未命名）" }}</span>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="muted">目前還沒有人授權你查閱。</div>
+  {% endif %}
+</section>
+
+{% endblock %}

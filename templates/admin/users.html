@@ -1,0 +1,411 @@
+{% extends "base.html" %}
+{% block title %}使用者管理{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <a href="/admin" class="breadcrumb">← 返回後台</a>
+        <div class="page-title">👥 使用者管理</div>
+    </div>
+</div>
+
+<!-- 搜尋 + 篩選 -->
+<div class="card" style="margin-bottom:16px;">
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+        <input type="text" id="searchInput" placeholder="搜尋 LINE 暱稱或真實姓名..."
+            style="flex:1; min-width:200px; padding:9px 14px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-size:0.95rem; outline:none;">
+        <!-- 類型 Tab -->
+        <div style="display:flex; border:1.5px solid var(--border); border-radius:var(--radius-sm); overflow:hidden; flex-shrink:0;">
+            <button id="tab-all"     onclick="setTypeFilter('all')"
+                style="padding:8px 16px; border:none; cursor:pointer; font-size:0.85rem; font-weight:600; background:var(--green); color:white;">
+                全部 <span id="cnt-all"></span>
+            </button>
+            <button id="tab-member"  onclick="setTypeFilter('member')"
+                style="padding:8px 16px; border:none; cursor:pointer; font-size:0.85rem; font-weight:600; background:white; color:var(--text-3); border-left:1px solid var(--border);">
+                🏠 會友 <span id="cnt-member"></span>
+            </button>
+            <button id="tab-visitor" onclick="setTypeFilter('visitor')"
+                style="padding:8px 16px; border:none; cursor:pointer; font-size:0.85rem; font-weight:600; background:white; color:var(--text-3); border-left:1px solid var(--border);">
+                🙋 訪客 <span id="cnt-visitor"></span>
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 排序列 -->
+<div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px;">
+    <span style="font-size:0.82rem; color:var(--text-4); flex-shrink:0;">排序：</span>
+    <button id="sort-date"  onclick="setSort('date')"
+        style="padding:5px 14px; border-radius:20px; border:none; cursor:pointer; font-size:0.82rem;
+               font-weight:600; background:var(--green); color:white;">🕐 最新加入</button>
+    <button id="sort-name"  onclick="setSort('name')"
+        style="padding:5px 14px; border-radius:20px; border:1px solid var(--border); cursor:pointer; font-size:0.82rem;
+               font-weight:600; background:white; color:var(--text-3);">姓名 A-Z</button>
+    <button id="sort-group" onclick="setSort('group')"
+        style="padding:5px 14px; border-radius:20px; border:1px solid var(--border); cursor:pointer; font-size:0.82rem;
+               font-weight:600; background:white; color:var(--text-3);">小組</button>
+</div>
+
+<div id="userList"></div>
+
+<!-- 編輯資料 modal -->
+<div id="edit-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4);
+     z-index:1000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; border-radius:16px; padding:28px; width:100%; max-width:440px; max-height:90vh; overflow-y:auto;">
+        <h3 style="margin-bottom:20px;">✏️ 編輯會員資料</h3>
+
+        <!-- 身分 -->
+        <div style="margin-bottom:16px;">
+            <label style="font-weight:bold; display:block; margin-bottom:8px;">身分</label>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+                <label onclick="toggleEditType('member')"
+                    style="display:flex; align-items:center; justify-content:center; gap:6px; padding:10px;
+                           border:2px solid #06C755; border-radius:8px; cursor:pointer; background:#e8f5e9; font-size:0.88rem; font-weight:bold; color:#2e7d32;">
+                    <input type="radio" id="m-type-member" name="m-member-type" value="member" style="display:none;">
+                    🏠 本教會會友
+                </label>
+                <label onclick="toggleEditType('visitor')"
+                    style="display:flex; align-items:center; justify-content:center; gap:6px; padding:10px;
+                           border:2px solid #ddd; border-radius:8px; cursor:pointer; background:white; font-size:0.88rem; color:#555;" id="m-visitor-label">
+                    <input type="radio" id="m-type-visitor" name="m-member-type" value="visitor" style="display:none;">
+                    🙋 訪客 / 外部人員
+                </label>
+            </div>
+        </div>
+
+        <div style="margin-bottom:16px;">
+            <label style="font-weight:bold; display:block; margin-bottom:5px;">真實姓名</label>
+            <input id="m-name" type="text"
+                style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+        </div>
+
+        <div id="m-group-section" style="margin-bottom:20px;">
+            <label style="font-weight:bold; display:block; margin-bottom:8px;">所屬小組</label>
+            <div id="m-group-tags-primary" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:10px;"></div>
+            <label style="font-weight:600; display:block; margin-bottom:8px; color:#888; font-size:0.85rem;">服事團隊（選填）</label>
+            <div id="m-group-tags-secondary" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+
+
+        <div style="display:flex; gap:10px;">
+            <button onclick="saveProfile()"
+                style="flex:1; padding:11px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+                儲存
+            </button>
+            <button onclick="closeModal()"
+                style="padding:11px 20px; background:#f5f5f5; color:#666; border:none; border-radius:8px; cursor:pointer;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+const IS_SUPER_ADMIN = {{ 'true' if session.get('is_super_admin') else 'false' }};
+let GROUP_OPTIONS = [''];
+let currentEditUserId = null;
+let searchTimer = null;
+let currentType = 'all';   // 'all' | 'member' | 'visitor'
+let currentSort = 'date';  // 'date' | 'name' | 'group'
+let _allUsers = [];
+
+// 先撈小組清單
+fetch('/admin/api/groups')
+    .then(r => r.json())
+    .then(groups => {
+        GROUP_OPTIONS = groups.map(g => g.name);
+        const primary = groups.filter(g => g.is_primary !== false);
+        const secondary = groups.filter(g => g.is_primary === false);
+        const makeTag = (g, isSecondary) => `
+            <label data-tag="${g.name}" data-secondary="${isSecondary}"
+                style="display:flex; align-items:center; gap:6px; padding:6px 14px;
+                       border:1px solid #ddd; border-radius:20px; cursor:pointer; font-size:0.88rem;
+                       background:white; color:${isSecondary ? '#888' : '#333'};"
+                onclick="toggleModalTag(this)">
+                <input type="checkbox" name="m-tag" value="${g.name}" style="display:none;">
+                ${g.name}
+            </label>`;
+        document.getElementById('m-group-tags-primary').innerHTML = primary.map(g => makeTag(g, false)).join('');
+        document.getElementById('m-group-tags-secondary').innerHTML = secondary.map(g => makeTag(g, true)).join('');
+        loadUsers('');
+        loadCounts();  // 撈各類型人數
+    });
+
+document.getElementById('searchInput').addEventListener('input', function() {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadUsers(this.value), 300);
+});
+
+// 篩選 Tab 切換
+function setTypeFilter(type) {
+    currentType = type;
+    const tabs = { all: 'tab-all', member: 'tab-member', visitor: 'tab-visitor' };
+    Object.entries(tabs).forEach(([t, id]) => {
+        const btn = document.getElementById(id);
+        const active = t === type;
+        btn.style.background = active ? 'var(--green)' : 'white';
+        btn.style.color = active ? 'white' : 'var(--text-3)';
+    });
+    loadUsers(document.getElementById('searchInput').value);
+}
+
+// 撈各類型人數（背景）
+function loadCounts() {
+    ['all', 'member', 'visitor'].forEach(t => {
+        fetch(`/admin/api/users/search?q=&type=${t}`)
+            .then(r => r.json())
+            .then(data => {
+                const el = document.getElementById(`cnt-${t}`);
+                if (el) el.textContent = `(${data.length})`;
+            });
+    });
+}
+
+function setSort(s) {
+    currentSort = s;
+    ['date','name','group'].forEach(k => {
+        const btn = document.getElementById(`sort-${k}`);
+        const active = k === s;
+        btn.style.background = active ? 'var(--green)' : 'white';
+        btn.style.color = active ? 'white' : 'var(--text-3)';
+        btn.style.border = active ? 'none' : '1px solid var(--border)';
+    });
+    renderUsers(_allUsers);
+}
+
+function sortUsers(users) {
+    const copy = [...users];
+    if (currentSort === 'date') {
+        copy.sort((a,b) => (b.created_at || '').localeCompare(a.created_at || ''));
+    } else if (currentSort === 'name') {
+        copy.sort((a,b) => (a.real_name || a.display_name || '').localeCompare(b.real_name || b.display_name || '', 'zh-TW'));
+    } else if (currentSort === 'group') {
+        copy.sort((a,b) => {
+            const ga = Array.isArray(a.group_tags) ? (a.group_tags[0] || '🔡') : '🔡';
+            const gb = Array.isArray(b.group_tags) ? (b.group_tags[0] || '🔡') : '🔡';
+            return ga.localeCompare(gb, 'zh-TW') || (a.real_name || '').localeCompare(b.real_name || '', 'zh-TW');
+        });
+    }
+    return copy;
+}
+
+function loadUsers(kw) {
+    fetch(`/admin/api/users/search?q=${encodeURIComponent(kw)}&type=${currentType}`)
+        .then(r => r.json()).then(data => { _allUsers = data; renderUsers(data); });
+}
+
+function renderUsers(rawUsers) {
+    const users = sortUsers(rawUsers);
+    const container = document.getElementById('userList');
+    if (!users.length) {
+        container.innerHTML = '<p style="color:#999;text-align:center;">找不到符合的使用者</p>';
+        return;
+    }
+    // 小組排序模式：插入分組標題
+    let lastGroup = null;
+    container.innerHTML = users.map(u => {
+        const name = u.real_name || '';
+        const tags = Array.isArray(u.group_tags) ? u.group_tags : (u.group_tags ? [u.group_tags] : []);
+        const isVisitor = u.member_type === 'visitor';
+        const joinDate = u.created_at ? u.created_at.slice(0,10) : '—';
+
+        let groupHeader = '';
+        if (currentSort === 'group') {
+            const g = tags[0] || '未分組';
+            if (g !== lastGroup) {
+                lastGroup = g;
+                groupHeader = `<div style="margin:16px 0 6px; font-size:0.78rem; font-weight:700; color:var(--text-4);
+                    text-transform:uppercase; letter-spacing:0.05em; display:flex; align-items:center; gap:6px;">
+                    <span style="flex:1; border-top:1px solid var(--border);"></span>
+                    <span>${g}</span>
+                    <span style="flex:1; border-top:1px solid var(--border);"></span>
+                </div>`;
+            }
+        }
+        return groupHeader + `
+        <div style="background:white; border-radius:12px; padding:16px 20px; margin-bottom:12px;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+            <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+
+                <!-- 頭像 -->
+                <img src="${u.picture_url || ''}" style="width:44px; height:44px; border-radius:50%; object-fit:cover; flex-shrink:0;"
+                    onerror="this.style.display='none'">
+
+                <!-- 名稱資訊 -->
+                <div style="flex:1; min-width:140px;">
+                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                        <span style="font-weight:bold;">${name || '<span style="color:#bbb;">未填寫</span>'}</span>
+                        ${isVisitor ? '<span style="font-size:0.72rem; background:#f0f4ff; color:#3949ab; padding:2px 7px; border-radius:10px;">🙋 訪客</span>' : ''}
+                        ${u.is_super_admin ? '<span style="font-size:0.72rem; background:#fff3e0; color:#e65100; padding:2px 7px; border-radius:10px;">超級管理員</span>' : ''}
+                    </div>
+                    <div style="font-size:0.8rem; color:#aaa; margin-top:2px;">LINE：${u.display_name || '—'} ・ 加入：${joinDate}</div>
+                    <div style="margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;">
+                        ${tags.map(t => `<span style="background:#f0f4ff; color:#555; padding:2px 8px; border-radius:12px; font-size:0.78rem;">${t}</span>`).join('')}
+                        ${!name ? '<span style="background:#ffebee; color:#c62828; padding:2px 8px; border-radius:12px; font-size:0.78rem;">⚠ 未建立資料</span>' : ''}
+                    </div>
+                </div>
+
+                <!-- 操作區 -->
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                    <button onclick='openEdit(${JSON.stringify(u)})'
+                        style="padding:6px 14px; background:#e3f2fd; color:#1565c0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                        編輯資料
+                    </button>
+                    <span id="badge-${u.id}" style="padding:4px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;
+                        background:${u.is_super_admin ? '#fff3e0' : u.is_admin ? '#e8f5e9' : '#f5f5f5'};
+                        color:${u.is_super_admin ? '#e65100' : u.is_admin ? '#2e7d32' : '#999'};">
+                        ${u.is_super_admin ? '⭐ 超管' : u.is_admin ? '管理員' : '一般用戶'}
+                    </span>
+                    <button id="admin-btn-${u.id}" onclick="toggleAdmin('${u.id}', this)"
+                        style="padding:6px 14px; border-radius:6px; border:none; cursor:pointer; font-size:0.85rem;
+                               background:${u.is_admin ? '#ffebee' : '#e3f2fd'};
+                               color:${u.is_admin ? '#c62828' : '#1565c0'};">
+                        ${u.is_admin ? '取消管理員' : '設為管理員'}
+                    </button>
+                    <button id="super-btn-${u.id}" onclick="toggleSuperAdmin('${u.id}', this)"
+                        style="padding:6px 14px; border-radius:6px; border:1.5px dashed; cursor:pointer; font-size:0.85rem;
+                               background:${u.is_super_admin ? '#fff3e0' : 'white'};
+                               border-color:${u.is_super_admin ? '#e65100' : '#ddd'};
+                               color:${u.is_super_admin ? '#e65100' : '#aaa'};">
+                        ${u.is_super_admin ? '取消超管' : '設為超管'}
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    }).join('');
+}
+
+function toggleModalTag(el) {
+    const cb = el.querySelector('input');
+    cb.checked = !cb.checked;
+    const isSecondary = el.dataset.secondary === 'true';
+    if (isSecondary) {
+        el.style.background = cb.checked ? '#fff8e1' : 'white';
+        el.style.borderColor = cb.checked ? '#f0a500' : '#ddd';
+        el.style.color = cb.checked ? '#e65100' : '#888';
+    } else {
+        el.style.background = cb.checked ? '#e8f5e9' : 'white';
+        el.style.borderColor = cb.checked ? '#06C755' : '#ddd';
+        el.style.color = cb.checked ? '#2e7d32' : '#333';
+    }
+    el.style.fontWeight = cb.checked ? 'bold' : 'normal';
+}
+
+function openEdit(user) {
+    currentEditUserId = user.id;
+    document.getElementById('m-name').value = user.real_name || '';
+    // 身分
+    const isMember = (user.member_type !== 'visitor');
+    document.getElementById('m-type-member').checked  = isMember;
+    document.getElementById('m-type-visitor').checked = !isMember;
+    document.getElementById('m-group-section').style.display = isMember ? 'block' : 'none';
+    const userTags = Array.isArray(user.group_tags) ? user.group_tags : [];
+    // 重設所有 checkbox（主 + 副）
+    document.querySelectorAll('#m-group-tags-primary label, #m-group-tags-secondary label').forEach(el => {
+        const cb = el.querySelector('input');
+        const checked = userTags.includes(cb.value);
+        const isSecondary = el.dataset.secondary === 'true';
+        cb.checked = checked;
+        if (isSecondary) {
+            el.style.background = checked ? '#fff8e1' : 'white';
+            el.style.borderColor = checked ? '#f0a500' : '#ddd';
+            el.style.color = checked ? '#e65100' : '#888';
+        } else {
+            el.style.background = checked ? '#e8f5e9' : 'white';
+            el.style.borderColor = checked ? '#06C755' : '#ddd';
+            el.style.color = checked ? '#2e7d32' : '#333';
+        }
+        el.style.fontWeight = checked ? 'bold' : 'normal';
+    });
+    document.getElementById('edit-modal').style.display = 'flex';
+}
+
+function closeModal() {
+    document.getElementById('edit-modal').style.display = 'none';
+    currentEditUserId = null;
+}
+
+function saveProfile() {
+    if (!currentEditUserId) return;
+    const member_type = document.getElementById('m-type-visitor').checked ? 'visitor' : 'member';
+    const group_tags  = member_type === 'member'
+        ? [...document.querySelectorAll('#m-group-tags-primary input[name="m-tag"]:checked, #m-group-tags-secondary input[name="m-tag"]:checked')].map(c => c.value)
+        : [];
+    const data = {
+        real_name: document.getElementById('m-name').value.trim(),
+        group_tags,
+        member_type,
+    };
+    fetch(`/admin/api/users/${currentEditUserId}/profile`, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) { closeModal(); loadUsers(document.getElementById('searchInput').value); }
+        else alert(d.error || '儲存失敗');
+    });
+}
+
+function toggleEditType(type) {
+    document.getElementById('m-type-member').checked  = (type === 'member');
+    document.getElementById('m-type-visitor').checked = (type === 'visitor');
+    const mLabel = document.querySelector('label[onclick="toggleEditType(\'member\')"]');
+    const vLabel = document.getElementById('m-visitor-label');
+    if (type === 'member') {
+        mLabel.style.borderColor = '#06C755'; mLabel.style.background = '#e8f5e9'; mLabel.style.color = '#2e7d32';
+        vLabel.style.borderColor = '#ddd';    vLabel.style.background = 'white';   vLabel.style.color = '#555';
+        document.getElementById('m-group-section').style.display = 'block';
+    } else {
+        vLabel.style.borderColor = '#3949ab'; vLabel.style.background = '#f0f4ff'; vLabel.style.color = '#3949ab';
+        mLabel.style.borderColor = '#ddd';    mLabel.style.background = 'white';   mLabel.style.color = '#555';
+        document.getElementById('m-group-section').style.display = 'none';
+    }
+}
+
+function _syncRoleBadge(userId, isAdmin, isSuperAdmin) {
+    const badge = document.getElementById(`badge-${userId}`);
+    const adminBtn = document.getElementById(`admin-btn-${userId}`);
+    const superBtn = document.getElementById(`super-btn-${userId}`);
+    if (badge) {
+        badge.textContent = isSuperAdmin ? '⭐ 超管' : isAdmin ? '管理員' : '一般用戶';
+        badge.style.background = isSuperAdmin ? '#fff3e0' : isAdmin ? '#e8f5e9' : '#f5f5f5';
+        badge.style.color = isSuperAdmin ? '#e65100' : isAdmin ? '#2e7d32' : '#999';
+    }
+    if (adminBtn) {
+        adminBtn.textContent = isAdmin ? '取消管理員' : '設為管理員';
+        adminBtn.style.background = isAdmin ? '#ffebee' : '#e3f2fd';
+        adminBtn.style.color = isAdmin ? '#c62828' : '#1565c0';
+        adminBtn.disabled = false;
+    }
+    if (superBtn) {
+        superBtn.textContent = isSuperAdmin ? '取消超管' : '設為超管';
+        superBtn.style.background = isSuperAdmin ? '#fff3e0' : 'white';
+        superBtn.style.borderColor = isSuperAdmin ? '#e65100' : '#ddd';
+        superBtn.style.color = isSuperAdmin ? '#e65100' : '#aaa';
+        superBtn.disabled = false;
+    }
+}
+
+function toggleAdmin(userId, btn) {
+    btn.disabled = true; btn.textContent = '處理中...';
+    fetch(`/admin/api/users/${userId}/toggle-admin`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); btn.disabled = false; return; }
+            _syncRoleBadge(userId, data.is_admin, data.is_super_admin);
+        });
+}
+
+function toggleSuperAdmin(userId, btn) {
+    btn.disabled = true; btn.textContent = '處理中...';
+    fetch(`/admin/api/users/${userId}/toggle-super-admin`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); btn.disabled = false; return; }
+            _syncRoleBadge(userId, data.is_admin, data.is_super_admin);
+        });
+}
+</script>
+{% endblock %}

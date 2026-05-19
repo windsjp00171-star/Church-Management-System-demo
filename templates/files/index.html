@@ -1,0 +1,927 @@
+{% extends 'base.html' %}
+{% block title %}檔案總覽 — 資料交換中心{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="breadcrumb">
+    <a href="{{ url_for('files.index') }}">首頁</a>
+    {% if current_folder %}
+      <span>›</span>
+      <span>{{ current_folder.name }}</span>
+    {% endif %}
+  </div>
+  <div class="header-actions">
+    {% if user_role in ['admin', 'pastor', 'accountant', 'ppt'] %}
+    <button class="btn-secondary" onclick="openModal('folderModal')">+ 資料夾</button>
+    {% endif %}
+    <label for="photoInput" class="btn-secondary" style="cursor:pointer">📷 拍照</label>
+    <button class="btn-primary" onclick="openModal('uploadModal')">↑ 上傳</button>
+  </div>
+</div>
+
+{% if storage_info %}
+<div class="storage-bar-wrap">
+  <div class="storage-bar-track">
+    <div class="storage-bar-fill {% if storage_info.pct >= 90 %}storage-danger{% elif storage_info.pct >= 70 %}storage-warn{% endif %}"
+         style="width:{{ storage_info.pct }}%"></div>
+  </div>
+  <span class="storage-label">已用 {{ storage_info.used_label }} / {{ storage_info.limit_label }}（{{ storage_info.pct }}%）</span>
+</div>
+{% endif %}
+
+{% if folders %}
+<section class="section">
+  <h3 class="section-title">📁 資料夾</h3>
+  <div class="folder-grid">
+    {% for folder in folders %}
+    <div class="folder-card-wrap">
+      <a href="{{ url_for('files.index', folder_id=folder.id) }}" class="folder-card">
+        <div class="folder-icon">{{ '🔒' if folder.protection == 'password' else '📁' }}</div>
+        <div class="folder-name">{{ folder.name }}</div>
+        <div class="folder-meta">{{ visibility_labels.get(folder.visibility, folder.visibility) }}</div>
+      </a>
+      {% if folder.created_by == current_user or is_admin %}
+      <button class="btn-sm btn-danger folder-delete-btn" onclick="deleteFolder('{{ folder.id }}')">刪除</button>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+<section class="section">
+  <div class="files-section-header">
+    <h3 class="section-title" style="margin-bottom:0">📄 檔案</h3>
+    <form method="get" action="{{ url_for('files.index') }}" class="search-wrap" style="display:flex;gap:0.4rem;">
+      {% if folder_id %}<input type="hidden" name="folder_id" value="{{ folder_id }}">{% endif %}
+      <input type="search" name="q" class="search-input" placeholder="搜尋檔案和資料夾…" value="{{ q or '' }}" id="searchInput">
+      {% if q %}<a href="{{ url_for('files.index', folder_id=folder_id) if folder_id else url_for('files.index') }}" class="btn-secondary btn-sm">✕</a>{% endif %}
+    </form>
+  </div>
+
+  {% if q %}
+  <p class="empty-note" style="margin-bottom:0.75rem">搜尋「{{ q }}」的結果</p>
+  {% else %}
+  <div class="drop-zone-hint" onclick="document.getElementById('multiFileInput').click()">
+    📂 拖拉檔案到此處，或點此選擇多個檔案
+  </div>
+  {% endif %}
+
+  {% if files %}
+  <div class="file-list" id="fileList">
+    {% for file in files %}
+    <div class="file-item" data-name="{{ file.name | lower }}">
+      <!-- 縮圖 / 圖示 -->
+      <div class="file-thumb-col">
+        {% if file.thumb_url %}
+        <img src="{{ file.thumb_url }}" class="file-thumb" loading="lazy" alt="">
+        {% else %}
+        <span class="file-icon">{{ '🔒' if file.protection == 'password' else '📄' }}</span>
+        {% endif %}
+      </div>
+
+      <!-- 名稱 + meta -->
+      <div class="file-main">
+        <div class="file-name-row">
+          {% if file.owner_id == current_user or is_admin %}
+          <span class="file-name editable-name"
+                data-file-id="{{ file.id }}"
+                onclick="startRename(this)">{{ file.name }}</span>
+          {% else %}
+          <span class="file-name">{{ file.name }}</span>
+          {% endif %}
+        </div>
+        <div class="file-meta">
+          {% if file.uploader %}<span>{{ file.uploader }}</span>{% endif %}
+          {% if file.size_label %}<span>{{ file.size_label }}</span>{% endif %}
+          {% if file.created_at %}<span>{{ file.created_at[:10] }}</span>{% endif %}
+        </div>
+      </div>
+
+      <!-- 操作按鈕 -->
+      <div class="file-actions">
+        <a href="{{ url_for('files.view_file', file_id=file.id) }}" class="btn-sm">預覽</a>
+        <button class="btn-sm btn-share" onclick="openQuickShare('{{ file.id }}')">🔗 分享</button>
+        <a href="{{ url_for('files.download_file', file_id=file.id) }}" class="btn-sm">↓</a>
+        {% if file.owner_id == current_user or is_admin %}
+        <button class="btn-sm btn-danger" onclick="deleteFile('{{ file.id }}')">刪</button>
+        {% endif %}
+      </div>
+    </div>
+    {% endfor %}
+    <div id="noResults" class="empty-state" style="display:none">找不到符合的檔案</div>
+  </div>
+  {% else %}
+  <div class="empty-state">尚無檔案</div>
+  {% endif %}
+</section>
+
+<!-- ── 上傳檔案 Modal ── -->
+<div id="uploadModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>上傳檔案</h3>
+      <button onclick="closeModal('uploadModal')">✕</button>
+    </div>
+    <form id="uploadForm" enctype="multipart/form-data">
+      <input type="hidden" name="folder_id" value="{{ folder_id or '' }}">
+      <div class="form-group">
+        <label>選擇檔案</label>
+        <input type="file" name="file" id="uploadFileInput" required>
+      </div>
+      <!-- 進度條 -->
+      <div id="uploadProgressWrap" style="display:none; margin-bottom:0.75rem;">
+        <div class="progress-track"><div class="progress-fill" id="uploadProgressBar"></div></div>
+        <span class="progress-label" id="uploadProgressLabel">0%</span>
+      </div>
+      <div class="form-group">
+        <label>可見範圍</label>
+        <select name="visibility" id="uploadVisibility">
+          <option value="private">只有我</option>
+          <option value="public">所有同工</option>
+          <option value="groups">指定分組（並通知成員）</option>
+          <option value="users">指定使用者（並通知對方）</option>
+          <option value="roles">指定角色</option>
+        </select>
+      </div>
+      <div class="form-group user-picker" id="userCheckboxes" style="display:none">
+        <label>指定可見使用者</label>
+        <div class="user-list-scroll">
+          {% for u in all_users %}
+          <label class="user-check-item">
+            <input type="checkbox" name="allowed_users" value="{{ u.id }}">
+            <span class="user-check-name">{{ u.display_name }}</span>
+            <span class="user-check-role">{{ role_labels.get(u.role, u.role) }}</span>
+          </label>
+          {% endfor %}
+          {% if not all_users %}<p class="empty-note">目前沒有其他同工</p>{% endif %}
+        </div>
+      </div>
+      <div class="form-group user-picker" id="groupCheckboxes" style="display:none">
+        <label>指定分組</label>
+        <div class="user-list-scroll">
+          {% for g in all_groups %}
+          <label class="user-check-item">
+            <input type="checkbox" name="allowed_groups" value="{{ g.id }}">
+            <span class="user-check-name">{{ g.name }}</span>
+          </label>
+          {% endfor %}
+          {% if not all_groups %}<p class="empty-note">尚未建立任何群組，請超管先到後台建立</p>{% endif %}
+        </div>
+      </div>
+      <div class="form-group" id="roleCheckboxes" style="display:none">
+        <label>指定角色</label>
+        <label class="user-check-item"><input type="checkbox" name="allowed_roles" value="pastor"> <span>牧者</span></label>
+        <label class="user-check-item"><input type="checkbox" name="allowed_roles" value="accountant"> <span>會計</span></label>
+        <label class="user-check-item"><input type="checkbox" name="allowed_roles" value="ppt"> <span>PPT同工</span></label>
+        <label class="user-check-item"><input type="checkbox" name="allowed_roles" value="admin"> <span>管理員</span></label>
+      </div>
+      <div class="form-group">
+        <label>保護方式</label>
+        <select name="protection" id="protectionSelect">
+          <option value="none">無</option>
+          <option value="password">🔒 密碼保護</option>
+        </select>
+      </div>
+      <div class="form-group" id="passwordField" style="display:none">
+        <label>設定密碼</label>
+        <input type="password" name="password" placeholder="輸入開啟密碼">
+      </div>
+      <div class="form-actions">
+        <button type="button" onclick="closeModal('uploadModal')" class="btn-secondary">取消</button>
+        <button type="submit" class="btn-primary" id="uploadSubmitBtn">上傳</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── 新增資料夾 Modal ── -->
+<div id="folderModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>新增資料夾</h3>
+      <button onclick="closeModal('folderModal')">✕</button>
+    </div>
+    <form id="folderForm">
+      <input type="hidden" name="parent_id" value="{{ folder_id or '' }}">
+      <div class="form-group">
+        <label>資料夾名稱</label>
+        <input type="text" name="name" required placeholder="例：2024年度財務">
+      </div>
+      <div class="form-group">
+        <label>可見範圍</label>
+        <select name="visibility" id="folderVisibility">
+          <option value="private">只有我</option>
+          <option value="public">所有同工</option>
+          <option value="groups">指定分組</option>
+          <option value="users">指定使用者</option>
+          <option value="roles">指定角色</option>
+        </select>
+      </div>
+      <div class="form-group user-picker" id="folderUserPicker" style="display:none">
+        <label>指定可見使用者</label>
+        <div class="user-list-scroll">
+          {% for u in all_users %}
+          <label class="user-check-item">
+            <input type="checkbox" name="allowed_users" value="{{ u.id }}">
+            <span class="user-check-name">{{ u.display_name }}</span>
+            <span class="user-check-role">{{ role_labels.get(u.role, u.role) }}</span>
+          </label>
+          {% endfor %}
+          {% if not all_users %}<p class="empty-note">目前沒有其他同工</p>{% endif %}
+        </div>
+      </div>
+      <div class="form-group user-picker" id="folderGroupPicker" style="display:none">
+        <label>指定分組</label>
+        <div class="user-list-scroll">
+          {% for g in all_groups %}
+          <label class="user-check-item">
+            <input type="checkbox" name="allowed_groups" value="{{ g.id }}">
+            <span class="user-check-name">{{ g.name }}</span>
+          </label>
+          {% endfor %}
+          {% if not all_groups %}<p class="empty-note">尚未建立任何群組</p>{% endif %}
+        </div>
+      </div>
+      <div class="form-group" id="folderRolePicker" style="display:none">
+        <label>指定角色</label>
+        <label class="user-check-item"><input type="checkbox" name="allowed_roles" value="pastor"> <span>牧者</span></label>
+        <label class="user-check-item"><input type="checkbox" name="allowed_roles" value="accountant"> <span>會計</span></label>
+        <label class="user-check-item"><input type="checkbox" name="allowed_roles" value="ppt"> <span>PPT同工</span></label>
+        <label class="user-check-item"><input type="checkbox" name="allowed_roles" value="admin"> <span>管理員</span></label>
+      </div>
+      <div class="form-group">
+        <label>保護方式</label>
+        <select name="protection" id="folderProtectionSelect">
+          <option value="none">無</option>
+          <option value="password">🔒 密碼保護</option>
+        </select>
+      </div>
+      <div class="form-group" id="folderPasswordField" style="display:none">
+        <label>設定密碼</label>
+        <input type="password" name="password" placeholder="輸入資料夾密碼">
+      </div>
+      <div class="form-actions">
+        <button type="button" onclick="closeModal('folderModal')" class="btn-secondary">取消</button>
+        <button type="submit" class="btn-primary">建立</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── 快速分享 Modal ── -->
+<div id="quickShareModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>🔗 一鍵分享</h3>
+      <button onclick="closeModal('quickShareModal')">✕</button>
+    </div>
+    <div class="form-group">
+      <label>連結有效期限</label>
+      <div class="expires-options">
+        <label class="expires-btn"><input type="radio" name="qExpires" value="1h"> 1 小時</label>
+        <label class="expires-btn"><input type="radio" name="qExpires" value="24h" checked> 24 小時</label>
+        <label class="expires-btn"><input type="radio" name="qExpires" value="7d"> 7 天</label>
+      </div>
+    </div>
+    <button class="btn-primary btn-full" onclick="generateQuickLink()">產生連結</button>
+    <div id="quickShareResult" style="display:none; margin-top:1rem;">
+      <label style="display:block; font-size:0.85rem; color:var(--color-text-muted); margin-bottom:0.4rem;">下載連結（複製後傳給對方）</label>
+      <div class="share-link-row">
+        <input type="text" id="quickShareUrl" readonly class="share-link-input">
+        <button class="btn-secondary" onclick="copyQuickLink()">複製</button>
+      </div>
+      <p id="quickShareHint" class="share-link-hint"></p>
+    </div>
+  </div>
+</div>
+
+<!-- ── 批次上傳 Modal ── -->
+<div id="batchModal" class="modal">
+  <div class="modal-content" style="max-width:520px;">
+    <div class="modal-header">
+      <h3>📂 批次上傳</h3>
+      <button onclick="closeBatchModal()">✕</button>
+    </div>
+    <!-- 整體進度 -->
+    <div class="batch-overall-progress" id="batchOverallWrap" style="display:none">
+      <div class="progress-track"><div class="progress-fill" id="batchOverallBar"></div></div>
+      <span class="progress-label" id="batchOverallLabel">0 / 0</span>
+    </div>
+    <!-- 目標資料夾 -->
+    <div class="form-group">
+      <label>上傳至資料夾 <span style="color:var(--color-danger)">*</span></label>
+      <select id="batchFolderId" required>
+        <option value="">— 請選擇資料夾 —</option>
+        <option value="{{ folder_id or '' }}">
+          📁 {{ current_folder.name if current_folder else '根目錄（首頁）' }}（目前位置）
+        </option>
+        {% for f in folders %}
+        {% if f.id != folder_id %}
+        <option value="{{ f.id }}">📁 {{ f.name }}</option>
+        {% endif %}
+        {% endfor %}
+      </select>
+    </div>
+    <!-- 檔案清單 -->
+    <div class="batch-file-list" id="batchFileList"></div>
+    <!-- 可見範圍（共用） -->
+    <div class="form-group">
+      <label>可見範圍（套用至所有檔案）</label>
+      <select id="batchVisibility">
+        <option value="private">只有我</option>
+        <option value="public">所有同工</option>
+        <option value="groups">指定分組（並通知成員）</option>
+        <option value="users">指定使用者（並通知對方）</option>
+        <option value="roles">指定角色</option>
+      </select>
+    </div>
+    <div class="form-group user-picker" id="batchUserPicker" style="display:none">
+      <label>指定可見使用者</label>
+      <div class="user-list-scroll">
+        {% for u in all_users %}
+        <label class="user-check-item">
+          <input type="checkbox" class="batchUserCheck" value="{{ u.id }}">
+          <span class="user-check-name">{{ u.display_name }}</span>
+          <span class="user-check-role">{{ role_labels.get(u.role, u.role) }}</span>
+        </label>
+        {% endfor %}
+        {% if not all_users %}<p class="empty-note">目前沒有其他同工</p>{% endif %}
+      </div>
+    </div>
+    <div class="form-group user-picker" id="batchGroupPicker" style="display:none">
+      <label>指定分組</label>
+      <div class="user-list-scroll">
+        {% for g in all_groups %}
+        <label class="user-check-item">
+          <input type="checkbox" class="batchGroupCheck" value="{{ g.id }}">
+          <span class="user-check-name">{{ g.name }}</span>
+        </label>
+        {% endfor %}
+        {% if not all_groups %}<p class="empty-note">尚未建立任何群組</p>{% endif %}
+      </div>
+    </div>
+    <div class="form-group" id="batchRolePicker" style="display:none">
+      <label>指定角色</label>
+      <label class="user-check-item"><input type="checkbox" class="batchRoleCheck" value="pastor"> <span>牧者</span></label>
+      <label class="user-check-item"><input type="checkbox" class="batchRoleCheck" value="accountant"> <span>會計</span></label>
+      <label class="user-check-item"><input type="checkbox" class="batchRoleCheck" value="ppt"> <span>PPT同工</span></label>
+      <label class="user-check-item"><input type="checkbox" class="batchRoleCheck" value="admin"> <span>管理員</span></label>
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeBatchModal()">取消</button>
+      <button class="btn-primary" id="batchUploadBtn" onclick="startBatchUpload()">↑ 全部上傳</button>
+    </div>
+  </div>
+</div>
+
+<!-- 拖拉上傳覆蓋層 -->
+<div id="dropOverlay" class="drop-overlay" style="display:none">
+  <div class="drop-overlay-inner">
+    <div class="drop-icon">📂</div>
+    <div class="drop-text">放開以加入上傳佇列</div>
+    <div class="drop-subtext">支援多個檔案同時拖入</div>
+  </div>
+</div>
+
+<!-- 隱藏的原生相機/相簿 input -->
+<input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoSelected(this)">
+<!-- 多檔案選擇 input -->
+<input type="file" id="multiFileInput" multiple style="display:none" onchange="handleMultiFileSelected(this)">
+
+<!-- ── 拍照上傳設定 Modal ── -->
+<div id="photoModal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h3>📷 拍照上傳</h3>
+      <button onclick="closeModal('photoModal')">✕</button>
+    </div>
+    <div id="photoPreviewWrap" style="margin-bottom:1rem; text-align:center; display:none">
+      <img id="photoPreviewImg" style="max-width:100%; max-height:240px; border-radius:var(--radius); border:1px solid var(--color-border);" alt="">
+    </div>
+    <!-- 進度條 -->
+    <div id="photoProgressWrap" style="display:none; margin-bottom:0.75rem;">
+      <div class="progress-track"><div class="progress-fill" id="photoProgressBar"></div></div>
+      <span class="progress-label" id="photoProgressLabel">0%</span>
+    </div>
+    <div class="form-group">
+      <label>檔案名稱</label>
+      <input type="text" id="photoFilename" placeholder="文件照片">
+    </div>
+    <div class="form-group">
+      <label>可見範圍</label>
+      <select id="photoVisibility">
+        <option value="private">只有我</option>
+        <option value="public">所有同工</option>
+        <option value="groups">指定分組（並通知成員）</option>
+        <option value="users">指定使用者（並通知對方）</option>
+        <option value="roles">指定角色</option>
+      </select>
+    </div>
+    <div class="user-picker" id="photoUserPicker" style="display:none">
+      <div class="user-list-scroll">
+        {% for u in all_users %}
+        <label class="user-check-item">
+          <input type="checkbox" class="photoUserCheck" value="{{ u.id }}">
+          <span class="user-check-name">{{ u.display_name }}</span>
+          <span class="user-check-role">{{ role_labels.get(u.role, u.role) }}</span>
+        </label>
+        {% endfor %}
+      </div>
+    </div>
+    <div class="user-picker" id="photoGroupPicker" style="display:none">
+      <div class="user-list-scroll">
+        {% for g in all_groups %}
+        <label class="user-check-item">
+          <input type="checkbox" class="photoGroupCheck" value="{{ g.id }}">
+          <span class="user-check-name">{{ g.name }}</span>
+        </label>
+        {% endfor %}
+        {% if not all_groups %}<p class="empty-note">尚未建立任何群組</p>{% endif %}
+      </div>
+    </div>
+    <div class="form-group" id="photoRolePicker" style="display:none">
+      <label>指定角色</label>
+      <label class="user-check-item"><input type="checkbox" class="photoRoleCheck" value="pastor"> <span>牧者</span></label>
+      <label class="user-check-item"><input type="checkbox" class="photoRoleCheck" value="accountant"> <span>會計</span></label>
+      <label class="user-check-item"><input type="checkbox" class="photoRoleCheck" value="ppt"> <span>PPT同工</span></label>
+      <label class="user-check-item"><input type="checkbox" class="photoRoleCheck" value="admin"> <span>管理員</span></label>
+    </div>
+    <div class="form-group">
+      <label>保護方式</label>
+      <select id="photoProtection">
+        <option value="none">無</option>
+        <option value="password">🔒 密碼保護</option>
+      </select>
+    </div>
+    <div class="form-group" id="photoPasswordField" style="display:none">
+      <label>設定密碼</label>
+      <input type="password" id="photoPassword" placeholder="輸入開啟密碼">
+    </div>
+    <div class="form-actions">
+      <button class="btn-secondary" onclick="closeModal('photoModal')">取消</button>
+      <button class="btn-primary" id="photoUploadBtn" onclick="uploadPhoto()">↑ 上傳</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const MAX_FILE_BYTES = 500 * 1024 * 1024;
+
+// ── 可見範圍切換 ──
+document.getElementById('uploadVisibility')?.addEventListener('change', function() {
+  document.getElementById('userCheckboxes').style.display = this.value === 'users' ? 'block' : 'none';
+  document.getElementById('groupCheckboxes').style.display = this.value === 'groups' ? 'block' : 'none';
+  document.getElementById('roleCheckboxes').style.display = this.value === 'roles' ? 'block' : 'none';
+});
+document.getElementById('protectionSelect')?.addEventListener('change', function() {
+  document.getElementById('passwordField').style.display = this.value === 'password' ? 'block' : 'none';
+});
+document.getElementById('folderVisibility')?.addEventListener('change', function() {
+  document.getElementById('folderUserPicker').style.display = this.value === 'users' ? 'block' : 'none';
+  document.getElementById('folderGroupPicker').style.display = this.value === 'groups' ? 'block' : 'none';
+  document.getElementById('folderRolePicker').style.display = this.value === 'roles' ? 'block' : 'none';
+});
+document.getElementById('folderProtectionSelect')?.addEventListener('change', function() {
+  document.getElementById('folderPasswordField').style.display = this.value === 'password' ? 'block' : 'none';
+});
+document.getElementById('photoProtection')?.addEventListener('change', function() {
+  document.getElementById('photoPasswordField').style.display = this.value === 'password' ? 'block' : 'none';
+});
+document.getElementById('photoVisibility')?.addEventListener('change', function() {
+  document.getElementById('photoUserPicker').style.display = this.value === 'users' ? 'block' : 'none';
+  document.getElementById('photoGroupPicker').style.display = this.value === 'groups' ? 'block' : 'none';
+  document.getElementById('photoRolePicker').style.display = this.value === 'roles' ? 'block' : 'none';
+});
+
+// ── 工具函式 ──
+function formatSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1048576) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1048576).toFixed(1) + ' MB';
+}
+
+// ── XHR 上傳（含進度條）──
+function xhrUpload(url, formData, { progressBarId, progressLabelId, progressWrapId, submitBtnId, onSuccess, onError }) {
+  const bar = document.getElementById(progressBarId);
+  const label = document.getElementById(progressLabelId);
+  const wrap = document.getElementById(progressWrapId);
+  const btn = document.getElementById(submitBtnId);
+
+  if (wrap) wrap.style.display = 'block';
+  if (btn) { btn.disabled = true; btn.textContent = '上傳中…'; }
+
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+  const xhr = new XMLHttpRequest();
+  xhr.upload.addEventListener('progress', (e) => {
+    if (!e.lengthComputable) return;
+    const pct = Math.round(e.loaded / e.total * 100);
+    if (bar) bar.style.width = pct + '%';
+    if (label) label.textContent = pct + '%';
+  });
+  xhr.addEventListener('load', () => {
+    try { onSuccess(JSON.parse(xhr.responseText)); }
+    catch(e) { onError('解析錯誤'); }
+  });
+  xhr.addEventListener('error', () => onError('網路錯誤，請重試'));
+  xhr.open('POST', url);
+  if (csrfToken) xhr.setRequestHeader('X-CSRFToken', csrfToken);
+  xhr.send(formData);
+}
+
+// ── 一般上傳表單 ──
+document.getElementById('uploadForm')?.addEventListener('submit', function(e) {
+  e.preventDefault();
+  const fileInput = document.getElementById('uploadFileInput');
+  if (fileInput.files[0] && fileInput.files[0].size > MAX_FILE_BYTES) {
+    alert(`檔案超過 500 MB 上限（${formatSize(fileInput.files[0].size)}），請選擇較小的檔案`);
+    return;
+  }
+  const form = new FormData(this);
+  xhrUpload('/files/upload', form, {
+    progressBarId: 'uploadProgressBar',
+    progressLabelId: 'uploadProgressLabel',
+    progressWrapId: 'uploadProgressWrap',
+    submitBtnId: 'uploadSubmitBtn',
+    onSuccess: (data) => {
+      if (data.success) { location.reload(); }
+      else {
+        alert(data.error || '上傳失敗');
+        const btn = document.getElementById('uploadSubmitBtn');
+        btn.disabled = false; btn.textContent = '上傳';
+        document.getElementById('uploadProgressWrap').style.display = 'none';
+      }
+    },
+    onError: (msg) => {
+      alert(msg);
+      const btn = document.getElementById('uploadSubmitBtn');
+      btn.disabled = false; btn.textContent = '上傳';
+      document.getElementById('uploadProgressWrap').style.display = 'none';
+    },
+  });
+});
+
+document.getElementById('folderForm')?.addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const form = new FormData(this);
+  const res = await fetch('/folders/create', { method: 'POST', body: form });
+  const data = await res.json();
+  if (data.success) { location.reload(); }
+  else { alert(data.error || '建立失敗'); }
+});
+
+// ── 搜尋（Enter 提交伺服器搜尋）──
+document.getElementById('searchInput')?.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') { this.closest('form').submit(); }
+});
+
+// ── 改名 ──
+function startRename(el) {
+  if (el.querySelector('input')) return; // 已在編輯中
+  const oldName = el.textContent.trim();
+  const fileId = el.dataset.fileId;
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.value = oldName;
+  input.className = 'rename-input';
+  el.textContent = '';
+  el.appendChild(input);
+  input.focus();
+  input.select();
+
+  async function commit() {
+    const newName = input.value.trim();
+    if (!newName || newName === oldName) { el.textContent = oldName; return; }
+    const form = new FormData();
+    form.append('name', newName);
+    const res = await fetch(`/files/${fileId}/rename`, { method: 'POST', body: form });
+    const data = await res.json();
+    el.textContent = data.success ? newName : oldName;
+    if (!data.success) alert(data.error || '改名失敗');
+    // 更新搜尋 data-name
+    el.closest('.file-item').dataset.name = (data.success ? newName : oldName).toLowerCase();
+  }
+  input.addEventListener('blur', commit);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') input.blur();
+    if (e.key === 'Escape') { el.textContent = oldName; }
+  });
+}
+
+async function deleteFile(id) {
+  if (!confirm('確定刪除這個檔案？')) return;
+  const res = await fetch(`/files/${id}/delete`, { method: 'POST' });
+  const data = await res.json();
+  if (data.success) { location.reload(); }
+}
+
+async function deleteFolder(id) {
+  if (!confirm('確定刪除這個資料夾？（資料夾內的檔案不會被刪除）')) return;
+  const res = await fetch(`/folders/${id}/delete`, { method: 'POST' });
+  const data = await res.json();
+  if (data.success) { location.reload(); }
+}
+
+// ── 快速分享 ──
+let currentShareFileId = null;
+function openQuickShare(fileId) {
+  currentShareFileId = fileId;
+  document.getElementById('quickShareResult').style.display = 'none';
+  openModal('quickShareModal');
+}
+async function generateQuickLink() {
+  if (!currentShareFileId) return;
+  const expires = document.querySelector('[name="qExpires"]:checked')?.value || '24h';
+  const form = new FormData();
+  form.append('expires', expires);
+  const res = await fetch(`/files/${currentShareFileId}/share-link`, { method: 'POST', body: form });
+  const data = await res.json();
+  if (data.url) {
+    document.getElementById('quickShareUrl').value = data.url;
+    const labels = { '1h': '1 小時', '24h': '24 小時', '7d': '7 天' };
+    document.getElementById('quickShareHint').textContent = `此連結 ${labels[data.expires]} 後自動失效`;
+    document.getElementById('quickShareResult').style.display = 'block';
+  }
+}
+async function copyQuickLink() {
+  await navigator.clipboard.writeText(document.getElementById('quickShareUrl').value);
+  const btn = event.target;
+  btn.textContent = '已複製 ✓';
+  setTimeout(() => btn.textContent = '複製', 2000);
+}
+
+// ── 拍照上傳（原生選擇器）──
+const _isLineBrowser = /Line\//i.test(navigator.userAgent);
+
+// 若在 LINE 瀏覽器內，替換 label 行為為提示訊息
+if (_isLineBrowser) {
+  document.addEventListener('DOMContentLoaded', () => {
+    const lbl = document.querySelector('label[for="photoInput"]');
+    if (lbl) {
+      lbl.removeAttribute('for');
+      lbl.onclick = () => {
+        alert('LINE 瀏覽器不支援直接開啟相機。\n請點右上角「⋯」→「用瀏覽器開啟」，再使用拍照功能。');
+      };
+    }
+  });
+}
+
+let selectedPhotoFile = null;
+function openCamera() {
+  document.getElementById('photoInput').value = '';
+  document.getElementById('photoInput').click();
+}
+function handlePhotoSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+  selectedPhotoFile = file;
+
+  const url = URL.createObjectURL(file);
+  const img = document.getElementById('photoPreviewImg');
+  img.src = url;
+  img.onload = () => URL.revokeObjectURL(url);
+  document.getElementById('photoPreviewWrap').style.display = 'block';
+
+  const now = new Date();
+  const ts = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  document.getElementById('photoFilename').value = `文件照片_${ts}`;
+
+  // 重置
+  document.getElementById('photoVisibility').value = 'private';
+  document.getElementById('photoUserPicker').style.display = 'none';
+  document.getElementById('photoGroupPicker').style.display = 'none';
+  document.getElementById('photoRolePicker').style.display = 'none';
+  document.getElementById('photoProtection').value = 'none';
+  document.getElementById('photoPasswordField').style.display = 'none';
+  document.getElementById('photoPassword').value = '';
+  document.querySelectorAll('.photoUserCheck,.photoGroupCheck,.photoRoleCheck').forEach(c => c.checked = false);
+  document.getElementById('photoProgressWrap').style.display = 'none';
+  const btn = document.getElementById('photoUploadBtn');
+  btn.disabled = false; btn.textContent = '↑ 上傳';
+
+  openModal('photoModal');
+}
+
+function uploadPhoto() {
+  if (!selectedPhotoFile) return;
+  const ext = selectedPhotoFile.name.split('.').pop() || 'jpg';
+  const filename = (document.getElementById('photoFilename').value.trim() || '文件照片') + '.' + ext;
+  const allowedUsers = [...document.querySelectorAll('.photoUserCheck:checked')].map(c => c.value);
+  const allowedGroups = [...document.querySelectorAll('.photoGroupCheck:checked')].map(c => c.value);
+  const allowedRoles = [...document.querySelectorAll('.photoRoleCheck:checked')].map(c => c.value);
+
+  const form = new FormData();
+  form.append('file', selectedPhotoFile, filename);
+  form.append('folder_id', '{{ folder_id or "" }}');
+  form.append('visibility', document.getElementById('photoVisibility').value);
+  form.append('protection', document.getElementById('photoProtection').value);
+  form.append('password', document.getElementById('photoPassword').value);
+  allowedUsers.forEach(uid => form.append('allowed_users', uid));
+  allowedGroups.forEach(gid => form.append('allowed_groups', gid));
+  allowedRoles.forEach(r => form.append('allowed_roles', r));
+
+  xhrUpload('/files/upload', form, {
+    progressBarId: 'photoProgressBar',
+    progressLabelId: 'photoProgressLabel',
+    progressWrapId: 'photoProgressWrap',
+    submitBtnId: 'photoUploadBtn',
+    onSuccess: (data) => {
+      if (data.success) { closeModal('photoModal'); location.reload(); }
+      else {
+        alert(data.error || '上傳失敗');
+        const btn = document.getElementById('photoUploadBtn');
+        btn.disabled = false; btn.textContent = '↑ 上傳';
+        document.getElementById('photoProgressWrap').style.display = 'none';
+      }
+    },
+    onError: (msg) => {
+      alert(msg);
+      const btn = document.getElementById('photoUploadBtn');
+      btn.disabled = false; btn.textContent = '↑ 上傳';
+      document.getElementById('photoProgressWrap').style.display = 'none';
+    },
+  });
+}
+
+// ── 批次上傳（拖拉 / 多檔選擇）──
+let batchFiles = [];
+let batchUploading = false;
+
+document.getElementById('batchVisibility')?.addEventListener('change', function() {
+  document.getElementById('batchUserPicker').style.display = this.value === 'users' ? 'block' : 'none';
+  document.getElementById('batchGroupPicker').style.display = this.value === 'groups' ? 'block' : 'none';
+  document.getElementById('batchRolePicker').style.display = this.value === 'roles' ? 'block' : 'none';
+});
+
+function openBatchModal(files) {
+  if (!files.length) return;
+  // 前端先過濾超大檔案
+  const oversized = files.filter(f => f.size > MAX_FILE_BYTES);
+  if (oversized.length) {
+    const names = oversized.map(f => `・${f.name}（${formatSize(f.size)}）`).join('\n');
+    alert(`以下檔案超過 500 MB 上限，已移除：\n${names}`);
+    files = files.filter(f => f.size <= MAX_FILE_BYTES);
+    if (!files.length) return;
+  }
+  batchFiles = [...files];
+  batchUploading = false;
+  renderBatchList();
+  document.getElementById('batchFolderId').value = '{{ folder_id or "" }}';
+  document.getElementById('batchVisibility').value = 'private';
+  document.getElementById('batchUserPicker').style.display = 'none';
+  document.getElementById('batchGroupPicker').style.display = 'none';
+  document.getElementById('batchRolePicker').style.display = 'none';
+  document.querySelectorAll('.batchUserCheck,.batchGroupCheck,.batchRoleCheck').forEach(c => c.checked = false);
+  document.getElementById('batchOverallWrap').style.display = 'none';
+  const btn = document.getElementById('batchUploadBtn');
+  btn.disabled = false; btn.textContent = '↑ 全部上傳';
+  openModal('batchModal');
+}
+
+function renderBatchList() {
+  const list = document.getElementById('batchFileList');
+  list.innerHTML = '';
+  if (!batchFiles.length) {
+    list.innerHTML = '<p class="empty-note">沒有待上傳的檔案</p>';
+    return;
+  }
+  batchFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'batch-file-item';
+    div.id = `batchItem-${i}`;
+    div.innerHTML = `<span class="batch-file-name" title="${f.name}">${f.name}</span>
+      <span class="batch-file-size">${formatSize(f.size)}</span>
+      <span class="batch-file-status batch-status-waiting" id="batchStatus-${i}">等待中</span>
+      <button class="batch-remove-btn" onclick="removeBatchFile(${i})">✕</button>`;
+    list.appendChild(div);
+  });
+}
+
+function removeBatchFile(i) {
+  if (batchUploading) return;
+  batchFiles.splice(i, 1);
+  renderBatchList();
+  if (!batchFiles.length) closeBatchModal();
+}
+
+function closeBatchModal() {
+  if (batchUploading) return;
+  closeModal('batchModal');
+  batchFiles = [];
+}
+
+async function startBatchUpload() {
+  if (!batchFiles.length || batchUploading) return;
+  const folderId = document.getElementById('batchFolderId').value;
+  if (folderId === '') { alert('請先選擇要上傳至哪個資料夾'); return; }
+  batchUploading = true;
+  const btn = document.getElementById('batchUploadBtn');
+  btn.disabled = true; btn.textContent = '上傳中…';
+
+  const visibility = document.getElementById('batchVisibility').value;
+  const allowedUsers = [...document.querySelectorAll('.batchUserCheck:checked')].map(c => c.value);
+  const allowedGroups = [...document.querySelectorAll('.batchGroupCheck:checked')].map(c => c.value);
+  const allowedRoles = [...document.querySelectorAll('.batchRoleCheck:checked')].map(c => c.value);
+
+  const total = batchFiles.length;
+  let done = 0;
+  const overallWrap = document.getElementById('batchOverallWrap');
+  const overallBar = document.getElementById('batchOverallBar');
+  const overallLabel = document.getElementById('batchOverallLabel');
+  overallWrap.style.display = 'block';
+
+  for (let i = 0; i < total; i++) {
+    const file = batchFiles[i];
+    const statusEl = document.getElementById(`batchStatus-${i}`);
+    if (statusEl) { statusEl.textContent = '上傳中…'; statusEl.className = 'batch-file-status batch-status-uploading'; }
+
+    const form = new FormData();
+    form.append('file', file);
+    form.append('folder_id', folderId);
+    form.append('visibility', visibility);
+    allowedUsers.forEach(uid => form.append('allowed_users', uid));
+    allowedGroups.forEach(gid => form.append('allowed_groups', gid));
+    allowedRoles.forEach(r => form.append('allowed_roles', r));
+
+    await new Promise((resolve) => {
+      const xhr = new XMLHttpRequest();
+      xhr.upload.addEventListener('progress', (e) => {
+        if (!e.lengthComputable) return;
+        const filePct = e.loaded / e.total;
+        const overall = (done + filePct) / total * 100;
+        overallBar.style.width = Math.round(overall) + '%';
+        overallLabel.textContent = `${done}/${total} 個（${Math.round(overall)}%）`;
+      });
+      xhr.addEventListener('load', () => {
+        let ok = false;
+        try { const d = JSON.parse(xhr.responseText); ok = d.success; } catch(e) {}
+        done++;
+        overallBar.style.width = (done/total*100) + '%';
+        overallLabel.textContent = `${done}/${total} 個`;
+        if (statusEl) {
+          statusEl.textContent = ok ? '✓' : '✗ 失敗';
+          statusEl.className = `batch-file-status ${ok ? 'batch-status-done' : 'batch-status-error'}`;
+        }
+        const removeBtn = document.getElementById(`batchItem-${i}`)?.querySelector('.batch-remove-btn');
+        if (removeBtn) removeBtn.remove();
+        resolve();
+      });
+      xhr.addEventListener('error', () => {
+        done++;
+        if (statusEl) { statusEl.textContent = '✗ 錯誤'; statusEl.className = 'batch-file-status batch-status-error'; }
+        resolve();
+      });
+      xhr.open('POST', '/files/upload');
+      const _csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+      if (_csrf) xhr.setRequestHeader('X-CSRFToken', _csrf);
+      xhr.send(form);
+    });
+  }
+
+  btn.textContent = '完成，重新整理…';
+  setTimeout(() => location.reload(), 800);
+}
+
+function handleMultiFileSelected(input) {
+  const files = [...input.files];
+  input.value = '';
+  if (files.length === 1) {
+    const dt = new DataTransfer();
+    dt.items.add(files[0]);
+    document.getElementById('uploadFileInput').files = dt.files;
+    openModal('uploadModal');
+  } else if (files.length > 1) {
+    openBatchModal(files);
+  }
+}
+
+// ── 拖拉事件 ──
+let dragDepth = 0;
+document.addEventListener('dragenter', (e) => {
+  if (!e.dataTransfer.types.includes('Files')) return;
+  dragDepth++;
+  if (dragDepth === 1) document.getElementById('dropOverlay').style.display = 'flex';
+});
+document.addEventListener('dragleave', () => {
+  dragDepth--;
+  if (dragDepth <= 0) { dragDepth = 0; document.getElementById('dropOverlay').style.display = 'none'; }
+});
+document.addEventListener('dragover', (e) => { e.preventDefault(); });
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dragDepth = 0;
+  document.getElementById('dropOverlay').style.display = 'none';
+  const files = [...e.dataTransfer.files].filter(f => f.size > 0);
+  if (!files.length) return;
+  if (files.length === 1) {
+    const dt = new DataTransfer();
+    dt.items.add(files[0]);
+    document.getElementById('uploadFileInput').files = dt.files;
+    openModal('uploadModal');
+  } else {
+    openBatchModal(files);
+  }
+});
+</script>
+{% endblock %}

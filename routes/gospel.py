@@ -1,0 +1,187 @@
+# 福音探索系統路由
+from flask import Blueprint, render_template, request, session, jsonify
+from config import Config
+from supabase import create_client
+
+supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+gospel_bp = Blueprint('gospel', __name__)
+
+STATUS_LABELS = {
+    'pending':   '⏳ 待跟進',
+    'following': '🤝 跟進中',
+    'done':      '✅ 已完成',
+}
+
+# ── 公開頁面（不需登入）────────────────────────────────
+@gospel_bp.route('/gospel')
+def index():
+    try:
+        cards = supabase.table('gospel_cards')\
+            .select('*').eq('is_active', True)\
+            .order('sort_order').execute().data or []
+    except Exception:
+        cards = []
+    return render_template('gospel/index.html', cards=cards)
+
+
+# ── 送出詢問表單（不需登入）────────────────────────────────
+@gospel_bp.route('/gospel/inquiry', methods=['POST'])
+def inquiry():
+    data = request.get_json() or {}
+    name    = (data.get('name') or '').strip()
+    contact = (data.get('contact') or '').strip()
+    message = (data.get('message') or '').strip()
+
+    if not name or not contact:
+        return jsonify({'success': False, 'error': '請填寫姓名與聯絡方式'})
+
+    try:
+        supabase.table('gospel_inquiries').insert({
+            'name': name,
+            'contact': contact,
+            'message': message or None,
+            'status': 'pending',
+        }).execute()
+
+        # 通知所有超管
+        try:
+            admins = supabase.table('users')\
+                .select('id').eq('is_super_admin', True).execute().data or []
+            if admins:
+                from routes.notifications import batch_notify
+                batch_notify(
+                    user_ids=[a['id'] for a in admins],
+                    title=f'✝️ 新的福音詢問 — {name}',
+                    body=f'聯絡方式：{contact}' + (f'\n留言：{message}' if message else ''),
+                    type='gospel',
+                    link='/admin/gospel',
+                )
+        except Exception as e:
+            print(f'[gospel] notify error: {e}')
+
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# ── 後台：詢問名單 ────────────────────────────────
+@gospel_bp.route('/admin/gospel')
+def admin_index():
+    if not session.get('user_id'):
+        return jsonify({'error': '請先登入'}), 401
+    if not (session.get('is_super_admin') or session.get('is_admin')):
+        return render_template('admin/forbidden.html'), 403
+
+    status_filter = request.args.get('status', 'all')
+    try:
+        q = supabase.table('gospel_inquiries').select('*').order('created_at', desc=True)
+        if status_filter != 'all':
+            q = q.eq('status', status_filter)
+        inquiries = q.execute().data or []
+
+        # 取得小組長清單（管理員）供指派
+        leaders = supabase.table('users')\
+            .select('id,real_name,display_name')\
+            .eq('is_admin', True).execute().data or []
+
+        # 補上指派者名稱
+        leader_map = {l['id']: l.get('real_name') or l.get('display_name') for l in leaders}
+        for inq in inquiries:
+            inq['assigned_name'] = leader_map.get(inq.get('assigned_to'), '')
+            inq['status_label'] = STATUS_LABELS.get(inq['status'], inq['status'])
+
+        # 各狀態數量
+        all_inq = supabase.table('gospel_inquiries').select('status').execute().data or []
+        counts = {'all': len(all_inq), 'pending': 0, 'following': 0, 'done': 0}
+        for row in all_inq:
+            counts[row['status']] = counts.get(row['status'], 0) + 1
+
+    except Exception as e:
+        inquiries, leaders, counts = [], [], {'all': 0, 'pending': 0, 'following': 0, 'done': 0}
+        print(f'[gospel] admin error: {e}')
+
+    return render_template('gospel/admin.html',
+        inquiries=inquiries,
+        leaders=leaders,
+        status_filter=status_filter,
+        counts=counts,
+        status_labels=STATUS_LABELS,
+    )
+
+
+# ── 後台：更新狀態 / 指派 / 備註 ────────────────────────────────
+@gospel_bp.route('/admin/gospel/<inq_id>/update', methods=['POST'])
+def admin_update(inq_id):
+    if not session.get('user_id'):
+        return jsonify({'success': False}), 401
+    if not (session.get('is_super_admin') or session.get('is_admin')):
+        return jsonify({'success': False, 'error': '無權限'}), 403
+
+    data = request.get_json() or {}
+    update = {}
+    if 'status' in data and data['status'] in STATUS_LABELS:
+        update['status'] = data['status']
+    if 'assigned_to' in data:
+        update['assigned_to'] = data['assigned_to'] or None
+    if 'notes' in data:
+        update['notes'] = data['notes']
+    if not update:
+        return jsonify({'success': False, 'error': '沒有要更新的資料'})
+
+    update['updated_at'] = 'now()'
+    try:
+        supabase.table('gospel_inquiries').update(update).eq('id', inq_id).execute()
+
+        # 若指派給小組長，發通知
+        if 'assigned_to' in data and data['assigned_to']:
+            from routes.notifications import create_notification
+            inq = supabase.table('gospel_inquiries')\
+                .select('name,contact').eq('id', inq_id).single().execute().data or {}
+            create_notification(
+                user_id=data['assigned_to'],
+                title=f'🤝 福音關懷指派 — {inq.get("name", "")}',
+                body=f'聯絡方式：{inq.get("contact", "")}',
+                type='gospel',
+                link='/admin/gospel',
+            )
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# ── 後台：刪除詢問 ────────────────────────────────
+@gospel_bp.route('/admin/gospel/<inq_id>/delete', methods=['POST'])
+def admin_delete(inq_id):
+    if not session.get('user_id') or not session.get('is_super_admin'):
+        return jsonify({'success': False, 'error': '無權限'}), 403
+    try:
+        supabase.table('gospel_inquiries').delete().eq('id', inq_id).execute()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+# ── 後台：卡片管理 ────────────────────────────────
+@gospel_bp.route('/admin/gospel/cards')
+def admin_cards():
+    if not session.get('is_super_admin'):
+        return render_template('admin/forbidden.html'), 403
+    cards = supabase.table('gospel_cards').select('*').order('sort_order').execute().data or []
+    return render_template('gospel/admin_cards.html', cards=cards)
+
+
+@gospel_bp.route('/admin/gospel/cards/<card_id>/update', methods=['POST'])
+def admin_card_update(card_id):
+    if not session.get('is_super_admin'):
+        return jsonify({'success': False}), 403
+    data = request.get_json() or {}
+    update = {}
+    if 'question' in data: update['question'] = data['question']
+    if 'answer'   in data: update['answer']   = data['answer']
+    if 'icon'     in data: update['icon']     = data['icon']
+    if 'is_active' in data: update['is_active'] = bool(data['is_active'])
+    try:
+        supabase.table('gospel_cards').update(update).eq('id', card_id).execute()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})

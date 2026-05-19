@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+{% block title %}小組門訓總覽{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <h2 style="margin:0;">📋 小組門訓總覽</h2>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+        <a href="/admin/courses/group-overview/export"
+            style="padding:8px 16px; background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; text-decoration:none; color:#2e7d32; font-size:0.9rem; font-weight:bold;">
+            📥 匯出 Excel
+        </a>
+        <button onclick="window.print()"
+            style="padding:8px 16px; background:#f5f5f5; border:1px solid #ddd; border-radius:8px; cursor:pointer; font-size:0.9rem;">
+            🖨️ 列印
+        </button>
+        <a href="/admin/courses" style="padding:8px 16px; background:#f5f5f5; border:1px solid #ddd; border-radius:8px; text-decoration:none; color:#555; font-size:0.9rem;">
+            ← 返回學程
+        </a>
+    </div>
+</div>
+
+<!-- 圖例 -->
+<div style="background:white; border-radius:12px; padding:16px 20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
+    <span style="font-weight:bold; color:#555;">圖例：</span>
+    <span style="display:flex; align-items:center; gap:6px;">
+        <span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#43a047;"></span>
+        <span style="font-size:0.85rem;">完訓認證</span>
+    </span>
+    <span style="display:flex; align-items:center; gap:6px;">
+        <span style="display:inline-block; width:14px; height:14px; border-radius:3px; background:#e0e0e0;"></span>
+        <span style="font-size:0.85rem;">未完訓</span>
+    </span>
+</div>
+
+{% macro status_cell(cert_date) %}
+{% if cert_date is not none and cert_date != '' and cert_date %}
+<td style="text-align:center; padding:6px 4px;">
+    <span style="display:inline-block; padding:3px 10px; border-radius:12px;
+                 background:#e8f5e9; color:#2e7d32; font-size:0.78rem; font-weight:bold; white-space:nowrap;"
+          title="{{ cert_date[:10] if cert_date else '' }}">🎓 完訓</span>
+</td>
+{% else %}
+<td style="text-align:center; padding:6px 4px;">
+    <span style="color:#ccc; font-size:0.8rem;">—</span>
+</td>
+{% endif %}
+{% endmacro %}
+
+{% for group_name in group_names %}
+{% set members = group_data[group_name] %}
+{% if members %}
+<div style="background:white; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,0.07); margin-bottom:28px; overflow:hidden;">
+
+    <!-- 小組標題 -->
+    <div style="background:linear-gradient(135deg,#06C755,#00a040); padding:14px 20px; display:flex; align-items:center; justify-content:space-between;">
+        <span style="color:white; font-weight:bold; font-size:1.05rem;">🏘 {{ group_name }}</span>
+        <span style="color:rgba(255,255,255,0.85); font-size:0.85rem;">{{ members|length }} 人</span>
+    </div>
+
+    <!-- 統計列 -->
+    {% set ns = namespace(completed_counts=[]) %}
+    <div style="padding:12px 20px; background:#f9f9f9; border-bottom:1px solid #eee; overflow-x:auto;">
+        <table style="width:100%; min-width:500px; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:6px 8px; font-size:0.8rem; color:#888; font-weight:600; min-width:80px;">姓名</th>
+                    {% for course in all_courses %}
+                    <th style="text-align:center; padding:6px 4px; font-size:0.78rem; color:#555; font-weight:600; min-width:90px;">
+                        {{ course.name or course.title }}
+                    </th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members %}
+                <tr style="border-top:1px solid #f0f0f0;">
+                    <td style="padding:8px 8px; font-size:0.88rem; font-weight:500; color:#333; white-space:nowrap;">
+                        {{ member.name }}
+                    </td>
+                    {% for course in all_courses %}
+                    {{ status_cell(member.courses[course.id]) }}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+            <!-- 完訓人數統計 -->
+            <tfoot>
+                <tr style="border-top:2px solid #e0e0e0; background:#f5f5f5;">
+                    <td style="padding:8px 8px; font-size:0.8rem; color:#888; font-weight:bold;">完訓人數</td>
+                    {% for course in all_courses %}
+                    {% set count = namespace(val=0) %}
+                    {% for member in members %}
+                        {% if member.courses[course.id] %}
+                            {% set count.val = count.val + 1 %}
+                        {% endif %}
+                    {% endfor %}
+                    <td style="text-align:center; padding:8px 4px; font-size:0.82rem; font-weight:bold; color:#2e7d32;">
+                        {{ count.val }} / {{ members|length }}
+                    </td>
+                    {% endfor %}
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+
+{% if no_group_users %}
+<div style="background:white; border-radius:14px; box-shadow:0 2px 10px rgba(0,0,0,0.07); margin-bottom:28px; overflow:hidden;">
+    <div style="background:#757575; padding:14px 20px; display:flex; align-items:center; justify-content:space-between;">
+        <span style="color:white; font-weight:bold; font-size:1.05rem;">📌 未分組</span>
+        <span style="color:rgba(255,255,255,0.85); font-size:0.85rem;">{{ no_group_users|length }} 人</span>
+    </div>
+    <div style="padding:12px 20px; background:#f9f9f9; overflow-x:auto;">
+        <table style="width:100%; min-width:500px; border-collapse:collapse;">
+            <thead>
+                <tr>
+                    <th style="text-align:left; padding:6px 8px; font-size:0.8rem; color:#888; font-weight:600; min-width:80px;">姓名</th>
+                    {% for course in all_courses %}
+                    <th style="text-align:center; padding:6px 4px; font-size:0.78rem; color:#555; font-weight:600; min-width:90px;">{{ course.name or course.title }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in no_group_users %}
+                <tr style="border-top:1px solid #f0f0f0;">
+                    <td style="padding:8px 8px; font-size:0.88rem; font-weight:500; color:#333;">{{ member.name }}</td>
+                    {% for course in all_courses %}
+                    {{ status_cell(member.courses[course.id]) }}
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if not group_names and not no_group_users %}
+<div style="text-align:center; color:#aaa; padding:60px 20px;">
+    <p>尚無任何門訓資料</p>
+</div>
+{% endif %}
+
+<style>
+@media print {
+    body { font-size: 11px; }
+    button, a[href="/admin/courses"] { display: none !important; }
+    div[style*="box-shadow"] { box-shadow: none !important; border: 1px solid #ddd; }
+}
+</style>
+
+{% endblock %}

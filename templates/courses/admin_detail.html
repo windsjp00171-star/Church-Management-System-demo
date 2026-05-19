@@ -1,0 +1,444 @@
+{% extends "base.html" %}
+{% block title %}堂次管理 - {{ course.title }}{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin/courses" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回學程列表</a>
+        <h2 style="margin-top:6px;">📖 堂次管理</h2>
+        <p style="color:#555; margin-top:4px;">{{ course.title }}{% if course.period %} · {{ course.period }}{% endif %}</p>
+    </div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <span style="background:#e8f5e9; color:#2e7d32; padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:bold;">
+            已報名 {{ enrolled_count }} 人
+        </span>
+        <button onclick="showEnrollQR()"
+           style="padding:6px 16px; background:#f3e5f5; color:#7b1fa2; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+            🔗 報名連結 / QR
+        </button>
+        {% if course.shared_checkin_token %}
+        <button onclick="showSharedCheckinQR()"
+           style="padding:6px 16px; background:#e8f5e9; color:#2e7d32; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+            📲 通用簽到 QR
+        </button>
+        {% endif %}
+        <a href="/admin/courses/{{ course.id }}/roster"
+           style="padding:6px 16px; background:#e3f2fd; color:#1565c0; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold;">
+            📋 出席名單
+        </a>
+        <a href="/admin/courses/{{ course.id }}/edit"
+           style="padding:6px 16px; background:#fff3e0; color:#e65100; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold;">
+            ✏️ 編輯學程
+        </a>
+    </div>
+</div>
+
+{% if course.notes %}
+<!-- 後台備註 -->
+<div style="background:#fffde7; border-radius:10px; padding:14px 18px; margin-bottom:20px; border-left:4px solid #f9a825; box-shadow:0 1px 4px rgba(0,0,0,0.05);">
+    <div style="font-size:0.8rem; color:#888; margin-bottom:4px; font-weight:bold;">📝 後台備註</div>
+    <div style="color:#555; font-size:0.92rem; white-space:pre-line;">{{ course.notes }}</div>
+</div>
+{% endif %}
+
+{% if course.whitelist_enabled %}
+<!-- 白名單管理區 -->
+<div style="background:white; border-radius:12px; padding:20px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06); border-left:4px solid #f9a825;">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+        <p style="font-weight:bold; color:#333; margin:0;">🔒 限定報名名單 <span id="wl-count" style="font-size:0.85rem; color:#888; font-weight:normal;"></span></p>
+        <button onclick="toggleWlPanel()" style="padding:5px 14px; background:#fff8e1; color:#f57f17; border:1px solid #ffe082; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+            ＋ 加入名單
+        </button>
+    </div>
+    <div id="wl-add-panel" style="display:none; margin-bottom:14px; padding:14px; background:#fffde7; border-radius:8px;">
+        <div style="position:relative;">
+            <input id="wl-search" type="text" placeholder="搜尋姓名加入名單..."
+                oninput="wlSearch(this.value)"
+                style="width:100%; padding:9px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;">
+            <div id="wl-results" style="position:absolute; left:0; right:0; top:100%; background:white; border:1px solid #eee; border-radius:8px; display:none; box-shadow:0 4px 12px rgba(0,0,0,0.1); z-index:10; max-height:200px; overflow-y:auto;"></div>
+        </div>
+    </div>
+    <div id="wl-list"><p style="color:#999; font-size:0.85rem;">載入中...</p></div>
+</div>
+{% endif %}
+
+<!-- 新增堂次 -->
+<div style="background:white; border-radius:12px; padding:20px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <p style="font-weight:bold; margin-bottom:12px;">新增堂次</p>
+    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+        <div>
+            <label style="font-size:0.85rem; color:#666; display:block; margin-bottom:4px;">堂次編號</label>
+            <input id="s-num" type="number" min="1" value="{{ sessions|length + 1 }}"
+                style="width:80px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+        </div>
+        <div style="flex:1; min-width:160px;">
+            <label style="font-size:0.85rem; color:#666; display:block; margin-bottom:4px;">堂次標題（選填）</label>
+            <input id="s-title" type="text" placeholder="例：認識自己"
+                style="width:100%; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div>
+            <label style="font-size:0.85rem; color:#666; display:block; margin-bottom:4px;">開始時間（選填）</label>
+            <input id="s-date" type="datetime-local"
+                style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+        </div>
+        <div>
+            <label style="font-size:0.85rem; color:#666; display:block; margin-bottom:4px;">結束時間（選填）</label>
+            <input id="s-end" type="datetime-local"
+                style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+        </div>
+        <button onclick="addSession()"
+            style="padding:9px 20px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold; white-space:nowrap;">
+            + 新增
+        </button>
+    </div>
+</div>
+
+<!-- 堂次列表 -->
+{% if sessions %}
+<div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <table style="width:100%; border-collapse:collapse;">
+        <thead>
+            <tr style="background:#f5f5f5; font-size:0.85rem; color:#666;">
+                <th style="padding:12px 16px; text-align:left;">堂次</th>
+                <th style="padding:12px 16px; text-align:left;">標題</th>
+                <th style="padding:12px 16px; text-align:left;">上課時間</th>
+                <th style="padding:12px 16px; text-align:center;">出席人數</th>
+                <th style="padding:12px 16px; text-align:center;">操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in sessions %}
+            <!-- 顯示列 -->
+            <tr id="row-{{ s.id }}" style="border-top:1px solid #f0f0f0;">
+                <td style="padding:14px 16px; font-weight:bold; color:#555;">第 {{ s.session_number }} 堂</td>
+                <td style="padding:14px 16px;">{{ s.title or '—' }}</td>
+                <td style="padding:14px 16px; color:#888; font-size:0.85rem; white-space:nowrap;">
+                    {% if s.scheduled_at %}
+                        {{ s.scheduled_at| taipei_time }}
+                        {% if s.end_time %} ~ {{ s.end_time | taipei_time('%H:%M') }}{% endif %}
+                    {% else %}—{% endif %}
+                </td>
+                <td style="padding:14px 16px; text-align:center;">
+                    <span style="background:#e8f5e9; color:#2e7d32; padding:3px 10px; border-radius:20px; font-size:0.85rem; font-weight:bold;">
+                        {{ s.attended_count }} 人
+                    </span>
+                </td>
+                <td style="padding:14px 16px; text-align:center;">
+                    <div style="display:flex; gap:6px; justify-content:center;">
+                        <a href="/admin/courses/{{ course.id }}/sessions/{{ s.id }}/qrcode"
+                           style="padding:5px 12px; background:#fff3e0; color:#e65100; border-radius:6px; text-decoration:none; font-size:0.82rem;">
+                            📱 QR
+                        </a>
+                        <button onclick="toggleEditRow('{{ s.id }}')"
+                            style="padding:5px 12px; background:#e3f2fd; color:#1565c0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+                            ✏️ 編輯
+                        </button>
+                        <button onclick="deleteSession('{{ s.id }}', this)"
+                            style="padding:5px 12px; background:#f5f5f5; color:#999; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+                            刪除
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            <!-- 編輯列（預設隱藏） -->
+            <tr id="edit-{{ s.id }}" style="display:none; background:#f9fbe7; border-top:1px solid #f0f0f0;">
+                <td colspan="5" style="padding:16px 20px;">
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:flex-end;">
+                        <div>
+                            <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:3px;">堂次編號</label>
+                            <input id="edit-num-{{ s.id }}" type="number" min="1" value="{{ s.session_number }}"
+                                style="width:72px; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem;">
+                        </div>
+                        <div style="flex:1; min-width:160px;">
+                            <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:3px;">堂次標題</label>
+                            <input id="edit-title-{{ s.id }}" type="text" value="{{ s.title or '' }}" placeholder="例：認識自己"
+                                style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; box-sizing:border-box;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:3px;">開始時間</label>
+                            <input id="edit-start-{{ s.id }}" type="datetime-local"
+                                value="{{ s.scheduled_at | taipei_time('%Y-%m-%dT%H:%M') if s.scheduled_at else '' }}"
+                                style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem;">
+                        </div>
+                        <div>
+                            <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:3px;">結束時間</label>
+                            <input id="edit-end-{{ s.id }}" type="datetime-local"
+                                value="{{ s.end_time | taipei_time('%Y-%m-%dT%H:%M') if s.end_time else '' }}"
+                                style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem;">
+                        </div>
+                        <div style="display:flex; gap:6px;">
+                            <button onclick="saveSession('{{ course.id }}', '{{ s.id }}')"
+                                style="padding:8px 18px; background:#06C755; color:white; border:none; border-radius:6px; cursor:pointer; font-weight:bold; font-size:0.88rem;">
+                                儲存
+                            </button>
+                            <button onclick="toggleEditRow('{{ s.id }}')"
+                                style="padding:8px 14px; background:#f5f5f5; color:#666; border:none; border-radius:6px; cursor:pointer; font-size:0.88rem;">
+                                取消
+                            </button>
+                        </div>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div style="text-align:center; padding:48px 0; color:#999; background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="font-size:2.5rem;">📅</div>
+    <p style="margin-top:12px;">還沒有任何堂次，點上方「新增堂次」開始吧！</p>
+</div>
+{% endif %}
+
+<script>
+function addSession() {
+    const num = parseInt(document.getElementById('s-num').value);
+    const title = document.getElementById('s-title').value.trim();
+    const date = document.getElementById('s-date').value;
+
+    fetch('/admin/courses/{{ course.id }}/sessions', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ session_number: num, title, scheduled_at: date || null, end_time: document.getElementById('s-end').value || null })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '新增失敗');
+    });
+}
+
+function deleteSession(id, btn) {
+    if (!confirm('確定要刪除這堂次嗎？出席記錄也會一併刪除。')) return;
+    btn.disabled = true;
+    fetch(`/admin/courses/{{ course.id }}/sessions/${id}/delete`, { method: 'POST' })
+        .then(r => r.json())
+        .then(() => location.reload());
+}
+
+function toggleEditRow(id) {
+    const editRow = document.getElementById('edit-' + id);
+    editRow.style.display = editRow.style.display === 'none' ? 'table-row' : 'none';
+}
+
+function saveSession(courseId, sessionId) {
+    const num   = document.getElementById('edit-num-'   + sessionId).value;
+    const title = document.getElementById('edit-title-' + sessionId).value.trim();
+    const start = document.getElementById('edit-start-' + sessionId).value;
+    const end   = document.getElementById('edit-end-'   + sessionId).value;
+    fetch(`/admin/courses/${courseId}/sessions/${sessionId}/edit`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ session_number: num, title: title || null, scheduled_at: start || null, end_time: end || null })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else alert(d.error || '儲存失敗');
+    });
+}
+
+// ── 白名單管理 ──────────────────────────
+{% if course.whitelist_enabled %}
+const WL_COURSE_ID = '{{ course.id }}';
+let wlSearchTimer = null;
+
+loadWhitelist();
+
+function loadWhitelist() {
+    fetch(`/admin/api/whitelist/course/${WL_COURSE_ID}`)
+        .then(r => r.json())
+        .then(rows => {
+            document.getElementById('wl-count').textContent = `（${rows.length} 人）`;
+            const container = document.getElementById('wl-list');
+            if (!rows.length) {
+                container.innerHTML = '<p style="color:#aaa; font-size:0.85rem;">尚無名單，請新增</p>';
+                return;
+            }
+            container.innerHTML = rows.map(r => {
+                const u = r.user || {};
+                const name = u.real_name || u.display_name || '未知';
+                const tags = (u.group_tags || []).join('、');
+                return `
+                <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f5f5f5;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <img src="${u.picture_url||''}" style="width:30px;height:30px;border-radius:50%;" onerror="this.style.display='none'">
+                        <div>
+                            <span style="font-weight:500; font-size:0.9rem;">${name}</span>
+                            ${tags ? `<span style="font-size:0.78rem; color:#aaa; margin-left:6px;">${tags}</span>` : ''}
+                        </div>
+                    </div>
+                    <button onclick="wlRemove('${r.user_id}', this)"
+                        style="padding:4px 12px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">
+                        移除
+                    </button>
+                </div>`;
+            }).join('');
+        });
+}
+
+function toggleWlPanel() {
+    const panel = document.getElementById('wl-add-panel');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    if (panel.style.display === 'block') document.getElementById('wl-search').focus();
+}
+
+function wlSearch(kw) {
+    clearTimeout(wlSearchTimer);
+    const box = document.getElementById('wl-results');
+    if (!kw.trim()) { box.style.display = 'none'; return; }
+    wlSearchTimer = setTimeout(() => {
+        fetch(`/admin/api/users/search?q=${encodeURIComponent(kw)}`)
+            .then(r => r.json())
+            .then(users => {
+                if (!users.length) { box.innerHTML = '<p style="padding:10px 14px; color:#999; font-size:0.85rem;">找不到符合的用戶</p>'; box.style.display = 'block'; return; }
+                box.innerHTML = users.map(u => `
+                    <div onclick='wlAdd("${u.id}")'
+                        style="padding:10px 14px; cursor:pointer; display:flex; align-items:center; gap:10px; border-bottom:1px solid #f5f5f5;"
+                        onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='white'">
+                        <img src="${u.picture_url||''}" style="width:28px;height:28px;border-radius:50%;" onerror="this.style.display='none'">
+                        <div>
+                            <div style="font-weight:500; font-size:0.88rem;">${u.real_name || u.display_name}</div>
+                            ${u.real_name ? `<div style="font-size:0.75rem; color:#aaa;">LINE：${u.display_name}</div>` : ''}
+                        </div>
+                    </div>`).join('');
+                box.style.display = 'block';
+            });
+    }, 300);
+}
+
+function wlAdd(userId) {
+    document.getElementById('wl-results').style.display = 'none';
+    document.getElementById('wl-search').value = '';
+    fetch(`/admin/api/whitelist/course/${WL_COURSE_ID}/add`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_id: userId })
+    }).then(r => r.json()).then(d => {
+        if (d.success) loadWhitelist();
+        else alert(d.error || '加入失敗');
+    });
+}
+
+function wlRemove(userId, btn) {
+    btn.disabled = true;
+    fetch(`/admin/api/whitelist/course/${WL_COURSE_ID}/${userId}/remove`, { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.success) loadWhitelist();
+            else { alert(d.error || '移除失敗'); btn.disabled = false; }
+        });
+}
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#wl-search') && !e.target.closest('#wl-results'))
+        document.getElementById('wl-results').style.display = 'none';
+});
+{% endif %}
+
+// ── 報名連結 / QR Code ──────────────────────────
+const ENROLL_URL = `${location.origin}/courses/{{ course.id }}`;
+const SHARED_CHECKIN_URL = `${location.origin}/course-shared-checkin/{{ course.shared_checkin_token or '' }}`;
+
+function showEnrollQR() {
+    document.getElementById('enroll-qr-modal').style.display = 'flex';
+    document.getElementById('enroll-url-text').value = ENROLL_URL;
+    // 用 QRServer API 產生 QR Code 圖片
+    document.getElementById('enroll-qr-img').src =
+        `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(ENROLL_URL)}`;
+}
+
+function copyEnrollUrl() {
+    const input = document.getElementById('enroll-url-text');
+    input.select();
+    document.execCommand('copy');
+    const btn = document.getElementById('copy-btn');
+    btn.textContent = '✅ 已複製';
+    setTimeout(() => btn.textContent = '📋 複製連結', 1500);
+}
+
+function closeEnrollQR() {
+    document.getElementById('enroll-qr-modal').style.display = 'none';
+}
+
+// ── 通用簽到 QR Code ──────────────────────────
+function showSharedCheckinQR() {
+    document.getElementById('shared-qr-modal').style.display = 'flex';
+    document.getElementById('shared-qr-url-text').value = SHARED_CHECKIN_URL;
+    document.getElementById('shared-qr-img').src =
+        `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(SHARED_CHECKIN_URL)}`;
+}
+
+function copySharedUrl() {
+    const input = document.getElementById('shared-qr-url-text');
+    input.select();
+    document.execCommand('copy');
+    const btn = document.getElementById('shared-copy-btn');
+    btn.textContent = '✅ 已複製';
+    setTimeout(() => btn.textContent = '📋 複製連結', 1500);
+}
+
+function closeSharedQR() {
+    document.getElementById('shared-qr-modal').style.display = 'none';
+}
+</script>
+
+<!-- 報名連結 / QR Modal -->
+<div id="enroll-qr-modal" onclick="if(event.target===this)closeEnrollQR()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+           z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:white; border-radius:16px; padding:28px; max-width:360px; width:100%; text-align:center; position:relative;">
+        <button onclick="closeEnrollQR()"
+            style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.3rem; cursor:pointer; color:#aaa;">✕</button>
+        <h3 style="margin-bottom:4px;">🔗 課程報名連結</h3>
+        <p style="color:#888; font-size:0.85rem; margin-bottom:20px;">{{ course.title }}</p>
+
+        <!-- QR Code -->
+        <div style="background:#f5f5f5; border-radius:12px; padding:16px; margin-bottom:16px; display:inline-block;">
+            <img id="enroll-qr-img" src="" alt="QR Code" style="width:220px; height:220px; display:block;">
+        </div>
+
+        <!-- 連結文字 -->
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <input id="enroll-url-text" type="text" readonly
+                style="flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.82rem; color:#555; background:#f9f9f9;">
+            <button id="copy-btn" onclick="copyEnrollUrl()"
+                style="padding:8px 14px; background:#1565c0; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap;">
+                📋 複製連結
+            </button>
+        </div>
+        <p style="color:#aaa; font-size:0.78rem;">掃描 QR Code 或分享連結，用 LINE 登入後即可報名</p>
+    </div>
+</div>
+
+<!-- 通用簽到 QR Modal -->
+{% if course.shared_checkin_token %}
+<div id="shared-qr-modal" onclick="if(event.target===this)closeSharedQR()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+           z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:white; border-radius:16px; padding:28px; max-width:360px; width:100%; text-align:center; position:relative;">
+        <button onclick="closeSharedQR()"
+            style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.3rem; cursor:pointer; color:#aaa;">✕</button>
+        <h3 style="margin-bottom:4px;">📲 課程通用簽到 QR</h3>
+        <p style="color:#888; font-size:0.85rem; margin-bottom:6px;">{{ course.title }}</p>
+        {% if course.auto_complete_on_checkin %}
+        <p style="background:#fce4ec; color:#c62828; font-size:0.82rem; padding:6px 12px; border-radius:8px; margin-bottom:16px;">
+            ⚡ 簽到即完課模式開啟中
+        </p>
+        {% else %}
+        <p style="background:#e8f5e9; color:#2e7d32; font-size:0.82rem; padding:6px 12px; border-radius:8px; margin-bottom:16px;">
+            掃碼自動對應最近堂次
+        </p>
+        {% endif %}
+        <div style="background:#f5f5f5; border-radius:12px; padding:16px; margin-bottom:16px; display:inline-block;">
+            <img id="shared-qr-img" src="" alt="QR Code" style="width:220px; height:220px; display:block;">
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:8px;">
+            <input id="shared-qr-url-text" type="text" readonly
+                style="flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.82rem; color:#555; background:#f9f9f9;">
+            <button id="shared-copy-btn" onclick="copySharedUrl()"
+                style="padding:8px 14px; background:#2e7d32; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap;">
+                📋 複製連結
+            </button>
+        </div>
+        <p style="color:#aaa; font-size:0.78rem;">掃描後用 LINE 登入即可簽到</p>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
