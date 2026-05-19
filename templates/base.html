@@ -3,1070 +3,318 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ church_name }} 教會入口整合系統{% endblock %}</title>
+    <title>{% block title %}{{ church_name or '教會行政系統' }}{% endblock %}</title>
     <!-- 字型 -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- 共用樣式 -->
+    <link rel="stylesheet" href="/static/css/main.css">
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#06C755">
+    <meta name="theme-color" content="#1a3a5c">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="{{ church_name }}">
+    <meta name="apple-mobile-web-app-title" content="{{ church_short_name or church_name or '教會' }}">
     <link rel="apple-touch-icon" href="/static/icons/icon.svg">
-    <style>
-    /* ═══════════════════════════════════════
-       設計系統 Design Tokens
-    ═══════════════════════════════════════ */
-    :root {
-      --green:        #06C755;
-      --green-dark:   #05a847;
-      --green-bg:     #f0fdf4;
-      --green-border: #bbf7d0;
-
-      --blue:         #1d6fe5;
-      --blue-bg:      #eff6ff;
-      --purple:       #7c3aed;
-      --purple-bg:    #f5f3ff;
-      --orange:       #ea580c;
-      --orange-bg:    #fff7ed;
-      --red:          #dc2626;
-      --red-bg:       #fef2f2;
-
-      --text-1:  #111827;
-      --text-2:  #374151;
-      --text-3:  #6b7280;
-      --text-4:  #9ca3af;
-
-      --bg:      #edf0f5;
-      --surface: #ffffff;
-      --border:  #e2e6ed;
-      --border-2:#f0f2f6;
-
-      --shadow-xs: 0 1px 2px rgba(30,40,80,0.06);
-      --shadow-sm: 0 2px 6px rgba(30,40,80,0.07), 0 1px 2px rgba(30,40,80,0.04);
-      --shadow:    0 4px 14px rgba(30,40,80,0.08), 0 1px 4px rgba(30,40,80,0.04);
-      --shadow-md: 0 8px 24px rgba(30,40,80,0.10), 0 2px 6px rgba(30,40,80,0.05);
-      --shadow-lg: 0 20px 48px rgba(30,40,80,0.13), 0 4px 12px rgba(30,40,80,0.06);
-
-      --radius-sm: 8px;
-      --radius:    12px;
-      --radius-lg: 16px;
-      --radius-xl: 24px;
-      --radius-full: 9999px;
-
-      --transition: 0.18s ease;
-    }
-
-    /* ─ Reset & Base ─ */
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: "Noto Serif TC", "PingFang TC", "Microsoft JhengHei", serif;
-      background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 35%, #d1fae5 70%, #fce7f3 100%);
-      background-attachment: fixed;
-      color: var(--text-1);
-      font-size: 16px;
-      line-height: 1.6;
-      -webkit-font-smoothing: antialiased;
-      font-weight: 400;
-      letter-spacing: 0.01em;
-    }
-    img { max-width: 100%; }
-    a { color: inherit; }
-
-    /* ─ Navigation ─ */
-    nav {
-      background: var(--green);
-      padding: 0 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      height: 56px;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: 0 2px 8px rgba(6,199,85,0.25);
-    }
-    .nav-logo {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      color: white;
-      text-decoration: none;
-      font-weight: 700;
-      font-size: 1.05rem;
-      letter-spacing: -0.01em;
-    }
-    .nav-logo span { opacity: 0.9; }
-    .nav-right {
-      display: flex;
-      align-items: center;
-      gap: 4px;
-    }
-    .nav-link {
-      color: rgba(255,255,255,0.9);
-      text-decoration: none;
-      font-size: 0.85rem;
-      padding: 6px 10px;
-      border-radius: var(--radius-sm);
-      transition: background var(--transition);
-      white-space: nowrap;
-    }
-    .nav-link:hover { background: rgba(255,255,255,0.15); }
-    .nav-avatar {
-      width: 30px; height: 30px;
-      border-radius: var(--radius-full);
-      border: 2px solid rgba(255,255,255,0.5);
-      object-fit: cover;
-    }
-    .nav-admin-badge {
-      background: rgba(0,0,0,0.2);
-      color: white;
-      font-size: 0.78rem;
-      padding: 4px 10px;
-      border-radius: var(--radius-full);
-      text-decoration: none;
-      font-weight: 600;
-      transition: background var(--transition);
-    }
-    .nav-admin-badge:hover { background: rgba(0,0,0,0.35); }
-
-    .line-browser-tip {
-      display: none;
-      background: #fff7ed;
-      border-bottom: 1px solid #fed7aa;
-      padding: 10px 16px;
-      color: #9a3412;
-      font-size: 0.86rem;
-    }
-    .line-browser-tip-inner {
-      max-width: 920px;
-      margin: 0 auto;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 12px;
-    }
-    .line-browser-tip-actions {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      flex-shrink: 0;
-    }
-    .line-browser-tip button {
-      border: none;
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      font-weight: 700;
-      font-size: 0.8rem;
-      padding: 7px 10px;
-    }
-    .line-browser-tip .open-external {
-      background: #06C755;
-      color: white;
-    }
-    .line-browser-tip .dismiss {
-      background: transparent;
-      color: #9a3412;
-      padding: 7px 4px;
-    }
-
-    /* ─ Page Layout ─ */
-    main {
-      max-width: 920px;
-      margin: 28px auto 80px;
-      padding: 0 16px;
-    }
-
-    /* ─ Page Header ─ */
-    .page-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 12px;
-      margin-bottom: 28px;
-      flex-wrap: wrap;
-    }
-    .page-header-left .breadcrumb {
-      font-size: 0.83rem;
-      color: var(--text-4);
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      margin-bottom: 6px;
-    }
-    .page-header-left .breadcrumb:hover { color: var(--text-3); }
-    .page-title {
-      font-size: 1.45rem;
-      font-weight: 700;
-      color: var(--text-1);
-      letter-spacing: 0.02em;
-    }
-    .page-subtitle {
-      font-size: 0.85rem;
-      color: var(--text-3);
-      margin-top: 4px;
-    }
-
-    /* ─ Cards ─ */
-    .card {
-      background: rgba(255,255,255,0.72);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-radius: var(--radius-lg);
-      padding: 20px 24px;
-      box-shadow: 0 4px 20px rgba(99,102,241,0.08), 0 1px 4px rgba(0,0,0,0.04);
-      border: 1px solid rgba(255,255,255,0.85);
-      transition: transform var(--transition), box-shadow var(--transition);
-      position: relative;
-      overflow: hidden;
-    }
-    .card::before {
-      content: '';
-      position: absolute;
-      inset: 0 0 auto 0;
-      height: 2.5px;
-      background: linear-gradient(90deg, var(--green) 0%, #34d399 50%, transparent 100%);
-      opacity: 0;
-      transition: opacity var(--transition);
-      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-      z-index: 1;
-    }
-    .card:hover {
-      transform: translateY(-3px);
-      box-shadow: 0 8px 32px rgba(99,102,241,0.13), 0 2px 8px rgba(0,0,0,0.06);
-    }
-    .card:hover::before { opacity: 1; }
-    .card-sm {
-      background: rgba(255,255,255,0.72);
-      backdrop-filter: blur(16px);
-      -webkit-backdrop-filter: blur(16px);
-      border-radius: var(--radius);
-      padding: 16px 20px;
-      box-shadow: 0 4px 20px rgba(99,102,241,0.08), 0 1px 4px rgba(0,0,0,0.04);
-      border: 1px solid rgba(255,255,255,0.85);
-      transition: transform var(--transition), box-shadow var(--transition);
-    }
-    .card-sm:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 32px rgba(99,102,241,0.13), 0 2px 8px rgba(0,0,0,0.06);
-    }
-
-    /* ─ Buttons ─ */
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      padding: 9px 18px;
-      border-radius: var(--radius-sm);
-      font-size: 0.88rem;
-      font-weight: 600;
-      border: none;
-      cursor: pointer;
-      text-decoration: none;
-      transition: all var(--transition);
-      white-space: nowrap;
-      line-height: 1;
-    }
-    .btn:active { transform: scale(0.97); }
-    .btn-primary {
-      background: var(--green);
-      color: white;
-    }
-    .btn-primary:hover { background: var(--green-dark); box-shadow: 0 4px 12px rgba(6,199,85,0.35); }
-    .btn-secondary {
-      background: var(--border-2);
-      color: var(--text-2);
-    }
-    .btn-secondary:hover { background: var(--border); }
-    .btn-outline {
-      background: transparent;
-      color: var(--text-2);
-      border: 1.5px solid var(--border);
-    }
-    .btn-outline:hover { border-color: var(--text-3); background: var(--border-2); }
-    .btn-danger {
-      background: var(--red-bg);
-      color: var(--red);
-    }
-    .btn-danger:hover { background: #fee2e2; }
-    .btn-blue {
-      background: var(--blue-bg);
-      color: var(--blue);
-    }
-    .btn-blue:hover { background: #dbeafe; }
-    .btn-sm {
-      padding: 6px 12px;
-      font-size: 0.8rem;
-    }
-    .btn-lg {
-      padding: 12px 28px;
-      font-size: 0.95rem;
-    }
-
-    /* ─ Badges / Tags ─ */
-    .badge {
-      display: inline-flex;
-      align-items: center;
-      gap: 3px;
-      padding: 3px 10px;
-      border-radius: var(--radius-full);
-      font-size: 0.75rem;
-      font-weight: 600;
-      white-space: nowrap;
-    }
-    .badge-green  { background: var(--green-bg);  color: #16a34a; }
-    .badge-red    { background: var(--red-bg);    color: var(--red); }
-    .badge-blue   { background: var(--blue-bg);   color: var(--blue); }
-    .badge-purple { background: var(--purple-bg); color: var(--purple); }
-    .badge-orange { background: var(--orange-bg); color: var(--orange); }
-    .badge-gray   { background: var(--border-2);  color: var(--text-3); }
-
-    /* ─ Table ─ */
-    .table-wrap {
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border);
-      overflow: hidden;
-      box-shadow: var(--shadow-sm);
-    }
-    .table-wrap table {
-      width: 100%;
-      border-collapse: collapse;
-    }
-    .table-wrap th {
-      background: #f9fafb;
-      font-size: 0.78rem;
-      font-weight: 600;
-      color: var(--text-3);
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
-      padding: 10px 16px;
-      border-bottom: 1px solid var(--border);
-      text-align: left;
-    }
-    .table-wrap td {
-      padding: 12px 16px;
-      border-bottom: 1px solid var(--border-2);
-      font-size: 0.9rem;
-      color: var(--text-2);
-    }
-    .table-wrap tr:last-child td { border-bottom: none; }
-    .table-wrap tbody tr:hover { background: #fafafa; }
-
-    /* ─ Form Elements ─ */
-    .form-label {
-      display: block;
-      font-size: 0.82rem;
-      font-weight: 600;
-      color: var(--text-2);
-      margin-bottom: 5px;
-    }
-    .form-input {
-      width: 100%;
-      padding: 9px 13px;
-      border: 1.5px solid var(--border);
-      border-radius: var(--radius-sm);
-      font-size: 0.9rem;
-      color: var(--text-1);
-      background: var(--surface);
-      transition: border-color var(--transition), box-shadow var(--transition);
-      outline: none;
-    }
-    .form-input:focus {
-      border-color: var(--green);
-      box-shadow: 0 0 0 3px rgba(6,199,85,0.12);
-    }
-    textarea.form-input { resize: vertical; min-height: 80px; }
-
-    /* ─ Empty State ─ */
-    .empty-state {
-      background: var(--surface);
-      border-radius: var(--radius-lg);
-      border: 1px solid var(--border);
-      padding: 64px 24px;
-      text-align: center;
-    }
-    .empty-state .icon { font-size: 3rem; margin-bottom: 16px; }
-    .empty-state p {
-      color: var(--text-3);
-      font-size: 0.95rem;
-    }
-
-    /* ─ Section Label ─ */
-    .section-label {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      font-size: 0.83rem;
-      font-weight: 700;
-      color: var(--text-3);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      margin-bottom: 12px;
-    }
-    .section-label::before {
-      content: '';
-      display: inline-block;
-      width: 3px; height: 14px;
-      background: var(--green);
-      border-radius: 2px;
-    }
-
-    /* ─ Divider ─ */
-    .divider {
-      border: none;
-      border-top: 1px solid var(--border);
-      margin: 20px 0;
-    }
-
-    /* ─ Info Banner ─ */
-    .info-banner {
-      display: flex;
-      gap: 12px;
-      padding: 14px 16px;
-      border-radius: var(--radius);
-      font-size: 0.88rem;
-      margin-bottom: 20px;
-    }
-    .info-banner.yellow { background: #fffbeb; border-left: 3px solid #f59e0b; color: #92400e; }
-    .info-banner.blue   { background: var(--blue-bg); border-left: 3px solid var(--blue); color: #1e40af; }
-    .info-banner.green  { background: var(--green-bg); border-left: 3px solid var(--green); color: #166534; }
-    .info-banner.red    { background: var(--red-bg); border-left: 3px solid var(--red); color: #991b1b; }
-
-    /* ─ Responsive ─ */
-    @media (max-width: 600px) {
-      main { margin-top: 20px; padding: 0 12px; }
-      .page-header { margin-bottom: 20px; }
-      .page-title { font-size: 1.2rem; }
-      .line-browser-tip-inner {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-      .line-browser-tip-actions {
-        width: 100%;
-      }
-      .line-browser-tip button.open-external {
-        flex: 1;
-      }
-    }
-
-    /* ─ 手機導覽列優化 ─ */
-    /* 桌機：admin-short 預設隱藏 */
-    .nav-admin-short { display: none; }
-
-    @media (max-width: 600px) {
-      /* Logo 只保留圖示，隱藏文字 */
-      .nav-logo .nav-logo-text { display: none; }
-      /* 隱藏非必要的導覽連結 */
-      .nav-desktop-only { display: none !important; }
-      /* 管理員徽章：手機顯示「⚙️後台」 */
-      .nav-admin-badge .nav-admin-full  { display: none; }
-      .nav-admin-badge .nav-admin-short { display: inline !important; }
-      .nav-admin-badge { background: rgba(255,255,255,0.25); font-size:0.82rem; padding: 5px 10px; }
-      /* 收緊右側間距 */
-      .nav-right { gap: 2px; }
-      nav { padding: 0 12px; }
-      /* 姓名最多顯示 5 個字，防止超長名字撐爆 */
-      .nav-name-link {
-        max-width: 5em;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-    }
-
-    /* ─ Notification Bell ─ */
-    .notif-bell-btn {
-      position: relative; background: none; border: none; cursor: pointer;
-      padding: 6px 8px; color: white; display: flex; align-items: center;
-      border-radius: var(--radius-sm); transition: background var(--transition);
-    }
-    .notif-bell-btn:hover { background: rgba(255,255,255,0.15); }
-    .notif-badge {
-      display: none; position: absolute; top: 0; right: 0;
-      background: #ef4444; color: white; font-size: 0.6rem; font-weight: 800;
-      min-width: 16px; height: 16px; border-radius: 9999px;
-      align-items: center; justify-content: center; padding: 0 3px;
-      border: 1.5px solid var(--green); line-height: 1;
-    }
-    .notif-panel {
-      display: none; position: absolute; right: 0; top: calc(100% + 10px);
-      width: 320px; background: white; border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg); z-index: 9999; overflow: hidden;
-      border: 1px solid var(--border); animation: fadeIn 0.18s ease;
-    }
-    .notif-panel-header {
-      padding: 12px 16px; border-bottom: 1px solid var(--border);
-      display: flex; justify-content: space-between; align-items: center;
-    }
-    .notif-item {
-      padding: 12px 16px; border-bottom: 1px solid var(--border-2);
-      cursor: pointer; transition: background var(--transition);
-      display: flex; align-items: flex-start; gap: 10px;
-    }
-    .notif-item:hover { background: #f9fafb; }
-    .notif-item.unread { background: #f0fdf4; }
-    .notif-item.unread:hover { background: #dcfce7; }
-    .notif-dot {
-      width: 8px; height: 8px; border-radius: 50%;
-      background: var(--green); flex-shrink: 0; margin-top: 5px;
-    }
-    .notif-dot-empty { width: 8px; flex-shrink: 0; }
-
-    /* ─ Animations ─ */
-    @keyframes pulse {
-      0%   { box-shadow: 0 0 0 0 rgba(6,199,85,0.55); }
-      70%  { box-shadow: 0 0 0 14px rgba(6,199,85,0); }
-      100% { box-shadow: 0 0 0 0 rgba(6,199,85,0); }
-    }
-    @keyframes fadeIn {
-      from { opacity:0; transform:translateY(6px); }
-      to   { opacity:1; transform:translateY(0); }
-    }
-    @keyframes fadeOut { from{opacity:1} to{opacity:0} }
-    .help-pulse { animation: pulse 1.6s ease-out infinite; }
-    </style>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav>
-        <a href="/" class="nav-logo">
-            <span>⛪</span>
-            <span class="nav-logo-text">{{ church_short_name }}</span>
+
+<!-- ══ 頂部固定導覽列 ══ -->
+<nav class="navbar">
+    <!-- Logo / 教會名稱 -->
+    <a href="/" class="navbar-brand">
+        <span class="navbar-brand-icon">⛪</span>
+        <span class="navbar-brand-text">{{ church_short_name or church_name or '教會行政系統' }}</span>
+    </a>
+
+    <!-- 桌機導覽連結 -->
+    <ul class="navbar-nav" style="margin-left:24px; flex:1;">
+        <!-- 所有人可見 -->
+        <li class="nav-item">
+            <a href="/" class="nav-link">首頁</a>
+        </li>
+        <li class="nav-item">
+            <a href="/events" class="nav-link">活動報名</a>
+        </li>
+        <li class="nav-item">
+            <a href="/calendar" class="nav-link">行事曆</a>
+        </li>
+        <li class="nav-item">
+            <a href="/bulletins" class="nav-link">週報</a>
+        </li>
+        <li class="nav-item">
+            <a href="/prayer" class="nav-link">代禱麥田</a>
+        </li>
+
+        <!-- 已登入 -->
+        {% if session.user_id %}
+        <li class="nav-item">
+            <a href="/diary" class="nav-link">天父日記</a>
+        </li>
+        {% endif %}
+
+        <!-- 牧者 -->
+        {% if session.is_pastor %}
+        <li class="nav-item">
+            <a href="/cell-report/pastor-dashboard" class="nav-link">牧者週報</a>
+        </li>
+        <li class="nav-item">
+            <a href="/diary/pastor" class="nav-link">會友日記</a>
+        </li>
+        {% endif %}
+
+        <!-- 同工 -->
+        {% if session.is_staff %}
+        <li class="nav-item">
+            <a href="/cell-report/staff-dashboard" class="nav-link">同工週報</a>
+        </li>
+        {% endif %}
+
+        <!-- 小組長 -->
+        {% if session.cell_group_ids %}
+        <li class="nav-item">
+            <a href="/cell-report/portal" class="nav-link">小組回報</a>
+        </li>
+        {% endif %}
+
+        <!-- 管理員 -->
+        {% if session.is_admin %}
+        <li class="nav-item">
+            <a href="/files" class="nav-link">檔案管理</a>
+        </li>
+        <li class="nav-item">
+            <a href="/admin" class="nav-badge" style="margin-left:4px;">後台管理</a>
+        </li>
+        {% endif %}
+    </ul>
+
+    <!-- 右側：使用者資訊 / 登入狀態 -->
+    {% if session.user_id %}
+    <div class="navbar-user">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar">
+        {% endif %}
+        <a href="/profile" class="navbar-username" title="個人資料">
+            {{ session.real_name or session.display_name or '會友' }}
         </a>
-        <div class="nav-right">
-            {% if session.picture_url %}
-                <img src="{{ session.picture_url }}" alt="頭像" class="nav-avatar">
-            {% endif %}
-            <a href="/profile" class="nav-link nav-name-link" style="font-weight:600;">
-                {{ session.real_name or session.display_name }}
-            </a>
-            <a href="/my-history" class="nav-link nav-desktop-only">我的記錄</a>
-            <a href="/prayer" class="nav-link" id="prayer-nav-link" style="position:relative;">
-                🌾 <span class="nav-desktop-only nav-prayer-text">代禱</span>
-                <span id="prayer-dot" style="display:none; position:absolute; top:4px; right:2px;
-                    width:8px; height:8px; background:#ef4444; border-radius:50%;
-                    border:1.5px solid white; box-shadow:0 0 0 1px rgba(239,68,68,0.4);"></span>
-            </a>
-            <a href="/bulletins" class="nav-link nav-desktop-only">週報</a>
-
-            <!-- 🔔 通知鈴鐺 -->
-            <div style="position:relative;">
-                <button class="notif-bell-btn" id="notif-btn" onclick="toggleNotifPanel()" title="通知">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                    </svg>
-                    <span class="notif-badge" id="notif-badge"></span>
-                </button>
-                <div class="notif-panel" id="notif-panel">
-                    <div class="notif-panel-header">
-                        <span style="font-weight:700; color:var(--text-1); font-size:0.9rem;">🔔 通知</span>
-                        <button onclick="markAllRead()" style="font-size:0.78rem; color:var(--blue); border:none; background:none; cursor:pointer; font-weight:600;">全部已讀</button>
-                    </div>
-                    <div id="notif-list" style="overflow-y:auto; max-height:380px;">
-                        <div style="padding:32px; text-align:center; color:var(--text-4); font-size:0.85rem;">載入中...</div>
-                    </div>
-                </div>
-            </div>
-
-            {% if session.is_admin %}
-                <a href="/admin" class="nav-admin-badge">
-                    <span class="nav-admin-full">後台</span>
-                    <span class="nav-admin-short">⚙️ 後台</span>
-                </a>
-            {% endif %}
-            <a href="/auth/logout" class="nav-link">登出</a>
-        </div>
-    </nav>
-
-    <div id="line-browser-tip" class="line-browser-tip">
-        <div class="line-browser-tip-inner">
-            <div>
-                <strong>目前在 LINE 內建瀏覽器</strong>
-                <span>，有些功能可能不如 Chrome 或 Safari 順暢。</span>
-            </div>
-            <div class="line-browser-tip-actions">
-                <button type="button" class="open-external" onclick="openExternalBrowser()">用瀏覽器開啟</button>
-                <button type="button" class="dismiss" onclick="dismissLineTip()">關閉</button>
-            </div>
-        </div>
+        <a href="/auth/logout" class="navbar-logout">登出</a>
     </div>
-
-    <main>
-        {% block content %}{% endblock %}
-    </main>
-
-    <!-- 說明按鈕 -->
-    <div id="help-bubble" style="
-        display:none; position:fixed; right:76px; bottom:24px; z-index:999;
-        background:var(--text-1); color:white; font-size:0.82rem; padding:8px 14px;
-        border-radius:var(--radius-full); white-space:nowrap; pointer-events:none;
-        animation:fadeIn 0.3s ease;">
-        👆 點我看使用說明
+    {% else %}
+    <div class="navbar-user">
+        <a href="/auth/login" class="nav-link">登入</a>
     </div>
-    <a href="/manual" id="help-btn" style="
-        position:fixed; right:20px; bottom:20px; z-index:1000;
-        width:46px; height:46px; border-radius:var(--radius-full);
-        background:var(--green); color:white;
-        font-size:1.15rem; font-weight:bold;
-        display:flex; align-items:center; justify-content:center;
-        box-shadow:0 4px 14px rgba(6,199,85,0.4);
-        text-decoration:none;">？</a>
+    {% endif %}
 
-    <!-- Toast 通知 -->
-    <div id="_toast-container" style="
-        position:fixed; bottom:76px; left:50%; transform:translateX(-50%);
-        z-index:9999; display:flex; flex-direction:column; align-items:center; gap:8px;
-        pointer-events:none; width:min(90vw,400px);">
-    </div>
-    <style>
-    ._toast {
-      padding:11px 22px; border-radius:var(--radius-full); font-size:0.88rem; font-weight:600;
-      color:white; box-shadow:var(--shadow-md);
-      animation:fadeIn 0.22s ease, fadeOut 0.3s ease 2.7s forwards;
-      text-align:center; max-width:100%;
-    }
-    ._toast.success { background:#16a34a; }
-    ._toast.error   { background:var(--red); }
-    ._toast.info    { background:var(--blue); }
-    ._toast.warn    { background:var(--orange); }
-    </style>
+    <!-- 手機 Hamburger -->
+    <button class="hamburger" id="hamburger-btn" aria-label="選單" onclick="toggleDrawer()">
+        <span></span>
+        <span></span>
+        <span></span>
+    </button>
+</nav>
 
-    <script>
-    // ── CSRF ──
-    const _CSRF_TOKEN = "{{ csrf_token() }}";
-    const _LINE_LIFF_ID = "{{ line_liff_id }}";
-    (function(){
-        const _orig = window.fetch;
-        window.fetch = function(url, opts) {
-            opts = opts || {};
-            if (!opts.method || opts.method.toUpperCase() === 'GET') return _orig(url, opts);
-            opts.headers = Object.assign({'X-CSRF-Token': _CSRF_TOKEN}, opts.headers || {});
-            return _orig(url, opts).catch(function(err) {
-                showToast('網路異常，請確認連線後重試', 'error');
-                return Promise.reject(err);
-            });
-        };
-    })();
-
-    // ── LINE in-app browser helper ──
-    function isLineBrowser() {
-        return /Line\//i.test(navigator.userAgent);
-    }
-
-    function dismissLineTip() {
-        sessionStorage.setItem('lineBrowserTipDismissed', '1');
-        var tip = document.getElementById('line-browser-tip');
-        if (tip) tip.style.display = 'none';
-    }
-
-    function showExternalBrowserFallback() {
-        showToast('請點 LINE 右上角「⋯」，選擇用瀏覽器開啟', 'warn');
-    }
-
-    function loadLiffSdk(callback) {
-        if (window.liff) {
-            callback();
-            return;
-        }
-        var existing = document.getElementById('liff-sdk');
-        if (existing) {
-            existing.addEventListener('load', callback, { once: true });
-            return;
-        }
-        var script = document.createElement('script');
-        script.id = 'liff-sdk';
-        script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-        script.onload = callback;
-        script.onerror = showExternalBrowserFallback;
-        document.head.appendChild(script);
-    }
-
-    function openExternalBrowser() {
-        var targetUrl = window.location.href;
-        if (!isLineBrowser()) {
-            window.location.href = targetUrl;
-            return;
-        }
-        loadLiffSdk(function() {
-            liff.init({ liffId: _LINE_LIFF_ID })
-                .then(function() {
-                    liff.openWindow({ url: targetUrl, external: true });
-                })
-                .catch(showExternalBrowserFallback);
-        });
-    }
-
-    (function(){
-        if (!isLineBrowser()) return;
-        if (sessionStorage.getItem('lineBrowserTipDismissed')) return;
-        var tip = document.getElementById('line-browser-tip');
-        if (tip) tip.style.display = 'block';
-    })();
-
-    // ── Toast ──
-    function showToast(msg, type) {
-        type = type || 'info';
-        var c = document.getElementById('_toast-container');
-        var t = document.createElement('div');
-        t.className = '_toast ' + type;
-        t.textContent = msg;
-        c.appendChild(t);
-        setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 3000);
-    }
-
-    // ── Notifications ──────────────────────────────────────
-    var _notifLoaded = false;
-    var _notifOpen   = false;
-
-    function toggleNotifPanel() {
-        _notifOpen = !_notifOpen;
-        var panel = document.getElementById('notif-panel');
-        panel.style.display = _notifOpen ? 'block' : 'none';
-        if (_notifOpen && !_notifLoaded) loadNotifications();
-    }
-
-    document.addEventListener('click', function(e) {
-        var btn   = document.getElementById('notif-btn');
-        var panel = document.getElementById('notif-panel');
-        if (!btn || !panel) return;
-        if (!btn.contains(e.target) && !panel.contains(e.target)) {
-            panel.style.display = 'none';
-            _notifOpen = false;
-        }
-    });
-
-    function loadNotifications() {
-        fetch('/api/notifications')
-            .then(function(r){ return r.json(); })
-            .then(function(d){
-                _notifLoaded = true;
-                renderNotifications(d.notifications || []);
-                updateBadge(d.unread || 0);
-            })
-            .catch(function(){ /* 靜默 */ });
-    }
-
-    function renderNotifications(items) {
-        var list = document.getElementById('notif-list');
-        if (!list) return;
-        if (!items.length) {
-            list.innerHTML = '<div style="padding:40px; text-align:center; color:var(--text-4); font-size:0.85rem;">📭 暫無通知</div>';
-            return;
-        }
-        list.innerHTML = items.map(function(n) {
-            var unread = !n.is_read;
-            return '<div class="notif-item' + (unread ? ' unread' : '') + '" onclick="clickNotif(\'' + n.id + '\',\'' + (n.link || '') + '\')">' +
-                '<div class="' + (unread ? 'notif-dot' : 'notif-dot-empty') + '"></div>' +
-                '<div style="flex:1; min-width:0;">' +
-                '<div style="font-size:0.84rem; font-weight:' + (unread ? '700' : '400') + '; color:var(--text-1); line-height:1.4;">' + escHtml(n.title) + '</div>' +
-                (n.body ? '<div style="font-size:0.77rem; color:var(--text-3); margin-top:3px; line-height:1.4; white-space:pre-line;">' + escHtml(n.body) + '</div>' : '') +
-                '<div style="font-size:0.71rem; color:var(--text-4); margin-top:5px;">' + fmtTime(n.created_at) + '</div>' +
-                '</div></div>';
-        }).join('');
-    }
-
-    function escHtml(s) {
-        return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    }
-
-    function clickNotif(id, link) {
-        fetch('/api/notifications/' + id + '/read', { method: 'POST' })
-            .then(function(){
-                if (link) { location.href = link; }
-                else { _notifLoaded = false; loadNotifications(); }
-            });
-    }
-
-    function markAllRead() {
-        fetch('/api/notifications/read-all', { method: 'POST' })
-            .then(function(){ _notifLoaded = false; loadNotifications(); updateBadge(0); });
-    }
-
-    function updateBadge(count) {
-        var badge = document.getElementById('notif-badge');
-        if (!badge) return;
-        if (count > 0) {
-            badge.style.display = 'flex';
-            badge.textContent = count > 99 ? '99+' : count;
-        } else {
-            badge.style.display = 'none';
-        }
-    }
-
-    function fmtTime(iso) {
-        if (!iso) return '';
-        var d = new Date(iso), now = new Date();
-        var diff = (now - d) / 1000;
-        if (diff < 60)    return '剛剛';
-        if (diff < 3600)  return Math.floor(diff / 60) + ' 分鐘前';
-        if (diff < 86400) return Math.floor(diff / 3600) + ' 小時前';
-        if (diff < 86400 * 7) return Math.floor(diff / 86400) + ' 天前';
-        return d.toLocaleDateString('zh-TW');
-    }
-
-    // 頁面載入：拉未讀數 + 懶式觸發繳費提醒
-    (function(){
-        if (!document.getElementById('notif-btn')) return;
-        fetch('/api/notifications')
-            .then(function(r){ return r.json(); })
-            .then(function(d){ updateBadge(d.unread || 0); })
-            .catch(function(){});
-        // 懶式繳費提醒（靜默，不影響頁面）
-        fetch('/api/notifications/check-reminders', { method: 'POST' })
-            .then(function(r){ return r.json(); })
-            .then(function(d){ if ((d.created || 0) > 0) { _notifLoaded = false; setTimeout(function(){ fetch('/api/notifications').then(function(r){return r.json();}).then(function(d2){updateBadge(d2.unread||0);}); }, 500); } })
-            .catch(function(){});
-    })();
-
-    // 代禱麥田紅點：有新代禱就亮
-    (function(){
-        var dot = document.getElementById('prayer-dot');
-        if (!dot) return;
-        fetch('/api/prayer/new-count')
-            .then(function(r){ return r.json(); })
-            .then(function(d){
-                if ((d.count || 0) > 0) {
-                    dot.style.display = 'block';
-                }
-            })
-            .catch(function(){});
-    })();
-
-    // ── Help button ──
-    (function(){
-        var btn = document.getElementById('help-btn');
-        var bubble = document.getElementById('help-bubble');
-        if (!localStorage.getItem('helpSeen')) {
-            btn.classList.add('help-pulse');
-            bubble.style.display = 'block';
-            setTimeout(function(){
-                bubble.style.animation = 'fadeOut 0.5s ease forwards';
-                setTimeout(function(){ bubble.style.display = 'none'; }, 500);
-            }, 5000);
-        }
-        btn.addEventListener('click', function(){ localStorage.setItem('helpSeen','1'); });
-    })();
-
-    // ── PWA 安裝引導（第一次登入自動跳出）──
-    (function(){
-        if (!document.getElementById('pwa-guide-overlay')) return;
-        var shown = localStorage.getItem('pwaGuideSeen');
-        // 只有在手機上、非 LINE 內建瀏覽器、且尚未看過才顯示
-        var isStandalone = window.navigator.standalone || window.matchMedia('(display-mode: standalone)').matches;
-        var isMobile = /Android|iPhone|iPad/i.test(navigator.userAgent);
-        if (!shown && isMobile && !isStandalone) {
-            setTimeout(function(){ showPwaGuide(); }, 1800);
-        }
-    })();
-
-    function showPwaGuide() {
-        document.getElementById('pwa-guide-overlay').style.display = 'block';
-        document.getElementById('pwa-guide-panel').style.display = 'block';
-        document.body.style.overflow = 'hidden';
-        // 預設偵測裝置
-        var isIOS = /iPhone|iPad/i.test(navigator.userAgent);
-        switchPwaTab(isIOS ? 'ios' : 'android');
-    }
-    function closePwaGuide(dontShow) {
-        document.getElementById('pwa-guide-overlay').style.display = 'none';
-        document.getElementById('pwa-guide-panel').style.display = 'none';
-        document.body.style.overflow = '';
-        if (dontShow) localStorage.setItem('pwaGuideSeen', '1');
-    }
-    function switchPwaTab(tab) {
-        document.getElementById('pwa-android').style.display = tab === 'android' ? 'block' : 'none';
-        document.getElementById('pwa-ios').style.display = tab === 'ios' ? 'block' : 'none';
-        document.getElementById('pwa-tab-android').style.fontWeight = tab === 'android' ? 'bold' : 'normal';
-        document.getElementById('pwa-tab-ios').style.fontWeight = tab === 'ios' ? 'bold' : 'normal';
-        document.getElementById('pwa-tab-android').style.borderBottomColor = tab === 'android' ? '#06C755' : 'transparent';
-        document.getElementById('pwa-tab-ios').style.borderBottomColor = tab === 'ios' ? '#06C755' : 'transparent';
-        document.getElementById('pwa-tab-android').style.color = tab === 'android' ? '#06C755' : '#999';
-        document.getElementById('pwa-tab-ios').style.color = tab === 'ios' ? '#06C755' : '#999';
-    }
-    </script>
-
-<!-- ══ PWA 安裝引導 Modal ══ -->
-<div id="pwa-guide-overlay" onclick="closePwaGuide(false)"
-    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:9990; backdrop-filter:blur(3px);"></div>
-<div id="pwa-guide-panel"
-    style="display:none; position:fixed; bottom:0; left:0; right:0; z-index:9991;
-           background:white; border-radius:20px 20px 0 0; padding:24px 20px 32px;
-           box-shadow:0 -8px 40px rgba(0,0,0,0.15); max-height:90vh; overflow-y:auto;">
-
-    <!-- 頂部標題 -->
-    <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+<!-- ══ 手機抽屜選單 ══ -->
+<div class="navbar-drawer" id="navbar-drawer">
+    {% if session.user_id %}
+    <div class="drawer-user-row">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar">
+        {% endif %}
         <div>
-            <div style="font-size:1.1rem; font-weight:800; color:#222;">📱 加到手機主畫面</div>
-            <div style="font-size:0.83rem; color:#888; margin-top:3px;">像 App 一樣開啟，快速又方便！</div>
-        </div>
-        <button onclick="closePwaGuide(true)"
-            style="background:#f5f5f5; border:none; border-radius:50%; width:30px; height:30px;
-                   cursor:pointer; font-size:1rem; color:#666; flex-shrink:0;">✕</button>
-    </div>
-
-    <!-- Android / iOS Tab -->
-    <div style="display:flex; border-bottom:2px solid #eee; margin-bottom:20px;">
-        <button id="pwa-tab-android" onclick="switchPwaTab('android')"
-            style="flex:1; padding:9px; border:none; background:none; cursor:pointer; font-size:0.9rem;
-                   color:#06C755; font-weight:bold; border-bottom:2px solid #06C755; margin-bottom:-2px;">
-            🤖 Android
-        </button>
-        <button id="pwa-tab-ios" onclick="switchPwaTab('ios')"
-            style="flex:1; padding:9px; border:none; background:none; cursor:pointer; font-size:0.9rem;
-                   color:#999; border-bottom:2px solid transparent; margin-bottom:-2px;">
-            🍎 iPhone
-        </button>
-    </div>
-
-    <!-- Android 步驟 -->
-    <div id="pwa-android">
-        <div style="background:#fff3e0; border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.82rem; color:#e65100;">
-            ⚠️ 需先在 Chrome 瀏覽器開啟，LINE 內建瀏覽器不支援
-        </div>
-
-        <!-- Step 1 -->
-        <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
-            <div style="width:36px; height:36px; background:#06C755; border-radius:50%; color:white;
-                        font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">1</div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.92rem; margin-bottom:6px;">在 LINE 中點右上角「⋯」→ 用其他應用程式開啟 → 選 Chrome</div>
-                <div style="background:#f5f5f5; border-radius:10px; padding:14px; text-align:center; font-size:2rem; letter-spacing:8px;">
-                    💬 <span style="font-size:1.4rem; background:#333; color:white; padding:2px 8px; border-radius:4px;">⋯</span> → 🌐
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 2 -->
-        <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
-            <div style="width:36px; height:36px; background:#06C755; border-radius:50%; color:white;
-                        font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">2</div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.92rem; margin-bottom:6px;">Chrome 開啟後，點右上角「⋮」（三個點）</div>
-                <div style="background:#f5f5f5; border-radius:10px; padding:14px; display:flex; align-items:center; gap:10px;">
-                    <div style="flex:1; background:white; border-radius:6px; padding:8px 12px; font-size:0.8rem; color:#555; border:1px solid #e0e0e0;">
-                        🌐 anbo-lc.onrender.com
-                    </div>
-                    <div style="font-size:1.5rem; font-weight:900; color:#555; letter-spacing:-2px;">⋮</div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 3 -->
-        <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
-            <div style="width:36px; height:36px; background:#06C755; border-radius:50%; color:white;
-                        font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">3</div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.92rem; margin-bottom:6px;">點「新增至主畫面」</div>
-                <div style="background:#f5f5f5; border-radius:10px; padding:12px 16px;">
-                    <div style="display:flex; align-items:center; gap:10px; padding:8px; background:white; border-radius:8px;">
-                        <span style="font-size:1.3rem;">➕</span>
-                        <span style="font-size:0.88rem; color:#333; font-weight:600;">新增至主畫面</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Step 4 -->
-        <div style="display:flex; gap:14px; align-items:flex-start;">
-            <div style="width:36px; height:36px; background:#06C755; border-radius:50%; color:white;
-                        font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">4</div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.92rem; margin-bottom:6px;">點「新增」，完成！桌面會出現⛪圖示</div>
-                <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
-                    <span style="font-size:2.5rem;">⛪</span>
-                    <div style="font-size:0.75rem; color:#2e7d32; margin-top:4px; font-weight:600;">{{ church_short_name }}</div>
-                </div>
-            </div>
+            <div class="drawer-username">{{ session.real_name or session.display_name or '會友' }}</div>
+            <div style="font-size:0.78rem; color:rgba(255,255,255,0.6);">已登入</div>
         </div>
     </div>
+    <hr class="drawer-divider">
+    {% endif %}
 
-    <!-- iOS 步驟 -->
-    <div id="pwa-ios" style="display:none;">
-        <div style="background:#fff3e0; border-radius:10px; padding:10px 14px; margin-bottom:16px; font-size:0.82rem; color:#e65100;">
-            ⚠️ 需先在 Safari 瀏覽器開啟，Chrome for iOS 不支援
-        </div>
+    <!-- 所有人 -->
+    <a href="/" class="drawer-nav-link">🏠 首頁</a>
+    <a href="/events" class="drawer-nav-link">📅 活動報名</a>
+    <a href="/calendar" class="drawer-nav-link">🗓️ 教會行事曆</a>
+    <a href="/bulletins" class="drawer-nav-link">📰 每週週報</a>
+    <a href="/prayer" class="drawer-nav-link">🌾 代禱麥田</a>
 
-        <!-- Step 1 -->
-        <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
-            <div style="width:36px; height:36px; background:#06C755; border-radius:50%; color:white;
-                        font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">1</div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.92rem; margin-bottom:6px;">在 LINE 中點右下角「⋯」→ 在 Safari 中開啟</div>
-                <div style="background:#f5f5f5; border-radius:10px; padding:14px; text-align:center; font-size:2rem; letter-spacing:8px;">
-                    💬 <span style="font-size:1.4rem; background:#333; color:white; padding:2px 8px; border-radius:4px;">⋯</span> → 🧭
-                </div>
-            </div>
-        </div>
+    {% if session.user_id %}
+    <hr class="drawer-divider">
+    <a href="/diary" class="drawer-nav-link">📔 天父日記</a>
+    <a href="/profile" class="drawer-nav-link">👤 個人資料</a>
+    {% endif %}
 
-        <!-- Step 2 -->
-        <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
-            <div style="width:36px; height:36px; background:#06C755; border-radius:50%; color:white;
-                        font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">2</div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.92rem; margin-bottom:6px;">點畫面底部中間的分享按鈕</div>
-                <div style="background:#f5f5f5; border-radius:10px; padding:14px;">
-                    <div style="background:white; border-radius:8px; padding:10px; display:flex; justify-content:space-around; align-items:center;">
-                        <span style="font-size:1.4rem; color:#aaa;">⟨</span>
-                        <span style="font-size:1.4rem; color:#aaa;">⟩</span>
-                        <div style="text-align:center;">
-                            <div style="font-size:1.8rem;">⬆️</div>
-                            <div style="font-size:0.68rem; color:#007aff; font-weight:600;">分享</div>
-                        </div>
-                        <span style="font-size:1.4rem; color:#aaa;">📖</span>
-                        <span style="font-size:1.4rem; color:#aaa;">⊡</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+    {% if session.is_pastor %}
+    <hr class="drawer-divider">
+    <a href="/cell-report/pastor-dashboard" class="drawer-nav-link">⛪ 牧者週報總覽</a>
+    <a href="/diary/pastor" class="drawer-nav-link">📖 查閱會友日記</a>
+    {% endif %}
 
-        <!-- Step 3 -->
-        <div style="display:flex; gap:14px; align-items:flex-start; margin-bottom:18px;">
-            <div style="width:36px; height:36px; background:#06C755; border-radius:50%; color:white;
-                        font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">3</div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.92rem; margin-bottom:6px;">往下滑，找到「加入主畫面」並點它</div>
-                <div style="background:#f5f5f5; border-radius:10px; padding:12px 16px;">
-                    <div style="display:flex; align-items:center; gap:10px; padding:8px; background:white; border-radius:8px;">
-                        <div style="width:32px; height:32px; background:#e8e8e8; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:1.1rem;">➕</div>
-                        <span style="font-size:0.88rem; color:#333; font-weight:600;">加入主畫面</span>
-                    </div>
-                </div>
-            </div>
-        </div>
+    {% if session.is_staff %}
+    <a href="/cell-report/staff-dashboard" class="drawer-nav-link">📊 同工週報</a>
+    {% endif %}
 
-        <!-- Step 4 -->
-        <div style="display:flex; gap:14px; align-items:flex-start;">
-            <div style="width:36px; height:36px; background:#06C755; border-radius:50%; color:white;
-                        font-weight:800; font-size:1rem; display:flex; align-items:center; justify-content:center; flex-shrink:0;">4</div>
-            <div style="flex:1;">
-                <div style="font-weight:700; font-size:0.92rem; margin-bottom:6px;">右上角點「新增」，完成！</div>
-                <div style="background:#e8f5e9; border-radius:10px; padding:14px; text-align:center;">
-                    <span style="font-size:2.5rem;">⛪</span>
-                    <div style="font-size:0.75rem; color:#2e7d32; margin-top:4px; font-weight:600;">{{ church_short_name }}</div>
-                </div>
-            </div>
-        </div>
-    </div>
+    {% if session.cell_group_ids %}
+    <a href="/cell-report/portal" class="drawer-nav-link">👥 小組回報</a>
+    {% endif %}
 
-    <!-- 底部按鈕 -->
-    <div style="margin-top:24px; display:flex; flex-direction:column; gap:10px;">
-        <button onclick="closePwaGuide(true)"
-            style="width:100%; padding:13px; background:#06C755; color:white; border:none;
-                   border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer;">
-            👍 我知道了！
-        </button>
-        <button onclick="closePwaGuide(true)"
-            style="width:100%; padding:11px; background:#f5f5f5; color:#888; border:none;
-                   border-radius:12px; font-size:0.88rem; cursor:pointer;">
-            不要再顯示
-        </button>
-    </div>
+    {% if session.is_admin %}
+    <hr class="drawer-divider">
+    <a href="/files" class="drawer-nav-link">📁 檔案管理</a>
+    <a href="/admin" class="drawer-nav-link">⚙️ 後台管理</a>
+    {% endif %}
+
+    {% if session.user_id %}
+    <hr class="drawer-divider">
+    <a href="/auth/logout" class="drawer-nav-link" style="color:rgba(255,100,100,0.9);">🚪 登出</a>
+    {% else %}
+    <hr class="drawer-divider">
+    <a href="/auth/login" class="drawer-nav-link">🔑 登入</a>
+    {% endif %}
 </div>
 
+<!-- ══ Flash 訊息 ══ -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div class="flash-messages">
+    {% for category, message in messages %}
+    <div class="flash flash-{{ 'error' if category == 'danger' else category }}" role="alert">
+        <span class="flash-icon">
+            {%- if category == 'success' %}✅
+            {%- elif category in ('error', 'danger') %}❌
+            {%- elif category == 'warning' %}⚠️
+            {%- else %}ℹ️
+            {%- endif -%}
+        </span>
+        <span>{{ message }}</span>
+        <button class="flash-close" onclick="this.parentElement.remove()" aria-label="關閉">✕</button>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<!-- ══ 主要內容 ══ -->
+<main>
+    {% block content %}{% endblock %}
+</main>
+
+<!-- ══ Toast 通知 ══ -->
+<div id="_toast-container" style="
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
+    z-index:9999; display:flex; flex-direction:column; align-items:center; gap:8px;
+    pointer-events:none; width:min(90vw,400px);">
+</div>
+<style>
+._toast {
+  padding:11px 22px; border-radius:var(--radius-full); font-size:0.88rem; font-weight:600;
+  color:white; box-shadow:var(--shadow-md);
+  animation:fadeIn 0.22s ease, fadeOut 0.3s ease 2.7s forwards;
+  text-align:center; max-width:100%; pointer-events:none;
+}
+._toast.success { background:#2e7d32; }
+._toast.error   { background:#c62828; }
+._toast.info    { background:#1565c0; }
+._toast.warn    { background:#e65100; }
+</style>
+
+<script>
+// ── CSRF ──
+const _CSRF_TOKEN = "{{ csrf_token() }}";
+const _LINE_LIFF_ID = "{{ line_liff_id or '' }}";
+
+(function(){
+    var _orig = window.fetch;
+    window.fetch = function(url, opts) {
+        opts = opts || {};
+        if (!opts.method || opts.method.toUpperCase() === 'GET') return _orig(url, opts);
+        opts.headers = Object.assign({'X-CSRF-Token': _CSRF_TOKEN}, opts.headers || {});
+        return _orig(url, opts).catch(function(err) {
+            showToast('網路異常，請確認連線後重試', 'error');
+            return Promise.reject(err);
+        });
+    };
+})();
+
+// ── Hamburger / Drawer ──
+function toggleDrawer() {
+    var btn = document.getElementById('hamburger-btn');
+    var drawer = document.getElementById('navbar-drawer');
+    var isOpen = drawer.classList.toggle('open');
+    btn.classList.toggle('open', isOpen);
+    btn.setAttribute('aria-expanded', isOpen);
+}
+
+// 點 drawer 外部關閉
+document.addEventListener('click', function(e) {
+    var drawer = document.getElementById('navbar-drawer');
+    var btn    = document.getElementById('hamburger-btn');
+    if (!drawer || !btn) return;
+    if (!drawer.contains(e.target) && !btn.contains(e.target)) {
+        drawer.classList.remove('open');
+        btn.classList.remove('open');
+    }
+});
+
+// ── Toast ──
+function showToast(msg, type) {
+    type = type || 'info';
+    var c = document.getElementById('_toast-container');
+    if (!c) return;
+    var t = document.createElement('div');
+    t.className = '_toast ' + type;
+    t.textContent = msg;
+    c.appendChild(t);
+    setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 3000);
+}
+
+// ── Active nav link highlight ──
+(function(){
+    var path = window.location.pathname;
+    var links = document.querySelectorAll('.nav-link[href], .drawer-nav-link[href]');
+    links.forEach(function(a){
+        if (a.getAttribute('href') === path) a.classList.add('active');
+    });
+})();
+
+// ── LINE in-app browser helper ──
+function isLineBrowser() {
+    return /Line\//i.test(navigator.userAgent);
+}
+
+function loadLiffSdk(callback) {
+    if (window.liff) { callback(); return; }
+    var existing = document.getElementById('liff-sdk');
+    if (existing) { existing.addEventListener('load', callback, { once: true }); return; }
+    var script = document.createElement('script');
+    script.id = 'liff-sdk';
+    script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
+    script.onload = callback;
+    script.onerror = function(){ showToast('請點 LINE 右上角「⋯」，選擇用瀏覽器開啟', 'warn'); };
+    document.head.appendChild(script);
+}
+
+function openExternalBrowser() {
+    var targetUrl = window.location.href;
+    if (!isLineBrowser()) { window.location.href = targetUrl; return; }
+    loadLiffSdk(function() {
+        liff.init({ liffId: _LINE_LIFF_ID })
+            .then(function(){ liff.openWindow({ url: targetUrl, external: true }); })
+            .catch(function(){ showToast('請點 LINE 右上角「⋯」，選擇用瀏覽器開啟', 'warn'); });
+    });
+}
+
+// ── Flash auto-dismiss after 6s ──
+(function(){
+    setTimeout(function(){
+        document.querySelectorAll('.flash').forEach(function(el){
+            el.style.transition = 'opacity 0.5s ease';
+            el.style.opacity = '0';
+            setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 500);
+        });
+    }, 6000);
+})();
+</script>
+
+{% block extra_js %}{% endblock %}
 </body>
 </html>
