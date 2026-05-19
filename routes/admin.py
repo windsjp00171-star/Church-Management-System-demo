@@ -1,16 +1,16 @@
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
-from functools import wraps
 from db import supabase
+from routes.decorators import admin_required, super_admin_required
 import secrets
 import uuid
 import io
+import hmac
 from urllib.parse import quote
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from datetime import datetime, timezone, timedelta
 
-import hmac
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 _TW = timezone(timedelta(hours=8))
@@ -95,18 +95,6 @@ def csrf_protect():
         if not expected or not token or not hmac.compare_digest(token, expected):
             return jsonify({'error': 'CSRF token 驗證失敗，請重新整理頁面'}), 403
 
-
-def admin_required(f):
-    """裝飾器：非管理員就擋掉"""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            session['next_url'] = request.url
-            return redirect(url_for('auth.login_page'))
-        if not session.get('is_admin'):
-            return render_template('admin/forbidden.html'), 403
-        return f(*args, **kwargs)
-    return decorated
 
 
 def can_manage_event(event):

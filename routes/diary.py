@@ -253,26 +253,18 @@ def sb_list_month_entries(line_user_id: str, y: int, m: int) -> Dict[str, bool]:
 
 
 def sb_is_pastor(line_user_id: str) -> bool:
-    if not sb:
-        return False
-    res = (
-        sb.table('pastor_whitelist')
-        .select('line_user_id,active')
-        .eq('line_user_id', line_user_id)
-        .limit(1)
-        .execute()
-    )
-    row = (res.data or [None])[0]
-    return bool(row and row.get('active'))
+    """從 session 讀取牧者身分（登入時已由 auth.py 統一寫入）。"""
+    return bool(session.get('is_pastor'))
 
 
 def sb_list_pastors() -> List[Dict[str, Any]]:
+    """查詢 users 表取得所有牧者清單（is_pastor=True）。"""
     if not sb:
         return []
     res = (
-        sb.table('pastor_whitelist')
-        .select('line_user_id,display_name,picture_url,active')
-        .eq('active', True)
+        sb.table('users')
+        .select('line_user_id,display_name,picture_url,is_pastor')
+        .eq('is_pastor', True)
         .order('display_name')
         .execute()
     )
@@ -293,17 +285,12 @@ def sb_list_users(limit: int = 500) -> List[Dict[str, Any]]:
 
 
 def sb_set_pastor_whitelist(line_user_id: str, display_name: str, picture_url: str, active: bool) -> None:
+    """更新 users 表的 is_pastor 欄位（統一角色管理，不再用 pastor_whitelist 表）。"""
     if not sb:
         return
-    sb.table('pastor_whitelist').upsert(
-        {
-            'line_user_id': line_user_id,
-            'display_name': display_name or '（未命名）',
-            'picture_url': picture_url or '',
-            'active': bool(active),
-        },
-        on_conflict='line_user_id',
-    ).execute()
+    sb.table('users').update({'is_pastor': bool(active)})\
+        .eq('line_user_id', line_user_id)\
+        .execute()
 
 
 def sb_get_owner_grants(owner_line_user_id: str) -> List[str]:

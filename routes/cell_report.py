@@ -13,28 +13,13 @@ from flask import (
 )
 
 from db import supabase
+from routes.decorators import (
+    login_required, pastor_required, staff_required, cell_leader_required
+)
 
 cell_report_bp = Blueprint('cell_report', __name__)
 
-# =========================
-# 輔助函式
-# =========================
 
-def _require_login():
-    """需要登入（整合系統以 user_id 判斷）"""
-    return bool(session.get('user_id'))
-
-
-def _require_pastor():
-    return bool(session.get('is_pastor'))
-
-
-def _require_staff():
-    return bool(session.get('is_staff') or session.get('is_pastor'))
-
-
-def _login_redirect():
-    return redirect(url_for('auth.login_page'))
 
 
 def _no_permission(msg='你沒有權限。'):
@@ -171,11 +156,9 @@ def _has_group_access(group_id) -> bool:
 # 路由
 # =========================
 
+@login_required
 @cell_report_bp.get('/cell-report/portal')
 def portal():
-    if not _require_login():
-        return _login_redirect()
-
     user_id = session.get('user_id')
 
     if session.get('is_pastor') or session.get('is_staff'):
@@ -197,11 +180,9 @@ def portal():
     return render_template('cell_report/portal.html', groups=groups)
 
 
+@login_required
 @cell_report_bp.route('/cell-report/<group_id>/section1', methods=['GET', 'POST'])
 def section1(group_id):
-    if not _require_login():
-        return _login_redirect()
-
     group = _get_group(group_id)
     if not group:
         flash('找不到小組', 'error')
@@ -264,11 +245,9 @@ def section1(group_id):
                            is_backfill=display_date != this_week_date)
 
 
+@login_required
 @cell_report_bp.route('/cell-report/<group_id>/section2', methods=['GET', 'POST'])
 def section2(group_id):
-    if not _require_login():
-        return _login_redirect()
-
     group = _get_group(group_id)
     if not group:
         flash('找不到小組', 'error')
@@ -317,11 +296,9 @@ def section2(group_id):
                            is_backfill=week_date_obj != this_week_date)
 
 
+@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/attendance')
 def ajax_save_attendance(group_id):
-    if not _require_login():
-        return jsonify({'success': False, 'error': '未登入'}), 401
-
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
 
@@ -366,11 +343,9 @@ def ajax_save_attendance(group_id):
     return jsonify({'success': True})
 
 
+@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/add-member')
 def add_member_ajax(group_id):
-    if not _require_login():
-        return jsonify({'success': False, 'error': '未登入'}), 401
-
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
 
@@ -395,11 +370,9 @@ def add_member_ajax(group_id):
     return jsonify({'success': False, 'error': '新增失敗'}), 500
 
 
+@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/remove-member/<member_id>')
 def remove_member_ajax(group_id, member_id):
-    if not _require_login():
-        return jsonify({'success': False, 'error': '未登入'}), 401
-
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
 
@@ -407,11 +380,9 @@ def remove_member_ajax(group_id, member_id):
     return jsonify({'success': True})
 
 
+@login_required
 @cell_report_bp.route('/cell-report/<group_id>/step3', methods=['GET', 'POST'])
 def step3(group_id):
-    if not _require_login():
-        return _login_redirect()
-
     group = _get_group(group_id)
     if not group:
         flash('找不到小組', 'error')
@@ -483,11 +454,9 @@ def step3(group_id):
                            is_backfill=week_date != this_week_date)
 
 
+@login_required
 @cell_report_bp.get('/cell-report/<group_id>/done')
 def done(group_id):
-    if not _require_login():
-        return _login_redirect()
-
     group = _get_group(group_id)
     if not group:
         flash('找不到小組', 'error')
@@ -507,15 +476,9 @@ def done(group_id):
                            is_backfill=week_date != this_week_date)
 
 
+@pastor_required
 @cell_report_bp.get('/cell-report/pastor-dashboard')
 def pastor_dashboard():
-    if not _require_login():
-        return _login_redirect()
-
-    if not _require_pastor():
-        flash('你沒有牧者權限', 'error')
-        return redirect(url_for('cell_report.portal'))
-
     week_str = request.args.get('week')
     if week_str:
         try:
@@ -569,15 +532,9 @@ def pastor_dashboard():
                            is_staff=False)
 
 
+@staff_required
 @cell_report_bp.get('/cell-report/staff-dashboard')
 def staff_dashboard():
-    if not _require_login():
-        return _login_redirect()
-
-    if not _require_staff():
-        flash('你沒有同工權限', 'error')
-        return redirect(url_for('cell_report.portal'))
-
     week_str = request.args.get('week')
     if week_str:
         try:

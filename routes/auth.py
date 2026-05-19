@@ -8,6 +8,34 @@ from db import supabase
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
+def _populate_session(user):
+    """把使用者所有角色旗標一次寫入 session，各模組不需要自己查 DB。"""
+    user_id = user['id']
+
+    # 查詢此使用者負責的小組 ID 清單
+    leaders_res = supabase.table('cell_group_leaders')\
+        .select('group_id')\
+        .eq('user_id', user_id)\
+        .execute()
+    cell_group_ids = [r['group_id'] for r in (leaders_res.data or [])]
+
+    session.permanent        = True
+    session['user_id']       = user_id
+    session['line_id']       = user.get('line_user_id', '')
+    session['display_name']  = user.get('display_name', '')
+    session['picture_url']   = user.get('picture_url', '')
+    session['real_name']     = user.get('real_name') or ''
+    session['member_type']   = user.get('member_type') or 'member'
+    session['group_tags']    = user.get('group_tags') or []
+    session['role']          = user.get('role') or 'approved'
+    # 權限旗標（全部從 users 表讀取，統一管理）
+    session['is_admin']      = bool(user.get('is_admin'))
+    session['is_super_admin']= bool(user.get('is_super_admin'))
+    session['is_pastor']     = bool(user.get('is_pastor'))
+    session['is_staff']      = bool(user.get('is_staff'))
+    session['cell_group_ids']= cell_group_ids
+
+
 def _safe_next_url(value):
     """只允許站內路徑或同網域網址，避免登入後被導到外部網站。"""
     if not value:
@@ -116,21 +144,11 @@ def callback():
         }).execute()
         user = result.data[0]
 
-    session.permanent        = True
-    session['user_id']       = user['id']
-    session['display_name']  = display_name
-    session['picture_url']   = picture_url
-    session['is_admin']      = user.get('is_admin', False)
-    session['is_super_admin']= user.get('is_super_admin', False)
-    session['real_name']     = user.get('real_name') or ''
-    session['group_tags']    = user.get('group_tags') or []
-    session['member_type']   = user.get('member_type') or 'member'
+    _populate_session(user)
 
-    # 第一次登入（尚未填真實姓名）→ 引導填寫個人資料
     if not user.get('real_name'):
         return redirect(url_for('profile.setup'))
 
-    # 若登入前有記住目標頁（例如掃碼簽到），登入後跳回去
     return redirect(_consume_next_url(url_for('event.portal')))
 
 
@@ -177,16 +195,7 @@ def liff_login():
         }).execute()
         user = result.data[0]
 
-    # 建立 session
-    session.permanent        = True
-    session['user_id']       = user['id']
-    session['display_name']  = display_name
-    session['picture_url']   = picture_url
-    session['is_admin']      = user.get('is_admin', False)
-    session['is_super_admin']= user.get('is_super_admin', False)
-    session['real_name']     = user.get('real_name') or ''
-    session['group_tags']    = user.get('group_tags') or []
-    session['member_type']   = user.get('member_type') or 'member'
+    _populate_session(user)
 
     # 第一次登入尚未填真實姓名 → 引導填資料
     incoming_next = _safe_next_url(data.get('next_url'))
@@ -240,8 +249,10 @@ def setup_admin():
     if request.method == 'POST':
         supabase.table('users').update({'is_admin': True, 'is_super_admin': True})\
             .eq('id', session['user_id']).execute()
-        session['is_admin']       = True
-        session['is_super_admin'] = True
+        # 重新載入 user 並更新 session
+        updated = supabase.table('users').select('*')\
+            .eq('id', session['user_id']).execute().data[0]
+        _populate_session(updated)
         return redirect(url_for('admin.index'))
 
     return render_template('auth/setup_admin.html')
