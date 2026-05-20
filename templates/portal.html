@@ -355,8 +355,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
 {# ════ 角色任務小工具 ════ #}
 {% if is_group_leader or is_pastor or is_staff or is_admin %}
-<div class="role-widget pa" style="--d:40ms; background: white; border-radius: 16px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
-  <p style="font-size: 0.75rem; color: #A0AEC0; font-weight: 600; letter-spacing: 0.05em; margin: 0 0 14px; text-transform: uppercase;">本週待辦</p>
+<div class="role-widget pa" style="--d:40ms; background: white; border-radius: 16px; padding: 24px; margin-bottom: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+  <p style="font-size: 0.75rem; color: #A0AEC0; font-weight: 600; letter-spacing: 0.05em; margin: 0 0 16px; text-transform: uppercase;">本週待辦</p>
 
   {% if is_group_leader %}
   <div style="margin-bottom: 12px;">
@@ -408,8 +408,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
 {# ── 我的近期活動 ── #}
 {% if my_upcoming %}
-<div class="pa" style="--d:60ms; margin-bottom:16px;">
-    <div class="section-label" style="margin-bottom:10px;">我的近期活動</div>
+<div class="pa" style="--d:60ms; margin-bottom:28px;">
+    <div class="section-label" style="margin-bottom:12px;">我的近期活動</div>
     <div style="display:flex;flex-direction:column;gap:8px;">
         {% for e in my_upcoming %}
         <a href="/event/{{ e.id }}" class="upcoming-strip">
@@ -430,8 +430,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
 {# ── 現正開放報名（任務層主體） ── #}
 {% if open_events or open_courses %}
-<div class="pa" style="--d:100ms; margin-bottom:28px;">
-    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+<div class="pa" style="--d:100ms; margin-bottom:44px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
         <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2);flex-shrink:0;"></span>
         <span style="font-size:.78rem;font-weight:700;color:#16a34a;letter-spacing:.04em;text-transform:uppercase;">開放報名中</span>
     </div>
@@ -514,16 +514,16 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
    互動層 — 靈修空間（天父日記、經文卡、代禱麥田）
 ════════════════════════════════════════════ #}
 {% if session.user_id or session.line_id %}
-<div class="pa" style="--d:160ms; margin-bottom:28px;">
-    <p style="font-size:.72rem;font-weight:600;color:#A0AEC0;letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px;">靈修空間</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+<div class="pa" style="--d:160ms; margin-bottom:44px;">
+    <p style="font-size:.72rem;font-weight:600;color:#A0AEC0;letter-spacing:.06em;text-transform:uppercase;margin:0 0 16px;">靈修空間</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
 
         {# 天父日記 #}
         {% if card_settings.get('diary', true) or is_super_admin %}
         <div class="fi-wrap{% if not card_settings.get('diary', true) %} fi-hidden{% endif %}" data-key="diary" data-type="fixed">
         <a href="/diary" style="display:block;text-decoration:none;
             background:linear-gradient(135deg,rgba(102,126,234,.13),rgba(118,75,162,.13));
-            border-radius:16px;padding:18px 16px;border:none;
+            border-radius:16px;padding:22px 18px;border:none;
             transition:transform .18s;">
             <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">📖</p>
             <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('diary', '天父日記') }}</p>
@@ -536,7 +536,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {# 抽經文卡 #}
         <a id="verse-engagement-cta" href="/verse" style="display:block;text-decoration:none;
             background:linear-gradient(135deg,rgba(233,30,99,.1),rgba(74,20,140,.12));
-            border-radius:16px;padding:18px 16px;border:none;
+            border-radius:16px;padding:22px 18px;border:none;
             transition:transform .18s;">
             <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">✨</p>
             <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">抽經文卡</p>
@@ -548,7 +548,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         <div class="fi-wrap{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed">
         <a href="/prayer" style="display:block;text-decoration:none;
             background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(180,83,9,.1));
-            border-radius:16px;padding:18px 16px;border:none;
+            border-radius:16px;padding:22px 18px;border:none;
             transition:transform .18s;">
             <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">🌾</p>
             <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('prayer', '代禱麥田') }}</p>
@@ -562,7 +562,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% if card_settings.get('gospel', true) %}
         <a href="/gospel" style="display:block;text-decoration:none;
             background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.1));
-            border-radius:16px;padding:18px 16px;border:none;
+            border-radius:16px;padding:22px 18px;border:none;
             transition:transform .18s;">
             <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">🕊</p>
             <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('gospel', '福音探索') }}</p>
@@ -579,9 +579,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
    功能磚 Grid（行事曆、門訓學程、快捷連結、角色功能）
 ════════════════════════════════════════════ #}
 {% set base_d = 200 %}
-<div style="margin-bottom:28px;">
-    <div class="pa" style="--d:{{ base_d }}ms; display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div class="section-label" style="margin:0;">功能</div>
+<div style="margin-bottom:36px;">
+    <div class="pa" style="--d:{{ base_d }}ms; display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <button onclick="toggleFgGrid()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:0;">
+            <div class="section-label" style="margin:0;">更多功能</div>
+            <svg id="fg-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .25s;"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
         {% if is_super_admin %}
         <button id="edit-mode-btn" onclick="toggleEditMode()" class="btn btn-outline btn-sm"
             style="font-size:.75rem;padding:4px 10px;display:flex;align-items:center;gap:5px;">
@@ -591,7 +594,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
     </div>
 
-    <div class="fg-grid" id="feature-list">
+    <div class="fg-grid" id="feature-list" style="display:none;">
 
         {# 活動報名 #}
         {% if card_settings.get('events', true) or is_super_admin %}
@@ -909,6 +912,13 @@ const PORTAL_CSRF   = '{{ csrf_token() }}';
 
 /* ── 超管編輯模式 ── */
 let editMode = false;
+function toggleFgGrid() {
+    const grid = document.getElementById('feature-list');
+    const chevron = document.getElementById('fg-chevron');
+    const open = grid.style.display === 'none';
+    grid.style.display = open ? 'grid' : 'none';
+    chevron.style.transform = open ? 'rotate(180deg)' : '';
+}
 function toggleEditMode() {
     editMode = !editMode;
     document.body.classList.toggle('edit-mode', editMode);
