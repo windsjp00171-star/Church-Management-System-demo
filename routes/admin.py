@@ -547,6 +547,95 @@ def toggle_super_admin(user_id):
     })
 
 
+# =====================
+# 小組回報管理（cell_groups）
+# =====================
+
+@admin_bp.route('/cell-groups')
+@admin_required
+def cell_groups_page():
+    if not session.get('is_super_admin'):
+        return render_template('admin/forbidden.html'), 403
+    return render_template('admin/cell_groups.html')
+
+
+@admin_bp.route('/api/cell-groups')
+@admin_required
+def list_cell_groups():
+    groups = supabase.table('cell_groups').select('*').order('name').execute().data or []
+    for g in groups:
+        leaders = supabase.table('cell_group_leaders')\
+            .select('user_id, users(id, real_name, display_name)')\
+            .eq('group_id', g['id']).execute().data or []
+        g['leaders'] = [l['users'] for l in leaders if l.get('users')]
+    return jsonify(groups)
+
+
+@admin_bp.route('/api/cell-groups', methods=['POST'])
+@admin_required
+def create_cell_group():
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '僅超級管理員可操作'}), 403
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    if not name:
+        return jsonify({'error': '名稱不能為空'}), 400
+    gather_day = data.get('weekly_gather_day', 0)
+    result = supabase.table('cell_groups').insert({
+        'name': name, 'weekly_gather_day': gather_day, 'is_active': True
+    }).execute()
+    return jsonify({'success': True, 'group': result.data[0]})
+
+
+@admin_bp.route('/api/cell-groups/<group_id>/leaders', methods=['POST'])
+@admin_required
+def set_cell_leader(group_id):
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '僅超級管理員可操作'}), 403
+    data = request.get_json() or {}
+    user_id = data.get('user_id', '').strip()
+    if not user_id:
+        return jsonify({'error': '請指定用戶'}), 400
+    existing = supabase.table('cell_group_leaders')\
+        .select('id').eq('group_id', group_id).eq('user_id', user_id).execute().data
+    if existing:
+        return jsonify({'error': '此人已是該小組的小組長'}), 400
+    supabase.table('cell_group_leaders').insert({'group_id': group_id, 'user_id': user_id}).execute()
+    user = supabase.table('users').select('real_name, display_name').eq('id', user_id).execute().data
+    return jsonify({'success': True, 'user': user[0] if user else {}})
+
+
+@admin_bp.route('/api/cell-groups/<group_id>/leaders/<user_id>', methods=['DELETE'])
+@admin_required
+def remove_cell_leader(group_id, user_id):
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '僅超級管理員可操作'}), 403
+    supabase.table('cell_group_leaders').delete()\
+        .eq('group_id', group_id).eq('user_id', user_id).execute()
+    return jsonify({'success': True})
+
+
+@admin_bp.route('/api/cell-groups/<group_id>/toggle-active', methods=['POST'])
+@admin_required
+def toggle_cell_group_active(group_id):
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '僅超級管理員可操作'}), 403
+    current = supabase.table('cell_groups').select('is_active').eq('id', group_id).execute().data
+    if not current:
+        return jsonify({'error': '找不到小組'}), 404
+    new_val = not current[0]['is_active']
+    supabase.table('cell_groups').update({'is_active': new_val}).eq('id', group_id).execute()
+    return jsonify({'success': True, 'is_active': new_val})
+
+
+@admin_bp.route('/api/users/members')
+@admin_required
+def list_members_simple():
+    """供小組長選人用的簡易會員清單"""
+    result = supabase.table('users').select('id, real_name, display_name').order('real_name').execute()
+    return jsonify(result.data or [])
+
+
 @admin_bp.route('/api/users/<user_id>/toggle-pastor', methods=['POST'])
 @admin_required
 def toggle_pastor(user_id):

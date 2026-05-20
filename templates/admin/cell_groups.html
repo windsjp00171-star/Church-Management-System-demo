@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+{% block content %}
+<div style="max-width:900px; margin:0 auto; padding:24px 16px;">
+    <div style="margin-bottom:20px;">
+        <a href="/admin" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回後台</a>
+    </div>
+    <h2 style="margin:0 0 24px; font-size:1.4rem;">📋 小組回報管理</h2>
+
+    <!-- 新增小組 -->
+    <div style="background:white; border-radius:12px; padding:20px; margin-bottom:24px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <h3 style="margin:0 0 16px; font-size:1rem;">新增小組</h3>
+        <div style="display:flex; gap:10px; flex-wrap:wrap;">
+            <input id="new-group-name" type="text" placeholder="小組名稱" style="flex:1; min-width:160px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+            <select id="new-group-day" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+                <option value="0">日曜日（週日）</option>
+                <option value="1">星期一</option>
+                <option value="2">星期二</option>
+                <option value="3">星期三</option>
+                <option value="4">星期四</option>
+                <option value="5">星期五</option>
+                <option value="6">星期六</option>
+            </select>
+            <button onclick="createGroup()" style="padding:8px 20px; background:#1d4ed8; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.95rem;">新增</button>
+        </div>
+    </div>
+
+    <!-- 小組列表 -->
+    <div id="group-list"></div>
+</div>
+
+<!-- 指定小組長 Modal -->
+<div id="leader-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:16px; padding:28px; width:90%; max-width:460px;">
+        <h3 style="margin:0 0 16px; font-size:1.05rem;">指定小組長</h3>
+        <p style="margin:0 0 12px; color:#666; font-size:0.9rem;">小組：<strong id="modal-group-name"></strong></p>
+        <select id="leader-select" style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; margin-bottom:16px;">
+            <option value="">— 選擇會員 —</option>
+        </select>
+        <div style="display:flex; gap:10px; justify-content:flex-end;">
+            <button onclick="closeLeaderModal()" style="padding:8px 18px; border:1px solid #ddd; border-radius:8px; background:white; cursor:pointer;">取消</button>
+            <button onclick="addLeader()" style="padding:8px 18px; background:#1d4ed8; color:white; border:none; border-radius:8px; cursor:pointer;">確認指定</button>
+        </div>
+    </div>
+</div>
+
+<script>
+const DAYS = ['週日','週一','週二','週三','週四','週五','週六'];
+let currentGroupId = null;
+
+async function loadGroups() {
+    const res = await fetch('/admin/api/cell-groups');
+    const groups = await res.json();
+    const el = document.getElementById('group-list');
+    if (!groups.length) {
+        el.innerHTML = '<p style="color:#999; text-align:center; padding:40px 0;">還沒有小組，先新增一個吧</p>';
+        return;
+    }
+    el.innerHTML = groups.map(g => `
+        <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <div>
+                    <span style="font-weight:bold; font-size:1rem;">${g.name}</span>
+                    <span style="margin-left:10px; font-size:0.85rem; color:#888;">聚會日：${DAYS[g.weekly_gather_day ?? 0]}</span>
+                    <span id="active-badge-${g.id}" style="margin-left:8px; padding:2px 8px; border-radius:20px; font-size:0.78rem;
+                        background:${g.is_active ? '#dcfce7' : '#fee2e2'}; color:${g.is_active ? '#16a34a' : '#dc2626'};">
+                        ${g.is_active ? '啟用中' : '已停用'}
+                    </span>
+                </div>
+                <div style="display:flex; gap:8px;">
+                    <button onclick="openLeaderModal('${g.id}', '${g.name}')"
+                        style="padding:6px 14px; background:#eff6ff; color:#1d4ed8; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                        + 指定小組長
+                    </button>
+                    <button onclick="toggleActive('${g.id}', this)"
+                        style="padding:6px 14px; background:${g.is_active ? '#fee2e2' : '#f0fdf4'}; color:${g.is_active ? '#dc2626' : '#16a34a'}; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                        ${g.is_active ? '停用' : '啟用'}
+                    </button>
+                </div>
+            </div>
+            <div id="leaders-${g.id}" style="display:flex; flex-wrap:wrap; gap:8px;">
+                ${(g.leaders || []).map(l => `
+                    <span style="padding:4px 10px; background:#f1f5f9; border-radius:20px; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
+                        ${l.real_name || l.display_name}
+                        <button onclick="removeLeader('${g.id}', '${l.id}', this.parentElement)"
+                            style="background:none; border:none; cursor:pointer; color:#999; font-size:0.9rem; padding:0;">✕</button>
+                    </span>
+                `).join('') || '<span style="color:#bbb; font-size:0.85rem;">尚未指定小組長</span>'}
+            </div>
+        </div>
+    `).join('');
+}
+
+async function createGroup() {
+    const name = document.getElementById('new-group-name').value.trim();
+    const day = parseInt(document.getElementById('new-group-day').value);
+    if (!name) { alert('請輸入小組名稱'); return; }
+    const res = await fetch('/admin/api/cell-groups', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, weekly_gather_day: day })
+    });
+    const data = await res.json();
+    if (data.success) { document.getElementById('new-group-name').value = ''; loadGroups(); }
+    else alert(data.error || '新增失敗');
+}
+
+async function openLeaderModal(groupId, groupName) {
+    currentGroupId = groupId;
+    document.getElementById('modal-group-name').textContent = groupName;
+    const res = await fetch('/admin/api/users/members');
+    const users = await res.json();
+    const sel = document.getElementById('leader-select');
+    sel.innerHTML = '<option value="">— 選擇會員 —</option>' +
+        users.map(u => `<option value="${u.id}">${u.real_name || u.display_name}</option>`).join('');
+    document.getElementById('leader-modal').style.display = 'flex';
+}
+
+function closeLeaderModal() {
+    document.getElementById('leader-modal').style.display = 'none';
+    currentGroupId = null;
+}
+
+async function addLeader() {
+    const userId = document.getElementById('leader-select').value;
+    if (!userId) { alert('請選擇會員'); return; }
+    const res = await fetch(`/admin/api/cell-groups/${currentGroupId}/leaders`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_id: userId })
+    });
+    const data = await res.json();
+    if (data.success) { closeLeaderModal(); loadGroups(); }
+    else alert(data.error || '操作失敗');
+}
+
+async function removeLeader(groupId, userId, el) {
+    if (!confirm('確定移除此小組長？')) return;
+    const res = await fetch(`/admin/api/cell-groups/${groupId}/leaders/${userId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.success) el.remove();
+    else alert(data.error || '操作失敗');
+}
+
+async function toggleActive(groupId, btn) {
+    const res = await fetch(`/admin/api/cell-groups/${groupId}/toggle-active`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) loadGroups();
+}
+
+loadGroups();
+</script>
+{% endblock %}
