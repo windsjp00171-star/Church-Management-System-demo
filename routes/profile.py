@@ -60,7 +60,14 @@ def edit():
 
     user = supabase.table('users').select('*').eq('id', uid).execute().data[0]
     groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
-    return render_template('profile/edit.html', user=user, groups=groups)
+
+    # 天父日記授權資料
+    from routes.diary import sb_list_pastors, sb_get_owner_grants
+    pastors = sb_list_pastors()
+    granted_ids = sb_get_owner_grants(session.get('line_id', ''))
+    granted_map = {pid: True for pid in granted_ids}
+
+    return render_template('profile/edit.html', user=user, groups=groups, pastors=pastors, granted_map=granted_map)
 
 
 @profile_bp.route('/admin/api/users/<user_id>/profile', methods=['POST'])

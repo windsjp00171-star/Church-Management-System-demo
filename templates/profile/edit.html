@@ -84,6 +84,54 @@
         </button>
         <p id="save-msg" style="text-align:center; color:#06C755; margin-top:12px; display:none;">✅ 已儲存！</p>
     </div>
+
+    <!-- 天父日記授權設定 -->
+    {% if pastors %}
+    <div style="background:white; border-radius:16px; padding:28px; box-shadow:0 2px 16px rgba(0,0,0,0.08); margin-top:16px;">
+        <h3 style="margin:0 0 8px; font-size:1rem;">🔐 天父日記查閱授權</h3>
+        <p style="color:#888; font-size:0.85rem; margin:0 0 16px;">授權後，對方可查閱你的靈修記錄。</p>
+
+        {% set grant_count = granted_map|length %}
+        <form method="post" action="{{ url_for('diary.grant') }}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+            <input type="hidden" name="entry_date" value="">
+            <select name="pastor_line_user_id" style="flex:1; min-width:180px; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem;">
+                <option value="">— 選擇牧者 / 小組長 —</option>
+                {% for p in pastors %}
+                    <option value="{{ p.line_user_id }}">{{ p.display_name }}</option>
+                {% endfor %}
+            </select>
+            <button type="submit" name="action" value="grant"
+                style="padding:10px 18px; background:#06C755; color:white; border:none; border-radius:8px; font-size:0.9rem; cursor:pointer;"
+                onclick="var sel=this.form.querySelector('select');if(!sel.value){alert('請先選擇對象');return false;}return confirm('確定授權嗎？')">
+                授權
+            </button>
+        </form>
+
+        {% if grant_count > 0 %}
+        <div style="border-top:1px solid #f0f0f0; padding-top:12px;">
+            <p style="font-size:0.85rem; color:#888; margin:0 0 10px;">已授權名單：</p>
+            {% for p in pastors %}
+                {% if granted_map.get(p.line_user_id) %}
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
+                    <span style="font-size:0.9rem;">{{ p.display_name }}</span>
+                    <form method="post" action="{{ url_for('diary.grant') }}">
+                        <input type="hidden" name="entry_date" value="">
+                        <input type="hidden" name="pastor_line_user_id" value="{{ p.line_user_id }}">
+                        <button type="submit" name="action" value="revoke"
+                            style="padding:5px 12px; background:#fff0f0; color:#c62828; border:1px solid #fca5a5; border-radius:6px; font-size:0.82rem; cursor:pointer;"
+                            onclick="return confirm('確定取消授權嗎？')">取消授權</button>
+                    </form>
+                </div>
+                {% endif %}
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if not pastors %}
+        <p style="color:#aaa; font-size:0.85rem;">目前沒有可授權的牧者或小組長。</p>
+        {% endif %}
+    </div>
+    {% endif %}
 </div>
 
 <script>
