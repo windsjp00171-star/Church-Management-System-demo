@@ -1,205 +1,187 @@
 {% extends "base.html" %}
-{% block title %}活動報名 — {{ church_name or '教會行政系統' }}{% endblock %}
+{% block title %}{{ config.CHURCH_NAME or '教會行政系統' }} — 歡迎{% endblock %}
 
 {% block extra_css %}
 <style>
-.events-section { margin-bottom: 36px; }
-.events-section h2 {
-    font-size: 1.1rem;
+.portal-hero {
+    text-align: center;
+    padding: 40px 16px 28px;
+}
+.portal-hero h1 {
+    font-size: 1.75rem;
     font-weight: 700;
     color: var(--color-primary);
-    margin-bottom: 16px;
+    margin-bottom: 8px;
+}
+.portal-hero p {
+    color: var(--color-text-muted);
+    font-size: 0.95rem;
+}
+.portal-section-title {
+    font-size: 0.78rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--color-text-muted);
+    margin: 28px 0 12px;
     display: flex;
     align-items: center;
     gap: 8px;
 }
-.event-card {
-    background: var(--color-surface);
-    border-radius: var(--radius-lg);
-    padding: 20px 24px;
-    margin-bottom: 14px;
-    box-shadow: var(--shadow-sm);
-    border: 1px solid var(--color-border-light);
-    border-left: 4px solid var(--color-primary);
-    transition: transform var(--transition), box-shadow var(--transition);
+.portal-section-title::before {
+    content: '';
+    display: inline-block;
+    width: 3px;
+    height: 14px;
+    background: var(--color-accent);
+    border-radius: 2px;
 }
-.event-card:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow);
-}
-.event-card-closed {
-    border-left-color: var(--color-border);
-    opacity: 0.72;
-}
-.event-card-header {
+.portal-card {
     display: flex;
-    justify-content: space-between;
+    flex-direction: column;
     align-items: flex-start;
-    gap: 12px;
-    flex-wrap: wrap;
-    margin-bottom: 10px;
-}
-.event-card-title-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-}
-.event-card-title {
-    font-size: 1.05rem;
-    font-weight: 700;
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px 20px 18px;
+    text-decoration: none;
     color: var(--color-text);
+    box-shadow: 0 2px 10px rgba(26,58,92,0.07);
+    border: 1.5px solid #e8eef5;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
 }
-.event-registered-badge {
-    background: var(--color-success-bg);
-    color: var(--color-success);
-    padding: 2px 10px;
-    border-radius: var(--radius-full);
-    font-size: 0.75rem;
+.portal-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 28px rgba(26,58,92,0.13);
+    border-color: var(--color-accent);
+    text-decoration: none;
+}
+.portal-card-icon {
+    font-size: 2rem;
+    margin-bottom: 10px;
+    line-height: 1;
+}
+.portal-card-title {
+    font-size: 1rem;
     font-weight: 700;
+    color: var(--color-primary);
+    margin-bottom: 4px;
 }
-.event-meta {
-    color: var(--color-text-light);
-    font-size: 0.86rem;
-    line-height: 2;
-}
-.event-slots {
-    text-align: right;
-    min-width: 70px;
-    flex-shrink: 0;
-}
-.event-slots-num {
-    font-size: 1.5rem;
-    font-weight: 700;
-}
-.event-slots-label {
-    font-size: 0.72rem;
+.portal-card-desc {
+    font-size: 0.82rem;
     color: var(--color-text-muted);
+    line-height: 1.5;
 }
-.event-card-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 14px;
-    padding-top: 14px;
-    border-top: 1px solid var(--color-border-light);
+.portal-card-admin {
+    border-color: #e8c07a;
+    background: linear-gradient(135deg, #fffbf0, #fff);
 }
-.event-fee {
-    color: var(--color-text-muted);
-    font-size: 0.85rem;
-}
-.event-status-tag {
-    padding: 2px 10px;
-    border-radius: var(--radius-full);
-    font-size: 0.75rem;
-    font-weight: 600;
-}
-.tag-past     { background: #f5f5f5; color: #999; }
-.tag-full     { background: var(--color-warning-bg); color: var(--color-warning); }
-.tag-closed   { background: var(--color-error-bg); color: var(--color-error); }
+.portal-card-admin .portal-card-title { color: #a07000; }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="page-container">
-    <div class="page-header">
-        <h1 class="page-title">🎉 活動報名</h1>
-        <p class="page-subtitle">查看目前開放報名的活動</p>
-    </div>
+<div class="portal-hero fade-in">
+    <h1>⛪ {{ config.CHURCH_NAME or '教會行政系統' }}</h1>
+    <p>願主賜福你今天的每個時刻</p>
+</div>
 
-    <!-- ===== 報名開放中 ===== -->
-    <div class="events-section">
-        <h2>🟢 報名開放中</h2>
+<!-- 所有人可見 -->
+<div class="portal-section-title">教會資源</div>
+<div class="card-grid">
+    <a href="/events" class="portal-card fade-in">
+        <div class="portal-card-icon">🎉</div>
+        <div class="portal-card-title">活動報名</div>
+        <div class="portal-card-desc">查看並報名教會活動</div>
+    </a>
+    <a href="/calendar" class="portal-card fade-in">
+        <div class="portal-card-icon">📅</div>
+        <div class="portal-card-title">行事曆</div>
+        <div class="portal-card-desc">教會行事曆與個人行程</div>
+    </a>
+    <a href="/bulletins" class="portal-card fade-in">
+        <div class="portal-card-icon">📰</div>
+        <div class="portal-card-title">每週週報</div>
+        <div class="portal-card-desc">最新週報與公告</div>
+    </a>
+    <a href="/prayer" class="portal-card fade-in">
+        <div class="portal-card-icon">🌾</div>
+        <div class="portal-card-title">代禱麥田</div>
+        <div class="portal-card-desc">分享代禱需求，彼此守望</div>
+    </a>
+    <a href="/gospel" class="portal-card fade-in">
+        <div class="portal-card-icon">✝️</div>
+        <div class="portal-card-title">福音探索</div>
+        <div class="portal-card-desc">認識信仰的第一步</div>
+    </a>
+</div>
 
-        {% if open_events %}
-            {% for event in open_events %}
-            <div class="event-card">
-                <div class="event-card-header">
-                    <div>
-                        <div class="event-card-title-row">
-                            <span class="event-card-title">{{ event.title }}</span>
-                            {% if event._i_registered %}
-                            <span class="event-registered-badge">✓ 已報名</span>
-                            {% endif %}
-                        </div>
-                        <div class="event-meta">
-                            {% if event.location %}
-                            <span>📍 {{ event.location }}</span><br>
-                            {% endif %}
-                            {% if event.event_start %}
-                            <span>🕐 {{ event.event_start | taipei_time }}</span><br>
-                            {% endif %}
-                            {% if event.reg_end %}
-                            <span style="color:var(--color-warning);">⏰ 報名截止：{{ event.reg_end | taipei_time }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div class="event-slots">
-                        {% if event.capacity %}
-                            {% set remaining = event.capacity - event._reg_count %}
-                            <div class="event-slots-num" style="color:{{ '#c62828' if remaining <= 5 else '#2e7d32' }};">
-                                {{ remaining }}
-                            </div>
-                            <div class="event-slots-label">剩餘名額</div>
-                        {% else %}
-                            <div class="event-slots-num" style="color:var(--color-primary);">{{ event._reg_count }}</div>
-                            <div class="event-slots-label">已報名</div>
-                        {% endif %}
-                    </div>
-                </div>
-                <div class="event-card-footer">
-                    <span class="event-fee">
-                        💰 {% if event.fee %}{{ event.fee }} 元{% else %}免費{% endif %}
-                    </span>
-                    <a href="/event/{{ event.id }}" class="btn btn-primary btn-sm">
-                        {{ '查看我的報名' if event._i_registered else '立即報名' }}
-                    </a>
-                </div>
-            </div>
-            {% endfor %}
-        {% else %}
-            <div class="empty-state" style="margin-bottom:24px;">
-                <div class="empty-state-icon">📭</div>
-                <p>目前沒有開放報名的活動</p>
-            </div>
-        {% endif %}
-    </div>
+{% if session.user_id or session.line_id %}
+<!-- 已登入 -->
+<div class="portal-section-title">我的服務</div>
+<div class="card-grid">
+    <a href="/diary" class="portal-card fade-in">
+        <div class="portal-card-icon">📖</div>
+        <div class="portal-card-title">天父日記</div>
+        <div class="portal-card-desc">記錄每日與神的對話</div>
+    </a>
+    <a href="/my_history" class="portal-card fade-in">
+        <div class="portal-card-icon">🗂️</div>
+        <div class="portal-card-title">電子簽到記錄</div>
+        <div class="portal-card-desc">我的活動出席紀錄</div>
+    </a>
+</div>
+{% endif %}
 
-    <!-- ===== 其他活動 ===== -->
-    {% if other_events %}
-    <div class="events-section">
-        <h2 style="color:var(--color-text-muted);">其他活動</h2>
-        {% for event in other_events %}
-        <div class="event-card event-card-closed">
-            <div class="event-card-header">
-                <div>
-                    <div class="event-card-title-row">
-                        <span class="event-card-title" style="color:#555;">{{ event.title }}</span>
-                        {% if event._is_past %}
-                        <span class="event-status-tag tag-past">已結束</span>
-                        {% elif event._is_full %}
-                        <span class="event-status-tag tag-full">名額已滿</span>
-                        {% else %}
-                        <span class="event-status-tag tag-closed">報名已關閉</span>
-                        {% endif %}
-                    </div>
-                    {% if event.event_start %}
-                    <div class="event-meta">🕐 {{ event.event_start | taipei_time }}</div>
-                    {% endif %}
-                </div>
-            </div>
-            <div class="event-card-footer">
-                <span class="event-fee">
-                    💰 {% if event.fee %}{{ event.fee }} 元{% else %}免費{% endif %}
-                </span>
-                <a href="/event/{{ event.id }}" class="btn btn-secondary btn-sm">查看詳情</a>
-            </div>
-        </div>
-        {% endfor %}
-    </div>
+{% if session.is_pastor or session.is_staff or session.cell_group_ids %}
+<!-- 服事功能 -->
+<div class="portal-section-title">服事功能</div>
+<div class="card-grid">
+    {% if session.is_pastor %}
+    <a href="/cell-report/pastor-dashboard" class="portal-card fade-in">
+        <div class="portal-card-icon">📊</div>
+        <div class="portal-card-title">牧者週報總覽</div>
+        <div class="portal-card-desc">查看各小組回報與統計</div>
+    </a>
+    <a href="/diary/pastor" class="portal-card fade-in">
+        <div class="portal-card-icon">🔍</div>
+        <div class="portal-card-title">查閱會友日記</div>
+        <div class="portal-card-desc">已授權的會友日記</div>
+    </a>
     {% endif %}
 
+    {% if session.is_staff %}
+    <a href="/cell-report/staff-dashboard" class="portal-card fade-in">
+        <div class="portal-card-icon">📋</div>
+        <div class="portal-card-title">同工週報</div>
+        <div class="portal-card-desc">各區小組回報總覽</div>
+    </a>
+    {% endif %}
+
+    {% if session.cell_group_ids %}
+    <a href="/cell-report/portal" class="portal-card fade-in">
+        <div class="portal-card-icon">👥</div>
+        <div class="portal-card-title">小組回報</div>
+        <div class="portal-card-desc">填寫本週小組聚會回報</div>
+    </a>
+    {% endif %}
 </div>
+{% endif %}
+
+{% if session.is_admin %}
+<!-- 管理功能 -->
+<div class="portal-section-title">管理功能</div>
+<div class="card-grid">
+    <a href="/admin" class="portal-card portal-card-admin fade-in">
+        <div class="portal-card-icon">⚙️</div>
+        <div class="portal-card-title">後台管理</div>
+        <div class="portal-card-desc">使用者、活動、系統設定</div>
+    </a>
+    <a href="/files" class="portal-card portal-card-admin fade-in">
+        <div class="portal-card-icon">📁</div>
+        <div class="portal-card-title">檔案管理</div>
+        <div class="portal-card-desc">教會資料夾與檔案</div>
+    </a>
+</div>
+{% endif %}
+
 {% endblock %}

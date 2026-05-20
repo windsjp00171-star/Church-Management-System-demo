@@ -3,227 +3,122 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}{{ church_name or '教會行政系統' }}{% endblock %}</title>
-    <!-- 字型 -->
+    <title>{% block title %}{{ config.CHURCH_NAME or '教會行政系統' }}{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- 共用樣式 -->
-    <link rel="stylesheet" href="/static/css/main.css">
-    <!-- PWA -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1a3a5c">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
-    <meta name="apple-mobile-web-app-title" content="{{ church_short_name or church_name or '教會' }}">
+    <meta name="apple-mobile-web-app-title" content="{{ config.CHURCH_NAME or '教會行政系統' }}">
     <link rel="apple-touch-icon" href="/static/icons/icon.svg">
+    <link rel="stylesheet" href="/static/css/main.css">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
 
-<!-- ══ 頂部固定導覽列 ══ -->
+<!-- ══ Navbar ══ -->
 <nav class="navbar">
-    <!-- Logo / 教會名稱 -->
     <a href="/" class="navbar-brand">
         <span class="navbar-brand-icon">⛪</span>
-        <span class="navbar-brand-text">{{ church_short_name or church_name or '教會行政系統' }}</span>
+        <span class="navbar-brand-text">{{ config.CHURCH_SHORT_NAME or config.CHURCH_NAME or '教會行政系統' }}</span>
     </a>
 
-    <!-- 桌機導覽連結 -->
-    <ul class="navbar-nav" style="margin-left:24px; flex:1;">
-        <!-- 所有人可見 -->
-        <li class="nav-item">
-            <a href="/" class="nav-link">首頁</a>
-        </li>
-        <li class="nav-item">
-            <a href="/events" class="nav-link">活動報名</a>
-        </li>
-        <li class="nav-item">
-            <a href="/calendar" class="nav-link">行事曆</a>
-        </li>
-        <li class="nav-item">
-            <a href="/bulletins" class="nav-link">週報</a>
-        </li>
-        <li class="nav-item">
-            <a href="/prayer" class="nav-link">代禱麥田</a>
-        </li>
-
-        <!-- 已登入 -->
-        {% if session.user_id %}
-        <li class="nav-item">
-            <a href="/diary" class="nav-link">天父日記</a>
-        </li>
-        {% endif %}
-
-        <!-- 牧者 -->
-        {% if session.is_pastor %}
-        <li class="nav-item">
-            <a href="/cell-report/pastor-dashboard" class="nav-link">牧者週報</a>
-        </li>
-        <li class="nav-item">
-            <a href="/diary/pastor" class="nav-link">會友日記</a>
-        </li>
-        {% endif %}
-
-        <!-- 同工 -->
-        {% if session.is_staff %}
-        <li class="nav-item">
-            <a href="/cell-report/staff-dashboard" class="nav-link">同工週報</a>
-        </li>
-        {% endif %}
-
-        <!-- 小組長 -->
-        {% if session.cell_group_ids %}
-        <li class="nav-item">
-            <a href="/cell-report/portal" class="nav-link">小組回報</a>
-        </li>
-        {% endif %}
-
-        <!-- 管理員 -->
-        {% if session.is_admin %}
-        <li class="nav-item">
-            <a href="/files" class="nav-link">檔案管理</a>
-        </li>
-        <li class="nav-item">
-            <a href="/admin" class="nav-badge" style="margin-left:4px;">後台管理</a>
-        </li>
-        {% endif %}
-    </ul>
-
-    <!-- 右側：使用者資訊 / 登入狀態 -->
-    {% if session.user_id %}
-    <div class="navbar-user">
-        {% if session.picture_url %}
-        <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar">
-        {% endif %}
-        <a href="/profile" class="navbar-username" title="個人資料">
-            {{ session.real_name or session.display_name or '會友' }}
-        </a>
-        <a href="/auth/logout" class="navbar-logout">登出</a>
-    </div>
-    {% else %}
-    <div class="navbar-user">
-        <a href="/auth/login" class="nav-link">登入</a>
-    </div>
-    {% endif %}
-
-    <!-- 手機 Hamburger -->
-    <button class="hamburger" id="hamburger-btn" aria-label="選單" onclick="toggleDrawer()">
-        <span></span>
-        <span></span>
-        <span></span>
+    <button class="hamburger" id="hamburger-btn" onclick="toggleMenu()" aria-label="開關選單">
+        <span></span><span></span><span></span>
     </button>
+
+    <div class="navbar-nav" id="navbar-nav">
+        <a href="/" class="nav-item nav-link">首頁</a>
+        <a href="/events" class="nav-item nav-link">活動報名</a>
+        <a href="/calendar" class="nav-item nav-link">行事曆</a>
+        <a href="/bulletins" class="nav-item nav-link">每週週報</a>
+        <a href="/prayer" class="nav-item nav-link">代禱麥田</a>
+
+        {% if session.user_id or session.line_id %}
+        <a href="/diary" class="nav-item nav-link">天父日記</a>
+        <a href="/profile" class="nav-item nav-link">個人資料</a>
+        {% endif %}
+
+        {% if session.is_pastor %}
+        <a href="/cell-report/pastor-dashboard" class="nav-item nav-link">牧者週報</a>
+        <a href="/diary/pastor" class="nav-item nav-link">會友日記查閱</a>
+        {% endif %}
+
+        {% if session.is_staff %}
+        <a href="/cell-report/staff-dashboard" class="nav-item nav-link">同工週報</a>
+        {% endif %}
+
+        {% if session.cell_group_ids %}
+        <a href="/cell-report/portal" class="nav-item nav-link">小組回報</a>
+        {% endif %}
+
+        {% if session.is_admin %}
+        <a href="/files" class="nav-item nav-link">檔案管理</a>
+        <a href="/admin" class="nav-item nav-link nav-link-admin">後台管理</a>
+        {% endif %}
+    </div>
+
+    <div class="navbar-user">
+        {% if session.user_id or session.line_id %}
+            {% if session.picture_url %}
+            <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar">
+            {% endif %}
+            <span class="navbar-username">{{ session.real_name or session.display_name or '' }}</span>
+            <a href="/auth/logout" class="btn btn-sm btn-logout">登出</a>
+        {% else %}
+            <a href="/auth/login" class="btn btn-sm btn-primary">LINE 登入</a>
+        {% endif %}
+    </div>
 </nav>
 
-<!-- ══ 手機抽屜選單 ══ -->
-<div class="navbar-drawer" id="navbar-drawer">
-    {% if session.user_id %}
-    <div class="drawer-user-row">
-        {% if session.picture_url %}
-        <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar">
-        {% endif %}
-        <div>
-            <div class="drawer-username">{{ session.real_name or session.display_name or '會友' }}</div>
-            <div style="font-size:0.78rem; color:rgba(255,255,255,0.6);">已登入</div>
-        </div>
-    </div>
-    <hr class="drawer-divider">
-    {% endif %}
-
-    <!-- 所有人 -->
-    <a href="/" class="drawer-nav-link">🏠 首頁</a>
-    <a href="/events" class="drawer-nav-link">📅 活動報名</a>
-    <a href="/calendar" class="drawer-nav-link">🗓️ 教會行事曆</a>
-    <a href="/bulletins" class="drawer-nav-link">📰 每週週報</a>
-    <a href="/prayer" class="drawer-nav-link">🌾 代禱麥田</a>
-
-    {% if session.user_id %}
-    <hr class="drawer-divider">
-    <a href="/diary" class="drawer-nav-link">📔 天父日記</a>
-    <a href="/profile" class="drawer-nav-link">👤 個人資料</a>
-    {% endif %}
-
-    {% if session.is_pastor %}
-    <hr class="drawer-divider">
-    <a href="/cell-report/pastor-dashboard" class="drawer-nav-link">⛪ 牧者週報總覽</a>
-    <a href="/diary/pastor" class="drawer-nav-link">📖 查閱會友日記</a>
-    {% endif %}
-
-    {% if session.is_staff %}
-    <a href="/cell-report/staff-dashboard" class="drawer-nav-link">📊 同工週報</a>
-    {% endif %}
-
-    {% if session.cell_group_ids %}
-    <a href="/cell-report/portal" class="drawer-nav-link">👥 小組回報</a>
-    {% endif %}
-
-    {% if session.is_admin %}
-    <hr class="drawer-divider">
-    <a href="/files" class="drawer-nav-link">📁 檔案管理</a>
-    <a href="/admin" class="drawer-nav-link">⚙️ 後台管理</a>
-    {% endif %}
-
-    {% if session.user_id %}
-    <hr class="drawer-divider">
-    <a href="/auth/logout" class="drawer-nav-link" style="color:rgba(255,100,100,0.9);">🚪 登出</a>
-    {% else %}
-    <hr class="drawer-divider">
-    <a href="/auth/login" class="drawer-nav-link">🔑 登入</a>
-    {% endif %}
-</div>
-
-<!-- ══ Flash 訊息 ══ -->
+<!-- ══ Flash Messages ══ -->
 {% with messages = get_flashed_messages(with_categories=true) %}
 {% if messages %}
 <div class="flash-messages">
     {% for category, message in messages %}
-    <div class="flash flash-{{ 'error' if category == 'danger' else category }}" role="alert">
+    <div class="flash flash-{{ category }}">
         <span class="flash-icon">
-            {%- if category == 'success' %}✅
-            {%- elif category in ('error', 'danger') %}❌
-            {%- elif category == 'warning' %}⚠️
-            {%- else %}ℹ️
-            {%- endif -%}
+            {%- if category == 'success' %}✓{%- elif category == 'error' %}✕{%- elif category == 'warning' %}⚠{%- else %}ℹ{%- endif %}
         </span>
         <span>{{ message }}</span>
-        <button class="flash-close" onclick="this.parentElement.remove()" aria-label="關閉">✕</button>
+        <button class="flash-close" onclick="this.parentElement.remove()">×</button>
     </div>
     {% endfor %}
 </div>
 {% endif %}
 {% endwith %}
 
-<!-- ══ 主要內容 ══ -->
+<!-- ══ LINE 內建瀏覽器提示 ══ -->
+<div id="line-browser-tip" class="line-browser-tip" style="display:none;">
+    <div class="line-browser-tip-inner">
+        <div><strong>目前在 LINE 內建瀏覽器</strong>，有些功能可能不如 Chrome 或 Safari 順暢。</div>
+        <div class="line-browser-tip-actions">
+            <button type="button" class="btn btn-sm btn-primary" onclick="openExternalBrowser()">用瀏覽器開啟</button>
+            <button type="button" class="btn btn-sm btn-secondary" onclick="dismissLineTip()">關閉</button>
+        </div>
+    </div>
+</div>
+
+<!-- ══ Main Content ══ -->
 <main>
     {% block content %}{% endblock %}
 </main>
 
-<!-- ══ Toast 通知 ══ -->
-<div id="_toast-container" style="
-    position:fixed; bottom:24px; left:50%; transform:translateX(-50%);
-    z-index:9999; display:flex; flex-direction:column; align-items:center; gap:8px;
-    pointer-events:none; width:min(90vw,400px);">
-</div>
-<style>
-._toast {
-  padding:11px 22px; border-radius:var(--radius-full); font-size:0.88rem; font-weight:600;
-  color:white; box-shadow:var(--shadow-md);
-  animation:fadeIn 0.22s ease, fadeOut 0.3s ease 2.7s forwards;
-  text-align:center; max-width:100%; pointer-events:none;
-}
-._toast.success { background:#2e7d32; }
-._toast.error   { background:#c62828; }
-._toast.info    { background:#1565c0; }
-._toast.warn    { background:#e65100; }
-</style>
+<!-- ══ Help Button ══ -->
+<div id="help-bubble" class="help-bubble" style="display:none;">👆 點我看使用說明</div>
+<a href="/manual" id="help-btn" class="help-btn">？</a>
+
+<!-- ══ Toast Container ══ -->
+<div id="toast-container" class="toast-container"></div>
 
 <script>
-// ── CSRF ──
 const _CSRF_TOKEN = "{{ csrf_token() }}";
-const _LINE_LIFF_ID = "{{ line_liff_id or '' }}";
+const _LINE_LIFF_ID = "{{ config.LINE_LIFF_ID or '' }}";
 
 (function(){
-    var _orig = window.fetch;
+    const _orig = window.fetch;
     window.fetch = function(url, opts) {
         opts = opts || {};
         if (!opts.method || opts.method.toUpperCase() === 'GET') return _orig(url, opts);
@@ -235,83 +130,68 @@ const _LINE_LIFF_ID = "{{ line_liff_id or '' }}";
     };
 })();
 
-// ── Hamburger / Drawer ──
-function toggleDrawer() {
+function toggleMenu() {
+    var nav = document.getElementById('navbar-nav');
     var btn = document.getElementById('hamburger-btn');
-    var drawer = document.getElementById('navbar-drawer');
-    var isOpen = drawer.classList.toggle('open');
-    btn.classList.toggle('open', isOpen);
-    btn.setAttribute('aria-expanded', isOpen);
+    if (!nav || !btn) return;
+    nav.classList.toggle('is-open');
+    btn.classList.toggle('is-active');
 }
 
-// 點 drawer 外部關閉
 document.addEventListener('click', function(e) {
-    var drawer = document.getElementById('navbar-drawer');
-    var btn    = document.getElementById('hamburger-btn');
-    if (!drawer || !btn) return;
-    if (!drawer.contains(e.target) && !btn.contains(e.target)) {
-        drawer.classList.remove('open');
-        btn.classList.remove('open');
+    var nav = document.getElementById('navbar-nav');
+    var btn = document.getElementById('hamburger-btn');
+    if (!nav || !btn) return;
+    if (!nav.contains(e.target) && !btn.contains(e.target)) {
+        nav.classList.remove('is-open');
+        btn.classList.remove('is-active');
     }
 });
 
-// ── Toast ──
 function showToast(msg, type) {
     type = type || 'info';
-    var c = document.getElementById('_toast-container');
-    if (!c) return;
+    var c = document.getElementById('toast-container');
     var t = document.createElement('div');
-    t.className = '_toast ' + type;
+    t.className = 'toast toast-' + type;
     t.textContent = msg;
     c.appendChild(t);
     setTimeout(function(){ if(t.parentNode) t.parentNode.removeChild(t); }, 3000);
 }
 
-// ── Active nav link highlight ──
-(function(){
-    var path = window.location.pathname;
-    var links = document.querySelectorAll('.nav-link[href], .drawer-nav-link[href]');
-    links.forEach(function(a){
-        if (a.getAttribute('href') === path) a.classList.add('active');
-    });
-})();
+function isLineBrowser() { return /Line\//i.test(navigator.userAgent); }
 
-// ── LINE in-app browser helper ──
-function isLineBrowser() {
-    return /Line\//i.test(navigator.userAgent);
-}
-
-function loadLiffSdk(callback) {
-    if (window.liff) { callback(); return; }
-    var existing = document.getElementById('liff-sdk');
-    if (existing) { existing.addEventListener('load', callback, { once: true }); return; }
-    var script = document.createElement('script');
-    script.id = 'liff-sdk';
-    script.src = 'https://static.line-scdn.net/liff/edge/2/sdk.js';
-    script.onload = callback;
-    script.onerror = function(){ showToast('請點 LINE 右上角「⋯」，選擇用瀏覽器開啟', 'warn'); };
-    document.head.appendChild(script);
+function dismissLineTip() {
+    sessionStorage.setItem('lineTipDismissed', '1');
+    var el = document.getElementById('line-browser-tip');
+    if (el) el.style.display = 'none';
 }
 
 function openExternalBrowser() {
     var targetUrl = window.location.href;
     if (!isLineBrowser()) { window.location.href = targetUrl; return; }
-    loadLiffSdk(function() {
-        liff.init({ liffId: _LINE_LIFF_ID })
-            .then(function(){ liff.openWindow({ url: targetUrl, external: true }); })
-            .catch(function(){ showToast('請點 LINE 右上角「⋯」，選擇用瀏覽器開啟', 'warn'); });
-    });
+    showToast('請點 LINE 右上角「⋯」，選擇用瀏覽器開啟', 'warning');
 }
 
-// ── Flash auto-dismiss after 6s ──
 (function(){
-    setTimeout(function(){
-        document.querySelectorAll('.flash').forEach(function(el){
-            el.style.transition = 'opacity 0.5s ease';
-            el.style.opacity = '0';
-            setTimeout(function(){ if(el.parentNode) el.parentNode.removeChild(el); }, 500);
-        });
-    }, 6000);
+    if (!isLineBrowser()) return;
+    if (sessionStorage.getItem('lineTipDismissed')) return;
+    var el = document.getElementById('line-browser-tip');
+    if (el) el.style.display = 'block';
+})();
+
+(function(){
+    var btn = document.getElementById('help-btn');
+    var bubble = document.getElementById('help-bubble');
+    if (!btn || !bubble) return;
+    if (!localStorage.getItem('helpSeen')) {
+        btn.classList.add('help-pulse');
+        bubble.style.display = 'block';
+        setTimeout(function(){ bubble.style.display = 'none'; }, 5000);
+    }
+    btn.addEventListener('click', function(){
+        localStorage.setItem('helpSeen', '1');
+        btn.classList.remove('help-pulse');
+    });
 })();
 </script>
 

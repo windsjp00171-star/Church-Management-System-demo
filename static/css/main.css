@@ -688,3 +688,146 @@ select.form-control { cursor: pointer; }
   .card { padding: 16px 14px; }
   .card-icon { font-size: 1.9rem; }
 }
+
+/* ============================================================
+   ADDITIONAL: Mobile navbar-nav overlay (is-open / is-active)
+   ============================================================ */
+@media (max-width: 768px) {
+  .navbar-nav.is-open {
+    display: flex !important;
+    flex-direction: column;
+    position: fixed;
+    top: var(--navbar-height);
+    left: 0;
+    right: 0;
+    background: var(--color-primary-dark);
+    padding: 8px 0 16px;
+    z-index: 999;
+    box-shadow: var(--shadow-md);
+    border-top: 1px solid rgba(255,255,255,0.1);
+    gap: 0;
+    animation: drawerSlide 0.22s ease;
+    max-height: calc(100vh - var(--navbar-height));
+    overflow-y: auto;
+  }
+  .navbar-nav.is-open .nav-link {
+    padding: 12px 20px;
+    border-radius: 0;
+    font-size: 0.92rem;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+    width: 100%;
+  }
+}
+.hamburger.is-active span:nth-child(1) { transform: translateY(7px) rotate(45deg); }
+.hamburger.is-active span:nth-child(2) { opacity: 0; }
+.hamburger.is-active span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
+
+/* ── Nav admin highlight ── */
+.nav-link-admin {
+  color: #f5c060 !important;
+  background: rgba(232,160,32,0.2);
+}
+.nav-link-admin:hover { background: rgba(232,160,32,0.35) !important; }
+
+/* ── Logout button ── */
+.btn-logout {
+  background: rgba(255,255,255,0.15);
+  color: rgba(255,255,255,0.9);
+  border: 1px solid rgba(255,255,255,0.3);
+  border-radius: var(--radius-sm);
+}
+.btn-logout:hover { background: rgba(255,255,255,0.28); color: white; }
+
+/* ============================================================
+   LINE BROWSER TIP
+   ============================================================ */
+.line-browser-tip {
+  background: #fffbeb;
+  border-bottom: 1px solid #fde68a;
+  padding: 10px 20px;
+  font-size: 0.86rem;
+  color: #92400e;
+}
+.line-browser-tip-inner {
+  max-width: 960px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.line-browser-tip-actions { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* ============================================================
+   HELP BUTTON
+   ============================================================ */
+.help-bubble {
+  position: fixed;
+  right: 76px;
+  bottom: 28px;
+  z-index: 999;
+  background: var(--color-primary);
+  color: white;
+  font-size: 0.82rem;
+  padding: 8px 14px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  pointer-events: none;
+  animation: fadeInUp 0.3s ease;
+}
+.help-btn {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 1000;
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
+  color: white;
+  font-size: 1.2rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(26,58,92,0.40);
+  text-decoration: none;
+  transition: background var(--transition), transform var(--transition);
+}
+.help-btn:hover { background: var(--color-primary-dark); transform: scale(1.06); }
+.help-pulse { animation: pulse 1.6s ease-out infinite; }
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast-container {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  width: min(90vw, 400px);
+  pointer-events: none;
+}
+.toast {
+  padding: 11px 22px;
+  border-radius: var(--radius-full);
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: white;
+  box-shadow: var(--shadow);
+  text-align: center;
+  animation: fadeInUp 0.22s ease, fadeOut 0.3s ease 2.7s forwards;
+}
+.toast-success { background: var(--color-success); }
+.toast-error   { background: var(--color-error); }
+.toast-warning { background: var(--color-warning); }
+.toast-info    { background: var(--color-info); }
+
+/* ── fade-in utility ── */
+.fade-in { animation: fadeInUp 0.4s ease both; }
