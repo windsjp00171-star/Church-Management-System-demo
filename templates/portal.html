@@ -402,7 +402,11 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 </div>
 {% endif %}
 
-{# ════ 我的近期活動 ════ #}
+{# ════════════════════════════════════════════
+   任務層 — 我的近期活動 + 開放報名
+════════════════════════════════════════════ #}
+
+{# ── 我的近期活動 ── #}
 {% if my_upcoming %}
 <div class="pa" style="--d:60ms; margin-bottom:16px;">
     <div class="section-label" style="margin-bottom:10px;">我的近期活動</div>
@@ -424,91 +428,157 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 </div>
 {% endif %}
 
-{# ════ 現正開放報名 ════ #}
+{# ── 現正開放報名（任務層主體） ── #}
 {% if open_events or open_courses %}
-{% set base_d = 80 %}
-<div class="pa" style="--d:{{ base_d + 60 }}ms; margin-bottom:28px;">
-    <div class="section-label" style="margin-bottom:12px;">現正開放報名</div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
+<div class="pa" style="--d:100ms; margin-bottom:28px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2);flex-shrink:0;"></span>
+        <span style="font-size:.78rem;font-weight:700;color:#16a34a;letter-spacing:.04em;text-transform:uppercase;">開放報名中</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+
+        {# 開放活動 #}
         {% for e in open_events %}
-        <a href="/event/{{ e.id }}" class="reg-card" style="--stripe:var(--green);">
-            <div class="reg-card-icon" style="--icon-bg:var(--green-bg);--icon-color:#16a34a;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
-            </div>
-            <div class="reg-card-body">
-                <div class="reg-card-title">{{ e.title }}</div>
-                <div class="reg-card-meta">
-                    {% if e.event_start %}<span>{{ e.event_start[:10] }}</span>{% endif %}
-                    {% if e.location %}<span>{{ e.location }}</span>{% endif %}
+        <a href="/event/{{ e.id }}" style="display:block;text-decoration:none;
+            background:white;border-radius:16px;padding:16px 18px;
+            border:1.5px solid rgba(34,197,94,.25);
+            box-shadow:0 2px 16px rgba(34,197,94,.1);
+            position:relative;overflow:hidden;
+            transition:transform .15s,box-shadow .15s;">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#22c55e;border-radius:4px 0 0 4px;"></div>
+            <div style="padding-left:4px;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
+                    <div style="font-weight:700;font-size:.98rem;color:#1a202c;line-height:1.3;">{{ e.title }}</div>
+                    <span style="flex-shrink:0;background:#22c55e;color:white;font-size:.73rem;font-weight:700;
+                        padding:4px 12px;border-radius:100px;white-space:nowrap;">立即報名</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:.78rem;color:#718096;">
+                    {% if e.event_start %}
+                    <span style="display:flex;align-items:center;gap:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        {{ e.event_start[:10] }}
+                    </span>
+                    {% endif %}
+                    {% if e.location %}
+                    <span style="display:flex;align-items:center;gap:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        {{ e.location }}
+                    </span>
+                    {% endif %}
+                    {% if e.reg_end %}
+                    <span style="display:flex;align-items:center;gap:4px;color:#e05c2a;font-weight:600;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        截止 {{ e.reg_end[:10] }}
+                    </span>
+                    {% endif %}
                 </div>
             </div>
-            <span class="badge badge-green" style="flex-shrink:0;">報名 →</span>
         </a>
-        {% else %}
-        <p class="empty-hint">目前沒有開放中的活動 — <a href="/events">瀏覽所有日程</a></p>
         {% endfor %}
+
+        {# 開放課程 #}
         {% for c in open_courses %}
-        <a href="/courses/{{ c.id }}" class="reg-card" style="--stripe:var(--blue);">
-            <div class="reg-card-icon" style="--icon-bg:var(--blue-bg);--icon-color:var(--blue);">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            </div>
-            <div class="reg-card-body">
-                <div class="reg-card-title">{{ c.title }}</div>
-                <div class="reg-card-meta">
+        <a href="/courses/{{ c.id }}" style="display:block;text-decoration:none;
+            background:white;border-radius:16px;padding:16px 18px;
+            border:1.5px solid rgba(59,130,246,.25);
+            box-shadow:0 2px 16px rgba(59,130,246,.1);
+            position:relative;overflow:hidden;
+            transition:transform .15s,box-shadow .15s;">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#3b82f6;border-radius:4px 0 0 4px;"></div>
+            <div style="padding-left:4px;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
+                    <div style="font-weight:700;font-size:.98rem;color:#1a202c;line-height:1.3;">{{ c.title }}</div>
+                    <span style="flex-shrink:0;background:#3b82f6;color:white;font-size:.73rem;font-weight:700;
+                        padding:4px 12px;border-radius:100px;white-space:nowrap;">立即報名</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:.78rem;color:#718096;">
                     {% if c.period %}<span>{{ c.period }}</span>{% endif %}
                     {% if c.total_sessions %}<span>共 {{ c.total_sessions }} 堂</span>{% endif %}
-                    {% if c.reg_deadline %}<span style="color:var(--orange);">報名至 {{ c.reg_deadline[:10] }}</span>{% endif %}
+                    {% if c.reg_deadline %}
+                    <span style="display:flex;align-items:center;gap:4px;color:#e05c2a;font-weight:600;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        截止 {{ c.reg_deadline[:10] }}
+                    </span>
+                    {% endif %}
                 </div>
             </div>
-            <span class="badge badge-blue" style="flex-shrink:0;">報名 →</span>
         </a>
-        {% else %}
-        <p class="empty-hint">目前沒有開放中的學程 — <a href="/courses">瀏覽課程</a></p>
         {% endfor %}
+
     </div>
 </div>
 {% endif %}
 
-{# ════ 本週小組討論 ════ #}
-{% if group_discussion %}
-{% set gd = group_discussion %}
-<div class="pa gd-card" style="--d:200ms; margin-bottom:28px;">
-    <div class="gd-card-head">
-        <div class="gd-card-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
+
+{# ════════════════════════════════════════════
+   互動層 — 靈修空間（天父日記、經文卡、代禱麥田）
+════════════════════════════════════════════ #}
+{% if session.user_id or session.line_id %}
+<div class="pa" style="--d:160ms; margin-bottom:28px;">
+    <p style="font-size:.72rem;font-weight:600;color:#A0AEC0;letter-spacing:.06em;text-transform:uppercase;margin:0 0 12px;">靈修空間</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+
+        {# 天父日記 #}
+        {% if card_settings.get('diary', true) or is_super_admin %}
+        <div class="fi-wrap{% if not card_settings.get('diary', true) %} fi-hidden{% endif %}" data-key="diary" data-type="fixed">
+        <a href="/diary" style="display:block;text-decoration:none;
+            background:linear-gradient(135deg,rgba(102,126,234,.13),rgba(118,75,162,.13));
+            border-radius:16px;padding:18px 16px;border:none;
+            transition:transform .18s;">
+            <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">📖</p>
+            <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('diary', '天父日記') }}</p>
+            <p style="color:#A0AEC0;font-size:.76rem;margin:5px 0 0;line-height:1.4;">{{ cs('diary', '今天的靈修寫了嗎？') }}</p>
+        </a>
+        <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
-        <div class="gd-card-title">{{ gd.title or '本週小組討論' }}</div>
-        <span style="font-size:.72rem;background:rgba(96,165,250,.2);color:#93c5fd;padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;">本週</span>
-    </div>
-    {% if gd.video_id %}
-    <div class="gd-video-wrap">
-        <iframe src="https://www.youtube.com/embed/{{ gd.video_id }}?rel=0"
-            title="{{ gd.title }}"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen></iframe>
-    </div>
-    {% endif %}
-    {% if gd.questions %}
-    <div style="position:relative;z-index:1;">
-        <div class="gd-questions-label">討論問題</div>
-        {% for q in gd.questions %}
-        <div class="gd-question">
-            <div class="gd-q-num">{{ loop.index }}</div>
-            <div class="gd-q-text">{{ q }}</div>
+        {% endif %}
+
+        {# 抽經文卡 #}
+        <a id="verse-engagement-cta" href="/verse" style="display:block;text-decoration:none;
+            background:linear-gradient(135deg,rgba(233,30,99,.1),rgba(74,20,140,.12));
+            border-radius:16px;padding:18px 16px;border:none;
+            transition:transform .18s;">
+            <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">✨</p>
+            <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">抽經文卡</p>
+            <p style="color:#A0AEC0;font-size:.76rem;margin:5px 0 0;line-height:1.4;">今日經文祝福</p>
+        </a>
+
+        {# 代禱麥田 #}
+        {% if card_settings.get('prayer', true) or is_super_admin %}
+        <div class="fi-wrap{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed">
+        <a href="/prayer" style="display:block;text-decoration:none;
+            background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(180,83,9,.1));
+            border-radius:16px;padding:18px 16px;border:none;
+            transition:transform .18s;">
+            <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">🌾</p>
+            <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('prayer', '代禱麥田') }}</p>
+            <p style="color:#A0AEC0;font-size:.76rem;margin:5px 0 0;line-height:1.4;">{{ cs('prayer', '一起守望禱告') }}</p>
+        </a>
+        <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
-        {% endfor %}
+        {% endif %}
+
+        {# 福音探索（若存在） #}
+        {% if card_settings.get('gospel', true) %}
+        <a href="/gospel" style="display:block;text-decoration:none;
+            background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.1));
+            border-radius:16px;padding:18px 16px;border:none;
+            transition:transform .18s;">
+            <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">🕊</p>
+            <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('gospel', '福音探索') }}</p>
+            <p style="color:#A0AEC0;font-size:.76rem;margin:5px 0 0;line-height:1.4;">{{ cs('gospel', '認識信仰的起點') }}</p>
+        </a>
+        {% endif %}
+
     </div>
-    {% endif %}
 </div>
 {% endif %}
 
 
-{# ════ 功能磚 Grid ════ #}
-{% set base_d = 80 %}
+{# ════════════════════════════════════════════
+   功能磚 Grid（行事曆、門訓學程、快捷連結、角色功能）
+════════════════════════════════════════════ #}
+{% set base_d = 200 %}
 <div style="margin-bottom:28px;">
     <div class="pa" style="--d:{{ base_d }}ms; display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <div class="section-label" style="margin:0;">功能</div>
@@ -566,39 +636,16 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
         {% endif %}
 
-        {# 代禱牆 #}
-        {% if card_settings.get('prayer', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed" style="--d:{{ base_d + 270 }}ms">
-            <a href="/prayer" class="fg-tile fg-prayer">
-                <div class="fg-icon">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-                        <path d="M12 22 C12 22 12 14 12 10" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
-                        <path d="M12 10 C10 8 7 7 5 8 C7 9 10 11 12 13Z" fill="white" opacity="0.85"/>
-                        <ellipse cx="11" cy="6" rx="2.5" ry="4" fill="white" transform="rotate(-15 11 6)"/>
-                        <ellipse cx="13" cy="5.5" rx="2.5" ry="4" fill="white" opacity="0.8" transform="rotate(15 13 5.5)"/>
-                        <ellipse cx="12" cy="4" rx="2" ry="3.5" fill="white" transform="rotate(0 12 4)"/>
-                        <line x1="10" y1="7" x2="7" y2="2" stroke="rgba(255,255,255,0.6)" stroke-width="0.9" stroke-linecap="round"/>
-                        <line x1="14" y1="7" x2="17" y2="2" stroke="rgba(255,255,255,0.6)" stroke-width="0.9" stroke-linecap="round"/>
-                        <line x1="12" y1="3" x2="12" y2="-1" stroke="rgba(255,255,255,0.6)" stroke-width="0.9" stroke-linecap="round"/>
-                    </svg>
+        {# 電子簽到記錄 #}
+        {% if session.user_id or session.line_id %}
+        {% if card_settings.get('my_history', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('my_history', true) %} fi-hidden{% endif %}" data-key="my_history" data-type="fixed" style="--d:{{ base_d + 270 }}ms">
+            <a href="/my-history" class="fg-tile" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);">
+                <div class="fg-icon" style="background:#e0f2fe;color:#0369a1;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
                 </div>
-                <div class="fg-name">{{ cn('prayer', '代禱牆') }}</div>
-                <div class="fg-sub">{{ cs('prayer', '分享需求，互相代禱') }}</div>
-            </a>
-            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
-        </div>
-        {% endif %}
-
-        {# 週報 #}
-        {% if latest_bulletin %}
-        {% if card_settings.get('bulletin', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('bulletin', true) %} fi-hidden{% endif %}" data-key="bulletin" data-type="fixed" style="--d:{{ base_d + 340 }}ms">
-            <a href="/bulletins/{{ latest_bulletin.id }}" class="fg-tile fg-bulletin">
-                <div class="fg-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></svg>
-                </div>
-                <div class="fg-name">{{ cn('bulletin', '本週週報') }}</div>
-                <div class="fg-sub">{{ latest_bulletin.bulletin_date }}</div>
+                <div class="fg-name" style="color:#0c4a6e;">{{ cn('my_history', '電子簽到') }}</div>
+                <div class="fg-sub">{{ cs('my_history', '我的活動出席紀錄') }}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -606,7 +653,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {# 快捷連結 #}
-        {% set link_d = base_d + 410 %}
+        {% set link_d = base_d + 340 %}
         {% for link in portal_links %}
         {% if is_super_admin or ((not link.is_staff_only or is_staff) and (not link.member_only or not is_visitor) and link.get('is_active', true)) %}
         <div class="fi-wrap ti{% if not link.get('is_active', true) %} fi-hidden{% endif %}" data-key="{{ link.id }}" data-type="link" style="--d:{{ link_d }}ms">
@@ -622,43 +669,10 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
         {% endfor %}
 
-        {# ── 已登入會員功能 ── #}
-        {% if session.user_id or session.line_id %}
-
-        {# 天父日記 #}
-        {% if card_settings.get('diary', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('diary', true) %} fi-hidden{% endif %}" data-key="diary" data-type="fixed" style="--d:{{ base_d + 480 }}ms">
-            <a href="/diary" class="fg-tile" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);">
-                <div class="fg-icon" style="background:#ede9fe;color:#7c3aed;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                </div>
-                <div class="fg-name" style="color:#5b21b6;">{{ cn('diary', '天父日記') }}</div>
-                <div class="fg-sub">{{ cs('diary', '記錄每日與神的對話') }}</div>
-            </a>
-            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
-        </div>
-        {% endif %}
-
-        {# 電子簽到記錄 #}
-        {% if card_settings.get('my_history', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('my_history', true) %} fi-hidden{% endif %}" data-key="my_history" data-type="fixed" style="--d:{{ base_d + 550 }}ms">
-            <a href="/my-history" class="fg-tile" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);">
-                <div class="fg-icon" style="background:#e0f2fe;color:#0369a1;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
-                </div>
-                <div class="fg-name" style="color:#0c4a6e;">{{ cn('my_history', '電子簽到') }}</div>
-                <div class="fg-sub">{{ cs('my_history', '我的活動出席紀錄') }}</div>
-            </a>
-            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
-        </div>
-        {% endif %}
-
-        {% endif %}{# end 已登入 #}
-
         {# ── 小組長功能 ── #}
         {% if session.cell_group_ids or is_super_admin %}
         {% if card_settings.get('cell_report', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('cell_report', true) %} fi-hidden{% endif %}" data-key="cell_report" data-type="fixed" style="--d:{{ base_d + 620 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('cell_report', true) %} fi-hidden{% endif %}" data-key="cell_report" data-type="fixed" style="--d:{{ base_d + 480 }}ms">
             <a href="/cell-report/portal" class="fg-tile" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
                 <div class="fg-icon" style="background:#dcfce7;color:#16a34a;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -674,7 +688,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {# ── 牧者功能 ── #}
         {% if session.is_pastor or is_super_admin %}
         {% if card_settings.get('pastor_report', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('pastor_report', true) %} fi-hidden{% endif %}" data-key="pastor_report" data-type="fixed" style="--d:{{ base_d + 690 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('pastor_report', true) %} fi-hidden{% endif %}" data-key="pastor_report" data-type="fixed" style="--d:{{ base_d + 550 }}ms">
             <a href="/cell-report/pastor-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);">
                 <div class="fg-icon" style="background:#fed7aa;color:#c2410c;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
@@ -687,7 +701,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {% if card_settings.get('pastor_diary', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('pastor_diary', true) %} fi-hidden{% endif %}" data-key="pastor_diary" data-type="fixed" style="--d:{{ base_d + 760 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('pastor_diary', true) %} fi-hidden{% endif %}" data-key="pastor_diary" data-type="fixed" style="--d:{{ base_d + 620 }}ms">
             <a href="/diary/pastor" class="fg-tile" style="background:linear-gradient(135deg,#fdf4ff,#f3e8ff);">
                 <div class="fg-icon" style="background:#f3e8ff;color:#9333ea;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -703,7 +717,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {# ── 同工功能 ── #}
         {% if is_staff or is_super_admin %}
         {% if card_settings.get('staff_report', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('staff_report', true) %} fi-hidden{% endif %}" data-key="staff_report" data-type="fixed" style="--d:{{ base_d + 830 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('staff_report', true) %} fi-hidden{% endif %}" data-key="staff_report" data-type="fixed" style="--d:{{ base_d + 690 }}ms">
             <a href="/cell-report/staff-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);">
                 <div class="fg-icon" style="background:#dbeafe;color:#1d4ed8;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -719,7 +733,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {# ── 管理員功能 ── #}
         {% if session.is_admin %}
         {% if card_settings.get('files', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('files', true) %} fi-hidden{% endif %}" data-key="files" data-type="fixed" style="--d:{{ base_d + 900 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('files', true) %} fi-hidden{% endif %}" data-key="files" data-type="fixed" style="--d:{{ base_d + 760 }}ms">
             <a href="/files" class="fg-tile" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);">
                 <div class="fg-icon" style="background:#fef3c7;color:#d97706;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -732,7 +746,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {% if card_settings.get('admin', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('admin', true) %} fi-hidden{% endif %}" data-key="admin" data-type="fixed" style="--d:{{ base_d + 970 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('admin', true) %} fi-hidden{% endif %}" data-key="admin" data-type="fixed" style="--d:{{ base_d + 830 }}ms">
             <a href="/admin" class="fg-tile" style="background:linear-gradient(135deg,#1e1e2e,#16213e);border-color:rgba(255,255,255,.1);">
                 <div class="fg-icon" style="background:rgba(255,255,255,.12);color:white;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
@@ -748,12 +762,44 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     </div>
 </div>
 
-{# ════ 底部 ════ #}
-<div class="pa" style="--d:{{ base_d + 360 }}ms; text-align:center; padding-bottom:8px;">
-    <a href="/manual" style="color:var(--text-4);font-size:.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        系統使用手冊
-    </a>
+
+{# ════════════════════════════════════════════
+   資訊層 — 本週資訊（週報 + 公告，低視覺重量）
+════════════════════════════════════════════ #}
+<div class="pa" style="--d:{{ base_d + 860 }}ms; margin-bottom:20px;">
+    <p style="font-size:.72rem;font-weight:600;color:#CBD5E0;letter-spacing:.06em;text-transform:uppercase;margin:0 0 10px;">本週資訊</p>
+    <div style="border-top:1px solid #EDF2F7;">
+
+        {# 本週週報 #}
+        {% if latest_bulletin %}
+        <a href="/bulletins/{{ latest_bulletin.id }}"
+           style="display:flex;align-items:center;gap:10px;padding:10px 0;
+                  border-bottom:1px solid #EDF2F7;text-decoration:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></svg>
+            <span style="font-size:.83rem;color:#4A5568;flex:1;min-width:0;">本週週報</span>
+            <span style="font-size:.75rem;color:#A0AEC0;white-space:nowrap;">{{ latest_bulletin.bulletin_date }}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+        {% endif %}
+
+        {# 所有活動入口 #}
+        <a href="/events"
+           style="display:flex;align-items:center;gap:10px;padding:10px 0;
+                  border-bottom:1px solid #EDF2F7;text-decoration:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
+            <span style="font-size:.83rem;color:#4A5568;flex:1;">所有活動日程</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+
+        {# 使用手冊 #}
+        <a href="/manual"
+           style="display:flex;align-items:center;gap:10px;padding:10px 0;text-decoration:none;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span style="font-size:.83rem;color:#4A5568;flex:1;">系統使用手冊</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+
+    </div>
 </div>
 
 {# 抽卡閃光層（獨立於 modal 之外，蓋在最上層）#}
@@ -876,6 +922,46 @@ function toggleEditMode() {
         btn.style.borderColor  = editMode ? 'var(--green)' : '';
     }
 }
+
+/* ── 互動層「抽經文卡」點擊 → 開啟 modal ── */
+(function() {
+    const engCta = document.getElementById('verse-engagement-cta');
+    if (!engCta) return;
+    engCta.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (_verseOpen) return;
+        _verseOpen = true;
+        if (!_verseCache) _loadVerseData();
+        const modal = document.getElementById('verse-modal');
+        const sheet = document.getElementById('vm-sheet');
+        const bd    = document.getElementById('vm-backdrop');
+        const vH    = window.innerHeight;
+        modal.style.display    = 'flex';
+        bd.style.transition    = 'background .35s, backdrop-filter .35s, -webkit-backdrop-filter .35s';
+        bd.style.background    = 'rgba(0,0,0,.85)';
+        bd.style.backdropFilter = 'blur(22px)';
+        bd.style.webkitBackdropFilter = 'blur(22px)';
+        setTimeout(() => {
+            sheet.style.transition = 'none';
+            sheet.style.transform  = `translate(0, -${vH * 0.68}px) scale(0.92) rotate(-2deg)`;
+            sheet.style.opacity    = '0';
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                sheet.style.transition = 'transform .58s cubic-bezier(0.175,0.885,0.32,1.28), opacity .3s';
+                sheet.style.transform  = 'translate(0,0) scale(1) rotate(0deg)';
+                sheet.style.opacity    = '1';
+            }));
+            setTimeout(() => {
+                sheet.style.transition = 'transform .18s cubic-bezier(0.34,1.56,0.64,1)';
+                sheet.style.transform  = 'translate(0,0) scale(1.04) rotate(0deg)';
+                setTimeout(() => {
+                    sheet.style.transition = 'transform .14s ease-out';
+                    sheet.style.transform  = 'translate(0,0) scale(1) rotate(0deg)';
+                }, 160);
+                if (navigator.vibrate) navigator.vibrate([12, 60, 22]);
+            }, 560);
+        }, 80);
+    });
+})();
 
 /* ════ 經文卡浮框 ════ */
 let _verseCache = null;
