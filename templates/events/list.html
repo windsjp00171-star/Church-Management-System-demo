@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}活動報名{% endblock %}
+{% block content %}
+
+<div style="max-width:720px; margin:0 auto; padding:20px 16px;">
+    <h2 style="margin:0 0 20px; font-size:1.3rem;">🎉 活動報名</h2>
+
+    {% if open_events %}
+    <div style="margin-bottom:28px;">
+        <div style="font-size:0.8rem; font-weight:700; color:#16a34a; letter-spacing:0.08em; margin-bottom:10px;">現正開放報名</div>
+        <div style="display:flex; flex-direction:column; gap:10px;">
+            {% for e in open_events %}
+            <a href="/event/{{ e.id }}" style="text-decoration:none; display:flex; align-items:center; gap:14px;
+                background:white; border-radius:12px; padding:16px; box-shadow:0 1px 4px rgba(0,0,0,0.08);
+                border-left:4px solid #16a34a;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:bold; font-size:1rem; color:#111; margin-bottom:4px;">{{ e.title }}</div>
+                    <div style="font-size:0.83rem; color:#888; display:flex; gap:12px; flex-wrap:wrap;">
+                        {% if e.event_start %}<span>📅 {{ e.event_start[:10] }}</span>{% endif %}
+                        {% if e.location %}<span>📍 {{ e.location }}</span>{% endif %}
+                        {% if e._reg_count is defined %}<span>👤 {{ e._reg_count }}人</span>{% endif %}
+                    </div>
+                </div>
+                <span style="padding:6px 14px; background:#dcfce7; color:#16a34a; border-radius:20px; font-size:0.82rem; font-weight:bold; white-space:nowrap;">
+                    {% if e._i_registered %}已報名 ✓{% else %}報名 →{% endif %}
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if other_events %}
+    <div>
+        <div style="font-size:0.8rem; font-weight:700; color:#888; letter-spacing:0.08em; margin-bottom:10px;">其他活動</div>
+        <div style="display:flex; flex-direction:column; gap:8px;">
+            {% for e in other_events %}
+            <a href="/event/{{ e.id }}" style="text-decoration:none; display:flex; align-items:center; gap:14px;
+                background:white; border-radius:12px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.06);
+                opacity:{{ '0.6' if e._is_past else '1' }}; border-left:4px solid #e5e7eb;">
+                <div style="flex:1; min-width:0;">
+                    <div style="font-weight:600; font-size:0.95rem; color:#333; margin-bottom:3px;">{{ e.title }}</div>
+                    <div style="font-size:0.82rem; color:#aaa; display:flex; gap:12px; flex-wrap:wrap;">
+                        {% if e.event_start %}<span>📅 {{ e.event_start[:10] }}</span>{% endif %}
+                        {% if e.location %}<span>📍 {{ e.location }}</span>{% endif %}
+                    </div>
+                </div>
+                <span style="font-size:0.8rem; color:#bbb; white-space:nowrap;">
+                    {% if e._is_past %}已結束{% elif e._is_full %}已額滿{% else %}報名未開放{% endif %}
+                </span>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not open_events and not other_events %}
+    <div style="text-align:center; padding:60px 0; color:#aaa;">
+        <div style="font-size:2rem; margin-bottom:12px;">📭</div>
+        <div>目前沒有活動</div>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

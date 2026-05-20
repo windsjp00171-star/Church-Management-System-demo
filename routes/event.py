@@ -513,7 +513,7 @@ def index():
     events = result.data or []
 
     if not events:
-        return render_template('index.html', open_events=[], other_events=[], reg_counts={})
+        return render_template('events/list.html', open_events=[], other_events=[], reg_counts={})
 
     # 撈每個活動的報名人數（status = registered 或 walk_in）
     event_ids = [e['id'] for e in events]
@@ -556,7 +556,7 @@ def index():
         else:
             other_events.append(e)
 
-    return render_template('index.html',
+    return render_template('events/list.html',
         open_events=open_events,
         other_events=other_events,
         reg_counts=reg_counts,
