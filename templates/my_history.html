@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}我的記錄{% endblock %}
+{% block title %}{{ card_names.get('my_history', '我的記錄') }}{% endblock %}
 {% block content %}
 
 <style>
@@ -62,9 +62,9 @@
         <div class="breadcrumb">
             <a href="/">首頁</a>
             <span>›</span>
-            <span>我的記錄</span>
+            <span>{{ card_names.get('my_history', '我的記錄') }}</span>
         </div>
-        <h1 class="page-title">我的記錄</h1>
+        <h1 class="page-title">{{ card_names.get('my_history', '我的記錄') }}</h1>
         <p class="page-subtitle">{{ session.real_name or session.display_name }} 的所有活動、學程與代禱紀錄</p>
     </div>
 </div>

@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}門戶卡片管理{% endblock %}
+{% block content %}
+
+<div class="page-header">
+    <div class="page-header-left">
+        <a href="/admin" style="color:var(--text-3);text-decoration:none;font-size:.85rem;">← 後台管理</a>
+        <div class="page-title" style="margin-top:4px;">🗂 門戶卡片管理</div>
+        <div class="page-subtitle">設定首頁功能卡片的名稱、顯示對象與開關</div>
+    </div>
+</div>
+
+{% if not from_db %}
+<div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:12px;padding:16px 20px;margin-bottom:24px;">
+    <div style="font-weight:700;color:#92400e;margin-bottom:8px;">⚠ 資料表尚未建立，目前顯示預設值（無法儲存）</div>
+    <div style="font-size:.85rem;color:#b45309;margin-bottom:12px;">請前往 <a href="https://supabase.com/dashboard" target="_blank" rel="noopener" style="color:#d97706;font-weight:600;">Supabase SQL Editor</a> 執行以下 SQL，完成後重新整理此頁即可編輯：</div>
+    <pre id="setup-sql" style="background:#1e1e2e;color:#cdd6f4;padding:16px;border-radius:8px;font-size:.78rem;overflow-x:auto;white-space:pre-wrap;line-height:1.5;">{{ setup_sql }}</pre>
+    <button onclick="copySql()" style="margin-top:10px;padding:8px 18px;background:#f59e0b;color:white;border:none;border-radius:8px;font-weight:700;cursor:pointer;">📋 複製 SQL</button>
+</div>
+{% endif %}
+
+<div id="cards-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px;">
+{% for card in cards %}
+<div class="pc-row" data-key="{{ card.key }}">
+    <div class="pc-row-inner">
+        <div class="pc-emoji-wrap">
+            <span class="pc-emoji">{{ card.emoji or '🔗' }}</span>
+        </div>
+        <div class="pc-body">
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+                <input class="pc-name-input" type="text" value="{{ card.name }}"
+                    placeholder="卡片名稱"
+                    style="font-size:.95rem;font-weight:700;border:1px solid var(--border);border-radius:8px;
+                           padding:6px 10px;width:140px;color:var(--text-1);background:var(--bg);">
+                <input class="pc-subtitle-input" type="text" value="{{ card.subtitle or '' }}"
+                    placeholder="副標題（選填）"
+                    style="font-size:.82rem;border:1px solid var(--border);border-radius:8px;
+                           padding:6px 10px;flex:1;min-width:160px;color:var(--text-2);background:var(--bg);">
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                <select class="pc-visible-select"
+                    style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;
+                           font-size:.82rem;background:var(--bg);color:var(--text-2);">
+                    {% for val, label in visible_to_options %}
+                    <option value="{{ val }}" {% if card.visible_to == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <label class="pc-toggle-wrap" title="{{ '顯示中' if card.is_active else '已隱藏' }}">
+                    <input type="checkbox" class="pc-active-cb" {% if card.is_active %}checked{% endif %} style="display:none;">
+                    <span class="pc-toggle {% if card.is_active %}on{% endif %}"></span>
+                    <span class="pc-toggle-label">{{ '顯示' if card.is_active else '隱藏' }}</span>
+                </label>
+                <button class="pc-save-btn btn btn-sm btn-primary" onclick="saveCard(this)">儲存</button>
+                <span class="pc-save-msg" style="font-size:.8rem;color:var(--green);display:none;">✓ 已儲存</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+
+<style>
+.pc-row {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow .15s;
+}
+.pc-row:hover { box-shadow: var(--shadow-md); }
+.pc-row-inner {
+    display: flex;
+    align-items: flex-start;
+    gap: 14px;
+    padding: 16px 18px;
+}
+.pc-emoji-wrap {
+    width: 44px; min-width: 44px; height: 44px;
+    border-radius: 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.4rem;
+    flex-shrink: 0;
+}
+.pc-body { flex: 1; min-width: 0; }
+.pc-toggle-wrap { display: flex; align-items: center; gap: 6px; cursor: pointer; }
+.pc-toggle {
+    width: 38px; height: 22px; border-radius: 11px;
+    background: #d1d5db; position: relative; transition: background .2s; flex-shrink: 0;
+}
+.pc-toggle::after {
+    content: ''; position: absolute; top: 3px; left: 3px;
+    width: 16px; height: 16px; border-radius: 50%;
+    background: white; transition: transform .2s;
+    box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.pc-toggle.on { background: var(--green); }
+.pc-toggle.on::after { transform: translateX(16px); }
+.pc-toggle-label { font-size: .8rem; color: var(--text-3); }
+</style>
+
+<script>
+const _csrf = "{{ csrf_token() }}";
+const _fromDb = {{ 'true' if from_db else 'false' }};
+
+function copySql() {
+    const sql = document.getElementById('setup-sql').textContent;
+    navigator.clipboard.writeText(sql).then(() => {
+        showToast('SQL 已複製', 'success');
+    }).catch(() => {
+        alert('請手動複製上方 SQL');
+    });
+}
+
+document.querySelectorAll('.pc-toggle-wrap').forEach(wrap => {
+    wrap.addEventListener('click', () => {
+        const cb = wrap.querySelector('.pc-active-cb');
+        const tog = wrap.querySelector('.pc-toggle');
+        const lbl = wrap.querySelector('.pc-toggle-label');
+        cb.checked = !cb.checked;
+        tog.classList.toggle('on', cb.checked);
+        lbl.textContent = cb.checked ? '顯示' : '隱藏';
+    });
+});
+
+async function saveCard(btn) {
+    if (!_fromDb) {
+        alert('請先在 Supabase 建立資料表（見頁面頂部說明）');
+        return;
+    }
+    const row = btn.closest('.pc-row');
+    const key = row.dataset.key;
+    const name = row.querySelector('.pc-name-input').value.trim();
+    const subtitle = row.querySelector('.pc-subtitle-input').value.trim();
+    const visible_to = row.querySelector('.pc-visible-select').value;
+    const is_active = row.querySelector('.pc-active-cb').checked;
+    if (!name) { alert('名稱不能為空'); return; }
+
+    btn.disabled = true; btn.textContent = '儲存中…';
+    try {
+        const r = await fetch(`/admin/api/portal-cards/${key}`, {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRF-Token':_csrf},
+            body: JSON.stringify({name, subtitle, visible_to, is_active})
+        });
+        const d = await r.json();
+        if (d.success) {
+            const msg = row.querySelector('.pc-save-msg');
+            msg.style.display = 'inline';
+            setTimeout(() => { msg.style.display = 'none'; }, 2500);
+        } else {
+            alert(d.error || '儲存失敗');
+        }
+    } catch(e) {
+        alert('網路錯誤：' + e.message);
+    }
+    btn.disabled = false; btn.textContent = '儲存';
+}
+</script>
+{% endblock %}

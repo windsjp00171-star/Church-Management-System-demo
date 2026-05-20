@@ -264,16 +264,30 @@ def portal():
     except Exception:
         pass
 
-    # ── 卡片可見度設定（超管可控）──
+    # ── 門戶卡片設定（超管可控）──
     is_super = session.get('is_super_admin', False)
-    card_settings = {'events': True, 'courses': True, 'verse': True,
-                     'prayer': True, 'bulletin': True}
+    # 嘗試從 portal_cards 表載入（新系統）；失敗時回退到舊 portal_card_settings
+    portal_cards_config = {}
     try:
-        rows = supabase.table('portal_card_settings').select('*').execute().data or []
-        for r in rows:
-            card_settings[r['key']] = r['is_visible']
+        pc_rows = supabase.table('portal_cards').select('*').order('sort_order').execute().data or []
+        if pc_rows:
+            portal_cards_config = {r['key']: r for r in pc_rows}
     except Exception:
         pass
+
+    # 舊版相容：card_settings 決定卡片顯示開關
+    card_settings = {'events': True, 'courses': True, 'verse': True,
+                     'prayer': True, 'bulletin': True}
+    if portal_cards_config:
+        for key, card in portal_cards_config.items():
+            card_settings[key] = card.get('is_active', True)
+    else:
+        try:
+            rows = supabase.table('portal_card_settings').select('*').execute().data or []
+            for r in rows:
+                card_settings[r['key']] = r['is_visible']
+        except Exception:
+            pass
 
     # 超管看全部連結（含隱藏的），一般人只看 is_active=True
     all_portal_links = portal_links
@@ -307,6 +321,7 @@ def portal():
         my_upcoming=my_upcoming,
         group_discussion=group_discussion,
         card_settings=card_settings,
+        portal_cards_config=portal_cards_config,
         hero_theme=hero_theme,
         today_tw=today_tw,
     )

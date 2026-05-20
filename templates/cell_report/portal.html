@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}小組回報 - 選擇小組{% endblock %}
+{% block title %}{{ card_names.get('cell_report', '小組回報') }}{% endblock %}
 {% block content %}
 <div class="container" style="max-width:600px; margin:40px auto; padding:0 16px;">
-  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:24px;">小組回報入口</h1>
+  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:24px;">{{ card_names.get('cell_report', '小組回報') }}</h1>
 
   {% if groups %}
     <p style="color:#666; margin-bottom:16px;">請選擇要回報的小組：</p>

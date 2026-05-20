@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}週報{% endblock %}
+{% block title %}{{ card_names.get('bulletin', '週報') }}{% endblock %}
 {% block content %}
 
 <style>
@@ -72,7 +72,7 @@
 <div class="page-header pa" style="--d:0ms">
     <div class="page-header-left">
         <a href="/" class="breadcrumb">← 返回首頁</a>
-        <div class="page-title">每週週報</div>
+        <div class="page-title">{{ card_names.get('bulletin', '每週週報') }}</div>
     </div>
 </div>
 

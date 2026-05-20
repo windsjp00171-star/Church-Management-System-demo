@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}行事曆{% endblock %}
+{% block title %}{{ card_names.get('calendar', '行事曆') }}{% endblock %}
 {% block content %}
 
 <style>
@@ -110,7 +110,7 @@
 <div class="page-header pa" style="--d:0ms">
     <div class="page-header-left">
         <a href="/" class="breadcrumb">← 返回首頁</a>
-        <div class="page-title">行事曆</div>
+        <div class="page-title">{{ card_names.get('calendar', '行事曆') }}</div>
     </div>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
         {% if is_admin %}

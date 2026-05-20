@@ -25,47 +25,14 @@
         <span class="navbar-brand-text">{{ config.CHURCH_SHORT_NAME or config.CHURCH_NAME or '教會行政系統' }}</span>
     </a>
 
-    <button class="hamburger" id="hamburger-btn" onclick="toggleMenu()" aria-label="開關選單">
-        <span></span><span></span><span></span>
-    </button>
-
-    <div class="navbar-nav" id="navbar-nav">
-        <a href="/" class="nav-item nav-link">首頁</a>
-        <a href="/events" class="nav-item nav-link">活動報名</a>
-        <a href="/calendar" class="nav-item nav-link">行事曆</a>
-        <a href="/bulletins" class="nav-item nav-link">每週週報</a>
-        <a href="/prayer" class="nav-item nav-link">代禱牆</a>
-
-        {% if session.user_id or session.line_id %}
-        <a href="/diary" class="nav-item nav-link">天父日記</a>
-        <a href="/profile" class="nav-item nav-link">個人資料</a>
-        {% endif %}
-
-        {% if session.is_pastor %}
-        <a href="/cell-report/pastor-dashboard" class="nav-item nav-link">牧者週報</a>
-        <a href="/diary/pastor" class="nav-item nav-link">會友日記查閱</a>
-        {% endif %}
-
-        {% if session.is_staff %}
-        <a href="/cell-report/staff-dashboard" class="nav-item nav-link">同工週報</a>
-        {% endif %}
-
-        {% if session.cell_group_ids %}
-        <a href="/cell-report/portal" class="nav-item nav-link">小組回報</a>
-        {% endif %}
-
-        {% if session.is_admin %}
-        <a href="/files" class="nav-item nav-link">檔案管理</a>
-        <a href="/admin" class="nav-item nav-link nav-link-admin">後台管理</a>
-        {% endif %}
-    </div>
-
     <div class="navbar-user">
         {% if session.user_id or session.line_id %}
-            {% if session.picture_url %}
-            <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar">
-            {% endif %}
-            <span class="navbar-username">{{ session.real_name or session.display_name or '' }}</span>
+            <a href="/profile" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
+                {% if session.picture_url %}
+                <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar">
+                {% endif %}
+                <span class="navbar-username">{{ session.real_name or '' }}</span>
+            </a>
             <a href="/auth/logout" class="btn btn-sm btn-logout">登出</a>
         {% else %}
             <a href="/auth/login" class="btn btn-sm btn-primary">LINE 登入</a>
@@ -129,24 +96,6 @@ const _LINE_LIFF_ID = "{{ config.LINE_LIFF_ID or '' }}";
         });
     };
 })();
-
-function toggleMenu() {
-    var nav = document.getElementById('navbar-nav');
-    var btn = document.getElementById('hamburger-btn');
-    if (!nav || !btn) return;
-    nav.classList.toggle('is-open');
-    btn.classList.toggle('is-active');
-}
-
-document.addEventListener('click', function(e) {
-    var nav = document.getElementById('navbar-nav');
-    var btn = document.getElementById('hamburger-btn');
-    if (!nav || !btn) return;
-    if (!nav.contains(e.target) && !btn.contains(e.target)) {
-        nav.classList.remove('is-open');
-        btn.classList.remove('is-active');
-    }
-});
 
 function showToast(msg, type) {
     type = type || 'info';

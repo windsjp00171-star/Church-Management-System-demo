@@ -2077,3 +2077,126 @@ def portal_link_toggle(link_id):
     active = bool(data.get('is_active', True))
     supabase.table('portal_links').update({'is_active': active}).eq('id', link_id).execute()
     return jsonify({'success': True, 'is_active': active})
+
+
+# ── 門戶卡片管理（超管）─────────────────────────────────────────
+
+_PORTAL_CARDS_DEFAULT = [
+    {'key': 'events',       'name': '活動報名',  'emoji': '🎉', 'subtitle': '查看並報名教會活動',     'url': '/events',                       'visible_to': 'all',         'is_active': True, 'sort_order': 10},
+    {'key': 'calendar',     'name': '行事曆',    'emoji': '📅', 'subtitle': '教會行事曆與個人行程',   'url': '/calendar',                     'visible_to': 'member',      'is_active': True, 'sort_order': 20},
+    {'key': 'bulletin',     'name': '每週週報',  'emoji': '📰', 'subtitle': '最新週報與公告',         'url': '/bulletins',                    'visible_to': 'all',         'is_active': True, 'sort_order': 30},
+    {'key': 'prayer',       'name': '代禱牆',    'emoji': '🙏', 'subtitle': '分享需求，互相代禱',     'url': '/prayer',                       'visible_to': 'all',         'is_active': True, 'sort_order': 40},
+    {'key': 'gospel',       'name': '福音探索',  'emoji': '✝️', 'subtitle': '認識信仰的第一步',       'url': '/gospel',                       'visible_to': 'all',         'is_active': True, 'sort_order': 50},
+    {'key': 'diary',        'name': '天父日記',  'emoji': '📖', 'subtitle': '記錄每日與神的對話',     'url': '/diary',                        'visible_to': 'member',      'is_active': True, 'sort_order': 60},
+    {'key': 'my_history',   'name': '電子簽到',  'emoji': '🗂️', 'subtitle': '我的活動出席紀錄',       'url': '/my-history',                   'visible_to': 'member',      'is_active': True, 'sort_order': 70},
+    {'key': 'courses',      'name': '門訓學程',  'emoji': '📚', 'subtitle': '報名及追蹤進度',         'url': '/courses',                      'visible_to': 'member',      'is_active': True, 'sort_order': 80},
+    {'key': 'cell_report',  'name': '小組回報',  'emoji': '👥', 'subtitle': '填寫本週小組聚會回報',   'url': '/cell-report/portal',           'visible_to': 'cell_leader', 'is_active': True, 'sort_order': 90},
+    {'key': 'pastor_report','name': '牧者週報',  'emoji': '📊', 'subtitle': '查看各小組回報與統計',   'url': '/cell-report/pastor-dashboard', 'visible_to': 'pastor',      'is_active': True, 'sort_order': 100},
+    {'key': 'staff_report', 'name': '同工週報',  'emoji': '📋', 'subtitle': '各區小組回報總覽',       'url': '/cell-report/staff-dashboard',  'visible_to': 'staff',       'is_active': True, 'sort_order': 110},
+    {'key': 'pastor_diary', 'name': '查閱日記',  'emoji': '🔍', 'subtitle': '已授權的會友日記',       'url': '/diary/pastor',                 'visible_to': 'pastor',      'is_active': True, 'sort_order': 120},
+    {'key': 'files',        'name': '檔案管理',  'emoji': '📁', 'subtitle': '教會資料夾與檔案',       'url': '/files',                        'visible_to': 'admin',       'is_active': True, 'sort_order': 130},
+    {'key': 'admin',        'name': '後台管理',  'emoji': '⚙️', 'subtitle': '使用者、活動、系統設定', 'url': '/admin',                        'visible_to': 'admin',       'is_active': True, 'sort_order': 140},
+]
+
+PORTAL_CARDS_VISIBLE_TO_OPTIONS = [
+    ('all',         '所有人（含訪客）'),
+    ('member',      '已登入會員'),
+    ('cell_leader', '小組長'),
+    ('staff',       '同工'),
+    ('pastor',      '牧者'),
+    ('admin',       '管理員'),
+]
+
+PORTAL_CARDS_SETUP_SQL = """-- 在 Supabase SQL Editor 執行以下 SQL 建立門戶卡片資料表：
+CREATE TABLE IF NOT EXISTS portal_cards (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  name TEXT NOT NULL,
+  emoji TEXT DEFAULT '🔗',
+  subtitle TEXT DEFAULT '',
+  url TEXT NOT NULL,
+  visible_to TEXT DEFAULT 'all',
+  is_active BOOLEAN DEFAULT TRUE,
+  sort_order INTEGER DEFAULT 0,
+  is_system BOOLEAN DEFAULT TRUE,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO portal_cards (key, name, emoji, subtitle, url, visible_to, sort_order) VALUES
+  ('events', '活動報名', '🎉', '查看並報名教會活動', '/events', 'all', 10),
+  ('calendar', '行事曆', '📅', '教會行事曆與個人行程', '/calendar', 'member', 20),
+  ('bulletin', '每週週報', '📰', '最新週報與公告', '/bulletins', 'all', 30),
+  ('prayer', '代禱牆', '🙏', '分享需求，互相代禱', '/prayer', 'all', 40),
+  ('gospel', '福音探索', '✝️', '認識信仰的第一步', '/gospel', 'all', 50),
+  ('diary', '天父日記', '📖', '記錄每日與神的對話', '/diary', 'member', 60),
+  ('my_history', '電子簽到', '🗂️', '我的活動出席紀錄', '/my-history', 'member', 70),
+  ('courses', '門訓學程', '📚', '報名及追蹤進度', '/courses', 'member', 80),
+  ('cell_report', '小組回報', '👥', '填寫本週小組聚會回報', '/cell-report/portal', 'cell_leader', 90),
+  ('pastor_report', '牧者週報', '📊', '查看各小組回報與統計', '/cell-report/pastor-dashboard', 'pastor', 100),
+  ('staff_report', '同工週報', '📋', '各區小組回報總覽', '/cell-report/staff-dashboard', 'staff', 110),
+  ('pastor_diary', '查閱日記', '🔍', '已授權的會友日記', '/diary/pastor', 'pastor', 120),
+  ('files', '檔案管理', '📁', '教會資料夾與檔案', '/files', 'admin', 130),
+  ('admin', '後台管理', '⚙️', '使用者、活動、系統設定', '/admin', 'admin', 140)
+ON CONFLICT (key) DO NOTHING;"""
+
+
+def _load_portal_cards_from_db():
+    """從 DB 載入門戶卡片，失敗時回傳預設值。
+    回傳 (cards_list, from_db)"""
+    try:
+        rows = supabase.table('portal_cards').select('*').order('sort_order').execute().data or []
+        if rows:
+            return rows, True
+    except Exception:
+        pass
+    return _PORTAL_CARDS_DEFAULT, False
+
+
+@admin_bp.route('/portal-cards')
+@admin_required
+def portal_cards_page():
+    """門戶卡片管理頁面（僅超管）"""
+    if not session.get('is_super_admin'):
+        return redirect(url_for('admin.index'))
+    cards, from_db = _load_portal_cards_from_db()
+    return render_template('admin/portal_cards.html',
+                           cards=cards,
+                           from_db=from_db,
+                           setup_sql=PORTAL_CARDS_SETUP_SQL,
+                           visible_to_options=PORTAL_CARDS_VISIBLE_TO_OPTIONS)
+
+
+@admin_bp.route('/api/portal-cards/<key>', methods=['POST'])
+@admin_required
+def update_portal_card(key):
+    """更新單張門戶卡片設定"""
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '無權限'}), 403
+    data = request.get_json(silent=True) or {}
+    allowed = {'name', 'emoji', 'subtitle', 'visible_to', 'is_active', 'sort_order'}
+    payload = {k: v for k, v in data.items() if k in allowed}
+    if not payload:
+        return jsonify({'error': '無有效欄位'}), 400
+    try:
+        supabase.table('portal_cards').update(payload).eq('key', key).execute()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/api/portal-cards/reorder', methods=['POST'])
+@admin_required
+def reorder_portal_cards():
+    """批次更新 sort_order"""
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '無權限'}), 403
+    data = request.get_json(silent=True) or {}
+    order_list = data.get('order', [])  # [{'key': 'events', 'sort_order': 10}, ...]
+    try:
+        for item in order_list:
+            supabase.table('portal_cards')\
+                .update({'sort_order': item['sort_order']})\
+                .eq('key', item['key']).execute()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500

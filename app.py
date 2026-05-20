@@ -1,7 +1,25 @@
 # Flask 主程式 — 整合型教會行政系統
 from flask import Flask, session, request, redirect, url_for, jsonify
 import secrets
+import time
 from config import Config
+
+# 門戶卡片名稱快取（60 秒 TTL，跨請求共用）
+_card_names_cache: dict = {'data': None, 'ts': 0.0}
+
+def _get_card_names() -> dict:
+    now = time.time()
+    if _card_names_cache['data'] is not None and (now - _card_names_cache['ts']) < 60:
+        return _card_names_cache['data']
+    try:
+        from db import supabase as _sb
+        rows = _sb.table('portal_cards').select('key,name').execute().data or []
+        names = {r['key']: r['name'] for r in rows}
+        _card_names_cache['data'] = names
+        _card_names_cache['ts'] = now
+        return names
+    except Exception:
+        return {}
 from routes.auth import auth_bp
 from routes.event import event_bp
 from routes.admin import admin_bp
@@ -105,6 +123,11 @@ def create_app():
     app.jinja_env.globals['church_name']       = Config.CHURCH_NAME
     app.jinja_env.globals['church_short_name'] = Config.CHURCH_SHORT_NAME or Config.CHURCH_NAME
     app.jinja_env.globals['privacy_policy_url'] = Config.PRIVACY_POLICY_URL
+
+    # ── Context processor：門戶卡片名稱（全域可用） ───────────
+    @app.context_processor
+    def inject_card_names():
+        return {'card_names': _get_card_names()}
 
     # ── Context processor：天父日記需要的全域變數 ─────────────
     @app.context_processor

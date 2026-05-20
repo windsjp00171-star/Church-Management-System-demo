@@ -1,11 +1,11 @@
 {% extends "base.html" %}
-{% block title %}門訓學程{% endblock %}
+{% block title %}{{ card_names.get('courses', '門訓學程') }}{% endblock %}
 {% block content %}
 
 <div class="page-header">
     <div class="page-header-left">
         <a href="/" class="breadcrumb">← 返回首頁</a>
-        <div class="page-title">📚 門訓學程</div>
+        <div class="page-title">📚 {{ card_names.get('courses', '門訓學程') }}</div>
     </div>
     <a href="/my-courses" class="btn btn-outline">我的學程 →</a>
 </div>

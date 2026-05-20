@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}代禱牆{% endblock %}
+{% block title %}{{ card_names.get('prayer', '代禱牆') }}{% endblock %}
 
 {% block content %}
 
@@ -617,13 +617,13 @@
     <!-- 頁首 -->
     <div class="wheat-page-header pa" style="--d:0ms">
         <div class="wheat-breadcrumb">
-            <a href="/">首頁</a> › 代禱牆
+            <a href="/">首頁</a> › {{ card_names.get('prayer', '代禱牆') }}
         </div>
         <h1 class="wheat-page-title">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/>
             </svg>
-            代禱牆
+            {{ card_names.get('prayer', '代禱牆') }}
         </h1>
         <p class="wheat-page-subtitle">有天的看顧，有地的承載</p>
         <p class="wheat-scripture">

@@ -4,6 +4,9 @@
 
 {% set user_name = session.real_name or session.display_name or '家人' %}
 {% set is_visitor = session.get('member_type', 'member') == 'visitor' %}
+{# 動態卡片名稱：優先用 card_names（context processor），fallback 用 portal_cards_config #}
+{% macro cn(key, default) %}{{ card_names.get(key) or portal_cards_config.get(key, {}).get('name', default) }}{% endmacro %}
+{% macro cs(key, default) %}{{ portal_cards_config.get(key, {}).get('subtitle', default) }}{% endmacro %}
 
 <style>
 /* ═══════════════════════════════════════════
@@ -545,8 +548,8 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
                 </div>
-                <div class="fg-name">活動報名</div>
-                <div class="fg-sub">教會各項活動</div>
+                <div class="fg-name">{{ cn('events', '活動報名') }}</div>
+                <div class="fg-sub">{{ cs('events', '教會各項活動') }}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -559,7 +562,7 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
-                <div class="fg-name">行事曆</div>
+                <div class="fg-name">{{ cn('calendar', '行事曆') }}</div>
                 <div class="fg-sub" id="cal-count-sub">本月教會行程</div>
             </a>
         </div>
@@ -573,8 +576,8 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 </div>
-                <div class="fg-name">門訓學程</div>
-                <div class="fg-sub">報名及追蹤進度</div>
+                <div class="fg-name">{{ cn('courses', '門訓學程') }}</div>
+                <div class="fg-sub">{{ cs('courses', '報名及追蹤進度') }}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -597,8 +600,8 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
                         <line x1="12" y1="3" x2="12" y2="-1" stroke="rgba(255,255,255,0.6)" stroke-width="0.9" stroke-linecap="round"/>
                     </svg>
                 </div>
-                <div class="fg-name">代禱牆</div>
-                <div class="fg-sub">分享需求，互相代禱</div>
+                <div class="fg-name">{{ cn('prayer', '代禱牆') }}</div>
+                <div class="fg-sub">{{ cs('prayer', '分享需求，互相代禱') }}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -612,7 +615,7 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></svg>
                 </div>
-                <div class="fg-name">本週週報</div>
+                <div class="fg-name">{{ cn('bulletin', '本週週報') }}</div>
                 <div class="fg-sub">{{ latest_bulletin.bulletin_date }}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
