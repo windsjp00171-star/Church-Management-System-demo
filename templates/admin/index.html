@@ -111,24 +111,24 @@
 
     <a href="/admin/groups" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🏘</div>
-            <div class="admin-card-name">小組管理</div>
-            <div class="admin-card-desc">新增或移除小組標籤</div>
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🏷</div>
+            <div class="admin-card-name">分組標籤</div>
+            <div class="admin-card-desc">會員分組用的標籤（詩班、青年等）</div>
         </div>
     </a>
 
     <a href="/admin/cell-groups" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">📋</div>
-            <div class="admin-card-name">小組回報管理</div>
-            <div class="admin-card-desc">建立回報小組並指定小組長</div>
+            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">👥</div>
+            <div class="admin-card-name">{{ card_names.get('cell_report', '小組回報') }}設定</div>
+            <div class="admin-card-desc">建立回報用小組並指定小組長</div>
         </div>
     </a>
 
     <a href="/diary/admin" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fdf4ff; color:#7c3aed;">📖</div>
-            <div class="admin-card-name">天父日記後台</div>
+            <div class="admin-card-name">{{ card_names.get('diary', '天父日記') }}後台</div>
             <div class="admin-card-desc">管理牧者白名單與讀經計畫</div>
         </div>
     </a>
