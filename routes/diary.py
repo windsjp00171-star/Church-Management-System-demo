@@ -259,17 +259,34 @@ def sb_is_pastor(line_user_id: str) -> bool:
 
 
 def sb_list_pastors() -> List[Dict[str, Any]]:
-    """查詢 users 表取得所有牧者清單（is_pastor=True）。"""
+    """查詢有資格被授權的人：is_pastor=True 或是小組長。"""
     if not sb:
         return []
-    res = (
+    # is_pastor=True 的人
+    pastor_res = (
         sb.table('users')
         .select('line_user_id,display_name,picture_url,is_pastor')
         .eq('is_pastor', True)
-        .order('display_name')
         .execute()
     )
-    return list(res.data or [])
+    pastor_ids = {r['line_user_id'] for r in (pastor_res.data or [])}
+    # 小組長
+    leader_res = sb.table('cell_group_leaders').select('user_id').execute()
+    leader_user_ids = [r['user_id'] for r in (leader_res.data or [])]
+    if leader_user_ids:
+        leader_users = (
+            sb.table('users')
+            .select('line_user_id,display_name,picture_url,is_pastor')
+            .in_('id', leader_user_ids)
+            .execute()
+        )
+        for u in (leader_users.data or []):
+            if u['line_user_id'] not in pastor_ids:
+                pastor_ids.add(u['line_user_id'])
+                pastor_res.data.append(u)
+    result = [r for r in (pastor_res.data or []) if r['line_user_id'] in pastor_ids]
+    result.sort(key=lambda x: x.get('display_name', ''))
+    return result
 
 
 def sb_list_users(limit: int = 500) -> List[Dict[str, Any]]:
