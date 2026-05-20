@@ -418,7 +418,7 @@ function setPColor(val) {
 async function submitPersonalForm() {
     const title = document.getElementById('p-title').value.trim();
     const date  = document.getElementById('p-date').value;
-    if (!title || !date) { alert('請填寫標題與日期'); return; }
+    if (!title || !date) { showToast('❌ 請填寫標題與日期', 'error'); return; }
     const res = await fetch('/calendar/personal/new', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, event_date: date,
@@ -427,7 +427,7 @@ async function submitPersonalForm() {
     });
     const d = await res.json();
     if (d.success) { closePersonalModal(); loadCalendar(); }
-    else alert(d.error || '儲存失敗');
+    else showToast('❌ ' + (d.error || '儲存失敗'), 'error');
 }
 async function deletePersonal(id, ev) {
     ev.stopPropagation();
@@ -435,7 +435,7 @@ async function deletePersonal(id, ev) {
     const res = await fetch(`/calendar/personal/${id}/delete`, { method: 'POST' });
     const d   = await res.json();
     if (d.success) loadCalendar();
-    else alert('刪除失敗');
+    else showToast('❌ 刪除失敗', 'error');
 }
 
 // ── 教會行事（管理員）────────────────────────────────────────
@@ -467,7 +467,7 @@ function setChColor(val) {
 async function submitChurchForm() {
     const title = document.getElementById('ch-title').value.trim();
     const date  = document.getElementById('ch-date').value;
-    if (!title || !date) { alert('請填寫標題與日期'); return; }
+    if (!title || !date) { showToast('❌ 請填寫標題與日期', 'error'); return; }
     const url = _editChurchId
         ? `/admin/calendar/church/${_editChurchId}/edit`
         : '/admin/calendar/church/new';
@@ -480,7 +480,7 @@ async function submitChurchForm() {
     });
     const d = await res.json();
     if (d.success) { closeChurchModal(); loadCalendar(); }
-    else alert(d.error || '儲存失敗');
+    else showToast('❌ ' + (d.error || '儲存失敗'), 'error');
 }
 async function deleteChurch(id, ev) {
     ev && ev.stopPropagation();
@@ -490,7 +490,7 @@ async function deleteChurch(id, ev) {
     });
     const d = await res.json();
     if (d.success) { loadCalendar(); document.getElementById('day-detail').style.display = 'none'; }
-    else alert('刪除失敗');
+    else showToast('❌ 刪除失敗', 'error');
 }
 </script>
 

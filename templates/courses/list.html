@@ -41,7 +41,7 @@
                 <span style="color:var(--orange);">💰 教材費 ${{ course.material_fee }}</span>
                 {% endif %}
                 {% if course.prereq_title %}
-                <span style="color:var(--red);">⚠️ 需先完成「{{ course.prereq_title }}」</span>
+                <span style="color:var(--red);">⚠️ 需先完成「{% if course.prerequisite_course_id %}<a href="/courses/{{ course.prerequisite_course_id }}" style="color:var(--red);">{{ course.prereq_title }}</a>{% else %}{{ course.prereq_title }}{% endif %}」。完成先修課程後即可報名本課程。</span>
                 {% endif %}
             </div>
 

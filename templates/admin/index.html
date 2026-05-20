@@ -93,7 +93,8 @@
 </div>
 
 {% if session.get('is_super_admin') %}
-<div class="section-label">會員管理</div>
+<div class="section-label">會員管理 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
+<p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
     <a href="/admin/users" style="text-decoration:none;">
@@ -106,7 +107,8 @@
 
 </div>
 
-<div class="section-label">系統設定</div>
+<div class="section-label">系統設定 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
+<p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
     <a href="/admin/groups" style="text-decoration:none;">

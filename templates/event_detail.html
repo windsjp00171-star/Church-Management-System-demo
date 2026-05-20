@@ -306,7 +306,7 @@
             </div>
         </div>
         {% if not user_profile.real_name %}
-        <p style="color:var(--orange); font-size:0.82rem; margin-top:8px;">
+        <p class="real-name-warning" style="color:var(--orange); font-size:0.82rem; margin-top:8px; padding:8px 10px; border-radius:6px; border:1px solid transparent;">
             ⚠️ 你尚未填寫真實姓名，<a href="/profile" style="color:var(--orange);">點此完善個人資料</a>
         </p>
         {% endif %}
@@ -649,6 +649,15 @@ function calcEvTotal() {
 // 送出報名
 // ===================================================
 function submitReg() {
+    // 檢查是否有真實姓名警告
+    const nameWarning = document.querySelector('.real-name-warning');
+    if (nameWarning && nameWarning.offsetParent !== null) {
+        nameWarning.style.border = '2px solid #e53e3e';
+        nameWarning.style.background = '#fff5f5';
+        nameWarning.scrollIntoView({behavior: 'smooth', block: 'center'});
+        return;
+    }
+
     const allWrappers = document.querySelectorAll('.field-wrapper');
     const answers = [];
     let hasError = false;
@@ -730,12 +739,12 @@ function joinWaitlist() {
     .then(r => r.json())
     .then(d => {
         if (d.success && d.waitlisted) {
-            alert('已加入候補名單！有名額時系統將自動為您升為正式報名。');
+            showToast('ℹ️ 已加入候補名單！有名額時系統將自動為您升為正式報名。', 'info');
             location.reload();
         } else if (d.success) {
             location.reload();
         } else {
-            alert(d.error || '操作失敗，請稍後再試');
+            showToast('❌ ' + (d.error || '操作失敗，請稍後再試'), 'error');
         }
     });
 }
@@ -750,7 +759,7 @@ function cancelWaitlist() {
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '操作失敗');
+        else showToast('❌ ' + (d.error || '操作失敗'), 'error');
     });
 }
 </script>

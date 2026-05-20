@@ -395,6 +395,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
             </div>
             <span class="badge badge-green" style="flex-shrink:0;">報名 →</span>
         </a>
+        {% else %}
+        <p class="empty-hint">目前沒有開放中的活動 — <a href="/events">瀏覽所有日程</a></p>
         {% endfor %}
         {% for c in open_courses %}
         <a href="/courses/{{ c.id }}" class="reg-card" style="--stripe:var(--blue);">
@@ -411,6 +413,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
             </div>
             <span class="badge badge-blue" style="flex-shrink:0;">報名 →</span>
         </a>
+        {% else %}
+        <p class="empty-hint">目前沒有開放中的學程 — <a href="/courses">瀏覽課程</a></p>
         {% endfor %}
     </div>
 </div>

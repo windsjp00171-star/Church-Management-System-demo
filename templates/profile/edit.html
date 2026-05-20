@@ -90,6 +90,7 @@
     <div style="background:white; border-radius:16px; padding:28px; box-shadow:0 2px 16px rgba(0,0,0,0.08); margin-top:16px;">
         <h3 style="margin:0 0 8px; font-size:1rem;">🔐 天父日記查閱授權</h3>
         <p style="color:#888; font-size:0.85rem; margin:0 0 16px;">授權後，對方可查閱你的靈修記錄。</p>
+        <p class="auth-note" style="color: #718096; font-size: 0.875rem; margin-bottom: 12px;">授權後，對方可查閱您的靈修記錄。若要收回權限，點「取消授權」即可。授權不會影響您的記錄內容。</p>
 
         {% set grant_count = granted_map|length %}
         <form method="post" action="{{ url_for('diary.grant') }}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
@@ -152,7 +153,7 @@ function toggleTag(el, isSecondary) {
 
 function saveProfile() {
     const name = document.getElementById('f-name').value.trim();
-    if (!name) { alert('請填寫真實姓名'); return; }
+    if (!name) { showToast('❌ 請填寫真實姓名', 'error'); return; }
     const group_tags = [...document.querySelectorAll('[name="group_tag"]:checked')].map(c => c.value);
     fetch('/profile', {
         method: 'POST',
@@ -162,10 +163,11 @@ function saveProfile() {
     .then(r => r.json())
     .then(d => {
         if (d.success) {
+            showToast('✅ 個人資料已儲存！', 'success');
             const msg = document.getElementById('save-msg');
             msg.style.display = 'block';
             setTimeout(() => msg.style.display = 'none', 3000);
-        } else alert(d.error || '儲存失敗');
+        } else showToast('❌ ' + (d.error || '儲存失敗'), 'error');
     });
 }
 </script>
