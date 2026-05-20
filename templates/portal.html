@@ -603,7 +603,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}{# end 已登入 #}
 
         {# ── 小組長功能 ── #}
-        {% if session.cell_group_ids %}
+        {% if session.cell_group_ids or is_super_admin %}
         {% if card_settings.get('cell_report', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('cell_report', true) %} fi-hidden{% endif %}" data-key="cell_report" data-type="fixed" style="--d:{{ base_d + 620 }}ms">
             <a href="/cell-report/portal" class="fg-tile" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
@@ -619,7 +619,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {# ── 牧者功能 ── #}
-        {% if session.is_pastor %}
+        {% if session.is_pastor or is_super_admin %}
         {% if card_settings.get('pastor_report', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('pastor_report', true) %} fi-hidden{% endif %}" data-key="pastor_report" data-type="fixed" style="--d:{{ base_d + 690 }}ms">
             <a href="/cell-report/pastor-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);">
@@ -648,7 +648,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {# ── 同工功能 ── #}
-        {% if is_staff %}
+        {% if is_staff or is_super_admin %}
         {% if card_settings.get('staff_report', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('staff_report', true) %} fi-hidden{% endif %}" data-key="staff_report" data-type="fixed" style="--d:{{ base_d + 830 }}ms">
             <a href="/cell-report/staff-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);">
