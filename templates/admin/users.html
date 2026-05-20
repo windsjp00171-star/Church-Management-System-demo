@@ -269,6 +269,20 @@ function renderUsers(rawUsers) {
                                color:${u.is_super_admin ? '#e65100' : '#aaa'};">
                         ${u.is_super_admin ? '取消超管' : '設為超管'}
                     </button>
+                    <button id="pastor-btn-${u.id}" onclick="togglePastor('${u.id}', this)"
+                        style="padding:6px 14px; border-radius:6px; border:1.5px solid; cursor:pointer; font-size:0.85rem;
+                               background:${u.is_pastor ? '#e8eaf6' : 'white'};
+                               border-color:${u.is_pastor ? '#3949ab' : '#ddd'};
+                               color:${u.is_pastor ? '#3949ab' : '#aaa'};">
+                        ${u.is_pastor ? '取消牧者' : '設為牧者'}
+                    </button>
+                    <button id="staff-btn-${u.id}" onclick="toggleStaff('${u.id}', this)"
+                        style="padding:6px 14px; border-radius:6px; border:1.5px solid; cursor:pointer; font-size:0.85rem;
+                               background:${u.is_staff ? '#f3e5f5' : 'white'};
+                               border-color:${u.is_staff ? '#7b1fa2' : '#ddd'};
+                               color:${u.is_staff ? '#7b1fa2' : '#aaa'};">
+                        ${u.is_staff ? '取消同工' : '設為同工'}
+                    </button>
                 </div>
             </div>
         </div>`;
@@ -401,6 +415,32 @@ function toggleAdmin(userId, btn) {
 function toggleSuperAdmin(userId, btn) {
     btn.disabled = true; btn.textContent = '處理中...';
     fetch(`/admin/api/users/${userId}/toggle-super-admin`, { method: 'POST' })
+
+function togglePastor(userId, btn) {
+    fetch(`/admin/api/users/${userId}/toggle-pastor`, { method: 'POST' })
+        .then(r => r.json()).then(data => {
+            if (data.success) {
+                const isPastor = data.is_pastor;
+                btn.textContent = isPastor ? '取消牧者' : '設為牧者';
+                btn.style.background = isPastor ? '#e8eaf6' : 'white';
+                btn.style.borderColor = isPastor ? '#3949ab' : '#ddd';
+                btn.style.color = isPastor ? '#3949ab' : '#aaa';
+            } else { alert(data.error || '操作失敗'); }
+        });
+}
+
+function toggleStaff(userId, btn) {
+    fetch(`/admin/api/users/${userId}/toggle-staff`, { method: 'POST' })
+        .then(r => r.json()).then(data => {
+            if (data.success) {
+                const isStaff = data.is_staff;
+                btn.textContent = isStaff ? '取消同工' : '設為同工';
+                btn.style.background = isStaff ? '#f3e5f5' : 'white';
+                btn.style.borderColor = isStaff ? '#7b1fa2' : '#ddd';
+                btn.style.color = isStaff ? '#7b1fa2' : '#aaa';
+            } else { alert(data.error || '操作失敗'); }
+        });
+}
         .then(r => r.json())
         .then(data => {
             if (data.error) { alert(data.error); btn.disabled = false; return; }

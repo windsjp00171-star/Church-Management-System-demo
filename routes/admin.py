@@ -274,7 +274,7 @@ def search_users():
 
     keyword     = request.args.get('q', '').strip()
     member_type = request.args.get('type', 'all').strip()   # member / visitor / all
-    fields = 'id, display_name, picture_url, is_admin, is_super_admin, group_tags, real_name, created_at, member_type'
+    fields = 'id, display_name, picture_url, is_admin, is_super_admin, is_pastor, is_staff, group_tags, real_name, created_at, member_type'
 
     def apply_type_filter(query):
         if member_type == 'member':
@@ -545,6 +545,32 @@ def toggle_super_admin(user_id):
         'is_super_admin': new_value,
         'display_name': result.data[0]['display_name']
     })
+
+
+@admin_bp.route('/api/users/<user_id>/toggle-pastor', methods=['POST'])
+@admin_required
+def toggle_pastor(user_id):
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '僅超級管理員可操作'}), 403
+    result = supabase.table('users').select('is_pastor, display_name').eq('id', user_id).execute()
+    if not result.data:
+        return jsonify({'error': '找不到此用戶'}), 404
+    new_value = not bool(result.data[0].get('is_pastor', False))
+    supabase.table('users').update({'is_pastor': new_value}).eq('id', user_id).execute()
+    return jsonify({'success': True, 'is_pastor': new_value, 'display_name': result.data[0]['display_name']})
+
+
+@admin_bp.route('/api/users/<user_id>/toggle-staff', methods=['POST'])
+@admin_required
+def toggle_staff(user_id):
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '僅超級管理員可操作'}), 403
+    result = supabase.table('users').select('is_staff, display_name').eq('id', user_id).execute()
+    if not result.data:
+        return jsonify({'error': '找不到此用戶'}), 404
+    new_value = not bool(result.data[0].get('is_staff', False))
+    supabase.table('users').update({'is_staff': new_value}).eq('id', user_id).execute()
+    return jsonify({'success': True, 'is_staff': new_value, 'display_name': result.data[0]['display_name']})
 
 
 # =====================
