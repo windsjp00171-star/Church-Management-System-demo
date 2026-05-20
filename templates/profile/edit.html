@@ -35,7 +35,7 @@
             {% set secondary_groups = groups | selectattr('is_primary', 'equalto', false) | list %}
 
             {% if primary_groups %}
-            <label style="font-weight:bold; display:block; margin-bottom:8px;">所屬小組</label>
+            <label style="font-weight:bold; display:block; margin-bottom:8px;">所屬服事團隊</label>
             <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
                 {% for g in primary_groups %}
                 {% set selected = user.group_tags and g.name in user.group_tags %}
