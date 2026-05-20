@@ -509,22 +509,6 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
 </script>
 {% endif %}
 
-{# ════ 管理員快捷入口 ════ #}
-{% if session.is_admin %}
-<a href="/admin" class="pa" style="--d:240ms; margin-bottom:24px; display:flex; align-items:center; gap:12px;
-    padding:13px 16px; background:linear-gradient(135deg,#1a1a2e,#16213e);
-    border-radius:var(--radius-lg); text-decoration:none; border:1px solid rgba(255,255,255,0.08);
-    box-shadow:0 4px 16px rgba(0,0,0,0.18);">
-    <div style="width:40px; min-width:40px; height:40px; border-radius:var(--radius);
-        background:rgba(255,255,255,0.1); display:flex; align-items:center; justify-content:center; font-size:1.2rem;">⚙️</div>
-    <div style="flex:1; min-width:0;">
-        <div style="font-weight:700; font-size:0.92rem; color:white;">後台管理</div>
-        <div style="font-size:0.76rem; color:rgba(255,255,255,0.55); margin-top:2px;">活動、門訓學程、完訓認證、簽到管理</div>
-    </div>
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.35)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-</a>
-{% endif %}
-
 {# ════ 功能磚 Grid ════ #}
 {% set base_d = 80 %}
 <div style="margin-bottom:28px;">
@@ -639,6 +623,129 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
         {% set link_d = link_d + 70 %}
         {% endif %}
         {% endfor %}
+
+        {# ── 已登入會員功能 ── #}
+        {% if session.user_id or session.line_id %}
+
+        {# 天父日記 #}
+        {% if card_settings.get('diary', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('diary', true) %} fi-hidden{% endif %}" data-key="diary" data-type="fixed" style="--d:{{ base_d + 480 }}ms">
+            <a href="/diary" class="fg-tile" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);">
+                <div class="fg-icon" style="background:#ede9fe;color:#7c3aed;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                </div>
+                <div class="fg-name" style="color:#5b21b6;">{{ cn('diary', '天父日記') }}</div>
+                <div class="fg-sub">{{ cs('diary', '記錄每日與神的對話') }}</div>
+            </a>
+            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+
+        {# 電子簽到記錄 #}
+        {% if card_settings.get('my_history', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('my_history', true) %} fi-hidden{% endif %}" data-key="my_history" data-type="fixed" style="--d:{{ base_d + 550 }}ms">
+            <a href="/my-history" class="fg-tile" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);">
+                <div class="fg-icon" style="background:#e0f2fe;color:#0369a1;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
+                </div>
+                <div class="fg-name" style="color:#0c4a6e;">{{ cn('my_history', '電子簽到') }}</div>
+                <div class="fg-sub">{{ cs('my_history', '我的活動出席紀錄') }}</div>
+            </a>
+            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+
+        {% endif %}{# end 已登入 #}
+
+        {# ── 小組長功能 ── #}
+        {% if session.cell_group_ids %}
+        {% if card_settings.get('cell_report', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('cell_report', true) %} fi-hidden{% endif %}" data-key="cell_report" data-type="fixed" style="--d:{{ base_d + 620 }}ms">
+            <a href="/cell-report/portal" class="fg-tile" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
+                <div class="fg-icon" style="background:#dcfce7;color:#16a34a;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                </div>
+                <div class="fg-name" style="color:#166534;">{{ cn('cell_report', '小組回報') }}</div>
+                <div class="fg-sub">{{ cs('cell_report', '填寫本週小組聚會回報') }}</div>
+            </a>
+            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {# ── 牧者功能 ── #}
+        {% if session.is_pastor %}
+        {% if card_settings.get('pastor_report', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('pastor_report', true) %} fi-hidden{% endif %}" data-key="pastor_report" data-type="fixed" style="--d:{{ base_d + 690 }}ms">
+            <a href="/cell-report/pastor-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);">
+                <div class="fg-icon" style="background:#fed7aa;color:#c2410c;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+                </div>
+                <div class="fg-name" style="color:#7c2d12;">{{ cn('pastor_report', '牧者週報') }}</div>
+                <div class="fg-sub">{{ cs('pastor_report', '查看各小組回報與統計') }}</div>
+            </a>
+            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+
+        {% if card_settings.get('pastor_diary', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('pastor_diary', true) %} fi-hidden{% endif %}" data-key="pastor_diary" data-type="fixed" style="--d:{{ base_d + 760 }}ms">
+            <a href="/diary/pastor" class="fg-tile" style="background:linear-gradient(135deg,#fdf4ff,#f3e8ff);">
+                <div class="fg-icon" style="background:#f3e8ff;color:#9333ea;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                </div>
+                <div class="fg-name" style="color:#6b21a8;">{{ cn('pastor_diary', '查閱日記') }}</div>
+                <div class="fg-sub">{{ cs('pastor_diary', '已授權的會友日記') }}</div>
+            </a>
+            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {# ── 同工功能 ── #}
+        {% if is_staff %}
+        {% if card_settings.get('staff_report', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('staff_report', true) %} fi-hidden{% endif %}" data-key="staff_report" data-type="fixed" style="--d:{{ base_d + 830 }}ms">
+            <a href="/cell-report/staff-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);">
+                <div class="fg-icon" style="background:#dbeafe;color:#1d4ed8;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                </div>
+                <div class="fg-name" style="color:#1e3a8a;">{{ cn('staff_report', '同工週報') }}</div>
+                <div class="fg-sub">{{ cs('staff_report', '各區小組回報總覽') }}</div>
+            </a>
+            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+        {% endif %}
+
+        {# ── 管理員功能 ── #}
+        {% if session.is_admin %}
+        {% if card_settings.get('files', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('files', true) %} fi-hidden{% endif %}" data-key="files" data-type="fixed" style="--d:{{ base_d + 900 }}ms">
+            <a href="/files" class="fg-tile" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);">
+                <div class="fg-icon" style="background:#fef3c7;color:#d97706;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+                </div>
+                <div class="fg-name" style="color:#92400e;">{{ cn('files', '檔案管理') }}</div>
+                <div class="fg-sub">{{ cs('files', '教會資料夾與檔案') }}</div>
+            </a>
+            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+
+        {% if card_settings.get('admin', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('admin', true) %} fi-hidden{% endif %}" data-key="admin" data-type="fixed" style="--d:{{ base_d + 970 }}ms">
+            <a href="/admin" class="fg-tile" style="background:linear-gradient(135deg,#1e1e2e,#16213e);border-color:rgba(255,255,255,.1);">
+                <div class="fg-icon" style="background:rgba(255,255,255,.12);color:white;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
+                </div>
+                <div class="fg-name" style="color:white;">{{ cn('admin', '後台管理') }}</div>
+                <div class="fg-sub" style="color:rgba(255,255,255,.55);">{{ cs('admin', '使用者、活動、系統設定') }}</div>
+            </a>
+            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+        {% endif %}
 
     </div>
 </div>
