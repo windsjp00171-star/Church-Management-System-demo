@@ -831,3 +831,111 @@ select.form-control { cursor: pointer; }
 
 /* ── fade-in utility ── */
 .fade-in { animation: fadeInUp 0.4s ease both; }
+
+/* ── 天父日記 ────────────────────────────────────────────── */
+.calendar-card,
+.diary-card,
+.scripture-card {
+  background: #fffef9;
+  border-radius: 16px;
+  padding: 20px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 12px rgba(60,40,10,0.07);
+}
+.calendar-card h2, .diary-card h2, .scripture-card h2 {
+  font-family: "Noto Serif TC", Georgia, serif;
+  font-size: 17px; font-weight: 700; color: #2e2a26;
+  border-left: 3px solid #b8956a; padding-left: 10px; margin: 0 0 14px 0;
+}
+.calendar-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 12px; font-size: 16px;
+}
+.calendar-title { font-family: "Noto Serif TC", Georgia, serif; font-weight: 700; }
+.calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
+.calendar-weekday {
+  display: flex; align-items: center; justify-content: center;
+  height: 28px; font-size: 12px; font-weight: 600; color: #9a9186; user-select: none;
+}
+.calendar-day {
+  display: flex; align-items: center; justify-content: center;
+  height: 44px; border-radius: 10px; text-decoration: none;
+  font-weight: 700; font-size: 16px; user-select: none;
+}
+.calendar-day.unwritten { background: #ffd8d8; color: #1b1b1b; }
+.calendar-day.written   { background: #d7f5df; color: #1b1b1b; }
+.calendar-day.future    { background: #ede8e0; color: #9a9186; cursor: not-allowed; }
+.calendar-day.selected  { outline: 4px solid #2e2a26; outline-offset: 2px; }
+.legend {
+  margin-top: 12px; font-size: 13px; color: #6b625a;
+  display: flex; gap: 14px; align-items: center; flex-wrap: wrap;
+}
+.legend .dot {
+  width: 10px; height: 10px; border-radius: 50%;
+  display: inline-block; margin-right: 6px;
+}
+.legend .dot.unwritten { background: #ffd8d8; }
+.legend .dot.written   { background: #d7f5df; }
+.legend .dot.future    { background: #ede8e0; }
+.legend .dot.selected  { background: #2e2a26; }
+.scripture-ref {
+  font-family: "Noto Serif TC", Georgia, serif;
+  font-size: 18px; font-weight: 700; margin: 8px 0 10px; color: #2e2a26;
+}
+.book-bg-wrap { margin: 12px 0 14px; }
+.book-bg-label {
+  font-size: 11px; font-weight: 700; color: #a08060;
+  letter-spacing: 0.08em; margin-bottom: 4px; padding-left: 2px;
+}
+.book-bg {
+  font-size: 14px; line-height: 1.75; color: #5a4f44;
+  background: #f5f0e8; border-radius: 0 10px 10px 10px;
+  padding: 10px 14px; font-style: italic;
+}
+.scripture-content {
+  border-left: 3px solid #b8956a; padding-left: 16px; margin: 14px 0 4px 0;
+  background: linear-gradient(to right, rgba(184,149,106,0.06), transparent 70%);
+  border-radius: 0 8px 8px 0;
+}
+.scripture-content p { line-height: 2.1; font-size: 16px; margin: 6px 0; color: #1c1814; }
+.muted { color: #8a7f76; }
+.diary-date { color: #6b625a; margin-bottom: 10px; font-size: 14px; }
+.diary-textarea {
+  width: 100%; min-height: 220px; padding: 14px;
+  font-size: 16px; line-height: 1.9; border-radius: 10px;
+  border: 1px solid #d8cfc4; background: #fffef6; color: #2e2a26; box-sizing: border-box;
+}
+.guide-section { margin-top: 14px; padding-top: 14px; border-top: 1px solid #ede8e0; }
+.guide-btn {
+  padding: 9px 16px; border: 1px solid #d8cfc4; border-radius: 20px;
+  background: #fffef9; color: #5a4f44; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s;
+}
+.guide-btn:hover:not(:disabled) { background: #f5f0e8; }
+.guide-btn:disabled { opacity: 0.6; cursor: default; }
+.guide-loading { display: none; font-size: 13px; color: #9a9186; margin-top: 10px; }
+.guide-box { display: none; margin-top: 12px; background: #f6f3ff; border-radius: 12px; padding: 12px 16px; }
+.guide-question { font-size: 15px; line-height: 1.85; color: #333; padding: 6px 0; border-bottom: 1px solid rgba(0,0,0,0.06); }
+.guide-question:last-child { border-bottom: none; }
+.stars-card { background: #080d1a; border-radius: 20px; overflow: hidden; margin-bottom: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
+.stars-header { padding: 20px 20px 12px; text-align: center; }
+.stars-title { font-family: "Noto Serif TC", Georgia, serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: 0.05em; margin-bottom: 6px; }
+.stars-count { font-size: 14px; color: #8899bb; }
+.stars-count strong { color: #f5c842; font-size: 18px; }
+.stars-canvas-wrap { position: relative; width: 100%; }
+.stars-canvas-wrap canvas { display: block; width: 100%; }
+.stars-verse { padding: 16px 20px 20px; text-align: center; font-family: "Noto Serif TC", Georgia, serif; font-size: 13px; color: #d4a843; line-height: 1.8; }
+.pastor-entry-btn { display: flex; align-items: center; gap: 6px; padding: 10px 16px; background: #2e2a26; color: #fff; border-radius: 10px; font-size: 14px; font-weight: 700; text-decoration: none; }
+.pastor-entry-btn:hover { opacity: 0.85; color: #fff; }
+.pastor-banner { background: #2e2a26; color: #fff; margin: -16px -16px 16px -16px; padding: 14px 16px; }
+.pastor-banner-inner { max-width: 720px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pastor-banner-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #b8956a; margin-bottom: 2px; }
+.pastor-banner-name { font-family: "Noto Serif TC", Georgia, serif; font-size: 18px; font-weight: 700; color: #fff; }
+.pastor-back-btn { padding: 8px 14px; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
+.member-switcher-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 12px; }
+.member-switcher { display: flex; gap: 8px; min-width: max-content; }
+.member-chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 14px; text-decoration: none; background: #ede8e0; color: #3a3530; font-size: 12px; font-weight: 600; }
+.member-chip img, .member-avatar-placeholder { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
+.member-chip.active { background: #2e2a26; color: #fff; }
+.grant-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; background: none; border: none; padding: 0 0 0 10px; cursor: pointer; font-size: 16px; font-family: "Noto Serif TC", serif; font-weight: 600; color: #2e2a26; border-left: 3px solid #b8956a; text-align: left; }
+.grant-badge { font-size: 12px; font-weight: 500; background: #f0ebe3; color: #7a5c3a; padding: 2px 8px; border-radius: 10px; }
