@@ -124,7 +124,7 @@
         <div class="portal-card-title">天父日記</div>
         <div class="portal-card-desc">記錄每日與神的對話</div>
     </a>
-    <a href="/my_history" class="portal-card fade-in">
+    <a href="/my-history" class="portal-card fade-in">
         <div class="portal-card-icon">🗂️</div>
         <div class="portal-card-title">電子簽到記錄</div>
         <div class="portal-card-desc">我的活動出席紀錄</div>
@@ -162,36 +162,6 @@
         <div class="portal-card-icon">👥</div>
         <div class="portal-card-title">小組回報</div>
         <div class="portal-card-desc">填寫本週小組聚會回報</div>
-    </a>
-    {% endif %}
-</div>
-{% endif %}
-
-{% if session.user_id or session.line_id %}
-<!-- 天父日記 + 小組回報 快捷卡片 -->
-<div style="display:grid; grid-template-columns:1fr 1fr; gap:14px; margin:24px 0;">
-    <a href="/diary" style="text-decoration:none;">
-        <div style="background:linear-gradient(135deg,#fffef9,#f5f0e8); border-radius:16px; padding:20px; box-shadow:0 2px 12px rgba(60,40,10,0.08); border:1px solid #ede8e0;">
-            <div style="font-size:1.5rem; margin-bottom:8px;">📖</div>
-            <div style="font-family:'Noto Serif TC',serif; font-weight:700; font-size:1rem; color:#2e2a26; margin-bottom:4px;">天父日記</div>
-            <div style="font-size:0.82rem; color:#9a9186;">點此記錄今日靈修</div>
-        </div>
-    </a>
-    {% if session.cell_group_ids %}
-    <a href="/cell-report/portal" style="text-decoration:none;">
-        <div style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe); border-radius:16px; padding:20px; box-shadow:0 2px 12px rgba(0,60,120,0.08); border:1px solid #bae6fd;">
-            <div style="font-size:1.5rem; margin-bottom:8px;">👥</div>
-            <div style="font-weight:700; font-size:1rem; color:#0c4a6e; margin-bottom:4px;">小組回報</div>
-            <div style="font-size:0.82rem; color:#0369a1;">點此填寫本週聚會回報</div>
-        </div>
-    </a>
-    {% else %}
-    <a href="/cell-report/portal" style="text-decoration:none; opacity:0.5; pointer-events:none;">
-        <div style="background:#f8f8f8; border-radius:16px; padding:20px; border:1px solid #eee;">
-            <div style="font-size:1.5rem; margin-bottom:8px;">👥</div>
-            <div style="font-weight:700; font-size:1rem; color:#aaa; margin-bottom:4px;">小組回報</div>
-            <div style="font-size:0.82rem; color:#bbb;">尚未加入小組</div>
-        </div>
     </a>
     {% endif %}
 </div>
