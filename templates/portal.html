@@ -453,61 +453,6 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 </div>
 {% endif %}
 
-{# ════ 同工：留名單上傳 ════ #}
-{% if is_staff or is_admin %}
-<div class="pa" style="--d:200ms; margin-bottom:16px;">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);padding:16px;box-shadow:var(--shadow-sm);">
-        <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-            <div style="width:36px;height:36px;border-radius:10px;background:#fff3e0;display:flex;align-items:center;justify-content:center;font-size:1.1rem;">📋</div>
-            <div style="font-weight:700;font-size:0.95rem;color:var(--text-1);">上傳留名單</div>
-        </div>
-        <form id="vf-form" enctype="multipart/form-data">
-            <div style="margin-bottom:10px;">
-                <label style="font-size:0.8rem;color:var(--text-3);display:block;margin-bottom:4px;">照片（點擊或拍照）</label>
-                <input type="file" name="image" accept="image/*" capture="environment" required
-                    style="width:100%;padding:8px;border:1px dashed var(--border);border-radius:8px;font-size:0.88rem;box-sizing:border-box;background:var(--bg);">
-            </div>
-            <div style="margin-bottom:12px;">
-                <label style="font-size:0.8rem;color:var(--text-3);display:block;margin-bottom:4px;">備註（選填）</label>
-                <textarea name="notes" rows="2" placeholder="例：日期、介紹給某某小組、面談內容…"
-                    style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;font-size:0.88rem;box-sizing:border-box;resize:vertical;background:var(--bg);color:var(--text-1);"></textarea>
-            </div>
-            <button type="submit" id="vf-submit"
-                style="width:100%;padding:10px;background:var(--green);color:white;border:none;border-radius:8px;font-weight:700;font-size:0.92rem;cursor:pointer;">
-                上傳
-            </button>
-            <div id="vf-msg" style="margin-top:8px;font-size:0.85rem;text-align:center;display:none;"></div>
-        </form>
-    </div>
-</div>
-<script>
-document.getElementById('vf-form').addEventListener('submit', async function(e) {
-    e.preventDefault();
-    const btn = document.getElementById('vf-submit');
-    const msg = document.getElementById('vf-msg');
-    btn.disabled = true; btn.textContent = '上傳中…';
-    msg.style.display = 'none';
-    const fd = new FormData(this);
-    try {
-        const r = await fetch('/visitor-form/upload', { method: 'POST', body: fd });
-        const j = await r.json();
-        if (j.success) {
-            msg.style.color = 'var(--green)';
-            msg.textContent = '✓ 上傳成功';
-            this.reset();
-        } else {
-            msg.style.color = '#e53935';
-            msg.textContent = j.error || '上傳失敗';
-        }
-    } catch {
-        msg.style.color = '#e53935';
-        msg.textContent = '網路錯誤，請重試';
-    }
-    msg.style.display = 'block';
-    btn.disabled = false; btn.textContent = '上傳';
-});
-</script>
-{% endif %}
 
 {# ════ 功能磚 Grid ════ #}
 {% set base_d = 80 %}

@@ -1,16 +1,21 @@
 {% extends "base.html" %}
 {% block content %}
 
-<!-- 顶部入口（最小侵入） -->
-<div class="btn-row" style="justify-content:flex-end; gap:8px; margin-bottom:10px;">
-  <a class="secondary-btn" href="{{ url_for('diary.stars') }}">✦ 我的星空</a>
-  <a class="secondary-btn" href="{{ url_for('diary.history') }}">📖 書卷瀏覽</a>
-  {% if pastor_mode %}
-    <a class="pastor-entry-btn" href="{{ url_for('diary.pastor') }}">📖 查閱成員靈修</a>
-  {% endif %}
-  {% if admin_mode %}
-    <a class="secondary-btn" href="{{ url_for('diary.admin') }}">後台</a>
-  {% endif %}
+<!-- 頂部橫幅 -->
+<div class="page-header">
+  <div class="page-header-left">
+    <a href="/" class="breadcrumb">← 返回首頁</a>
+    <div class="page-title">📖 {{ card_names.get('diary', '天父日記') }}</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;">
+    <a class="secondary-btn" href="{{ url_for('diary.history') }}">📖 書卷瀏覽</a>
+    {% if pastor_mode %}
+      <a class="pastor-entry-btn" href="{{ url_for('diary.pastor') }}">查閱成員靈修</a>
+    {% endif %}
+    {% if admin_mode %}
+      <a class="secondary-btn" href="{{ url_for('diary.admin') }}">後台</a>
+    {% endif %}
+  </div>
 </div>
 
 <section class="calendar-card">

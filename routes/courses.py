@@ -807,9 +807,14 @@ def admin_toggle_attendance(course_id, session_id, user_id):
 @admin_required
 def admin_group_overview():
     """後台：全教會小組門訓總覽（以完訓認證為依據）"""
-    # 所有啟用中的課程類別（欄位）
-    all_cats = supabase.table('course_categories').select('id, name, sort_order')\
-        .eq('is_active', True).order('sort_order').execute().data or []
+    try:
+        all_cats = supabase.table('course_categories').select('id, name, sort_order')\
+            .eq('is_active', True).order('sort_order').execute().data or []
+    except Exception:
+        all_cats = []
+    if not all_cats:
+        return render_template('courses/group_overview.html',
+            all_courses=[], group_names=[], group_data={}, no_group_users=[])
 
     # 主標籤小組（is_primary != false）才納入門訓分組
     groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
@@ -1064,8 +1069,11 @@ def admin_category_delete(cat_id):
 @admin_required
 def admin_certifications():
     """後台：完訓認證管理 — 橫向對照表"""
-    cats = supabase.table('course_categories')\
-        .select('*').order('sort_order').execute().data or []
+    try:
+        cats = supabase.table('course_categories')\
+            .select('*').order('sort_order').execute().data or []
+    except Exception:
+        cats = []
     active_cats = [c for c in cats if c.get('is_active', True)]
 
     q            = request.args.get('q', '').strip()
@@ -1800,9 +1808,15 @@ def course_checkin(session_id, token):
 @admin_required
 def admin_materials():
     """教材庫存總覽"""
-    rows = supabase.table('material_stock').select('*').order('name').execute().data or []
-    categories = supabase.table('course_categories').select('id, name')\
-        .eq('is_active', True).order('sort_order').execute().data or []
+    try:
+        rows = supabase.table('material_stock').select('*').order('name').execute().data or []
+    except Exception:
+        rows = []
+    try:
+        categories = supabase.table('course_categories').select('id, name')\
+            .eq('is_active', True).order('sort_order').execute().data or []
+    except Exception:
+        categories = []
     cat_map = {c['id']: c['name'] for c in categories}
     return render_template('courses/admin_materials.html',
         materials=rows, categories=categories, cat_map=cat_map)

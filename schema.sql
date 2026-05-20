@@ -600,3 +600,103 @@ INSERT INTO portal_card_settings (key, is_visible) VALUES
     ('calendar',  true),
     ('gospel',    true)
 ON CONFLICT (key) DO NOTHING;
+
+-- ============================================================
+-- 補充資料表（課程認證、教材庫存、留名單、每日經文自訂主題、門戶卡片）
+-- ============================================================
+
+-- 完訓認證記錄
+CREATE TABLE IF NOT EXISTS course_certifications (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    category_id  UUID NOT NULL REFERENCES course_categories(id) ON DELETE CASCADE,
+    course_id    UUID REFERENCES courses(id) ON DELETE SET NULL,
+    certified_at DATE NOT NULL DEFAULT CURRENT_DATE,
+    note         TEXT,
+    created_by   UUID REFERENCES users(id),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (user_id, category_id)
+);
+
+-- 教材主表
+CREATE TABLE IF NOT EXISTS materials (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name          TEXT NOT NULL,
+    description   TEXT,
+    unit          TEXT NOT NULL DEFAULT '本',
+    selling_price INTEGER NOT NULL DEFAULT 0,
+    category_id   UUID REFERENCES course_categories(id) ON DELETE SET NULL,
+    stock         INTEGER NOT NULL DEFAULT 0,
+    is_active     BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- material_stock 是 materials 的視圖別名
+CREATE OR REPLACE VIEW material_stock AS
+    SELECT id, name, description, unit, selling_price, category_id, stock, is_active, created_at
+    FROM materials WHERE is_active = TRUE;
+
+-- 教材進出記錄
+CREATE TABLE IF NOT EXISTS material_transactions (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    material_id   UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    txn_type      TEXT NOT NULL CHECK (txn_type IN ('in','out','adjust')),
+    quantity      INTEGER NOT NULL,
+    note          TEXT,
+    enrollment_id UUID REFERENCES course_enrollments(id) ON DELETE SET NULL,
+    created_by    UUID REFERENCES users(id),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 留名單照片
+CREATE TABLE IF NOT EXISTS visitor_forms (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    image_path TEXT NOT NULL,
+    notes      TEXT,
+    created_by UUID REFERENCES users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 每日經文自訂主題
+CREATE TABLE IF NOT EXISTS verse_custom_themes (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name       TEXT NOT NULL,
+    image_url  TEXT,
+    symbol     TEXT NOT NULL DEFAULT '✝',
+    text_mode  TEXT NOT NULL DEFAULT 'light',
+    is_active  BOOLEAN NOT NULL DEFAULT TRUE,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 門戶卡片設定（新系統）
+CREATE TABLE IF NOT EXISTS portal_cards (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    key        TEXT UNIQUE NOT NULL,
+    name       TEXT NOT NULL,
+    emoji      TEXT DEFAULT '🔗',
+    subtitle   TEXT DEFAULT '',
+    url        TEXT NOT NULL,
+    visible_to TEXT DEFAULT 'all',
+    is_active  BOOLEAN DEFAULT TRUE,
+    sort_order INTEGER DEFAULT 0,
+    is_system  BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+INSERT INTO portal_cards (key, name, emoji, subtitle, url, visible_to, sort_order) VALUES
+  ('events',        '活動報名', '🎉', '查看並報名教會活動',     '/events',                       'all',         10),
+  ('calendar',      '行事曆',   '📅', '教會行事曆與個人行程',   '/calendar',                     'member',      20),
+  ('bulletin',      '每週週報', '📰', '最新週報與公告',         '/bulletins',                    'all',         30),
+  ('prayer',        '代禱牆',   '🙏', '分享需求，互相代禱',     '/prayer',                       'all',         40),
+  ('gospel',        '福音探索', '✝️', '認識信仰的第一步',       '/gospel',                       'all',         50),
+  ('diary',         '天父日記', '📖', '記錄每日與神的對話',     '/diary',                        'member',      60),
+  ('my_history',    '電子簽到', '🗂️', '我的活動出席紀錄',       '/my-history',                   'member',      70),
+  ('courses',       '門訓學程', '📚', '報名及追蹤進度',         '/courses',                      'member',      80),
+  ('cell_report',   '小組回報', '👥', '填寫本週小組聚會回報',   '/cell-report/portal',           'cell_leader', 90),
+  ('pastor_report', '牧者週報', '📊', '查看各小組回報與統計',   '/cell-report/pastor-dashboard', 'pastor',      100),
+  ('staff_report',  '同工週報', '📋', '各區小組回報總覽',       '/cell-report/staff-dashboard',  'staff',       110),
+  ('pastor_diary',  '查閱日記', '🔍', '已授權的會友日記',       '/diary/pastor',                 'pastor',      120),
+  ('files',         '檔案管理', '📁', '教會資料夾與檔案',       '/files',                        'admin',       130),
+  ('admin',         '後台管理', '⚙️', '使用者、活動、系統設定', '/admin',                        'admin',       140)
+ON CONFLICT (key) DO NOTHING;

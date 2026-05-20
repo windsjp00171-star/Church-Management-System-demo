@@ -1,6 +1,13 @@
 {% extends "base.html" %}
 {% block content %}
 
+<div class="page-header">
+  <div class="page-header-left">
+    <a href="/" class="breadcrumb">← 返回首頁</a>
+    <div class="page-title">🔍 {{ card_names.get('pastor_diary', '查閱日記') }}</div>
+  </div>
+</div>
+
 <section class="diary-card">
   <h2>查閱</h2>
   <div class="muted">牧者：{{ display_name }}</div>
