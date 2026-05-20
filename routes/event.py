@@ -298,6 +298,36 @@ def portal():
         except Exception:
             pass
 
+    # ── 角色判斷：牧者、小組長、待辦週報 ──
+    is_pastor = session.get('is_pastor', False)
+    is_group_leader = False
+    pending_report = False
+    leader_groups = []
+
+    if uid:
+        try:
+            leader_result = supabase.table('cell_group_leaders')\
+                .select('group_id, cell_groups(id, name)')\
+                .eq('user_id', uid).execute()
+            if leader_result.data:
+                is_group_leader = True
+                leader_groups = leader_result.data
+                # 確認本週是否已完成週報
+                today_date = date.today()
+                week_start = today_date - timedelta(days=today_date.weekday())
+                for lg in leader_groups:
+                    gid = lg['group_id']
+                    report_check = supabase.table('cell_reports')\
+                        .select('id, is_complete')\
+                        .eq('group_id', gid)\
+                        .gte('week_date', week_start.isoformat())\
+                        .execute()
+                    if not report_check.data or not report_check.data[0].get('is_complete'):
+                        pending_report = True
+                        break
+        except Exception:
+            pass
+
     # ── Hero 主題（與今日經文同步）──
     today_tw = datetime.now(timezone(timedelta(hours=8))).date().isoformat()
     try:
@@ -324,6 +354,10 @@ def portal():
         portal_cards_config=portal_cards_config,
         hero_theme=hero_theme,
         today_tw=today_tw,
+        is_pastor=is_pastor,
+        is_group_leader=is_group_leader,
+        pending_report=pending_report,
+        leader_groups=leader_groups,
     )
 
 

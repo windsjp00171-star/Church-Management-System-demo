@@ -353,6 +353,55 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <div class="hero-fade"></div>
 </div>
 
+{# ════ 角色任務小工具 ════ #}
+{% if is_group_leader or is_pastor or is_staff or is_admin %}
+<div class="role-widget pa" style="--d:40ms; background: white; border-radius: 16px; padding: 20px 24px; margin-bottom: 16px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
+  <p style="font-size: 0.75rem; color: #A0AEC0; font-weight: 600; letter-spacing: 0.05em; margin: 0 0 14px; text-transform: uppercase;">本週待辦</p>
+
+  {% if is_group_leader %}
+  <div style="margin-bottom: 12px;">
+    {% if pending_report %}
+    <a href="/cell-report/portal" style="display: flex; align-items: center; gap: 12px; background: #FFF5F5; border: 1px solid #FEB2B2; border-radius: 10px; padding: 12px 14px; text-decoration: none;">
+      <span style="font-size: 1.25rem;">⚠️</span>
+      <div>
+        <p style="font-weight: 600; color: #C53030; font-size: 0.9rem; margin: 0;">本週小組週報尚未完成</p>
+        <p style="color: #FC8181; font-size: 0.78rem; margin: 2px 0 0;">點此填寫</p>
+      </div>
+      <span style="margin-left: auto; color: #FC8181;">›</span>
+    </a>
+    {% else %}
+    <div style="display: flex; align-items: center; gap: 12px; background: #F0FFF4; border: 1px solid #9AE6B4; border-radius: 10px; padding: 12px 14px;">
+      <span style="font-size: 1.25rem;">✅</span>
+      <p style="font-weight: 600; color: #276749; font-size: 0.9rem; margin: 0;">本週小組週報已完成</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if is_staff or is_pastor or is_admin %}
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+    <a href="/cell-report/sunday" style="display: flex; flex-direction: column; align-items: center; background: #F0FFF4; border: 1px solid #9AE6B4; border-radius: 10px; padding: 12px 8px; text-decoration: none;">
+      <span style="font-size: 1.4rem;">⛪</span>
+      <p style="font-size: 0.78rem; font-weight: 600; color: #276749; margin: 4px 0 0; text-align: center;">成人主日人數</p>
+    </a>
+    <a href="/cell-report/children" style="display: flex; flex-direction: column; align-items: center; background: #EBF8FF; border: 1px solid #90CDF4; border-radius: 10px; padding: 12px 8px; text-decoration: none;">
+      <span style="font-size: 1.4rem;">🧒</span>
+      <p style="font-size: 0.78rem; font-weight: 600; color: #2C5282; margin: 4px 0 0; text-align: center;">兒童主日人數</p>
+    </a>
+    <a href="/cell-report/prayer" style="display: flex; flex-direction: column; align-items: center; background: #FAF5FF; border: 1px solid #D6BCFA; border-radius: 10px; padding: 12px 8px; text-decoration: none;">
+      <span style="font-size: 1.4rem;">🙏</span>
+      <p style="font-size: 0.78rem; font-weight: 600; color: #553C9A; margin: 4px 0 0; text-align: center;">禱告會人數</p>
+    </a>
+    <a href="/cell-report/morning-prayer" style="display: flex; flex-direction: column; align-items: center; background: #FFFAF0; border: 1px solid #FBBF24; border-radius: 10px; padding: 12px 8px; text-decoration: none;">
+      <span style="font-size: 1.4rem;">🌅</span>
+      <p style="font-size: 0.78rem; font-weight: 600; color: #92400E; margin: 4px 0 0; text-align: center;">晨禱人數</p>
+    </a>
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
 {# ════ 我的近期活動 ════ #}
 {% if my_upcoming %}
 <div class="pa" style="--d:60ms; margin-bottom:16px;">
