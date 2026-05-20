@@ -1,4 +1,4 @@
-# 代禱麥田系統路由
+# 代禱牆系統路由
 from flask import Blueprint, render_template, request, session, redirect, jsonify, url_for
 from datetime import datetime, timezone
 from config import Config

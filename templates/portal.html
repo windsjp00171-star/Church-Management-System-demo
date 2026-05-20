@@ -581,7 +581,7 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
         {% endif %}
         {% endif %}
 
-        {# 代禱麥田 #}
+        {# 代禱牆 #}
         {% if card_settings.get('prayer', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed" style="--d:{{ base_d + 270 }}ms">
             <a href="/prayer" class="fg-tile fg-prayer">
@@ -597,8 +597,8 @@ document.getElementById('vf-form').addEventListener('submit', async function(e) 
                         <line x1="12" y1="3" x2="12" y2="-1" stroke="rgba(255,255,255,0.6)" stroke-width="0.9" stroke-linecap="round"/>
                     </svg>
                 </div>
-                <div class="fg-name">代禱麥田</div>
-                <div class="fg-sub">一起守望，彼此代禱</div>
+                <div class="fg-name">代禱牆</div>
+                <div class="fg-sub">分享需求，互相代禱</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
