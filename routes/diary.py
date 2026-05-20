@@ -108,10 +108,11 @@ def _get_user() -> Dict[str, Any]:
 
 
 def _is_diary_admin(line_user_id: str) -> bool:
+    # 主後台 is_admin 也可進日記後台
+    if session.get('is_admin'):
+        return True
     admin_ids_raw = os.environ.get('ADMIN_LINE_USER_IDS', '')
     admin_ids = [s.strip() for s in admin_ids_raw.split(',') if s.strip()]
-    if not admin_ids:
-        return False
     return line_user_id in admin_ids
 
 
