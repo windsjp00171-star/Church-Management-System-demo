@@ -34,7 +34,7 @@ class Config:
     # ── 教會資訊 ────────────────────────────────────────────────────
     CHURCH_NAME        = os.getenv('CHURCH_NAME', '教會行政系統')
     CHURCH_SHORT_NAME  = os.getenv('CHURCH_SHORT_NAME', '教會')
-    PRIVACY_POLICY_URL = os.getenv('PRIVACY_POLICY_URL', '')
+    PRIVACY_POLICY_URL = os.getenv('PRIVACY_POLICY_URL', '/auth/privacy')
 
     # ── Cloudflare R2（可選，未設定則檔案上傳功能停用）───────────────
     R2_ENDPOINT          = os.getenv('R2_ENDPOINT')         or None

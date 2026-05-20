@@ -8,6 +8,11 @@ from db import supabase
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
 
+@auth_bp.route('/privacy')
+def privacy():
+    return render_template('auth/privacy.html')
+
+
 def _populate_session(user):
     """把使用者所有角色旗標一次寫入 session，各模組不需要自己查 DB。"""
     user_id = user['id']
