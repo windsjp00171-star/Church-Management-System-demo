@@ -1701,20 +1701,19 @@ def toggle_payment(event_id, reg_id):
 @admin_bp.route('/verses')
 @admin_required
 def admin_verses():
-    import traceback as _tb
+    from datetime import date
+    from routes.event import VERSE_THEMES
+    import time
+    verses = supabase.table('daily_verses').select('*').order('sort_order').execute().data or []
     try:
-        from datetime import date
-        from routes.event import VERSE_THEMES
-        import time
-        verses = supabase.table('daily_verses').select('*').order('sort_order').execute().data or []
         custom_themes = supabase.table('verse_custom_themes').select('*').order('sort_order').execute().data or []
-        return render_template('admin/admin_verses.html', verses=verses,
-                               themes=VERSE_THEMES,
-                               custom_themes=custom_themes,
-                               now=int(time.time()),
-                               today=date.today().strftime('%Y/%m/%d'))
     except Exception:
-        return f'<pre style="padding:20px">每日經文頁錯誤：\n{_tb.format_exc()}</pre>', 500
+        custom_themes = []
+    return render_template('admin/admin_verses.html', verses=verses,
+                           themes=VERSE_THEMES,
+                           custom_themes=custom_themes,
+                           now=int(time.time()),
+                           today=date.today().strftime('%Y/%m/%d'))
 
 
 @admin_bp.route('/verses/upload-watermark', methods=['POST'])
