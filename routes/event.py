@@ -748,6 +748,14 @@ def event_detail(event_id):
 @login_required
 def event_register(event_id):
     """報名活動"""
+    try:
+     return _do_event_register(event_id)
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': '系統錯誤，請稍後再試'}), 500
+
+def _do_event_register(event_id):
     # 再次確認活動存在且開放
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
     if not event_result.data:
@@ -965,6 +973,14 @@ def event_external_form(event_id):
 @event_bp.route('/event/<event_id>/external-register', methods=['POST'])
 def event_external_register(event_id):
     """外部人士報名（無需 LINE 登入）"""
+    try:
+     return _do_external_register(event_id)
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': '系統錯誤，請稍後再試'}), 500
+
+def _do_external_register(event_id):
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
     if not event_result.data:
         return jsonify({'error': '找不到此活動'}), 404
