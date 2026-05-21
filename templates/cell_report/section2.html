@@ -8,7 +8,22 @@
   border-radius: 14px;
   padding: 16px 16px 14px;
   margin-bottom: 10px;
+  transition: border-color .2s, background .2s;
 }
+.att-card.done {
+  border-color: #68D391;
+  background: #F0FFF4;
+}
+.att-done-badge {
+  font-size: .7rem;
+  font-weight: 700;
+  color: #276749;
+  background: #C6F6D5;
+  border-radius: 20px;
+  padding: 2px 8px;
+  display: none;
+}
+.att-card.done .att-done-badge { display: inline-block; }
 .att-name {
   font-weight: 700;
   font-size: .95rem;
@@ -128,7 +143,10 @@
         {% set att = attendance_map.get(m.id|string, {}) %}
         <div class="att-card" data-member-id="{{ m.id }}">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-            <p class="att-name" style="margin:0;">{{ m.name }}</p>
+            <div style="display:flex;align-items:center;gap:8px;">
+              <p class="att-name" style="margin:0;">{{ m.name }}</p>
+              <span class="att-done-badge">✓ 完成</span>
+            </div>
             <button class="remove-btn" onclick="removeMember('{{ m.id }}', this)">✕ 移除</button>
           </div>
           {% for field, label in [('cell_status','小組'), ('sunday_status','主日'), ('rpg_status','靈修')] %}
@@ -186,10 +204,17 @@ async function saveAttendance(memberId, field, value) {
   } catch(e) { console.error(e); }
 }
 
+function checkDone(card) {
+  const rows = card.querySelectorAll('.att-btns');
+  const allFilled = [...rows].every(r => r.querySelector('[data-active="1"]'));
+  card.classList.toggle('done', allFilled);
+}
+
 function pick(btn, memberId, field, val) {
   const row = btn.closest('.att-btns');
   row.querySelectorAll('.att-btn').forEach(b => {
     b.className = 'att-btn';
+    b.dataset.active = '';
   });
   const already = btn.dataset.active === '1';
   if (already) {
@@ -200,6 +225,7 @@ function pick(btn, memberId, field, val) {
     btn.dataset.active = '1';
     saveAttendance(memberId, field, val);
   }
+  checkDone(btn.closest('.att-card'));
 }
 
 function buildMemberCard(memberId, name) {
@@ -210,7 +236,10 @@ function buildMemberCard(memberId, name) {
   div.setAttribute('data-member-id', memberId);
   div.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <p class="att-name" style="margin:0;">${name}</p>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <p class="att-name" style="margin:0;">${name}</p>
+        <span class="att-done-badge">✓ 完成</span>
+      </div>
       <button class="remove-btn" onclick="removeMember('${memberId}',this)">✕ 移除</button>
     </div>
     ${fields.map(([f,lbl]) => `
@@ -256,14 +285,14 @@ async function removeMember(memberId, btn) {
   } catch(e) { console.error(e); }
 }
 
-// init: mark already-selected buttons
-document.querySelectorAll('.att-btns').forEach(row => {
-  // the selected button already has sel-* class from server render, mark data-active
-  row.querySelectorAll('.att-btn').forEach(btn => {
+// init: mark already-selected buttons and check completion
+document.querySelectorAll('.att-card').forEach(card => {
+  card.querySelectorAll('.att-btn').forEach(btn => {
     if ([...btn.classList].some(c => c.startsWith('sel-'))) {
       btn.dataset.active = '1';
     }
   });
+  checkDone(card);
 });
 </script>
 {% endblock %}
