@@ -922,6 +922,15 @@ function toggleFgGrid() {
 function toggleEditMode() {
     editMode = !editMode;
     document.body.classList.toggle('edit-mode', editMode);
+    // Ensure the feature grid is visible when entering edit mode
+    if (editMode) {
+        const grid = document.getElementById('feature-list');
+        const chevron = document.getElementById('fg-chevron');
+        if (grid && grid.style.display === 'none') {
+            grid.style.display = 'grid';
+            if (chevron) chevron.style.transform = 'rotate(180deg)';
+        }
+    }
     const btn = document.getElementById('edit-mode-btn');
     if (btn) {
         btn.innerHTML = editMode

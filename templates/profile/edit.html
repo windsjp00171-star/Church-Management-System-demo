@@ -103,7 +103,7 @@
             </select>
             <button type="submit" name="action" value="grant"
                 style="padding:10px 18px; background:#06C755; color:white; border:none; border-radius:8px; font-size:0.9rem; cursor:pointer;"
-                onclick="var sel=this.form.querySelector('select');if(!sel.value){alert('請先選擇對象');return false;}return confirm('確定授權嗎？')">
+                onclick="var sel=this.form.querySelector('select');if(!sel.value){showToast('❌ 請先選擇對象', 'error');return false;}return confirm('確定授權嗎？')">
                 授權
             </button>
         </form>
