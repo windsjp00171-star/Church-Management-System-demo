@@ -248,25 +248,28 @@ def auto_close_expired_courses():
 @admin_required
 def admin_courses():
     """後台：學程列表（進入時順帶關閉已過期報名的學程）"""
-    auto_close_expired_courses()
-    result = supabase.table('courses').select('*').order('created_at', desc=True).execute()
-    courses = result.data or []
+    import traceback as _tb
+    try:
+        auto_close_expired_courses()
+        result = supabase.table('courses').select('*').order('created_at', desc=True).execute()
+        courses = result.data or []
 
-    # 每個學程的報名人數
-    if courses:
-        cids = [c['id'] for c in courses]
-        enroll_result = supabase.table('course_enrollments')\
-            .select('course_id')\
-            .in_('course_id', cids)\
-            .eq('status', 'enrolled')\
-            .execute()
-        count_map = {}
-        for e in (enroll_result.data or []):
-            count_map[e['course_id']] = count_map.get(e['course_id'], 0) + 1
-        for c in courses:
-            c['enrolled_count'] = count_map.get(c['id'], 0)
+        if courses:
+            cids = [c['id'] for c in courses]
+            enroll_result = supabase.table('course_enrollments')\
+                .select('course_id')\
+                .in_('course_id', cids)\
+                .eq('status', 'enrolled')\
+                .execute()
+            count_map = {}
+            for e in (enroll_result.data or []):
+                count_map[e['course_id']] = count_map.get(e['course_id'], 0) + 1
+            for c in courses:
+                c['enrolled_count'] = count_map.get(c['id'], 0)
 
-    return render_template('courses/admin_list.html', courses=courses)
+        return render_template('courses/admin_list.html', courses=courses)
+    except Exception:
+        return f'<pre style="padding:20px">學程管理頁錯誤：\n{_tb.format_exc()}</pre>', 500
 
 
 @courses_bp.route('/admin/courses/new', methods=['GET', 'POST'])
