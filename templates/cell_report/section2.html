@@ -1,41 +1,105 @@
 {% extends "base.html" %}
 {% block title %}小組回報 - 步驟二{% endblock %}
 {% block content %}
-<div class="container" style="max-width:700px; margin:32px auto 60px; padding:0 16px;">
+<style>
+.att-card {
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #E2E8F0);
+  border-radius: 14px;
+  padding: 16px 16px 14px;
+  margin-bottom: 10px;
+}
+.att-name {
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--text-1, #1A202C);
+  margin: 0 0 12px;
+}
+.att-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.att-label {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--text-3, #A0AEC0);
+  width: 30px;
+  flex-shrink: 0;
+}
+.att-btns {
+  display: flex;
+  gap: 5px;
+  flex: 1;
+  flex-wrap: wrap;
+}
+.att-btn {
+  flex: 1;
+  min-width: 48px;
+  padding: 6px 4px;
+  font-size: .72rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1.5px solid #E2E8F0;
+  background: #F7FAFC;
+  color: #718096;
+  cursor: pointer;
+  text-align: center;
+  transition: background .12s, border-color .12s, color .12s;
+  line-height: 1.2;
+}
+.att-btn:active { transform: scale(.95); }
+.att-btn.sel-full   { background: #F0FFF4; border-color: #68D391; color: #276749; }
+.att-btn.sel-late   { background: #FFFBEB; border-color: #FBBF24; color: #92400E; }
+.att-btn.sel-leave  { background: #EBF8FF; border-color: #90CDF4; color: #2C5282; }
+.att-btn.sel-absent { background: #FFF5F5; border-color: #FEB2B2; color: #C53030; }
 
-  <!-- Back link -->
+.remove-btn {
+  background: none;
+  border: none;
+  color: #CBD5E0;
+  font-size: .8rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  float: right;
+  margin-top: -2px;
+}
+.remove-btn:hover { color: #FC8181; background: #FFF5F5; }
+</style>
+
+<div class="container" style="max-width:600px; margin:32px auto 60px; padding:0 16px;">
+
   <div style="margin-bottom:16px;">
     <a href="{{ url_for('cell_report.section1', group_id=group.id) }}"
-       style="display:inline-flex; align-items:center; gap:4px; color:var(--color-text-muted); font-size:.85rem; text-decoration:none; transition:color var(--transition);"
-       onmouseover="this.style.color='var(--color-primary)'" onmouseout="this.style.color='var(--color-text-muted)'">
+       style="display:inline-flex; align-items:center; gap:4px; color:var(--text-3,#A0AEC0); font-size:.85rem; text-decoration:none;">
       ← 返回步驟一
     </a>
   </div>
 
-  <!-- Card wrapper -->
-  <div class="card" style="border-radius:16px; padding:28px 24px; animation:fadeInUp .3s ease;">
+  <div class="card" style="border-radius:16px; padding:24px 20px; animation:fadeInUp .3s ease;">
 
-    <!-- Step progress header -->
-    <div style="display:flex; align-items:center; gap:10px; margin-bottom:24px;">
-      <span style="background:var(--color-primary);color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">2</span>
+    <!-- Step header -->
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+      <span style="background:var(--color-primary,#06C755);color:white;border-radius:50%;width:28px;height:28px;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;">2</span>
       <div>
-        <p style="font-weight:700;color:var(--color-primary);margin:0;font-size:.95rem;">成員出席紀錄</p>
-        <p style="color:var(--color-text-muted);font-size:.75rem;margin:0;">步驟 2／3 · 週：{{ week_date }}</p>
+        <p style="font-weight:700;color:var(--color-primary,#06C755);margin:0;font-size:.95rem;">成員出席紀錄</p>
+        <p style="color:var(--color-text-muted,#A0AEC0);font-size:.75rem;margin:0;">步驟 2／3 · 週：{{ week_date }}</p>
       </div>
       <div style="margin-left:auto;display:flex;gap:6px;">
-        <div style="width:24px;height:4px;border-radius:2px;background:var(--color-primary);"></div>
-        <div style="width:24px;height:4px;border-radius:2px;background:var(--color-primary);"></div>
-        <div style="width:24px;height:4px;border-radius:2px;background:var(--color-border);"></div>
+        <div style="width:24px;height:4px;border-radius:2px;background:var(--color-primary,#06C755);"></div>
+        <div style="width:24px;height:4px;border-radius:2px;background:var(--color-primary,#06C755);"></div>
+        <div style="width:24px;height:4px;border-radius:2px;background:#E2E8F0;"></div>
       </div>
     </div>
 
-    <!-- Group name -->
-    <div style="margin-bottom:20px;">
+    <div style="margin-bottom:16px;">
       <span class="section-label-sm">小組</span>
-      <p style="font-size:1.15rem; font-weight:700; color:var(--color-primary); margin:4px 0 0;">{{ group.name }}</p>
+      <p style="font-size:1.1rem; font-weight:700; color:var(--color-primary,#06C755); margin:4px 0 0;">{{ group.name }}</p>
     </div>
 
-    <hr class="divider">
+    <hr style="border:none;border-top:1px solid var(--border,#E2E8F0);margin:0 0 20px;">
 
     {% if is_no_meeting %}
       <div class="callout callout-info" style="margin-bottom:24px;">
@@ -49,50 +113,44 @@
       </a>
     {% else %}
 
-      <!-- Attendance table -->
-      <div style="overflow-x:auto; margin-bottom:20px;">
-        <table style="width:100%; border-collapse:collapse; min-width:480px;">
-          <thead>
-            <tr style="background:var(--color-bg);">
-              <th style="padding:10px 12px; text-align:left; font-size:.78rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--color-border);">姓名</th>
-              <th style="padding:10px 8px; text-align:center; font-size:.78rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--color-border);">小組</th>
-              <th style="padding:10px 8px; text-align:center; font-size:.78rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--color-border);">主日</th>
-              <th style="padding:10px 8px; text-align:center; font-size:.78rem; font-weight:700; color:var(--color-text-muted); text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid var(--color-border);">靈修</th>
-              <th style="padding:10px 8px; border-bottom:2px solid var(--color-border);"></th>
-            </tr>
-          </thead>
-          <tbody id="member-table-body">
-            {% for m in members %}
-            <tr data-member-id="{{ m.id }}" style="border-bottom:1px solid var(--color-border-light); transition:background var(--transition);"
-                onmouseover="this.style.background='var(--color-bg)'" onmouseout="this.style.background=''">
-              <td style="padding:10px 12px; font-weight:600; font-size:.9rem; color:var(--color-text);">{{ m.name }}</td>
-              {% for field in ['cell_status', 'sunday_status', 'rpg_status'] %}
-              <td style="padding:8px 6px; text-align:center;">
-                <select onchange="saveAttendance('{{ m.id }}', '{{ field }}', this.value)"
-                        style="padding:5px 8px; border:1.5px solid var(--color-border); border-radius:8px; font-size:.85rem; width:100%; color:var(--color-text); background:var(--color-surface); font-family:inherit; cursor:pointer; transition:border-color var(--transition);"
-                        onfocus="this.style.borderColor='var(--color-primary)'" onblur="this.style.borderColor='var(--color-border)'">
-                  <option value="" {% if not attendance_map.get(m.id|string) or not attendance_map[m.id|string].get(field) %}selected{% endif %}>未填</option>
-                  <option value="full" {% if attendance_map.get(m.id|string) and attendance_map[m.id|string].get(field) == 'full' %}selected{% endif %}>出席</option>
-                  <option value="late" {% if attendance_map.get(m.id|string) and attendance_map[m.id|string].get(field) == 'late' %}selected{% endif %}>遲到</option>
-                  <option value="leave" {% if attendance_map.get(m.id|string) and attendance_map[m.id|string].get(field) == 'leave' %}selected{% endif %}>請假</option>
-                  <option value="absent" {% if attendance_map.get(m.id|string) and attendance_map[m.id|string].get(field) == 'absent' %}selected{% endif %}>未請假未出席</option>
-                </select>
-              </td>
-              {% endfor %}
-              <td style="padding:8px 6px; text-align:center;">
-                <button onclick="removeMember('{{ m.id }}')"
-                        class="btn btn-danger btn-sm"
-                        style="border-radius:8px; font-size:.78rem; padding:5px 10px;">移除</button>
-              </td>
-            </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <!-- Legend -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px;">
+        <span style="font-size:.7rem;color:#276749;background:#F0FFF4;border:1px solid #68D391;border-radius:6px;padding:2px 8px;">出席</span>
+        <span style="font-size:.7rem;color:#92400E;background:#FFFBEB;border:1px solid #FBBF24;border-radius:6px;padding:2px 8px;">遲到</span>
+        <span style="font-size:.7rem;color:#2C5282;background:#EBF8FF;border:1px solid #90CDF4;border-radius:6px;padding:2px 8px;">請假</span>
+        <span style="font-size:.7rem;color:#C53030;background:#FFF5F5;border:1px solid #FEB2B2;border-radius:6px;padding:2px 8px;">缺席</span>
+        <span style="font-size:.7rem;color:#718096;background:#F7FAFC;border:1px solid #E2E8F0;border-radius:6px;padding:2px 8px;">未填</span>
       </div>
 
-      <hr class="divider">
+      <!-- Member cards -->
+      <div id="member-list">
+        {% for m in members %}
+        {% set att = attendance_map.get(m.id|string, {}) %}
+        <div class="att-card" data-member-id="{{ m.id }}">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+            <p class="att-name" style="margin:0;">{{ m.name }}</p>
+            <button class="remove-btn" onclick="removeMember('{{ m.id }}', this)">✕ 移除</button>
+          </div>
+          {% for field, label in [('cell_status','小組'), ('sunday_status','主日'), ('rpg_status','靈修')] %}
+          {% set cur = att.get(field, '') %}
+          <div class="att-row">
+            <span class="att-label">{{ label }}</span>
+            <div class="att-btns">
+              {% for val, txt in [('full','出席'),('late','遲到'),('leave','請假'),('absent','缺席')] %}
+              <button class="att-btn{% if cur == val %} sel-{{ val }}{% endif %}"
+                      onclick="pick(this,'{{ m.id }}','{{ field }}','{{ val }}')"
+                      data-val="{{ val }}">{{ txt }}</button>
+              {% endfor %}
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+      </div>
 
-      <!-- Add member row -->
+      <hr style="border:none;border-top:1px solid var(--border,#E2E8F0);margin:20px 0;">
+
+      <!-- Add member -->
       <div style="display:flex; gap:10px; margin-bottom:24px; flex-wrap:wrap; align-items:center;">
         <input type="text" id="new-member-name" placeholder="新組員姓名"
                class="form-control"
@@ -128,58 +186,84 @@ async function saveAttendance(memberId, field, value) {
   } catch(e) { console.error(e); }
 }
 
+function pick(btn, memberId, field, val) {
+  const row = btn.closest('.att-btns');
+  row.querySelectorAll('.att-btn').forEach(b => {
+    b.className = 'att-btn';
+  });
+  const already = btn.dataset.active === '1';
+  if (already) {
+    btn.dataset.active = '';
+    saveAttendance(memberId, field, '');
+  } else {
+    btn.classList.add('sel-' + val);
+    btn.dataset.active = '1';
+    saveAttendance(memberId, field, val);
+  }
+}
+
+function buildMemberCard(memberId, name) {
+  const fields = [['cell_status','小組'],['sunday_status','主日'],['rpg_status','靈修']];
+  const vals = [['full','出席'],['late','遲到'],['leave','請假'],['absent','缺席']];
+  const div = document.createElement('div');
+  div.className = 'att-card';
+  div.setAttribute('data-member-id', memberId);
+  div.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <p class="att-name" style="margin:0;">${name}</p>
+      <button class="remove-btn" onclick="removeMember('${memberId}',this)">✕ 移除</button>
+    </div>
+    ${fields.map(([f,lbl]) => `
+      <div class="att-row">
+        <span class="att-label">${lbl}</span>
+        <div class="att-btns">
+          ${vals.map(([v,t]) => `<button class="att-btn" onclick="pick(this,'${memberId}','${f}','${v}')" data-val="${v}">${t}</button>`).join('')}
+        </div>
+      </div>`).join('')}`;
+  return div;
+}
+
 async function addMember() {
   const input = document.getElementById('new-member-name');
   const name = input.value.trim();
   if (!name) return;
-
   try {
     const res = await fetch(`/cell-report/${GROUP_ID}/ajax/add-member`, {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({name: name})
+      body: JSON.stringify({name})
     });
     const data = await res.json();
     if (data.success) {
-      const tbody = document.getElementById('member-table-body');
-      const tr = document.createElement('tr');
-      tr.setAttribute('data-member-id', data.member_id);
-      tr.style.borderBottom = '1px solid var(--color-border-light)';
-      tr.innerHTML = `
-        <td style="padding:10px 12px; font-weight:600; font-size:.9rem; color:var(--color-text);">${data.name}</td>
-        ${['cell_status','sunday_status','rpg_status'].map(f => `
-          <td style="padding:8px 6px; text-align:center;">
-            <select onchange="saveAttendance('${data.member_id}','${f}',this.value)"
-                    style="padding:5px 8px; border:1.5px solid var(--color-border); border-radius:8px; font-size:.85rem; width:100%; color:var(--color-text); background:var(--color-surface); font-family:inherit; cursor:pointer;">
-              <option value="" selected>未填</option>
-              <option value="full">出席</option>
-              <option value="late">遲到</option>
-              <option value="leave">請假</option>
-              <option value="absent">未請假未出席</option>
-            </select>
-          </td>`).join('')}
-        <td style="padding:8px 6px; text-align:center;">
-          <button onclick="removeMember('${data.member_id}')"
-                  style="padding:5px 10px; background:var(--color-error-bg); color:var(--color-error); border:none; border-radius:8px; cursor:pointer; font-size:.78rem; font-weight:600;">移除</button>
-        </td>`;
-      tbody.appendChild(tr);
+      document.getElementById('member-list').appendChild(buildMemberCard(data.member_id, data.name));
       input.value = '';
+      input.focus();
     } else {
       alert(data.error || '新增失敗');
     }
   } catch(e) { console.error(e); }
 }
 
-async function removeMember(memberId) {
+async function removeMember(memberId, btn) {
   if (!confirm('確定要從本小組移除此成員嗎？')) return;
   try {
     const res = await fetch(`/cell-report/${GROUP_ID}/ajax/remove-member/${memberId}`, {method: 'POST'});
     const data = await res.json();
     if (data.success) {
-      const row = document.querySelector(`tr[data-member-id="${memberId}"]`);
-      if (row) row.remove();
+      const card = document.querySelector(`.att-card[data-member-id="${memberId}"]`);
+      if (card) card.remove();
     }
   } catch(e) { console.error(e); }
 }
+
+// init: mark already-selected buttons
+document.querySelectorAll('.att-btns').forEach(row => {
+  // the selected button already has sel-* class from server render, mark data-active
+  row.querySelectorAll('.att-btn').forEach(btn => {
+    if ([...btn.classList].some(c => c.startsWith('sel-'))) {
+      btn.dataset.active = '1';
+    }
+  });
+});
 </script>
 {% endblock %}
