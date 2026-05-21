@@ -57,6 +57,9 @@
       <section style="margin-bottom:8px;">
         <p style="font-size:.95rem; font-weight:700; color:var(--color-primary); margin-bottom:16px;">小組長自評（必填）</p>
 
+        {% set pill_bg = {'good': '#16a34a', 'ok': '#2563eb', 'concern': '#d97706', 'urgent': '#dc2626'} %}
+        {% set pill_bd = {'good': '#15803d', 'ok': '#1d4ed8', 'concern': '#b45309', 'urgent': '#b91c1c'} %}
+
         {% set aspects = [
           ('spiritual_status', '靈命狀況', 'spiritual_note'),
           ('family_status',    '家庭狀況', 'family_note'),
@@ -69,15 +72,16 @@
           <label class="form-label form-label-required">{{ label }}</label>
           <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
             {% for val, lbl in [('good','良好'),('ok','普通'),('concern','需關懷'),('urgent','緊急')] %}
+            {% set is_sel = report and report.get(field) == val %}
             <label class="status-pill" data-field="{{ field }}" data-val="{{ val }}"
                    style="display:flex; align-items:center; gap:6px; cursor:pointer;
-                          padding:7px 14px; border:1.5px solid {% if report and report.get(field) == val %}var(--color-primary){% else %}var(--color-border){% endif %};
-                          border-radius:20px; font-size:.85rem; font-weight:600;
-                          background:{% if report and report.get(field) == val %}var(--color-primary){% else %}var(--color-surface){% endif %};
-                          color:{% if report and report.get(field) == val %}#fff{% else %}var(--color-text){% endif %};
+                          padding:7px 14px; border-radius:20px; font-size:.85rem; font-weight:600;
+                          border:1.5px solid {{ pill_bd[val] if is_sel else 'var(--color-border)' }};
+                          background:{{ pill_bg[val] if is_sel else 'var(--color-surface)' }};
+                          color:{{ '#fff' if is_sel else 'var(--color-text)' }};
                           transition:all var(--transition);">
               <input type="radio" name="{{ field }}" value="{{ val }}"
-                     {% if report and report.get(field) == val %}checked{% endif %}
+                     {% if is_sel %}checked{% endif %}
                      style="display:none;">
               {{ lbl }}
             </label>
@@ -150,18 +154,24 @@
 </div>
 
 <script>
-// 讓 radio 按鈕視覺更新
+const PILL_COLORS = {
+  good:    { bg: '#16a34a', border: '#15803d' },
+  ok:      { bg: '#2563eb', border: '#1d4ed8' },
+  concern: { bg: '#d97706', border: '#b45309' },
+  urgent:  { bg: '#dc2626', border: '#b91c1c' },
+};
+
 document.querySelectorAll('input[type="radio"]').forEach(radio => {
   radio.addEventListener('change', () => {
     const name = radio.name;
     document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
       const label = r.closest('label');
-      if (label) {
-        const active = r.checked;
-        label.style.background = active ? 'var(--color-primary)' : 'var(--color-surface)';
-        label.style.color = active ? '#fff' : 'var(--color-text)';
-        label.style.borderColor = active ? 'var(--color-primary)' : 'var(--color-border)';
-      }
+      if (!label) return;
+      const active = r.checked;
+      const c = PILL_COLORS[r.value] || {};
+      label.style.background = active ? (c.bg || 'var(--color-primary)') : 'var(--color-surface)';
+      label.style.color = active ? '#fff' : 'var(--color-text)';
+      label.style.borderColor = active ? (c.border || 'var(--color-primary)') : 'var(--color-border)';
     });
   });
 });
