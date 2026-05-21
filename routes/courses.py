@@ -212,13 +212,13 @@ def _auto_grant_certification(course_id, user_id, category_id, now):
         return
 
     # 已持有此學程認證 → 不重複寫
-    existing = supabase.table('course_certifications')\
+    existing = supabase.table('course_certificates')\
         .select('id').eq('user_id', user_id).eq('category_id', category_id).execute()
     if existing.data:
         return
 
     today = datetime.now(TAIPEI_TZ).strftime('%Y-%m-%d')
-    supabase.table('course_certifications').insert({
+    supabase.table('course_certificates').insert({
         'user_id': user_id,
         'category_id': category_id,
         'certified_at': today,
@@ -528,12 +528,12 @@ def admin_course_roster(course_id):
                 seen_a.add(e['user_id'])
                 absent_records.append(e)
 
-        # 回鍋 = 本期報名中、也有歷史完訓紀錄（同課程）或類別認證（course_certifications）的人
+        # 回鍋 = 本期報名中、也有歷史完訓紀錄（同課程）或類別認證（course_certificates）的人
         returning_users = enrolled_user_ids & completed_user_ids
 
-        # 補抓：透過 course_certifications 認定的回鍋（報名時走的就是這條路）
+        # 補抓：透過 course_certificates 認定的回鍋（報名時走的就是這條路）
         if course.get('category_id') and enrolled_user_ids:
-            cert_rows = supabase.table('course_certifications')\
+            cert_rows = supabase.table('course_certificates')\
                 .select('user_id')\
                 .eq('category_id', course['category_id'])\
                 .in_('user_id', list(enrolled_user_ids)).execute().data or []
@@ -839,8 +839,8 @@ def admin_group_overview():
 
     users = [u for u in all_users_raw if u.get('group_tags')]
 
-    # 所有完訓認證（從 course_certifications 撈）
-    all_certs = supabase.table('course_certifications').select('user_id, category_id, certified_at').execute().data or []
+    # 所有完訓認證（從 course_certificates 撈）
+    all_certs = supabase.table('course_certificates').select('user_id, category_id, certified_at').execute().data or []
 
     # 建立 cert_map: user_id → { category_id: certified_at }
     cert_map = {}
@@ -904,7 +904,7 @@ def admin_group_overview_export():
     users = [u for u in all_users_raw if u.get('group_tags')]
 
     # 完訓認證
-    all_certs = supabase.table('course_certifications').select('user_id, category_id, certified_at').execute().data or []
+    all_certs = supabase.table('course_certificates').select('user_id, category_id, certified_at').execute().data or []
     cert_map = {}
     for c in all_certs:
         cert_map.setdefault(c['user_id'], {})[c['category_id']] = c.get('certified_at', '')
@@ -1096,7 +1096,7 @@ def admin_certifications():
             offset += batch
 
         # 撈所有認證
-        all_certs = supabase.table('course_certifications')\
+        all_certs = supabase.table('course_certificates')\
             .select('*').execute().data or []
 
         # 建 pivot dict: {user_id: {category_id: cert_record}}
@@ -1160,17 +1160,17 @@ def admin_certification_add():
     note = data.get('note', '').strip() or None
 
     # upsert：同一人同一類別只留一筆
-    existing = supabase.table('course_certifications')\
+    existing = supabase.table('course_certificates')\
         .select('id').eq('user_id', user_id).eq('category_id', category_id).execute()
     if existing.data:
-        supabase.table('course_certifications').update({
+        supabase.table('course_certificates').update({
             'certified_at': certified_at,
             'note': note,
             'created_by': session.get('user_id'),
         }).eq('id', existing.data[0]['id']).execute()
         return jsonify({'success': True, 'updated': True})
     else:
-        supabase.table('course_certifications').insert({
+        supabase.table('course_certificates').insert({
             'user_id': user_id,
             'category_id': category_id,
             'certified_at': certified_at,
@@ -1183,7 +1183,7 @@ def admin_certification_add():
 @courses_bp.route('/admin/certifications/<cert_id>/delete', methods=['POST'])
 @super_admin_required
 def admin_certification_delete(cert_id):
-    supabase.table('course_certifications').delete().eq('id', cert_id).execute()
+    supabase.table('course_certificates').delete().eq('id', cert_id).execute()
     return jsonify({'success': True})
 
 
@@ -1212,7 +1212,7 @@ def admin_cert_batch_candidates():
         return jsonify([])
 
     # 已認證的排除掉
-    already = supabase.table('course_certifications')\
+    already = supabase.table('course_certificates')\
         .select('user_id')\
         .eq('category_id', category_id)\
         .in_('user_id', user_ids).execute().data or []
@@ -1249,14 +1249,14 @@ def admin_cert_batch_add():
     success_count = 0
     for uid in user_ids:
         try:
-            existing = supabase.table('course_certifications')\
+            existing = supabase.table('course_certificates')\
                 .select('id').eq('user_id', uid).eq('category_id', category_id).execute().data
             if existing:
-                supabase.table('course_certifications').update({
+                supabase.table('course_certificates').update({
                     'certified_at': certified_at, 'note': note,
                 }).eq('id', existing[0]['id']).execute()
             else:
-                supabase.table('course_certifications').insert({
+                supabase.table('course_certificates').insert({
                     'user_id': uid, 'category_id': category_id,
                     'certified_at': certified_at, 'note': note,
                 }).execute()
@@ -1298,14 +1298,14 @@ def admin_cert_bulk_save():
         if not uid or not cid:
             continue
         try:
-            existing = supabase.table('course_certifications')\
+            existing = supabase.table('course_certificates')\
                 .select('id').eq('user_id', uid).eq('category_id', cid).execute().data
             if existing:
-                supabase.table('course_certifications').update(
+                supabase.table('course_certificates').update(
                     {'certified_at': date, 'note': note}
                 ).eq('id', existing[0]['id']).execute()
             else:
-                supabase.table('course_certifications').insert(
+                supabase.table('course_certificates').insert(
                     {'user_id': uid, 'category_id': cid, 'certified_at': date, 'note': note}
                 ).execute()
             add_count += 1
@@ -1314,7 +1314,7 @@ def admin_cert_bulk_save():
 
     for cert_id in deletes:
         try:
-            supabase.table('course_certifications').delete().eq('id', cert_id).execute()
+            supabase.table('course_certificates').delete().eq('id', cert_id).execute()
             del_count += 1
         except Exception:
             pass
@@ -1428,7 +1428,7 @@ def course_detail(course_id):
         cat_result = supabase.table('course_categories')\
             .select('*').eq('id', course['category_id']).execute()
         category = cat_result.data[0] if cat_result.data else None
-        cert = supabase.table('course_certifications')\
+        cert = supabase.table('course_certificates')\
             .select('id, certified_at').eq('user_id', uid)\
             .eq('category_id', course['category_id']).execute()
         user_certified = bool(cert.data)
@@ -1439,7 +1439,7 @@ def course_detail(course_id):
         pc = supabase.table('course_categories')\
             .select('name').eq('id', course['prerequisite_category_id']).execute()
         prereq_category_name = pc.data[0]['name'] if pc.data else ''
-        cert2 = supabase.table('course_certifications')\
+        cert2 = supabase.table('course_certificates')\
             .select('id').eq('user_id', uid)\
             .eq('category_id', course['prerequisite_category_id']).execute()
         prereq_ok = bool(cert2.data)
@@ -1510,7 +1510,7 @@ def course_enroll(course_id):
 
     # 前置類別認證檢查（優先 prerequisite_category_id）
     if course.get('prerequisite_category_id'):
-        cert = supabase.table('course_certifications')\
+        cert = supabase.table('course_certificates')\
             .select('id').eq('user_id', uid)\
             .eq('category_id', course['prerequisite_category_id']).execute()
         if not cert.data:
@@ -1522,7 +1522,7 @@ def course_enroll(course_id):
 
     # 類別認證回鍋提示（有認證但還沒 force_enroll）
     if course.get('category_id') and not force_enroll:
-        cert = supabase.table('course_certifications')\
+        cert = supabase.table('course_certificates')\
             .select('id, certified_at').eq('user_id', uid)\
             .eq('category_id', course['category_id']).execute()
         if cert.data:
@@ -1672,7 +1672,7 @@ def my_courses():
         })
 
     # 我的完訓認證徽章
-    certs_raw = supabase.table('course_certifications')\
+    certs_raw = supabase.table('course_certificates')\
         .select('*, course_categories(name, description)')\
         .eq('user_id', uid)\
         .order('certified_at', desc=True).execute().data or []
