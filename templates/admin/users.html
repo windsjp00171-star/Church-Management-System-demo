@@ -415,6 +415,12 @@ function toggleAdmin(userId, btn) {
 function toggleSuperAdmin(userId, btn) {
     btn.disabled = true; btn.textContent = '處理中...';
     fetch(`/admin/api/users/${userId}/toggle-super-admin`, { method: 'POST' })
+        .then(r => r.json())
+        .then(data => {
+            if (data.error) { alert(data.error); btn.disabled = false; return; }
+            _syncRoleBadge(userId, data.is_admin, data.is_super_admin);
+        });
+}
 
 function togglePastor(userId, btn) {
     fetch(`/admin/api/users/${userId}/toggle-pastor`, { method: 'POST' })
@@ -439,12 +445,6 @@ function toggleStaff(userId, btn) {
                 btn.style.borderColor = isStaff ? '#7b1fa2' : '#ddd';
                 btn.style.color = isStaff ? '#7b1fa2' : '#aaa';
             } else { alert(data.error || '操作失敗'); }
-        });
-}
-        .then(r => r.json())
-        .then(data => {
-            if (data.error) { alert(data.error); btn.disabled = false; return; }
-            _syncRoleBadge(userId, data.is_admin, data.is_super_admin);
         });
 }
 </script>

@@ -265,11 +265,11 @@ def users():
 @admin_bp.route('/api/users/search')
 @admin_required
 def search_users():
-    """搜尋使用者 API（會員管理頁用，超管限定）
+    """搜尋使用者 API（會員管理頁用）
     ?q=       關鍵字（LINE 暱稱或真實姓名）
     ?type=    member | visitor | all（預設 all）
     """
-    if not session.get('is_super_admin'):
+    if not session.get('is_admin'):
         return jsonify({'error': '無權限'}), 403
 
     keyword     = request.args.get('q', '').strip()
