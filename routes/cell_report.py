@@ -170,8 +170,8 @@ def _has_group_access(group_id) -> bool:
 # 路由
 # =========================
 
-@login_required
 @cell_report_bp.get('/cell-report/portal')
+@login_required
 def portal():
     user_id = session.get('user_id')
 
@@ -191,7 +191,25 @@ def portal():
             if g and g.get('is_active'):
                 groups.append(g)
 
-    return render_template('cell_report/portal.html', groups=groups)
+    today = datetime.date.today()
+    report_status = {}
+    for g in groups:
+        week_date = _get_last_meeting_date_for_group(g, today)
+        res = (
+            supabase.table('cell_reports')
+            .select('is_complete,no_meeting,week_date')
+            .eq('group_id', g['id'])
+            .eq('week_date', week_date.isoformat())
+            .limit(1)
+            .execute()
+        )
+        row = (res.data or [None])[0]
+        if row and (row.get('is_complete') or row.get('no_meeting')):
+            report_status[str(g['id'])] = {'done': True, 'week_date': week_date}
+        else:
+            report_status[str(g['id'])] = {'done': False, 'week_date': week_date}
+
+    return render_template('cell_report/portal.html', groups=groups, report_status=report_status)
 
 
 @login_required
