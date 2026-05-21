@@ -330,6 +330,17 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 }
 </style>
 
+{# ════ 未完成設定提示橫幅 ════ #}
+{% if not session.real_name %}
+<div style="background:#FFF9C4;border:1px solid #F6D860;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+  <span style="font-size:1.2rem;flex-shrink:0;">👋</span>
+  <div>
+    <p style="font-weight:600;color:#856404;margin:0;font-size:.9rem;">尚未完成個人資料</p>
+    <p style="color:#a07820;font-size:.78rem;margin:2px 0 0;">完善資料後可使用全部功能 — <a href="/onboarding" style="color:#856404;font-weight:700;">立即設定</a></p>
+  </div>
+</div>
+{% endif %}
+
 {# ════ HERO ════ #}
 <div class="portal-hero">
     <div class="hero-glow"></div>

@@ -1,9 +1,47 @@
 # 會員個人資料路由
-from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify
+from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, current_app
 from db import supabase
 from routes.decorators import login_required
 
 profile_bp = Blueprint('profile', __name__)
+
+
+@profile_bp.route('/onboarding', methods=['GET', 'POST'])
+@login_required
+def onboarding():
+    """首次登入 onboarding 流程（3 步驟：歡迎 → 填資料 → 功能預覽）"""
+    # 已完成設定的使用者直接進入首頁
+    if session.get('real_name'):
+        return redirect(url_for('event.portal'))
+
+    if request.method == 'POST':
+        data = request.get_json() or {}
+        real_name = data.get('real_name', '').strip()
+        if not real_name:
+            return jsonify({'error': '請填寫真實姓名'}), 400
+
+        member_type = data.get('member_type', 'member')
+        if member_type not in ('member', 'visitor'):
+            member_type = 'member'
+
+        tags = [t for t in data.get('group_tags', []) if t] if member_type == 'member' else []
+        supabase.table('users').update({
+            'real_name': real_name,
+            'group_tags': tags,
+            'member_type': member_type,
+        }).eq('id', session['user_id']).execute()
+
+        session['real_name']   = real_name
+        session['member_type'] = member_type
+        session['group_tags']  = tags
+
+        next_url = session.pop('next_url', None) or url_for('event.portal')
+        return jsonify({'success': True, 'next': next_url})
+
+    # 撈小組清單（含 is_primary 供 template 分區顯示）
+    groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
+    church_name = current_app.jinja_env.globals.get('church_name', '教會')
+    return render_template('onboarding.html', groups=groups, church_name=church_name)
 
 
 @profile_bp.route('/profile/setup', methods=['GET', 'POST'])
