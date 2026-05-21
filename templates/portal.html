@@ -366,13 +366,13 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
 {# ════ 角色任務小工具 ════ #}
 {% if is_group_leader or is_pastor or is_staff or is_admin %}
-<div class="role-widget pa" style="--d:40ms; background: white; border-radius: 16px; padding: 24px; margin-bottom: 32px; box-shadow: 0 2px 12px rgba(0,0,0,0.08);">
-  <p style="font-size: 0.75rem; color: #A0AEC0; font-weight: 600; letter-spacing: 0.05em; margin: 0 0 16px; text-transform: uppercase;">本週待辦</p>
+<div class="role-widget card pa" style="--d:40ms; padding: 24px; margin-bottom: 32px;">
+  <p class="section-label-sm" style="margin: 0 0 16px;">本週待辦</p>
 
   {% if is_group_leader %}
   <div style="margin-bottom: 12px;">
     {% if pending_report %}
-    <a href="/cell-report/portal" style="display: flex; align-items: center; gap: 12px; background: #F7FAFC; border: 1px solid #E2E8F0; border-radius: 10px; padding: 12px 14px; text-decoration: none;">
+    <a href="/cell-report/portal" class="callout callout-neutral" style="text-decoration: none;">
       <span style="font-size: 1.25rem;">📋</span>
       <div>
         <p style="font-weight: 600; color: #4A5568; font-size: 0.9rem; margin: 0;">本週小組週報還沒填喔</p>
@@ -381,7 +381,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
       <span style="margin-left: auto; color: #CBD5E0;">›</span>
     </a>
     {% else %}
-    <div style="display: flex; align-items: center; gap: 12px; background: #F0FFF4; border: 1px solid #9AE6B4; border-radius: 10px; padding: 12px 14px;">
+    <div class="callout callout-success">
       <span style="font-size: 1.25rem;">✅</span>
       <p style="font-weight: 600; color: #276749; font-size: 0.9rem; margin: 0;">本週小組週報已完成</p>
     </div>
@@ -526,44 +526,35 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 ════════════════════════════════════════════ #}
 {% if session.user_id or session.line_id %}
 <div class="pa" style="--d:160ms; margin-bottom:44px;">
-    <p style="font-size:.72rem;font-weight:600;color:#A0AEC0;letter-spacing:.06em;text-transform:uppercase;margin:0 0 16px;">靈修空間</p>
+    <p class="section-label-sm" style="margin:0 0 16px;">靈修空間</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
 
         {# 天父日記 #}
         {% if card_settings.get('diary', true) or is_super_admin %}
         <div class="fi-wrap{% if not card_settings.get('diary', true) %} fi-hidden{% endif %}" data-key="diary" data-type="fixed">
-        <a href="/diary" style="display:block;text-decoration:none;
-            background:linear-gradient(135deg,rgba(102,126,234,.13),rgba(118,75,162,.13));
-            border-radius:16px;padding:22px 18px;border:none;
-            transition:transform .18s;">
-            <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">📖</p>
-            <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('diary', '天父日記') }}</p>
-            <p style="color:#A0AEC0;font-size:.76rem;margin:5px 0 0;line-height:1.4;">{{ cs('diary', '今天的靈修寫了嗎？') }}</p>
+        <a href="/diary" class="engage-card" style="background:linear-gradient(135deg,rgba(102,126,234,.13),rgba(118,75,162,.13));">
+            <span class="engage-card-icon">📖</span>
+            <p class="engage-card-title">{{ cn('diary', '天父日記') }}</p>
+            <p class="engage-card-sub">{{ cs('diary', '今天的靈修寫了嗎？') }}</p>
         </a>
         <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
         {% endif %}
 
         {# 抽經文卡 #}
-        <a id="verse-engagement-cta" href="/verse" style="display:block;text-decoration:none;
-            background:linear-gradient(135deg,rgba(233,30,99,.1),rgba(74,20,140,.12));
-            border-radius:16px;padding:22px 18px;border:none;
-            transition:transform .18s;">
-            <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">✨</p>
-            <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">抽經文卡</p>
-            <p style="color:#A0AEC0;font-size:.76rem;margin:5px 0 0;line-height:1.4;">今日經文祝福</p>
+        <a id="verse-engagement-cta" href="/verse" class="engage-card" style="background:linear-gradient(135deg,rgba(233,30,99,.1),rgba(74,20,140,.12));">
+            <span class="engage-card-icon">✨</span>
+            <p class="engage-card-title">抽經文卡</p>
+            <p class="engage-card-sub">今日經文祝福</p>
         </a>
 
         {# 代禱麥田 #}
         {% if card_settings.get('prayer', true) or is_super_admin %}
         <div class="fi-wrap{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed">
-        <a href="/prayer" style="display:block;text-decoration:none;
-            background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(180,83,9,.1));
-            border-radius:16px;padding:22px 18px;border:none;
-            transition:transform .18s;">
-            <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">🌾</p>
-            <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('prayer', '代禱麥田') }}</p>
-            <p style="color:#A0AEC0;font-size:.76rem;margin:5px 0 0;line-height:1.4;">{{ cs('prayer', '一起守望禱告') }}</p>
+        <a href="/prayer" class="engage-card" style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(180,83,9,.1));">
+            <span class="engage-card-icon">🌾</span>
+            <p class="engage-card-title">{{ cn('prayer', '代禱麥田') }}</p>
+            <p class="engage-card-sub">{{ cs('prayer', '一起守望禱告') }}</p>
         </a>
         <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -571,13 +562,10 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
         {# 福音探索（若存在） #}
         {% if card_settings.get('gospel', true) %}
-        <a href="/gospel" style="display:block;text-decoration:none;
-            background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.1));
-            border-radius:16px;padding:22px 18px;border:none;
-            transition:transform .18s;">
-            <p style="font-size:1.5rem;margin:0 0 8px;line-height:1;">🕊</p>
-            <p style="font-weight:700;color:#4A5568;font-size:.92rem;margin:0;">{{ cn('gospel', '福音探索') }}</p>
-            <p style="color:#A0AEC0;font-size:.76rem;margin:5px 0 0;line-height:1.4;">{{ cs('gospel', '認識信仰的起點') }}</p>
+        <a href="/gospel" class="engage-card" style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.1));">
+            <span class="engage-card-icon">🕊</span>
+            <p class="engage-card-title">{{ cn('gospel', '福音探索') }}</p>
+            <p class="engage-card-sub">{{ cs('gospel', '認識信仰的起點') }}</p>
         </a>
         {% endif %}
 
@@ -781,35 +769,30 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
    資訊層 — 本週資訊（週報 + 公告，低視覺重量）
 ════════════════════════════════════════════ #}
 <div class="pa" style="--d:{{ base_d + 860 }}ms; margin-bottom:20px;">
-    <p style="font-size:.72rem;font-weight:600;color:#CBD5E0;letter-spacing:.06em;text-transform:uppercase;margin:0 0 10px;">本週資訊</p>
+    <p class="section-label-sm" style="margin:0 0 10px; color:#CBD5E0;">本週資訊</p>
     <div style="border-top:1px solid #EDF2F7;">
 
         {# 本週週報 #}
         {% if latest_bulletin %}
-        <a href="/bulletins/{{ latest_bulletin.id }}"
-           style="display:flex;align-items:center;gap:10px;padding:10px 0;
-                  border-bottom:1px solid #EDF2F7;text-decoration:none;">
+        <a href="/bulletins/{{ latest_bulletin.id }}" class="info-row">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></svg>
-            <span style="font-size:.83rem;color:#4A5568;flex:1;min-width:0;">本週週報</span>
-            <span style="font-size:.75rem;color:#A0AEC0;white-space:nowrap;">{{ latest_bulletin.bulletin_date }}</span>
+            <span class="info-row-label">本週週報</span>
+            <span class="info-row-value">{{ latest_bulletin.bulletin_date }}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
         </a>
         {% endif %}
 
         {# 所有活動入口 #}
-        <a href="/events"
-           style="display:flex;align-items:center;gap:10px;padding:10px 0;
-                  border-bottom:1px solid #EDF2F7;text-decoration:none;">
+        <a href="/events" class="info-row">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
-            <span style="font-size:.83rem;color:#4A5568;flex:1;">所有活動日程</span>
+            <span class="info-row-label">所有活動日程</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
         </a>
 
         {# 使用手冊 #}
-        <a href="/manual"
-           style="display:flex;align-items:center;gap:10px;padding:10px 0;text-decoration:none;">
+        <a href="/manual" class="info-row">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-            <span style="font-size:.83rem;color:#4A5568;flex:1;">系統使用手冊</span>
+            <span class="info-row-label">系統使用手冊</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
         </a>
 
