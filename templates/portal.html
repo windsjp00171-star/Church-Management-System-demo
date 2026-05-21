@@ -408,6 +408,22 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
       <p style="font-size: 0.78rem; font-weight: 600; color: #92400E; margin: 4px 0 0; text-align: center;">晨禱人數</p>
     </a>
   </div>
+  <div style="margin-top: 10px; border-top: 1px solid #E2E8F0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+    {% if is_pastor %}
+    <a href="/cell-report/pastor-dashboard" style="display:flex;align-items:center;gap:10px;background:#FFF7ED;border:1px solid #FBBF24;border-radius:10px;padding:12px 14px;text-decoration:none;">
+      <span style="font-size:1.2rem;">📊</span>
+      <p style="font-weight:600;color:#92400E;font-size:.9rem;margin:0;">牧者查閱</p>
+      <span style="margin-left:auto;color:#D97706;">›</span>
+    </a>
+    {% endif %}
+    {% if is_staff and not is_pastor %}
+    <a href="/cell-report/staff-dashboard" style="display:flex;align-items:center;gap:10px;background:#EBF8FF;border:1px solid #90CDF4;border-radius:10px;padding:12px 14px;text-decoration:none;">
+      <span style="font-size:1.2rem;">📋</span>
+      <p style="font-weight:600;color:#2C5282;font-size:.9rem;margin:0;">同工查閱</p>
+      <span style="margin-left:auto;color:#3B82F6;">›</span>
+    </a>
+    {% endif %}
+  </div>
   {% endif %}
 
 </div>
@@ -552,9 +568,9 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% if card_settings.get('prayer', true) or is_super_admin %}
         <div class="fi-wrap{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed">
         <a href="/prayer" class="engage-card" style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(180,83,9,.1));">
-            <span class="engage-card-icon">🌾</span>
-            <p class="engage-card-title">{{ cn('prayer', '代禱麥田') }}</p>
-            <p class="engage-card-sub">{{ cs('prayer', '一起守望禱告') }}</p>
+            <span class="engage-card-icon">🙏</span>
+            <p class="engage-card-title">{{ cn('prayer', '代禱牆') }}</p>
+            <p class="engage-card-sub">{{ cs('prayer', '代禱牆') }}</p>
         </a>
         <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>

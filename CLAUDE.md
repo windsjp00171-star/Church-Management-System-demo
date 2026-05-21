@@ -9,7 +9,7 @@
 | event-registration- | 活動報名、簽到、會友管理（基礎） | 多個 Blueprint |
 | church-data-hub | 檔案分享（R2 儲存） | `files_bp` |
 | tianfu-diary | 靈修日記 + AI 反思引導 | `diary_bp` |
-| cell_reporter | 小組週報回報（Django→Flask 移植） | `cell_report_bp` |
+| cell_reporter | 小組回報單（Django→Flask 移植） | `cell_report_bp` |
 
 ## 技術架構
 

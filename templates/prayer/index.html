@@ -3,14 +3,7 @@
 
 {% block content %}
 
-{#── 麥穗成長階段 SVG 圖示 macro ────────────────────────────────────────── #}
-{% macro wheat_svg(label, glow=false, size=72) %}
-{% set stage_imgs = {'種子': 'wheat-stage-1-seed.jpg', '發芽': 'wheat-stage-2-sprout.jpg', '生長': 'wheat-stage-3-grow.jpg', '成熟': 'wheat-stage-4-mature.jpg', '蒙應允': 'wheat-stage-5-answered.jpg'} %}
-<img class="wc-stage-img{% if glow %} glow{% endif %}"
-     src="{{ url_for('static', filename='img/' + stage_imgs.get(label, 'wheat-stage-1-seed.jpg')) }}"
-     style="width:{{ size }}px; height:{{ size }}px;"
-     alt="{{ label }}">
-{% endmacro %}
+{#── 代禱計數顯示（簡化版，移除麥穗成長階段概念） ─────────────────────── #}
 
 <style>
 /* ── 進場動畫 ───────────────────────────────────── */
@@ -55,25 +48,18 @@
     height: 100%;
 }
 
-/* 麥穗成長圖示 */
-.wc-stage-img {
-    display: block;
-    margin: 0 auto 10px;
-    border-radius: 12px;
-    object-fit: cover;
-    filter: drop-shadow(0 3px 6px rgba(120,60,0,0.25));
+/* 代禱卡片正面計數徽章 */
+.wc-reaction-badge {
+    font-size: 1.8rem;
+    line-height: 1;
+    margin-bottom: 10px;
 }
-.wc-stage-img.glow {
-    filter: drop-shadow(0 0 10px rgba(255,200,0,0.7)) drop-shadow(0 3px 8px rgba(150,80,0,0.3));
-    animation: svgGlowPulse 2.2s ease-in-out infinite;
-}
-@keyframes svgGlowPulse {
-    0%, 100% { filter: drop-shadow(0 0 6px rgba(255,200,0,0.5)) drop-shadow(0 3px 6px rgba(150,80,0,0.25)); }
-    50%       { filter: drop-shadow(0 0 16px rgba(255,210,0,0.85)) drop-shadow(0 4px 10px rgba(150,80,0,0.35)); }
-}
-.wheat-icon.glow .wc-stage-img {
-    filter: drop-shadow(0 0 5px rgba(255,200,0,0.7));
-    animation: svgGlowPulse 2.2s ease-in-out infinite;
+.wc-reaction-count {
+    font-size: 1rem;
+    font-weight: 700;
+    color: #5c3a00;
+    margin-bottom: 6px;
+    text-shadow: 0 1px 3px rgba(255,255,255,0.6);
 }
 
 /* 風中粒子 */
@@ -625,12 +611,7 @@
             </svg>
             {{ card_names.get('prayer', '代禱牆') }}
         </h1>
-        <p class="wheat-page-subtitle">有天的看顧，有地的承載</p>
-        <p class="wheat-scripture">
-            「一粒麥子不落在地裡死了，仍舊是一粒；<br>
-            若是死了，就結出許多子粒來。」<br>
-            <span>— 約翰福音 12:24</span>
-        </p>
+        <p class="wheat-page-subtitle">一起守望，彼此代禱</p>
     </div>
 
     <!-- 篩選 Tab -->
@@ -672,11 +653,12 @@
 
                     <!-- 正面 -->
                     <div class="wc-front" onclick="flipCard('{{ p.id }}')">
-                        <div class="wc-stage-svg-wrap" id="front-svg-{{ p.id }}">
-                            {{ wheat_svg(p.stage.label, p.stage.glow, 68) }}
-                        </div>
-                        <div class="wc-stage-label">{{ p.stage.label }}</div>
+                        <div class="wc-reaction-badge" id="front-badge-{{ p.id }}">🙏</div>
+                        <div class="wc-reaction-count" id="front-count-{{ p.id }}"></div>
                         <div class="wc-category">{{ p.category_label }}</div>
+                        {% if p.status == 'answered' %}
+                        <div class="wc-stage-label" style="color:#b45309;">蒙應允 ✓</div>
+                        {% endif %}
                         <div class="wc-hint">
                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
                             點我看代禱
@@ -687,7 +669,7 @@
                     <div class="wc-back" onclick="flipCard('{{ p.id }}')" style="cursor:pointer;">
                         <!-- 作者資訊 -->
                         <div class="card-top">
-                            <div class="wheat-icon" id="back-svg-{{ p.id }}">{{ wheat_svg(p.stage.label, p.stage.glow, 28) }}</div>
+                            <div class="wheat-icon" id="back-svg-{{ p.id }}" style="font-size:1.4rem;">🙏</div>
                             <div class="card-author">
                                 <div class="author-name">
                                     {% if p.is_anonymous %}
@@ -780,7 +762,7 @@
         <div class="empty-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
         </div>
-        <p>還沒有代禱事項<br>成為第一個播下種子的人</p>
+        <p>還沒有代禱事項<br>成為第一個發出代禱的人</p>
     </div>
     {% endif %}
 
@@ -852,7 +834,7 @@
             class="btn btn-primary"
             style="flex:1; background:linear-gradient(135deg,#e8a020,#c47800); border-color:transparent; box-shadow:0 4px 12px rgba(180,100,0,0.3); font-size:0.95rem; gap:8px; display:flex; align-items:center; justify-content:center;">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
-            播下這粒種子
+            送出代禱
         </button>
         <button onclick="closeNewPrayer()" class="btn btn-secondary">取消</button>
     </div>
@@ -861,21 +843,6 @@
 
 <script>
 const PRAYER_EMOJIS = {{ emojis | tojson }};
-
-// ── 麥穗成長圖示（JS 版，供 AJAX 後更新用） ───────────────
-const STAGE_IMGS = {
-    '種子':  '/static/img/wheat-stage-1-seed.jpg',
-    '發芽':  '/static/img/wheat-stage-2-sprout.jpg',
-    '生長':  '/static/img/wheat-stage-3-grow.jpg',
-    '成熟':  '/static/img/wheat-stage-4-mature.jpg',
-    '蒙應允': '/static/img/wheat-stage-5-answered.jpg',
-};
-function getStageSVG(label, glow, size) {
-    size = size || 68;
-    const glowClass = glow ? ' glow' : '';
-    const src = STAGE_IMGS[label] || STAGE_IMGS['種子'];
-    return `<img class="wc-stage-img${glowClass}" src="${src}" style="width:${size}px;height:${size}px;border-radius:12px;object-fit:cover;" alt="${label}">`;
-}
 
 // ── Modal 開關 ────────────────────────────────
 function openNewPrayer() {
@@ -932,11 +899,10 @@ function toggleReact(prayerId, emoji, btn) {
             b.classList.toggle('reacted', e === emoji && d.action === 'added');
         });
 
-        // 更新麥穗 SVG 圖示
-        const frontWrap = document.getElementById('front-svg-' + prayerId);
-        const backWrap  = document.getElementById('back-svg-' + prayerId);
-        if (frontWrap) frontWrap.innerHTML = getStageSVG(d.stage.label, d.stage.glow, 68);
-        if (backWrap)  backWrap.innerHTML  = getStageSVG(d.stage.label, d.stage.glow, 28);
+        // 更新正面總計數
+        const totalCount = Object.values(d.emoji_counts || {}).reduce((s, n) => s + n, 0);
+        const frontCount = document.getElementById('front-count-' + prayerId);
+        if (frontCount) frontCount.textContent = totalCount > 0 ? '🙏 ' + totalCount : '';
     });
 }
 
@@ -998,11 +964,16 @@ document.querySelectorAll('.wheat-card').forEach(card => {
             if (!d.success) return;
             const row = document.getElementById('reactions-' + prayerId);
             if (!row) return;
+            let total = 0;
             row.querySelectorAll('.reaction-btn').forEach(btn => {
                 const e = btn.dataset.emoji;
                 const cnt = d.emoji_counts[e] || 0;
                 btn.querySelector('.reaction-count').textContent = cnt > 0 ? cnt : '';
+                total += cnt;
             });
+            // 更新正面總計數
+            const frontCount = document.getElementById('front-count-' + prayerId);
+            if (frontCount) frontCount.textContent = total > 0 ? '🙏 ' + total : '';
         }).catch(() => {});
 });
 
