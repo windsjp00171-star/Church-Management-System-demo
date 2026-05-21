@@ -540,7 +540,7 @@ def pastor_dashboard():
                            week_start=week_start,
                            week_end=week_end,
                            is_current_week=sunday == today_sunday,
-                           dashboard_title='牧者週報總覽',
+                           dashboard_title='牧者查閱',
                            is_pastor=True,
                            is_staff=False)
 
@@ -596,7 +596,7 @@ def staff_dashboard():
                            week_start=week_start,
                            week_end=week_end,
                            is_current_week=sunday == today_sunday,
-                           dashboard_title='同工管理中心',
+                           dashboard_title='同工查閱',
                            is_pastor=False,
                            is_staff=True)
 
