@@ -508,43 +508,49 @@ CREATE TABLE IF NOT EXISTS cell_group_leaders (
 
 -- 週報主表
 CREATE TABLE IF NOT EXISTS cell_reports (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id          UUID NOT NULL REFERENCES cell_groups(id),
-    week_date         DATE NOT NULL,
-    attendance_count  INTEGER NOT NULL DEFAULT 0,
-    member_count      INTEGER NOT NULL DEFAULT 0,
-    status_worship    TEXT,
-    status_prayer     TEXT,
-    status_word       TEXT,
-    status_service    TEXT,
-    newcomer_raw      TEXT,
-    coworker_note     TEXT,
-    no_meeting        BOOLEAN NOT NULL DEFAULT false,
-    no_meeting_reason TEXT,
-    is_complete       BOOLEAN NOT NULL DEFAULT false,
-    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id            UUID NOT NULL REFERENCES cell_groups(id),
+    week_date           DATE NOT NULL,
+    attendance_count    INTEGER,
+    no_meeting          BOOLEAN NOT NULL DEFAULT false,
+    no_meeting_reason   TEXT,
+    is_complete         BOOLEAN NOT NULL DEFAULT false,
+    -- 小組長自評四大面向
+    spiritual_status    TEXT,
+    spiritual_note      TEXT,
+    family_status       TEXT,
+    family_note         TEXT,
+    work_status         TEXT,
+    work_note           TEXT,
+    health_status       TEXT,
+    health_note         TEXT,
+    -- 整體狀況與建議
+    group_status        TEXT,
+    coworker_suggestion TEXT,
+    newcomer_raw        TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (group_id, week_date)
 );
 
 -- 出席紀錄
 CREATE TABLE IF NOT EXISTS cell_attendance (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_id  UUID NOT NULL REFERENCES cell_reports(id) ON DELETE CASCADE,
-    member_id  UUID NOT NULL REFERENCES cell_members(id) ON DELETE CASCADE,
-    status     TEXT NOT NULL DEFAULT 'present'
-                   CHECK (status IN ('present','absent','leave','visitor')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_id     UUID NOT NULL REFERENCES cell_reports(id) ON DELETE CASCADE,
+    member_id     UUID NOT NULL REFERENCES cell_members(id) ON DELETE CASCADE,
+    cell_status   TEXT,   -- 小組聚會出席狀態: full/late/leave/absent
+    sunday_status TEXT,   -- 主日出席狀態: full/late/leave/absent
+    rpg_status    TEXT,   -- 靈修狀態: full/late/leave/absent
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (report_id, member_id)
 );
 
 -- 成人主日聚會人數
 CREATE TABLE IF NOT EXISTS sunday_reports (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_date          DATE NOT NULL UNIQUE,
+    date                 DATE NOT NULL UNIQUE,
     first_service_count  INTEGER NOT NULL DEFAULT 0,
     second_service_count INTEGER NOT NULL DEFAULT 0,
-    topic                TEXT,
     notes                TEXT,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -552,7 +558,7 @@ CREATE TABLE IF NOT EXISTS sunday_reports (
 -- 兒童主日聚會人數
 CREATE TABLE IF NOT EXISTS children_sunday_reports (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_date      DATE NOT NULL UNIQUE,
+    date             DATE NOT NULL UNIQUE,
     attendance_count INTEGER NOT NULL DEFAULT 0,
     notes            TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -561,7 +567,7 @@ CREATE TABLE IF NOT EXISTS children_sunday_reports (
 -- 禱告會人數
 CREATE TABLE IF NOT EXISTS prayer_reports (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_date      DATE NOT NULL UNIQUE,
+    date             DATE NOT NULL UNIQUE,
     attendance_count INTEGER NOT NULL DEFAULT 0,
     notes            TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -570,7 +576,7 @@ CREATE TABLE IF NOT EXISTS prayer_reports (
 -- 晨禱人數
 CREATE TABLE IF NOT EXISTS morning_prayer_reports (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_date      DATE NOT NULL UNIQUE,
+    date             DATE NOT NULL UNIQUE,
     attendance_count INTEGER NOT NULL DEFAULT 0,
     notes            TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()

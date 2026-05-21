@@ -231,7 +231,12 @@ def section1(group_id):
             update_data['no_meeting_reason'] = ''
             update_data['is_complete'] = False
 
-        supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
+        try:
+            supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
+        except Exception as e:
+            print(f"[section1 POST error] {e}")
+            flash(f'儲存失敗，請稍後再試。（{e}）', 'error')
+            return redirect(url_for('cell_report.section1', group_id=group_id))
 
         return redirect(url_for('cell_report.section2', group_id=group_id,
                                 week_date=selected_date.isoformat()))
@@ -443,7 +448,15 @@ def step3(group_id):
             'is_complete': True,
         }
 
-        supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
+        try:
+            supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
+        except Exception as e:
+            print(f"[step3 POST error] {e}")
+            return render_template('cell_report/step3.html',
+                                   group=group, report=report,
+                                   week_date=week_date,
+                                   is_backfill=week_date != this_week_date,
+                                   error=f'儲存失敗，請稍後再試。（{e}）')
 
         return redirect(url_for('cell_report.done', group_id=group_id,
                                 week_date=week_date.isoformat()))
@@ -602,12 +615,16 @@ def sunday():
         except Exception:
             first = second = 0
 
-        report = _get_or_create_sunday_report(date_str)
-        supabase.table('sunday_reports').update({
-            'first_service_count': first,
-            'second_service_count': second,
-        }).eq('id', report['id']).execute()
-        return jsonify({'success': True})
+        try:
+            report = _get_or_create_sunday_report(date_str)
+            supabase.table('sunday_reports').update({
+                'first_service_count': first,
+                'second_service_count': second,
+            }).eq('id', report['id']).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            print(f"[sunday POST error] {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_sunday_report(date_str)
     return render_template('cell_report/sunday_form.html', report=report or {}, date=date_obj)
@@ -626,9 +643,13 @@ def children():
         except Exception:
             count = 0
 
-        report = _get_or_create_children_report(date_str)
-        supabase.table('children_sunday_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
-        return jsonify({'success': True})
+        try:
+            report = _get_or_create_children_report(date_str)
+            supabase.table('children_sunday_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            print(f"[children POST error] {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_children_report(date_str)
     return render_template('cell_report/children_sunday_form.html', report=report or {}, date=date_obj)
@@ -647,9 +668,13 @@ def prayer():
         except Exception:
             count = 0
 
-        report = _get_or_create_prayer_report(date_str)
-        supabase.table('prayer_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
-        return jsonify({'success': True})
+        try:
+            report = _get_or_create_prayer_report(date_str)
+            supabase.table('prayer_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            print(f"[prayer POST error] {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_prayer_report(date_str)
     return render_template('cell_report/prayer_form.html', report=report or {}, date=date_obj)
@@ -668,9 +693,13 @@ def morning_prayer():
         except Exception:
             count = 0
 
-        report = _get_or_create_morning_prayer_report(date_str)
-        supabase.table('morning_prayer_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
-        return jsonify({'success': True})
+        try:
+            report = _get_or_create_morning_prayer_report(date_str)
+            supabase.table('morning_prayer_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            print(f"[morning_prayer POST error] {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_morning_prayer_report(date_str)
     return render_template('cell_report/morning_prayer_form.html', report=report or {}, date=date_obj)
