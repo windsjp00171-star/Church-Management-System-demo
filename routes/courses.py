@@ -248,28 +248,24 @@ def auto_close_expired_courses():
 @admin_required
 def admin_courses():
     """後台：學程列表（進入時順帶關閉已過期報名的學程）"""
-    import traceback as _tb
-    try:
-        auto_close_expired_courses()
-        result = supabase.table('courses').select('*').order('created_at', desc=True).execute()
-        courses = result.data or []
+    auto_close_expired_courses()
+    result = supabase.table('courses').select('*').order('created_at', desc=True).execute()
+    courses = result.data or []
 
-        if courses:
-            cids = [c['id'] for c in courses]
-            enroll_result = supabase.table('course_enrollments')\
-                .select('course_id')\
-                .in_('course_id', cids)\
-                .eq('status', 'enrolled')\
-                .execute()
-            count_map = {}
-            for e in (enroll_result.data or []):
-                count_map[e['course_id']] = count_map.get(e['course_id'], 0) + 1
-            for c in courses:
-                c['enrolled_count'] = count_map.get(c['id'], 0)
+    if courses:
+        cids = [c['id'] for c in courses]
+        enroll_result = supabase.table('course_enrollments')\
+            .select('course_id')\
+            .in_('course_id', cids)\
+            .eq('status', 'enrolled')\
+            .execute()
+        count_map = {}
+        for e in (enroll_result.data or []):
+            count_map[e['course_id']] = count_map.get(e['course_id'], 0) + 1
+        for c in courses:
+            c['enrolled_count'] = count_map.get(c['id'], 0)
 
-        return render_template('courses/admin_list.html', courses=courses)
-    except Exception:
-        return f'<pre style="padding:20px">學程管理頁錯誤：\n{_tb.format_exc()}</pre>', 200
+    return render_template('courses/admin_list.html', courses=courses)
 
 
 @courses_bp.route('/admin/courses/new', methods=['GET', 'POST'])
@@ -1072,78 +1068,67 @@ def admin_category_delete(cat_id):
 @admin_required
 def admin_certifications():
     """後台：完訓認證管理 — 橫向對照表"""
-    import traceback as _tb
-    try:
-        cats = supabase.table('course_categories')\
-            .select('*').order('sort_order').execute().data or []
-        active_cats = [c for c in cats if c.get('is_active', True)]
+    cats = supabase.table('course_categories')\
+        .select('*').order('sort_order').execute().data or []
+    active_cats = [c for c in cats if c.get('is_active', True)]
 
-        q            = request.args.get('q', '').strip()
-        group_filter = request.args.get('group', '').strip()
-        tag_filter   = request.args.get('tag', '').strip()
+    q            = request.args.get('q', '').strip()
+    group_filter = request.args.get('group', '').strip()
+    tag_filter   = request.args.get('tag', '').strip()
 
-        # 撈所有用戶（分批拉，避免 limit 截斷）
-        all_users_raw = []
-        offset = 0
-        batch  = 500
-        while True:
-            rows = supabase.table('users')\
-                .select('id, real_name, display_name, picture_url, group_tags')\
-                .range(offset, offset + batch - 1).execute().data or []
-            all_users_raw.extend(rows)
-            if len(rows) < batch:
-                break
-            offset += batch
+    all_users_raw = []
+    offset = 0
+    batch  = 500
+    while True:
+        rows = supabase.table('users')\
+            .select('id, real_name, display_name, picture_url, group_tags')\
+            .range(offset, offset + batch - 1).execute().data or []
+        all_users_raw.extend(rows)
+        if len(rows) < batch:
+            break
+        offset += batch
 
-        # 撈所有認證
-        all_certs = supabase.table('course_certificates')\
-            .select('*').execute().data or []
+    all_certs = supabase.table('course_certificates')\
+        .select('*').execute().data or []
 
-        # 建 pivot dict: {user_id: {category_id: cert_record}}
-        cert_pivot = {}
-        for c in all_certs:
-            uid, cid = c['user_id'], c['category_id']
-            if uid not in cert_pivot:
-                cert_pivot[uid] = {}
-            cert_pivot[uid][cid] = c
+    cert_pivot = {}
+    for c in all_certs:
+        uid, cid = c['user_id'], c['category_id']
+        if uid not in cert_pivot:
+            cert_pivot[uid] = {}
+        cert_pivot[uid][cid] = c
 
-        # 處理每位用戶
-        for u in all_users_raw:
-            u['_name']  = u.get('real_name') or u.get('display_name') or '—'
-            tags        = u.get('group_tags') or []
-            u['_tags']  = tags
-            u['_group'] = tags[0] if tags else '未分組'
+    for u in all_users_raw:
+        u['_name']  = u.get('real_name') or u.get('display_name') or '—'
+        tags        = u.get('group_tags') or []
+        u['_tags']  = tags
+        u['_group'] = tags[0] if tags else '未分組'
 
-        # 收集所有不重複標籤（供標籤篩選用）
-        all_tags = sorted({tag for u in all_users_raw for tag in (u.get('group_tags') or [])})
-        all_groups = sorted({u['_group'] for u in all_users_raw if u['_group'] != '未分組'})
+    all_tags   = sorted({tag for u in all_users_raw for tag in (u.get('group_tags') or [])})
+    all_groups = sorted({u['_group'] for u in all_users_raw if u['_group'] != '未分組'})
 
-        # 篩選
-        users = all_users_raw
-        if q:
-            users = [u for u in users if q.lower() in u['_name'].lower()]
-        if tag_filter:
-            users = [u for u in users if tag_filter in (u.get('group_tags') or [])]
-        elif group_filter:
-            users = [u for u in users if u['_group'] == group_filter]
+    users = all_users_raw
+    if q:
+        users = [u for u in users if q.lower() in u['_name'].lower()]
+    if tag_filter:
+        users = [u for u in users if tag_filter in (u.get('group_tags') or [])]
+    elif group_filter:
+        users = [u for u in users if u['_group'] == group_filter]
 
-        users = sorted(users, key=lambda x: (x['_group'], x['_name']))
+    users = sorted(users, key=lambda x: (x['_group'], x['_name']))
 
-        # 分頁
-        page      = max(1, int(request.args.get('page', 1)))
-        page_size = 50
-        total     = len(users)
-        total_pages = max(1, (total + page_size - 1) // page_size)
-        page      = min(page, total_pages)
-        users_page = users[(page - 1) * page_size : page * page_size]
+    page      = max(1, int(request.args.get('page', 1)))
+    page_size = 50
+    total     = len(users)
+    total_pages = max(1, (total + page_size - 1) // page_size)
+    page      = min(page, total_pages)
+    users_page = users[(page - 1) * page_size : page * page_size]
 
-        return render_template('courses/admin_certifications.html',
-            categories=active_cats, users=users_page, cert_pivot=cert_pivot,
-            all_groups=all_groups, all_tags=all_tags,
-            q=q, group_filter=group_filter, tag_filter=tag_filter,
-            page=page, total_pages=total_pages, total=total, page_size=page_size)
-    except Exception:
-        return f'<pre style="padding:20px">認證管理頁錯誤：\n{_tb.format_exc()}</pre>', 200
+    return render_template('courses/admin_certifications.html',
+        categories=active_cats, users=users_page, cert_pivot=cert_pivot,
+        all_groups=all_groups, all_tags=all_tags,
+        q=q, group_filter=group_filter, tag_filter=tag_filter,
+        page=page, total_pages=total_pages, total=total, page_size=page_size)
 
 
 @courses_bp.route('/admin/certifications/add', methods=['POST'])

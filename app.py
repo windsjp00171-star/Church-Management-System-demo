@@ -13,7 +13,7 @@ def _get_card_names() -> dict:
         return _card_names_cache['data']
     try:
         from db import supabase as _sb
-        rows = _sb.table('portal_cards').select('key,name').execute().data or []
+        rows = _sb.table('portal_card_settings').select('key,name').not_.is_('name', 'null').execute().data or []
         names = {r['key']: r['name'] for r in rows}
         _card_names_cache['data'] = names
         _card_names_cache['ts'] = now
