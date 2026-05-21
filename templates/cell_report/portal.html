@@ -1,49 +1,70 @@
 {% extends "base.html" %}
 {% block title %}{{ card_names.get('cell_report', '小組回報') }}{% endblock %}
 {% block content %}
-<div class="container" style="max-width:600px; margin:40px auto; padding:0 16px;">
-  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:24px;">{{ card_names.get('cell_report', '小組回報') }}</h1>
+<div class="container" style="max-width:600px; margin:40px auto 60px; padding:0 16px;">
+
+  <!-- Page header -->
+  <div style="margin-bottom:24px;">
+    <h1 style="font-size:1.4rem; font-weight:800; color:var(--color-primary); margin:0 0 4px;">
+      {{ card_names.get('cell_report', '小組回報') }}
+    </h1>
+    <p style="color:var(--color-text-muted); font-size:.85rem; margin:0;">請選擇要回報的小組，完成三個步驟的週報。</p>
+  </div>
 
   {% if groups %}
-    <p style="color:#666; margin-bottom:16px;">請選擇要回報的小組：</p>
     <div style="display:flex; flex-direction:column; gap:12px;">
       {% for g in groups %}
         <a href="{{ url_for('cell_report.section1', group_id=g.id) }}"
-           style="display:block; padding:16px 20px; background:#fff; border:1px solid #e0e0e0;
-                  border-radius:12px; text-decoration:none; color:#222; font-weight:600;
-                  box-shadow:0 1px 3px rgba(0,0,0,.06);">
-          {{ g.name }}
-          {% if g.get('weekly_gather_day') %}
-            <span style="font-size:0.85rem; font-weight:400; color:#888; margin-left:8px;">
-              每週{{ g.weekly_gather_day }}聚會
-            </span>
-          {% endif %}
-          <p class="section-hint" style="color: #718096; font-size: 0.85rem; margin-top: 4px; margin-bottom: 0; font-weight: 400;">點擊進入填寫週報（共 3 個步驟）</p>
+           class="card"
+           style="display:block; padding:18px 20px; text-decoration:none; color:var(--color-text); border-radius:14px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+            <div style="min-width:0;">
+              <p style="font-weight:700; font-size:1rem; color:var(--color-primary); margin:0 0 2px;
+                         overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">{{ g.name }}</p>
+              {% if g.get('weekly_gather_day') %}
+                <p style="font-size:.82rem; color:var(--color-text-muted); margin:0 0 4px;">
+                  每週{{ g.weekly_gather_day }}聚會
+                </p>
+              {% endif %}
+              <p style="font-size:.8rem; color:var(--color-text-muted); margin:0; display:flex; align-items:center; gap:4px;">
+                <span style="display:inline-block; width:6px; height:6px; background:var(--color-accent); border-radius:50%;"></span>
+                點擊進入填寫週報（共 3 個步驟）
+              </p>
+            </div>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                 stroke="var(--color-primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+                 style="flex-shrink:0; opacity:.5;">
+              <polyline points="9 18 15 12 9 6"/>
+            </svg>
+          </div>
         </a>
       {% endfor %}
     </div>
   {% else %}
-    <div class="empty-state" style="background:#f9f9f9; border-radius:12px;">
-      你目前沒有被分配到任何小組。<br>請聯繫管理員設定。
+    <div class="empty-state">
+      <div class="empty-state-icon">📋</div>
+      <p>你目前沒有被分配到任何小組。<br>請聯繫管理員設定。</p>
     </div>
   {% endif %}
 
+  <!-- Pastor / Staff links -->
   {% if session.get('is_pastor') %}
-    <div style="margin-top:32px; padding-top:20px; border-top:1px solid #eee;">
+    <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--color-border);">
       <a href="{{ url_for('cell_report.pastor_dashboard') }}"
-         style="display:block; text-align:center; padding:12px; background:#06C755;
-                color:#fff; border-radius:10px; text-decoration:none; font-weight:600;">
+         class="btn btn-primary"
+         style="width:100%; padding:13px; border-radius:12px; font-size:.95rem; display:flex; justify-content:center;">
         牧者週報總覽
       </a>
     </div>
   {% elif session.get('is_staff') %}
-    <div style="margin-top:32px; padding-top:20px; border-top:1px solid #eee;">
+    <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--color-border);">
       <a href="{{ url_for('cell_report.staff_dashboard') }}"
-         style="display:block; text-align:center; padding:12px; background:#4a90d9;
-                color:#fff; border-radius:10px; text-decoration:none; font-weight:600;">
+         class="btn btn-accent"
+         style="width:100%; padding:13px; border-radius:12px; font-size:.95rem; display:flex; justify-content:center;">
         同工管理中心
       </a>
     </div>
   {% endif %}
+
 </div>
 {% endblock %}
