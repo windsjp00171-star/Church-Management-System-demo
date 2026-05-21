@@ -114,13 +114,27 @@ def _get_or_create_report(group_id, week_date_str: str) -> Dict:
     )
     if res.data:
         return res.data[0]
-    ins = supabase.table('cell_reports').insert({
-        'group_id': group_id,
-        'week_date': week_date_str,
-        'is_complete': False,
-        'no_meeting': False,
-    }).execute()
-    return ins.data[0] if ins.data else {}
+    try:
+        ins = supabase.table('cell_reports').insert({
+            'group_id': group_id,
+            'week_date': week_date_str,
+            'is_complete': False,
+            'no_meeting': False,
+        }).execute()
+        if ins.data:
+            return ins.data[0]
+    except Exception:
+        pass
+    # Re-select in case of concurrent insert or insert returned no data
+    res2 = (
+        supabase.table('cell_reports')
+        .select('*')
+        .eq('group_id', group_id)
+        .eq('week_date', week_date_str)
+        .limit(1)
+        .execute()
+    )
+    return (res2.data or [{}])[0]
 
 
 def _get_attendance_map(group_id, report_id) -> Dict[str, Dict]:
@@ -410,6 +424,16 @@ def step3(group_id):
     report = _get_or_create_report(group_id, week_date.isoformat())
     this_week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
 
+    def _parse_newcomers(rpt):
+        raw = rpt.get('newcomer_raw') if rpt else None
+        if not raw:
+            return []
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+
     if request.method == 'POST':
         required_fields = ['spiritual_status', 'family_status', 'work_status', 'health_status']
         error = None
@@ -425,6 +449,7 @@ def step3(group_id):
                                    group=group, report=report,
                                    week_date=week_date,
                                    is_backfill=week_date != this_week_date,
+                                   newcomers=_parse_newcomers(report),
                                    error=error)
 
         newcomers_json = request.form.get('newcomers_json', '[]')
@@ -448,6 +473,13 @@ def step3(group_id):
             'is_complete': True,
         }
 
+        if not report.get('id'):
+            return render_template('cell_report/step3.html',
+                                   group=group, report=report,
+                                   week_date=week_date,
+                                   is_backfill=week_date != this_week_date,
+                                   newcomers=_parse_newcomers(report),
+                                   error='無法取得回報紀錄，請重新整理後再試。')
         try:
             supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
         except Exception as e:
@@ -456,6 +488,7 @@ def step3(group_id):
                                    group=group, report=report,
                                    week_date=week_date,
                                    is_backfill=week_date != this_week_date,
+                                   newcomers=_parse_newcomers(report),
                                    error=f'儲存失敗，請稍後再試。（{e}）')
 
         return redirect(url_for('cell_report.done', group_id=group_id,
@@ -464,11 +497,12 @@ def step3(group_id):
     return render_template('cell_report/step3.html',
                            group=group, report=report,
                            week_date=week_date,
-                           is_backfill=week_date != this_week_date)
+                           is_backfill=week_date != this_week_date,
+                           newcomers=_parse_newcomers(report))
 
 
-@login_required
 @cell_report_bp.get('/cell-report/<group_id>/done')
+@login_required
 def done(group_id):
     group = _get_group(group_id)
     if not group:
