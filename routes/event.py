@@ -328,6 +328,24 @@ def portal():
         except Exception:
             pass
 
+    # ── 聚會人數（牧者/同工/管理員在首頁顯示）──
+    attendance_summary = None
+    if is_pastor or is_staff or session.get('is_admin'):
+        try:
+            def _latest(table, *cols):
+                fields = ','.join(cols)
+                r = supabase.table(table).select(fields)\
+                    .order('report_date', desc=True).limit(1).execute()
+                return r.data[0] if r.data else None
+            attendance_summary = {
+                'sunday':   _latest('sunday_reports',          'report_date','attendance_count'),
+                'children': _latest('children_sunday_reports', 'report_date','attendance_count'),
+                'prayer':   _latest('prayer_reports',          'report_date','attendance_count'),
+                'morning':  _latest('morning_prayer_reports',  'report_date','first_service_count','second_service_count'),
+            }
+        except Exception:
+            pass
+
     # ── Hero 主題（與今日經文同步）──
     today_tw = datetime.now(timezone(timedelta(hours=8))).date().isoformat()
     try:
@@ -358,6 +376,7 @@ def portal():
         is_group_leader=is_group_leader,
         pending_report=pending_report,
         leader_groups=leader_groups,
+        attendance_summary=attendance_summary,
     )
 
 
