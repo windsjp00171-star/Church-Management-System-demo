@@ -350,6 +350,9 @@ def section2(group_id):
         return redirect(url_for('cell_report.section1', group_id=group_id))
 
     report = _get_or_create_report(group_id, week_date_obj.isoformat())
+    if not report.get('id'):
+        flash('無法建立回報單，請重新整理後再試。', 'error')
+        return redirect(url_for('cell_report.section1', group_id=group_id))
     members = _get_members(group_id)
     attendance_map = _get_attendance_map(group_id, report['id'])
 
@@ -404,6 +407,8 @@ def ajax_save_attendance(group_id):
         return jsonify({'success': False, 'error': '日期格式錯誤'}), 400
 
     report = _get_or_create_report(group_id, week_date_str)
+    if not report.get('id'):
+        return jsonify({'success': False, 'error': '無法建立回報單'}), 500
 
     res = (
         supabase.table('cell_attendance')
@@ -888,34 +893,54 @@ def _get_or_create_sunday_report(date_str: str) -> Dict:
     existing = _get_sunday_report(date_str)
     if existing:
         return existing
-    res = supabase.table('sunday_reports').insert({'date': date_str,
-                                                   'first_service_count': 0,
-                                                   'second_service_count': 0}).execute()
-    return res.data[0] if res.data else {}
+    try:
+        res = supabase.table('sunday_reports').insert(
+            {'date': date_str, 'first_service_count': 0, 'second_service_count': 0}
+        ).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return _get_sunday_report(date_str) or {}
 
 
 def _get_or_create_children_report(date_str: str) -> Dict:
     existing = _get_children_report(date_str)
     if existing:
         return existing
-    res = supabase.table('children_sunday_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
-    return res.data[0] if res.data else {}
+    try:
+        res = supabase.table('children_sunday_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return _get_children_report(date_str) or {}
 
 
 def _get_or_create_prayer_report(date_str: str) -> Dict:
     existing = _get_prayer_report(date_str)
     if existing:
         return existing
-    res = supabase.table('prayer_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
-    return res.data[0] if res.data else {}
+    try:
+        res = supabase.table('prayer_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return _get_prayer_report(date_str) or {}
 
 
 def _get_or_create_morning_prayer_report(date_str: str) -> Dict:
     existing = _get_morning_prayer_report(date_str)
     if existing:
         return existing
-    res = supabase.table('morning_prayer_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
-    return res.data[0] if res.data else {}
+    try:
+        res = supabase.table('morning_prayer_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return _get_morning_prayer_report(date_str) or {}
 
 
 def _build_group_data(groups: List[Dict], sunday: datetime.date) -> List[Dict]:
