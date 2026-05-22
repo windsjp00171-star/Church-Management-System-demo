@@ -416,6 +416,31 @@
         </div>
       </div>
 
+      <!-- 牧養小組自選 -->
+      <div class="feature-block">
+        <h3>🏠 牧養小組自選 <span class="badge badge-gray" style="font-size:0.72rem;">/profile</span></h3>
+        <ol class="manual-steps">
+          <li>進入「個人資料」頁面（導覽列右上角點您的姓名）</li>
+          <li>在「牧養小組」區塊選擇您想加入的小組</li>
+          <li>點「申請加入」送出申請，狀態顯示為「待確認」</li>
+          <li>管理員核准後狀態更新為「已確認」，正式成為該小組成員</li>
+        </ol>
+        <div class="callout callout-amber">
+          ⏳ 申請送出後需等管理員確認，確認前小組長回報單不會看到您。如有急需請直接聯繫管理員。
+        </div>
+      </div>
+
+      <!-- 系統更新通知 -->
+      <div class="feature-block">
+        <h3>🔔 系統更新通知</h3>
+        <ul class="manual-ul">
+          <li>系統有新版本功能時，首頁頂部會出現藍色提示橫幅</li>
+          <li>橫幅顯示版本號、更新標題與發佈日期</li>
+          <li>點「查看更新」可瀏覽完整更新說明</li>
+          <li>點「✕ 我知道了」即可關閉橫幅，下次登入不再重複顯示</li>
+        </ul>
+      </div>
+
     </div><!-- .manual-card -->
     <a href="#manual-top" class="back-top">↑ 回到頂部</a>
   </div><!-- #member -->
@@ -606,6 +631,26 @@
         </div>
       </div>
 
+      <!-- 全職同工差勤 -->
+      <div class="feature-block">
+        <h3>🗓 全職同工差勤 <span class="badge badge-gray" style="font-size:0.72rem;">/attendance</span></h3>
+        <div class="callout callout-blue" style="margin-bottom:14px;">
+          💼 此功能僅限<strong>全職同工</strong>（由管理員設定的 staff_profiles 紀錄）使用，兼職義工同工不適用。
+        </div>
+        <ul class="manual-ul">
+          <li>查看剩餘<strong>特休時數</strong>（依入職日期按勞基法計算）與<strong>補休時數</strong></li>
+          <li>申請假單（特休、補休、事假、病假、其他），填寫日期範圍、時數與事由</li>
+          <li>登錄加班紀錄，經管理員核准後累積為補休時數</li>
+          <li>查看歷史請假與加班紀錄及審核狀態</li>
+        </ul>
+        <div class="callout callout-amber">
+          ⏳ 假單與加班記錄送出後均為「待審核」狀態，需等管理員核准後時數才會變動。若遲遲未收到回覆，請聯繫管理員。
+        </div>
+        <div class="callout callout-green">
+          📅 特休依「週年制」計算（入職滿半年起算），各教會可在部署時設定「曆年制」。目前法定天數：滿半年 3 天、1 年 7 天、2 年 10 天、3 年 14 天、5 年 15 天，之後每年 +1 天（上限 30 天）。
+        </div>
+      </div>
+
     </div><!-- .manual-card -->
     <a href="#manual-top" class="back-top">↑ 回到頂部</a>
   </div><!-- #staff -->
@@ -789,6 +834,53 @@
         </ul>
       </div>
 
+      <!-- 牧養小組管理 -->
+      <div class="feature-block">
+        <h3>
+          🏠 牧養小組管理 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/cell-groups</span>
+          <span class="super-badge">⚠️ 需超級管理員</span>
+        </h3>
+        <ul class="manual-ul">
+          <li>新增、編輯、停用牧養小組</li>
+          <li>查看各組成員清單，包含待確認的申請（標示 ⏳）</li>
+          <li>點「✓ 確認」核准會友的加入申請；點「✗ 拒絕」婉拒申請</li>
+          <li>手動新增或移除組員</li>
+        </ul>
+        <div class="callout callout-blue">
+          💡 會友從個人資料頁面申請加入小組後，需管理員在此頁面核准，申請才算生效。
+        </div>
+      </div>
+
+      <!-- 差勤管理 -->
+      <div class="feature-block">
+        <h3>🗓 差勤管理 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/attendance</span></h3>
+        <ul class="manual-ul">
+          <li>新增全職同工：填寫所屬使用者、入職日期、特休計算制度（週年制／曆年制）、初始補休時數</li>
+          <li>查看所有待審請假單與加班記錄</li>
+          <li>核准或拒絕假單（可填寫備注），核准後時數自動扣減或累積</li>
+          <li>查看各同工剩餘假期與補休時數總覽</li>
+        </ul>
+        <div class="callout callout-amber">
+          ⚠️ 只有被加入為「全職同工」的帳號才能看到首頁的「我的差勤」入口。請確認在此頁面正確設定同工資料。
+        </div>
+      </div>
+
+      <!-- 更新日誌 -->
+      <div class="feature-block">
+        <h3>
+          📋 更新日誌 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/changelogs</span>
+          <span class="super-badge">⚠️ 需超級管理員</span>
+        </h3>
+        <ul class="manual-ul">
+          <li>查看系統維運日誌與歷次更新記錄</li>
+          <li>更新日誌由系統維護者統一發佈，所有教會同步收到</li>
+          <li>會友登入後若有新版本，首頁會自動顯示藍色提示橫幅</li>
+        </ul>
+        <div class="callout callout-gray">
+          💡 更新日誌存放於程式碼庫中（changelogs.json），推送新程式碼後所有教會同步生效，無需各教會個別操作。
+        </div>
+      </div>
+
     </div><!-- .manual-card -->
     <a href="#manual-top" class="back-top">↑ 回到頂部</a>
   </div><!-- #admin -->
@@ -829,6 +921,16 @@
     <div class="qa-item">
       <div class="qa-q">Q：小組回報單沒填完可以先存嗎？</div>
       <div class="qa-a">可以，系統會自動儲存每個步驟完成後的資料，下次進入會從上次的進度繼續。</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">Q：我是全職同工但看不到「我的差勤」？</div>
+      <div class="qa-a">差勤功能需由管理員先在「差勤管理」頁面將您新增為全職同工（設定入職日期等資料）後才會出現。請聯繫教會行政管理員協助設定。</div>
+    </div>
+
+    <div class="qa-item">
+      <div class="qa-q">Q：申請加入牧養小組後，什麼時候才算生效？</div>
+      <div class="qa-a">申請送出後狀態為「待確認」，需等管理員在「牧養小組管理」頁面核准。核准後個人資料頁會顯示「已確認」，您也會正式出現在小組長的出席回報名單中。</div>
     </div>
 
     <div class="qa-item">
