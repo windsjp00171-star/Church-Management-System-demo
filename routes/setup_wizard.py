@@ -7,6 +7,57 @@ setup_wizard_bp = Blueprint('setup_wizard', __name__)
 # ── 環境變數定義（用於精靈頁面顯示）─────────────────────────────────
 _ENV_GROUPS = [
     {
+        'title': 'Render 部署平台',
+        'emoji': '🚀',
+        'signup_url': 'https://render.com/',
+        'signup_label': '申請 Render 帳號（免費）',
+        'deploy_guide_only': True,
+        'signup_steps': (
+            '═══ 首次部署（新服務）═══\n'
+            '\n'
+            '① 前往 render.com → 點右上角「Get Started for Free」\n'
+            '   → 選擇「GitHub」登入（建議用你管理源碼的 GitHub 帳號）\n'
+            '\n'
+            '② 登入後進入 Dashboard → 點「New +」→ 選「Web Service」\n'
+            '\n'
+            '③ 連接 GitHub Repo\n'
+            '   • 選「Connect a repository」→ 搜尋你的 church-management-system-demo\n'
+            '   • 若看不到 repo → 點「Configure account」→ 在 GitHub 授權頁面允許 Render 存取\n'
+            '   • ⚠️ 本系統源碼由維運者統一管理，教會不需要自己的 GitHub 帳號\n'
+            '\n'
+            '④ 基本設定（新建 Web Service 頁面）\n'
+            '   • Name：填入易識別的名稱，例如 church-abc-system\n'
+            '   • Region：選 Singapore（離台灣最近）\n'
+            '   • Branch：main（或你指定的部署分支）\n'
+            '   • Runtime：Python 3\n'
+            '   • Build Command：pip install -r requirements.txt\n'
+            '   • Start Command：gunicorn app:app（或參考 Procfile）\n'
+            '   • Instance Type：Free（免費，初期夠用）\n'
+            '\n'
+            '⑤ 往下滑到「Environment Variables」區塊\n'
+            '   → 點「Add Environment Variable」逐一填入以下各組設定\n'
+            '   → 所有帶 🔑 的值請填在 Secret Files 或直接填值，不要洩漏\n'
+            '\n'
+            '⑥ 填完環境變數後 → 點最下方「Create Web Service」\n'
+            '   → Render 開始自動 Build & Deploy（約 3～5 分鐘）\n'
+            '   → 部署完成後會顯示綠色 ● Live，URL 格式：https://你命名的服務.onrender.com\n'
+            '\n'
+            '═══ 之後更新代碼（維運者操作）═══\n'
+            '\n'
+            '• 你 push 代碼到 GitHub → Render 自動偵測並重新部署（預設開啟 Auto-Deploy）\n'
+            '• 若要手動觸發：Dashboard → 選服務 → 右上角「Manual Deploy」→「Deploy latest commit」\n'
+            '• 多間教會各自一個 Web Service，一次 push 全部自動更新，無需個別操作\n'
+            '\n'
+            '═══ 新增第二間教會（複製服務）═══\n'
+            '\n'
+            '① Dashboard → 點「New +」→「Web Service」→ 選同一個 repo\n'
+            '② 修改 Name（改成第二間教會的識別名稱）\n'
+            '③ 環境變數填入新教會的 Supabase、LINE、CHURCH_NAME 等（每間都不同）\n'
+            '④ 建立完成，兩間教會共用同一份代碼，完全獨立運行\n'
+        ),
+        'vars': [],
+    },
+    {
         'title': 'Flask 基本',
         'emoji': '⚙️',
         'signup_url': '',

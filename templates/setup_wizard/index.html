@@ -160,9 +160,11 @@
       <div class="sec-label" style="margin-top:20px;">
         {{ group.emoji }} {{ group.title }}
         {% if group.get('optional_group') %}<span class="tag-optional">可選功能</span>{% endif %}
+        {% if not group.get('deploy_guide_only') %}
         <span style="font-weight:400; font-size:.72rem; margin-left:8px; color:#6b7280;">
           已設定 {{ group.ok_count }}/{{ group.total_count }}
         </span>
+        {% endif %}
         {% if group.signup_url %}
         <a href="{{ group.signup_url }}" target="_blank" rel="noopener"
            style="display:inline-block; margin-left:10px; font-size:.72rem; font-weight:600;
@@ -173,10 +175,20 @@
         {% endif %}
       </div>
       {% if group.signup_steps %}
-      <details style="margin-bottom:10px; background:#f0f9ff; border:1px solid #bae6fd;
-                      border-radius:8px; padding:8px 12px; font-size:.82rem; color:#0c4a6e;">
-        <summary style="cursor:pointer; font-weight:600; color:#0369a1; list-style:none; display:flex; align-items:center; gap:6px;">
-          <span>📋</span> 如何取得 {{ group.title }} 憑證（點此展開步驟）
+      <details style="margin-bottom:10px; background:{{ '#fff7ed' if group.get('deploy_guide_only') else '#f0f9ff' }};
+                      border:1px solid {{ '#fed7aa' if group.get('deploy_guide_only') else '#bae6fd' }};
+                      border-radius:8px; padding:8px 12px; font-size:.82rem;
+                      color:{{ '#431407' if group.get('deploy_guide_only') else '#0c4a6e' }};"
+                      {% if group.get('deploy_guide_only') %}open{% endif %}>
+        <summary style="cursor:pointer; font-weight:600;
+                         color:{{ '#c2410c' if group.get('deploy_guide_only') else '#0369a1' }};
+                         list-style:none; display:flex; align-items:center; gap:6px;">
+          <span>{{ '🚀' if group.get('deploy_guide_only') else '📋' }}</span>
+          {% if group.get('deploy_guide_only') %}
+            部署流程說明（點此收合）
+          {% else %}
+            如何取得 {{ group.title }} 憑證（點此展開步驟）
+          {% endif %}
         </summary>
         <div style="margin-top:8px; line-height:1.8; white-space:pre-wrap;">{{ group.signup_steps }}</div>
       </details>
