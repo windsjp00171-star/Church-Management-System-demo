@@ -307,22 +307,37 @@ def portal():
     if uid:
         try:
             leader_result = supabase.table('cell_group_leaders')\
-                .select('group_id, cell_groups(id, name)')\
+                .select('group_id, cell_groups(id, name, weekly_gather_day)')\
                 .eq('user_id', uid).execute()
             if leader_result.data:
                 is_group_leader = True
                 leader_groups = leader_result.data
-                # 確認本週是否已完成週報
+                # 依各組實際聚會日計算本週日期，再精確查詢
                 today_date = date.today()
-                week_start = today_date - timedelta(days=today_date.weekday())
+                weekday_map = {'一': 0, '二': 1, '三': 2, '四': 3, '五': 4, '六': 5, '日': 6}
+
+                def _meeting_date(group_data, ref):
+                    day_str = (group_data.get('weekly_gather_day') or '').strip()
+                    target = None
+                    for ch, w in weekday_map.items():
+                        if ch in day_str:
+                            target = w
+                            break
+                    if target is None:
+                        target = 6  # 預設週日
+                    return ref - timedelta(days=(ref.weekday() - target) % 7)
+
                 for lg in leader_groups:
                     gid = lg['group_id']
+                    group_data = lg.get('cell_groups') or {}
+                    week_date = _meeting_date(group_data, today_date)
                     report_check = supabase.table('cell_reports')\
-                        .select('id, is_complete')\
+                        .select('id, is_complete, no_meeting')\
                         .eq('group_id', gid)\
-                        .gte('week_date', week_start.isoformat())\
+                        .eq('week_date', week_date.isoformat())\
                         .execute()
-                    if not report_check.data or not report_check.data[0].get('is_complete'):
+                    row = report_check.data[0] if report_check.data else None
+                    if not row or not (row.get('is_complete') or row.get('no_meeting')):
                         pending_report = True
                         break
         except Exception:
