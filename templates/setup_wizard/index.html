@@ -561,9 +561,8 @@ ADMIN_LINE_USER_IDS=U你的LINE_USER_ID</div>
           <table style="width:100%; font-size:.82rem; border-collapse:collapse;">
             <tr><td style="padding:4px 6px; font-weight:600;">GitHub</td><td style="padding:4px 6px; color:#555;">Private repo 源碼</td></tr>
             <tr style="background:#e0f2fe;"><td style="padding:4px 6px; font-weight:600;">Render</td><td style="padding:4px 6px; color:#555;">你的帳號，每間教會一個 Web Service</td></tr>
-            <tr><td style="padding:4px 6px; font-weight:600;">Groq / Gemini</td><td style="padding:4px 6px; color:#555;">AI API Key（共用）</td></tr>
-            <tr style="background:#e0f2fe;"><td style="padding:4px 6px; font-weight:600;">Sentry</td><td style="padding:4px 6px; color:#555;">錯誤監控（選填）</td></tr>
-            <tr><td style="padding:4px 6px; font-weight:600;">Flask Secret Key</td><td style="padding:4px 6px; color:#555;">每間教會各生成一組</td></tr>
+            <tr><td style="padding:4px 6px; font-weight:600;">Sentry</td><td style="padding:4px 6px; color:#555;">錯誤監控（選填，可共用一個 project）</td></tr>
+            <tr style="background:#e0f2fe;"><td style="padding:4px 6px; font-weight:600;">Flask Secret Key</td><td style="padding:4px 6px; color:#555;">每間教會各生成一組</td></tr>
           </table>
         </div>
 
@@ -572,7 +571,8 @@ ADMIN_LINE_USER_IDS=U你的LINE_USER_ID</div>
           <table style="width:100%; font-size:.82rem; border-collapse:collapse;">
             <tr><td style="padding:4px 6px; font-weight:600;">Supabase</td><td style="padding:4px 6px; color:#555;">他們的資料庫，他們的帳號</td></tr>
             <tr style="background:#ffedd5;"><td style="padding:4px 6px; font-weight:600;">LINE Developers</td><td style="padding:4px 6px; color:#555;">LINE Login Channel，用他們的 LINE 帳號申請</td></tr>
-            <tr><td style="padding:4px 6px; font-weight:600;">Cloudflare R2</td><td style="padding:4px 6px; color:#555;">檔案分享用（選填）</td></tr>
+            <tr><td style="padding:4px 6px; font-weight:600;">Groq / Gemini</td><td style="padding:4px 6px; color:#555;">天父日記 AI（各自申請，避免 rate limit 互相影響）</td></tr>
+            <tr style="background:#ffedd5;"><td style="padding:4px 6px; font-weight:600;">Cloudflare R2</td><td style="padding:4px 6px; color:#555;">檔案分享用（選填）</td></tr>
           </table>
           <p style="font-size:.75rem; color:#9a3412; margin:8px 0 0;">教會端只需提供帳號資料給你，不需碰代碼或 Render。</p>
         </div>
@@ -620,7 +620,8 @@ ADMIN_LINE_USER_IDS=U你的LINE_USER_ID</div>
           <div class="instr-num">4</div>
           <div class="instr-body">
             <strong>填入環境變數</strong>（Environment Variables 區塊）<br>
-            <div style="background:#1e1e2e; color:#cdd6f4; border-radius:8px; padding:12px; font-family:monospace; font-size:.76rem; margin-top:6px; white-space:pre; overflow-x:auto;">RENDER=true
+            <div style="background:#1e1e2e; color:#cdd6f4; border-radius:8px; padding:12px; font-family:monospace; font-size:.76rem; margin-top:6px; white-space:pre; overflow-x:auto;"># ── 必填 ──────────────────────────────────
+RENDER=true
 FLASK_SECRET_KEY=&lt;python -c "import secrets; print(secrets.token_hex(32))"&gt;
 LINE_CHANNEL_ID=&lt;教會端提供&gt;
 LINE_CHANNEL_SECRET=&lt;教會端提供&gt;
@@ -629,7 +630,11 @@ SUPABASE_URL=&lt;教會端提供&gt;
 SUPABASE_KEY=&lt;教會端提供&gt;
 CHURCH_NAME=&lt;教會全名，例：天恩浸信會&gt;
 CHURCH_SHORT_NAME=&lt;教會簡稱，例：天恩堂&gt;
-ADMIN_LINE_USER_IDS=&lt;教會管理員的 LINE User ID&gt;</div>
+ADMIN_LINE_USER_IDS=&lt;教會管理員的 LINE User ID&gt;
+
+# ── 天父日記 AI（教會端各自申請，填教會自己的 key）──
+GROQ_API_KEY=&lt;教會端申請 groq.com 取得&gt;
+GEMINI_API_KEY=&lt;教會端申請 aistudio.google.com 取得，備援用&gt;</div>
           </div>
         </div>
 
