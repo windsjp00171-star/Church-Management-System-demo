@@ -1,0 +1,523 @@
+{% extends "base.html" %}
+{% block title %}產品說明書 — 整合型教會行政系統{% endblock %}
+
+{% block extra_css %}
+<style>
+.spec-wrap { max-width: 860px; margin: 0 auto; padding: 32px 16px 80px; }
+.spec-hero {
+  background: linear-gradient(135deg, #1a3a1a 0%, #2e7d32 60%, #388e3c 100%);
+  color: white;
+  border-radius: 20px;
+  padding: 48px 40px;
+  margin-bottom: 48px;
+  position: relative;
+  overflow: hidden;
+}
+.spec-hero::after {
+  content: '⛪';
+  position: absolute;
+  right: 32px; top: 50%;
+  transform: translateY(-50%);
+  font-size: 6rem;
+  opacity: .12;
+}
+.spec-hero h1 { font-size: 1.8rem; font-weight: 900; margin: 0 0 8px; }
+.spec-hero .sub { font-size: 1rem; opacity: .85; margin: 0 0 24px; }
+.spec-hero .tag {
+  display: inline-block;
+  background: rgba(255,255,255,.18);
+  border: 1px solid rgba(255,255,255,.3);
+  border-radius: 20px;
+  padding: 4px 14px;
+  font-size: .8rem;
+  margin: 4px 4px 0 0;
+}
+
+.spec-toc {
+  background: #f8fdf8;
+  border: 1px solid #c8e6c9;
+  border-radius: 14px;
+  padding: 20px 24px;
+  margin-bottom: 40px;
+}
+.spec-toc h2 { font-size: .85rem; color: #2e7d32; font-weight: 700; margin: 0 0 10px; letter-spacing: .06em; }
+.spec-toc ol { margin: 0; padding-left: 20px; }
+.spec-toc li { margin: 5px 0; }
+.spec-toc a { color: #1b5e20; font-size: .9rem; text-decoration: none; }
+.spec-toc a:hover { text-decoration: underline; }
+
+.spec-section { margin-bottom: 56px; }
+.spec-section h2 {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: #1b5e20;
+  border-bottom: 2.5px solid #a5d6a7;
+  padding-bottom: 10px;
+  margin: 0 0 24px;
+}
+.spec-module {
+  background: white;
+  border: 1px solid #e8f5e9;
+  border-radius: 14px;
+  padding: 24px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.04);
+}
+.spec-module-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+.spec-module-icon { font-size: 1.6rem; line-height: 1; }
+.spec-module-title { font-size: 1rem; font-weight: 700; color: #222; margin: 0; }
+.spec-module-path {
+  font-size: .75rem;
+  color: #888;
+  background: #f5f5f5;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+}
+.spec-module ul { margin: 0; padding-left: 20px; }
+.spec-module li { font-size: .9rem; color: #444; margin: 5px 0; line-height: 1.5; }
+.spec-module .highlight {
+  display: inline-block;
+  background: #e8f5e9;
+  color: #2e7d32;
+  font-size: .75rem;
+  font-weight: 700;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 4px;
+}
+
+.role-matrix {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .86rem;
+  margin-top: 8px;
+}
+.role-matrix th {
+  background: #2e7d32;
+  color: white;
+  padding: 10px 14px;
+  text-align: left;
+  font-weight: 700;
+}
+.role-matrix td { padding: 9px 14px; border-bottom: 1px solid #f0f0f0; vertical-align: top; }
+.role-matrix tr:last-child td { border-bottom: none; }
+.role-matrix tr:nth-child(even) td { background: #fafafa; }
+.check { color: #2e7d32; font-weight: 700; }
+.dash  { color: #ccc; }
+
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+  margin-top: 4px;
+}
+.tech-card {
+  background: #f8fdf8;
+  border: 1px solid #c8e6c9;
+  border-radius: 10px;
+  padding: 14px 16px;
+}
+.tech-card .label { font-size: .75rem; color: #888; font-weight: 600; letter-spacing: .05em; margin-bottom: 4px; }
+.tech-card .value { font-size: .9rem; color: #1b5e20; font-weight: 700; }
+
+.new-badge {
+  display: inline-block;
+  background: #ff6f00;
+  color: white;
+  font-size: .68rem;
+  font-weight: 800;
+  border-radius: 4px;
+  padding: 1px 6px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: .03em;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="spec-wrap" id="spec-top">
+
+  <!-- Hero -->
+  <div class="spec-hero">
+    <h1>整合型教會行政系統</h1>
+    <p class="sub">Church Management System — 產品說明書</p>
+    <span class="tag">Flask Blueprint 架構</span>
+    <span class="tag">LINE Login</span>
+    <span class="tag">Supabase PostgreSQL</span>
+    <span class="tag">Render 部署</span>
+    <span class="tag">Cloudflare R2</span>
+  </div>
+
+  <!-- 目錄 -->
+  <div class="spec-toc">
+    <h2>目錄</h2>
+    <ol>
+      <li><a href="#overview">系統概覽</a></li>
+      <li><a href="#roles">角色與權限</a></li>
+      <li><a href="#modules">功能模組說明</a></li>
+      <li><a href="#tech">技術架構</a></li>
+      <li><a href="#deploy">部署與環境變數</a></li>
+    </ol>
+  </div>
+
+
+  <!-- 1. 系統概覽 -->
+  <div class="spec-section" id="overview">
+    <h2>1. 系統概覽</h2>
+
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">🎯</span>
+        <div>
+          <p class="spec-module-title">定位與目標</p>
+        </div>
+      </div>
+      <ul>
+        <li>整合活動報名、電子簽到、小組回報、檔案分享、靈修日記、門訓課程等教會日常行政需求</li>
+        <li>以 LINE 帳號為唯一登入入口，降低中高齡使用者的操作門檻</li>
+        <li>支援多身分（會友 / 小組長 / 同工 / 牧者 / 管理員）動態顯示對應功能</li>
+        <li>全端 Mobile-first 設計，主要使用場景為手機瀏覽器及 LINE 內建瀏覽器</li>
+      </ul>
+    </div>
+
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">📦</span>
+        <div><p class="spec-module-title">整合來源模組</p></div>
+      </div>
+      <table class="role-matrix" style="margin-top:0;">
+        <thead>
+          <tr><th>子系統</th><th>功能範疇</th><th>Blueprint</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>event-registration-</td><td>活動報名、簽到、會友管理</td><td>event_bp、admin_bp、checkin_bp…</td></tr>
+          <tr><td>church-data-hub</td><td>檔案分享（Cloudflare R2）</td><td>files_bp</td></tr>
+          <tr><td>tianfu-diary</td><td>靈修日記 + AI 反思引導</td><td>diary_bp</td></tr>
+          <tr><td>cell_reporter</td><td>小組回報單（Django→Flask 移植）</td><td>cell_report_bp</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- 2. 角色與權限 -->
+  <div class="spec-section" id="roles">
+    <h2>2. 角色與權限</h2>
+
+    <div class="spec-module">
+      <p style="font-size:.85rem; color:#666; margin:0 0 14px;">
+        角色由 session 旗標控制，可在「使用者管理」後台由管理員設定。同一帳號可同時持有多個角色。
+      </p>
+      <div style="overflow-x:auto;">
+        <table class="role-matrix">
+          <thead>
+            <tr>
+              <th>功能</th>
+              <th>一般會友</th>
+              <th>小組長</th>
+              <th>同工</th>
+              <th>牧者</th>
+              <th>管理員</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>活動報名、行事曆、日記</td>
+              <td class="check">✓</td><td class="check">✓</td>
+              <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
+            </tr>
+            <tr>
+              <td>小組回報單填寫</td>
+              <td class="dash">—</td><td class="check">✓（自己的組）</td>
+              <td class="check">✓（所有組）</td><td class="check">✓</td><td class="check">✓</td>
+            </tr>
+            <tr>
+              <td>電子簽到 / 名單查閱</td>
+              <td class="dash">—</td><td class="dash">—</td>
+              <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
+            </tr>
+            <tr>
+              <td>聚會人數回報</td>
+              <td class="dash">—</td><td class="dash">—</td>
+              <td class="check">✓</td><td class="check">✓</td><td class="check">✓</td>
+            </tr>
+            <tr>
+              <td>牧者查閱 Dashboard</td>
+              <td class="dash">—</td><td class="dash">—</td>
+              <td class="dash">—</td><td class="check">✓</td><td class="check">✓</td>
+            </tr>
+            <tr>
+              <td>查閱成員天父日記</td>
+              <td class="dash">—</td><td class="dash">—</td>
+              <td class="dash">—</td><td class="check">✓（已授權者）</td><td class="dash">—</td>
+            </tr>
+            <tr>
+              <td>後台管理（活動、課程、週報等）</td>
+              <td class="dash">—</td><td class="dash">—</td>
+              <td class="dash">—</td><td class="dash">—</td><td class="check">✓</td>
+            </tr>
+            <tr>
+              <td>聚會設定（含新增自訂聚會）</td>
+              <td class="dash">—</td><td class="dash">—</td>
+              <td class="dash">—</td><td class="check">✓</td><td class="check">✓</td>
+            </tr>
+            <tr>
+              <td>會員管理 / 首頁卡片設定</td>
+              <td class="dash">—</td><td class="dash">—</td>
+              <td class="dash">—</td><td class="dash">—</td><td class="check">✓（需超管）</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- 3. 功能模組說明 -->
+  <div class="spec-section" id="modules">
+    <h2>3. 功能模組說明</h2>
+
+    <!-- 登入 -->
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">🔑</span>
+        <div>
+          <p class="spec-module-title">LINE 登入</p>
+          <span class="spec-module-path">/auth/login</span>
+        </div>
+      </div>
+      <ul>
+        <li>LINE Login OAuth2 流程，不儲存密碼</li>
+        <li>在 LINE 內建瀏覽器自動呼叫 LIFF SDK 靜默登入；外部瀏覽器直接顯示登入按鈕，無等待時間</li>
+        <li>管理員 LINE User ID 透過環境變數 <code>ADMIN_LINE_USER_IDS</code> 設定，登入時自動賦予管理員權限</li>
+        <li>訪客首次登入後引導填寫真實姓名，填完升格為會友</li>
+      </ul>
+    </div>
+
+    <!-- 活動報名 -->
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">🎉</span>
+        <div>
+          <p class="spec-module-title">活動報名與電子簽到</p>
+          <span class="spec-module-path">/events &nbsp;/checkin</span>
+        </div>
+      </div>
+      <ul>
+        <li>管理員可建立活動並設計自訂報名表（文字、單選、複選、條件顯示欄位）</li>
+        <li>支援付費活動、候補名單、開放式報名（不限報名者）、白名單模式</li>
+        <li>外部朋友（非 LINE 登入）可透過獨立報名頁參加</li>
+        <li>電子簽到提供 QR Code 掃描、手動搜尋補簽、Kiosk 現場自助簽到三種模式</li>
+        <li>即時簽到監控介面（3 秒自動更新），可匯出出席名單</li>
+      </ul>
+    </div>
+
+    <!-- 小組回報 -->
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">📋</span>
+        <div>
+          <p class="spec-module-title">小組回報與聚會統計</p>
+          <span class="spec-module-path">/cell-report</span>
+        </div>
+      </div>
+      <ul>
+        <li>小組長每週填寫：出席人數、信仰進度（靈修/讀經/禱告）、聚會主題、代禱事項</li>
+        <li>支援標記「本週無聚會」並填寫原因</li>
+        <li>聚會人數回報：成人主日（多堂）、兒童主日、禱告會、晨禱</li>
+        <li><strong>自訂聚會類型</strong> <span class="new-badge">NEW</span>：管理員可在「聚會設定」新增任意聚會（如青年崇拜），自動出現在 Dashboard 統計卡片與填報連結</li>
+        <li>Dashboard（同工 / 牧者版）依週次顯示所有小組回報狀況與聚會人數總覽，可切換歷史週次</li>
+      </ul>
+    </div>
+
+    <!-- 天父日記 -->
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">📔</span>
+        <div>
+          <p class="spec-module-title">天父日記（靈修日記）</p>
+          <span class="spec-module-path">/diary</span>
+        </div>
+      </div>
+      <ul>
+        <li>依讀經計畫自動導入當日經文，會友記錄靈修心得</li>
+        <li>AI 反思引導（Groq 主、Gemini 備援），逐字串流回應，10 秒超時自動重試</li>
+        <li>日記可設定加密鎖定；授權牧者後可供牧養關顧查閱</li>
+        <li>牧者查閱介面可篩選日期、搜尋關鍵字</li>
+      </ul>
+    </div>
+
+    <!-- 檔案分享 -->
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">📁</span>
+        <div>
+          <p class="spec-module-title">檔案分享</p>
+          <span class="spec-module-path">/files &nbsp;/folders</span>
+        </div>
+      </div>
+      <ul>
+        <li>上傳至 Cloudflare R2，支援批次上傳、拖拉上傳、拍照上傳</li>
+        <li>權限控制：公開 / 私人 / 指定會員 / 指定小組 / 指定角色</li>
+        <li>支援密碼保護、改名、資料夾管理</li>
+        <li>單檔上傳上限 500 MB，大型檔案顯示進度條</li>
+      </ul>
+    </div>
+
+    <!-- 門訓課程 -->
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">📚</span>
+        <div>
+          <p class="spec-module-title">門訓課程</p>
+          <span class="spec-module-path">/courses</span>
+        </div>
+      </div>
+      <ul>
+        <li>課程建立：設定先修條件、報名期限、容量、講義上傳</li>
+        <li>出席追蹤：每堂課掃 QR Code 點名，自動計算出席率</li>
+        <li>完訓認證：達標後核發完訓記錄，可批次發放</li>
+        <li>後台管理名單、手動加退選</li>
+      </ul>
+    </div>
+
+    <!-- 其他功能 -->
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">✨</span>
+        <div><p class="spec-module-title">其他功能</p></div>
+      </div>
+      <ul>
+        <li><strong>代禱麥田</strong>：會友發布代禱事項，他人可回覆並標記蒙應允</li>
+        <li><strong>行事曆</strong>：個人報名活動 + 教會行事一覽</li>
+        <li><strong>每週週報</strong>：管理員上傳 PDF，首頁資訊列顯示</li>
+        <li><strong>福音探索</strong>：外部朋友留詢問，同工跟進管理</li>
+        <li><strong>每日經文卡</strong>：生成精美圖卡可下載/分享</li>
+        <li><strong>站內通知</strong>：活動開始提醒、候補錄取通知等</li>
+        <li><strong>設定精靈</strong>：<code>/setup-wizard</code> 引導首次部署的環境變數與資料表建立確認</li>
+      </ul>
+    </div>
+  </div>
+
+
+  <!-- 4. 技術架構 -->
+  <div class="spec-section" id="tech">
+    <h2>4. 技術架構</h2>
+
+    <div class="spec-module">
+      <div class="tech-grid">
+        <div class="tech-card">
+          <div class="label">後端框架</div>
+          <div class="value">Python Flask</div>
+        </div>
+        <div class="tech-card">
+          <div class="label">架構模式</div>
+          <div class="value">Blueprint 模組化</div>
+        </div>
+        <div class="tech-card">
+          <div class="label">資料庫</div>
+          <div class="value">Supabase PostgreSQL</div>
+        </div>
+        <div class="tech-card">
+          <div class="label">認證</div>
+          <div class="value">LINE Login OAuth2 + LIFF</div>
+        </div>
+        <div class="tech-card">
+          <div class="label">檔案儲存</div>
+          <div class="value">Cloudflare R2 (S3 相容)</div>
+        </div>
+        <div class="tech-card">
+          <div class="label">AI</div>
+          <div class="value">Groq（主）/ Gemini（備援）</div>
+        </div>
+        <div class="tech-card">
+          <div class="label">部署平台</div>
+          <div class="value">Render (gunicorn)</div>
+        </div>
+        <div class="tech-card">
+          <div class="label">前端</div>
+          <div class="value">Jinja2 + 原生 JS（無框架）</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">🗄️</span>
+        <div><p class="spec-module-title">主要資料表</p></div>
+      </div>
+      <table class="role-matrix" style="margin-top:0;">
+        <thead>
+          <tr><th>資料表</th><th>說明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>users</td><td>會友資料（LINE ID、真實姓名、角色旗標）</td></tr>
+          <tr><td>events / event_registrations</td><td>活動與報名記錄</td></tr>
+          <tr><td>cell_groups / cell_members / cell_reports</td><td>小組結構與週報</td></tr>
+          <tr><td>sunday_reports / children_sunday_reports / prayer_reports / morning_prayer_reports</td><td>固定聚會人數紀錄</td></tr>
+          <tr><td>custom_meeting_reports</td><td>自訂聚會人數紀錄（meeting_key + date 複合唯一）</td></tr>
+          <tr><td>diary_entries / diary_whitelist</td><td>天父日記本文與牧者授權名單</td></tr>
+          <tr><td>settings</td><td>全域 key-value 設定（含聚會設定 meeting.* 系列）</td></tr>
+          <tr><td>portal_cards / portal_links</td><td>首頁卡片與快捷連結設定</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+
+  <!-- 5. 部署與環境變數 -->
+  <div class="spec-section" id="deploy">
+    <h2>5. 部署與環境變數</h2>
+
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">🚀</span>
+        <div><p class="spec-module-title">快速部署流程</p></div>
+      </div>
+      <ul>
+        <li>Fork 此 repository → Render 選「New Web Service」連結 repo</li>
+        <li>設定以下環境變數後，首次啟動系統會顯示 <code>/setup-wizard</code> 設定精靈</li>
+        <li>在 Supabase SQL Editor 執行 <code>/setup-wizard</code> 頁面提供的建表 SQL</li>
+        <li>確認所有必填環境變數與資料表均為綠色 ✓ 後即可上線</li>
+      </ul>
+    </div>
+
+    <div class="spec-module">
+      <div class="spec-module-header">
+        <span class="spec-module-icon">⚙️</span>
+        <div><p class="spec-module-title">環境變數一覽</p></div>
+      </div>
+      <table class="role-matrix" style="margin-top:0;">
+        <thead>
+          <tr><th>變數名稱</th><th>必填</th><th>說明</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>FLASK_SECRET_KEY</td><td class="check">✓</td><td>Session 加密金鑰（用 secrets.token_hex(32) 生成）</td></tr>
+          <tr><td>LINE_CHANNEL_ID</td><td class="check">✓</td><td>LINE Login Channel ID</td></tr>
+          <tr><td>LINE_CHANNEL_SECRET</td><td class="check">✓</td><td>LINE Login Channel Secret</td></tr>
+          <tr><td>LINE_REDIRECT_URI</td><td class="check">✓</td><td>OAuth 回呼網址（https://你的網域/auth/callback）</td></tr>
+          <tr><td>SUPABASE_URL</td><td class="check">✓</td><td>Supabase 專案 URL</td></tr>
+          <tr><td>SUPABASE_KEY</td><td class="check">✓</td><td>Supabase anon key</td></tr>
+          <tr><td>CHURCH_NAME</td><td class="dash">選填</td><td>教會全名（顯示於標題列）</td></tr>
+          <tr><td>ADMIN_LINE_USER_IDS</td><td class="dash">選填</td><td>管理員 LINE User ID，逗號分隔</td></tr>
+          <tr><td>LINE_LIFF_ID</td><td class="dash">選填</td><td>LIFF App ID（LINE 內自動登入用）</td></tr>
+          <tr><td>R2_ENDPOINT / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME</td><td class="dash">選填</td><td>Cloudflare R2 檔案分享模組</td></tr>
+          <tr><td>GROQ_API_KEY / GEMINI_API_KEY</td><td class="dash">選填</td><td>AI 反思引導（天父日記）</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div style="text-align:center; color:#aaa; font-size:.78rem; padding-top:16px;">
+    整合型教會行政系統 &nbsp;|&nbsp; 如有技術問題請聯繫系統管理員
+  </div>
+
+</div>
+{% endblock %}

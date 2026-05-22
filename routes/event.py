@@ -402,6 +402,13 @@ def manual():
     return render_template('manual.html')
 
 
+@event_bp.route('/product-spec')
+def product_spec():
+    """產品說明書（公開可讀）"""
+    from config import Config
+    return render_template('product_spec.html', church_name=Config.CHURCH_NAME)
+
+
 @event_bp.route('/my-history')
 @login_required
 def my_history():

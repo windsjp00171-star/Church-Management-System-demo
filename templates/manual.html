@@ -568,12 +568,17 @@
                 <td><code style="font-size:0.78rem; background:#f5f5f5; padding:2px 5px; border-radius:4px;">/cell-report/morning-prayer</code></td>
                 <td>出席人數</td>
               </tr>
+              <tr>
+                <td style="color:#607d8b;">自訂聚會（如青年崇拜）</td>
+                <td><code style="font-size:0.78rem; background:#f5f5f5; padding:2px 5px; border-radius:4px;">/cell-report/custom-meeting/…</code></td>
+                <td>出席人數（由管理員在聚會設定中新增）</td>
+              </tr>
             </tbody>
           </table>
         </div>
 
         <div class="callout callout-blue">
-          💡 填完點「送出」即可，合計人數會自動計算。
+          💡 填完點「送出」即可，合計人數會自動計算。自訂聚會的連結會出現在 Dashboard 下方「快速更新」區塊。
         </div>
       </div>
 
@@ -581,10 +586,24 @@
       <div class="feature-block">
         <h3>📋 同工查閱 <span class="badge badge-gray" style="font-size:0.72rem;">/cell-report/staff-dashboard</span></h3>
         <ul class="manual-ul">
+          <li>查看本週所有聚會人數（含自訂聚會類型）</li>
           <li>查看所有小組本週回報情況</li>
           <li>篩選查看特定週次的歷史資料</li>
           <li>確認哪些小組尚未回報（標示為「未回報」）</li>
         </ul>
+      </div>
+
+      <!-- 同工首頁 -->
+      <div class="feature-block">
+        <h3>⚡ 同工首頁 <span class="badge badge-gray" style="font-size:0.72rem;">/staff</span></h3>
+        <ul class="manual-ul">
+          <li>顯示今天及未來 7 天的活動清單</li>
+          <li>每個活動顯示報名人數、已簽到人數、待簽到人數</li>
+          <li>一鍵進入「門口簽到」模式（免跳轉到後台）</li>
+        </ul>
+        <div class="callout callout-gray">
+          💡 今天有活動時，會以綠色大按鈕「🔍 開始門口簽到」醒目顯示，方便同工在現場快速開啟。
+        </div>
       </div>
 
     </div><!-- .manual-card -->
@@ -744,6 +763,20 @@
           <li>上傳 PDF 格式週報</li>
           <li>系統自動顯示於會友首頁資訊列</li>
         </ul>
+      </div>
+
+      <!-- 聚會設定 -->
+      <div class="feature-block">
+        <h3>⚙️ 聚會設定 <span class="badge badge-gray" style="font-size:0.72rem;">/cell-report/admin/meeting-settings</span></h3>
+        <ul class="manual-ul">
+          <li>調整各固定聚會（成人主日、兒童主日、禱告會、晨禱）的星期幾、堂數、顯示名稱與 Emoji</li>
+          <li>點「＋ 新增聚會」可建立自訂聚會類型（如青年崇拜、週五靈修）</li>
+          <li>自訂聚會會自動出現在 Dashboard 人數卡片與「快速更新」連結</li>
+          <li>點「刪除」可移除不再使用的自訂聚會；固定聚會不可刪除</li>
+        </ul>
+        <div class="callout callout-blue">
+          💡 更改設定後需點「儲存設定」才會生效。系統每 5 分鐘更新快取，儲存後立即生效。
+        </div>
       </div>
 
       <!-- 福音探索管理 -->
