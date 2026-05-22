@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}系統錯誤 — {{ church_name }}{% endblock %}
+{% block content %}
+<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center; padding:40px 24px;">
+    <div style="font-size:4rem; margin-bottom:12px;">⚙️</div>
+    <h1 style="font-size:1.5rem; font-weight:700; color:var(--color-text); margin:0 0 8px;">系統暫時無法處理請求</h1>
+    <p style="color:var(--color-text-light); font-size:0.9rem; margin:0 0 28px; max-width:360px;">
+        伺服器發生了一點小問題，我們已記錄此錯誤。請稍後再試，或聯繫教會行政同工。
+    </p>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <a href="/" style="padding:10px 24px; background:var(--color-primary); color:#fff; border-radius:8px; text-decoration:none; font-weight:600; font-size:0.9rem;">
+            回到首頁
+        </a>
+        <a href="javascript:location.reload()" style="padding:10px 24px; background:var(--color-surface); color:var(--color-text); border:1px solid var(--color-border); border-radius:8px; text-decoration:none; font-size:0.9rem;">
+            重新整理
+        </a>
+    </div>
+    <p style="margin-top:32px; font-size:0.78rem; color:var(--color-text-muted);">錯誤代碼 500</p>
+</div>
+{% endblock %}

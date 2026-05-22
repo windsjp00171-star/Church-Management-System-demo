@@ -202,6 +202,17 @@ def create_app():
 
     app.jinja_env.filters['taipei_time'] = _taipei_time
 
+    # ── 錯誤頁面 ──────────────────────────────────────────────
+    @app.errorhandler(404)
+    def not_found(e):
+        from flask import render_template as _rt
+        return _rt('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        from flask import render_template as _rt
+        return _rt('errors/500.html'), 500
+
     # ── PWA manifest ─────────────────────────────────────────
     @app.route('/manifest.json')
     def pwa_manifest():

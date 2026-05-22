@@ -2,7 +2,6 @@ from flask import Blueprint, session, render_template, request, jsonify, redirec
 from db import supabase
 from routes.decorators import login_required, admin_required
 from datetime import date, datetime, timezone
-from math import floor
 
 attendance_bp = Blueprint('attendance', __name__)
 
@@ -25,21 +24,51 @@ def _annual_leave_days(years: float) -> int:
     return min(15 + int(years - 10) + 1, 30)
 
 
+def _months_elapsed(from_date: date, to_date: date) -> int:
+    """精確日曆月數，避免浮點邊界問題"""
+    m = (to_date.year - from_date.year) * 12 + to_date.month - from_date.month
+    if to_date.day < from_date.day:
+        m -= 1
+    return m
+
+
+def _full_years_elapsed(from_date: date, to_date: date) -> int:
+    """已過整數週年數（日曆）"""
+    y = to_date.year - from_date.year
+    try:
+        ann = from_date.replace(year=to_date.year)
+    except ValueError:
+        ann = from_date.replace(year=to_date.year, day=28)
+    if to_date < ann:
+        y -= 1
+    return max(y, 0)
+
+
+def _anniversary_start(hire_date: date, full_years: int) -> date:
+    """第 full_years 個週年日"""
+    try:
+        return hire_date.replace(year=hire_date.year + full_years)
+    except ValueError:
+        return hire_date.replace(year=hire_date.year + full_years, day=28)
+
+
 def _calc_entitlement(hire_date: date, cycle: str) -> float:
     """回傳本週期應有特休時數（以小時計，1天=8小時）"""
     today = date.today()
-    delta_days = (today - hire_date).days
-    years = delta_days / 365.25
 
     if cycle == 'anniversary':
-        # 以最近一個週年為基準
-        full_years = floor(years)
-        days = _annual_leave_days(full_years) if years >= 0.5 else 0
+        months = _months_elapsed(hire_date, today)
+        if months < 6:
+            return 0.0
+        full_years = _full_years_elapsed(hire_date, today)
+        days = 3 if full_years < 1 else _annual_leave_days(full_years)
     else:
-        # 曆年制：以今年1/1當下的年資計算
         jan1 = date(today.year, 1, 1)
-        years_at_jan1 = (jan1 - hire_date).days / 365.25
-        days = _annual_leave_days(floor(years_at_jan1)) if years_at_jan1 >= 0.5 else 0
+        months = _months_elapsed(hire_date, jan1)
+        if months < 6:
+            return 0.0
+        full_years = _full_years_elapsed(hire_date, jan1)
+        days = 3 if full_years < 1 else _annual_leave_days(full_years)
 
     return days * 8.0
 
@@ -48,9 +77,8 @@ def _used_hours(user_id: str, leave_type: str, cycle: str, hire_date: date) -> f
     """計算本週期已用時數"""
     today = date.today()
     if cycle == 'anniversary':
-        # 最近一次週年日
-        years = floor((today - hire_date).days / 365.25)
-        period_start = date(hire_date.year + years, hire_date.month, hire_date.day)
+        full_years = _full_years_elapsed(hire_date, today)
+        period_start = _anniversary_start(hire_date, full_years)
     else:
         period_start = date(today.year, 1, 1)
 
