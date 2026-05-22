@@ -358,7 +358,7 @@ function saveProfile() {
     .then(r => r.json())
     .then(d => {
         if (d.success) { closeModal(); loadUsers(document.getElementById('searchInput').value); }
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 
@@ -407,7 +407,7 @@ function toggleAdmin(userId, btn) {
     fetch(`/admin/api/users/${userId}/toggle-admin`, { method: 'POST' })
         .then(r => r.json())
         .then(data => {
-            if (data.error) { alert(data.error); btn.disabled = false; return; }
+            if (data.error) { showToast(data.error, 'error'); btn.disabled = false; return; }
             _syncRoleBadge(userId, data.is_admin, data.is_super_admin);
         });
 }
@@ -417,7 +417,7 @@ function toggleSuperAdmin(userId, btn) {
     fetch(`/admin/api/users/${userId}/toggle-super-admin`, { method: 'POST' })
         .then(r => r.json())
         .then(data => {
-            if (data.error) { alert(data.error); btn.disabled = false; return; }
+            if (data.error) { showToast(data.error, 'error'); btn.disabled = false; return; }
             _syncRoleBadge(userId, data.is_admin, data.is_super_admin);
         });
 }
@@ -431,7 +431,7 @@ function togglePastor(userId, btn) {
                 btn.style.background = isPastor ? '#e8eaf6' : 'white';
                 btn.style.borderColor = isPastor ? '#3949ab' : '#ddd';
                 btn.style.color = isPastor ? '#3949ab' : '#aaa';
-            } else { alert(data.error || '操作失敗'); }
+            } else { showToast(data.error || '操作失敗', 'error'); }
         });
 }
 
@@ -444,7 +444,7 @@ function toggleStaff(userId, btn) {
                 btn.style.background = isStaff ? '#f3e5f5' : 'white';
                 btn.style.borderColor = isStaff ? '#7b1fa2' : '#ddd';
                 btn.style.color = isStaff ? '#7b1fa2' : '#aaa';
-            } else { alert(data.error || '操作失敗'); }
+            } else { showToast(data.error || '操作失敗', 'error'); }
         });
 }
 </script>

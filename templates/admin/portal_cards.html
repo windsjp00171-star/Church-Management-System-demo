@@ -109,7 +109,7 @@ function copySql() {
     navigator.clipboard.writeText(sql).then(() => {
         showToast('SQL 已複製', 'success');
     }).catch(() => {
-        alert('請手動複製上方 SQL');
+        showToast('請手動複製上方 SQL', 'warning');
     });
 }
 
@@ -126,7 +126,7 @@ document.querySelectorAll('.pc-toggle-wrap').forEach(wrap => {
 
 async function saveCard(btn) {
     if (!_fromDb) {
-        alert('請先在 Supabase 建立資料表（見頁面頂部說明）');
+        showToast('請先在 Supabase 建立資料表（見頁面頂部說明）', 'warning');
         return;
     }
     const row = btn.closest('.pc-row');
@@ -135,7 +135,7 @@ async function saveCard(btn) {
     const subtitle = row.querySelector('.pc-subtitle-input').value.trim();
     const visible_to = row.querySelector('.pc-visible-select').value;
     const is_active = row.querySelector('.pc-active-cb').checked;
-    if (!name) { alert('名稱不能為空'); return; }
+    if (!name) { showToast('名稱不能為空', 'warning'); return; }
 
     btn.disabled = true; btn.textContent = '儲存中…';
     try {
@@ -150,10 +150,10 @@ async function saveCard(btn) {
             msg.style.display = 'inline';
             setTimeout(() => { msg.style.display = 'none'; }, 2500);
         } else {
-            alert(d.error || '儲存失敗');
+            showToast(d.error || '儲存失敗', 'error');
         }
     } catch(e) {
-        alert('網路錯誤：' + e.message);
+        showToast('網路錯誤，請再試', 'error');
     }
     btn.disabled = false; btn.textContent = '儲存';
 }

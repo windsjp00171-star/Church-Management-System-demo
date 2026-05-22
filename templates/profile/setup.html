@@ -176,9 +176,9 @@ function submitProfile() {
     })
     .then(d => {
         if (d.success) window.location.href = d.next;
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     })
-    .catch(err => alert('錯誤：' + err.message));
+    .catch(err => showToast('錯誤：' + err.message, 'error'));
 }
 </script>
 {% endblock %}

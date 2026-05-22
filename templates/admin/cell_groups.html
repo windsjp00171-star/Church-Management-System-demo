@@ -93,14 +93,14 @@ async function loadGroups() {
 async function createGroup() {
     const name = document.getElementById('new-group-name').value.trim();
     const day = parseInt(document.getElementById('new-group-day').value);
-    if (!name) { alert('請輸入小組名稱'); return; }
+    if (!name) { showToast('請輸入小組名稱', 'warning'); document.getElementById('new-group-name').focus(); return; }
     const res = await fetch('/admin/api/cell-groups', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ name, weekly_gather_day: day })
     });
     const data = await res.json();
     if (data.success) { document.getElementById('new-group-name').value = ''; loadGroups(); }
-    else alert(data.error || '新增失敗');
+    else showToast(data.error || '新增失敗', 'error');
 }
 
 async function openLeaderModal(groupId, groupName) {
@@ -121,14 +121,14 @@ function closeLeaderModal() {
 
 async function addLeader() {
     const userId = document.getElementById('leader-select').value;
-    if (!userId) { alert('請選擇會員'); return; }
+    if (!userId) { showToast('請選擇會員', 'warning'); return; }
     const res = await fetch(`/admin/api/cell-groups/${currentGroupId}/leaders`, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ user_id: userId })
     });
     const data = await res.json();
     if (data.success) { closeLeaderModal(); loadGroups(); }
-    else alert(data.error || '操作失敗');
+    else showToast(data.error || '操作失敗', 'error');
 }
 
 async function removeLeader(groupId, userId, el) {
@@ -136,7 +136,7 @@ async function removeLeader(groupId, userId, el) {
     const res = await fetch(`/admin/api/cell-groups/${groupId}/leaders/${userId}`, { method: 'DELETE' });
     const data = await res.json();
     if (data.success) el.remove();
-    else alert(data.error || '操作失敗');
+    else showToast(data.error || '操作失敗', 'error');
 }
 
 async function toggleActive(groupId, btn) {

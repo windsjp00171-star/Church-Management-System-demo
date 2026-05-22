@@ -257,7 +257,7 @@ function closeChurchModal() {
 async function submitChurchForm() {
     const title = document.getElementById('ch-title').value.trim();
     const date  = document.getElementById('ch-date').value;
-    if (!title || !date) { alert('請填寫標題與日期'); return; }
+    if (!title || !date) { showToast('請填寫標題與日期', 'warning'); return; }
     const url = editChurchId
         ? `/admin/calendar/church/${editChurchId}/edit`
         : '/admin/calendar/church/new';
@@ -273,7 +273,7 @@ async function submitChurchForm() {
     });
     const d = await res.json();
     if (d.success) { closeChurchModal(); loadCalendar(); }
-    else alert(d.error || '儲存失敗');
+    else showToast(d.error || '儲存失敗', 'error');
 }
 async function deleteChurch(id) {
     if (!confirm('確定刪除這筆教會行事？')) return;
@@ -282,7 +282,7 @@ async function deleteChurch(id) {
     });
     const d = await res.json();
     if (d.success) { loadCalendar(); document.getElementById('day-detail').style.display = 'none'; }
-    else alert('刪除失敗');
+    else showToast('刪除失敗', 'error');
 }
 </script>
 

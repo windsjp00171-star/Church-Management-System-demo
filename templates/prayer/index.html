@@ -1031,7 +1031,7 @@ function sendComment(prayerId) {
             const cntEl = document.getElementById('cnt-' + prayerId);
             if (cntEl) cntEl.textContent = parseInt(cntEl.textContent || 0) + 1;
         } else {
-            alert(d.error || '送出失敗');
+            showToast(d.error || '送出失敗', 'error');
         }
     });
 }
@@ -1043,7 +1043,7 @@ function markAnswered(prayerId, btn) {
     fetch(`/prayer/${prayerId}/answered`, { method: 'POST' })
         .then(r => r.json()).then(d => {
             if (d.success) location.reload();
-            else { alert(d.error || '操作失敗'); btn.disabled = false; }
+            else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; }
         });
 }
 
@@ -1058,7 +1058,7 @@ function deletePrayer(prayerId, btn) {
                 card.style.opacity = '0';
                 card.style.transition = 'opacity 0.3s';
                 setTimeout(() => card.remove(), 350);
-            } else { alert(d.error || '刪除失敗'); btn.disabled = false; }
+            } else { showToast(d.error || '刪除失敗', 'error'); btn.disabled = false; }
         });
 }
 

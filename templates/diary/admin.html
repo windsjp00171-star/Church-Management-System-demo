@@ -276,7 +276,7 @@ function deleteRow(d) {
     if (data.success) {
       const row = document.getElementById('row-' + d);
       if (row) row.remove();
-    } else { alert(data.error||'刪除失敗'); }
+    } else { showToast(data.error||'刪除失敗', 'error'); }
   });
 }
 

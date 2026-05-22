@@ -109,7 +109,7 @@ const qrFull = new QRCode(document.getElementById('qrcode-fullscreen'), {
 
 function downloadQR() {
     const canvas = document.querySelector('#qrcode canvas');
-    if (!canvas) { alert('QR Code 尚未產生，請稍後再試'); return; }
+    if (!canvas) { showToast('QR Code 尚未產生，請稍後再試', 'warning'); return; }
     const link = document.createElement('a');
     link.download = '報名QRCode_{{ event.title }}.png';
     link.href = canvas.toDataURL('image/png');
@@ -120,7 +120,7 @@ function copyUrl() {
     const input = document.getElementById('reg-url');
     input.select();
     navigator.clipboard.writeText(input.value).catch(() => document.execCommand('copy'));
-    alert('連結已複製！');
+    showToast('連結已複製！', 'success');
 }
 
 function openFullscreen() {

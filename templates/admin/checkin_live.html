@@ -233,7 +233,7 @@ function proxyCheckin(userId, regId, btn) {
             } else {
                 btn.disabled = false;
                 btn.textContent = '代為簽到';
-                alert(d.error || '簽到失敗');
+                showToast(d.error || '簽到失敗', 'error');
             }
         });
 }

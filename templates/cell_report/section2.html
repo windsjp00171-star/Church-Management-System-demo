@@ -268,7 +268,7 @@ async function addMember() {
       input.value = '';
       input.focus();
     } else {
-      alert(data.error || '新增失敗');
+      showToast(data.error || '新增失敗', 'error');
     }
   } catch(e) { console.error(e); }
 }

@@ -113,7 +113,7 @@ function toggleActive(cardId, newVal, btn) {
         body: JSON.stringify({ is_active: newVal === 'true' || newVal === true })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '操作失敗');
+        else showToast(d.error || '操作失敗', 'error');
     });
 }
 </script>

@@ -535,7 +535,7 @@ document.getElementById('uploadForm')?.addEventListener('submit', function(e) {
   e.preventDefault();
   const fileInput = document.getElementById('uploadFileInput');
   if (fileInput.files[0] && fileInput.files[0].size > MAX_FILE_BYTES) {
-    alert(`檔案超過 500 MB 上限（${formatSize(fileInput.files[0].size)}），請選擇較小的檔案`);
+    showToast(`檔案超過 500 MB，請選擇較小的檔案`, 'warning');
     return;
   }
   const form = new FormData(this);
@@ -547,14 +547,14 @@ document.getElementById('uploadForm')?.addEventListener('submit', function(e) {
     onSuccess: (data) => {
       if (data.success) { location.reload(); }
       else {
-        alert(data.error || '上傳失敗');
+        showToast(data.error || '上傳失敗', 'error');
         const btn = document.getElementById('uploadSubmitBtn');
         btn.disabled = false; btn.textContent = '上傳';
         document.getElementById('uploadProgressWrap').style.display = 'none';
       }
     },
     onError: (msg) => {
-      alert(msg);
+      showToast(msg, 'error');
       const btn = document.getElementById('uploadSubmitBtn');
       btn.disabled = false; btn.textContent = '上傳';
       document.getElementById('uploadProgressWrap').style.display = 'none';
@@ -568,7 +568,7 @@ document.getElementById('folderForm')?.addEventListener('submit', async function
   const res = await fetch('/folders/create', { method: 'POST', body: form });
   const data = await res.json();
   if (data.success) { location.reload(); }
-  else { alert(data.error || '建立失敗'); }
+  else { showToast(data.error || '建立失敗', 'error'); }
 });
 
 // ── 搜尋（Enter 提交伺服器搜尋）──
@@ -598,7 +598,7 @@ function startRename(el) {
     const res = await fetch(`/files/${fileId}/rename`, { method: 'POST', body: form });
     const data = await res.json();
     el.textContent = data.success ? newName : oldName;
-    if (!data.success) alert(data.error || '改名失敗');
+    if (!data.success) showToast(data.error || '改名失敗', 'error');
     // 更新搜尋 data-name
     el.closest('.file-item').dataset.name = (data.success ? newName : oldName).toLowerCase();
   }
@@ -661,7 +661,7 @@ if (_isLineBrowser) {
     if (lbl) {
       lbl.removeAttribute('for');
       lbl.onclick = () => {
-        alert('LINE 瀏覽器不支援直接開啟相機。\n請點右上角「⋯」→「用瀏覽器開啟」，再使用拍照功能。');
+        showToast('LINE 瀏覽器不支援直接開啟相機，請用外部瀏覽器', 'warning');
       };
     }
   });
@@ -729,14 +729,14 @@ function uploadPhoto() {
     onSuccess: (data) => {
       if (data.success) { closeModal('photoModal'); location.reload(); }
       else {
-        alert(data.error || '上傳失敗');
+        showToast(data.error || '上傳失敗', 'error');
         const btn = document.getElementById('photoUploadBtn');
         btn.disabled = false; btn.textContent = '↑ 上傳';
         document.getElementById('photoProgressWrap').style.display = 'none';
       }
     },
     onError: (msg) => {
-      alert(msg);
+      showToast(msg, 'error');
       const btn = document.getElementById('photoUploadBtn');
       btn.disabled = false; btn.textContent = '↑ 上傳';
       document.getElementById('photoProgressWrap').style.display = 'none';
@@ -760,7 +760,7 @@ function openBatchModal(files) {
   const oversized = files.filter(f => f.size > MAX_FILE_BYTES);
   if (oversized.length) {
     const names = oversized.map(f => `・${f.name}（${formatSize(f.size)}）`).join('\n');
-    alert(`以下檔案超過 500 MB 上限，已移除：\n${names}`);
+    showToast(`已移除 ${oversized.length} 個超過 500 MB 的檔案`, 'warning');
     files = files.filter(f => f.size <= MAX_FILE_BYTES);
     if (!files.length) return;
   }
@@ -814,7 +814,7 @@ function closeBatchModal() {
 async function startBatchUpload() {
   if (!batchFiles.length || batchUploading) return;
   const folderId = document.getElementById('batchFolderId').value;
-  if (folderId === '') { alert('請先選擇要上傳至哪個資料夾'); return; }
+  if (folderId === '') { showToast('請先選擇要上傳至哪個資料夾', 'warning'); return; }
   batchUploading = true;
   const btn = document.getElementById('batchUploadBtn');
   btn.disabled = true; btn.textContent = '上傳中…';

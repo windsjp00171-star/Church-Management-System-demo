@@ -234,7 +234,7 @@ function submitAddGuest() {
         body: JSON.stringify({ guest_name: name, guest_phone: phone || null })
     }).then(r => r.json()).then(d => {
         if (d.success) { closeAddGuest(); location.reload(); }
-        else alert(d.error || '新增失敗');
+        else showToast(d.error || '新增失敗', 'error');
     });
 }
 

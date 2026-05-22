@@ -145,7 +145,7 @@ function addGroup() {
             input.value = '';
             loadGroups();
         } else {
-            alert(data.error || '新增失敗');
+            showToast(data.error || '新增失敗', 'error');
         }
     });
 }
@@ -156,7 +156,7 @@ function toggleStaff(id, btn) {
         .then(res => res.json())
         .then(data => {
             if (data.success) loadGroups();
-            else { alert(data.error || '操作失敗'); btn.disabled = false; }
+            else { showToast(data.error || '操作失敗', 'error'); btn.disabled = false; }
         });
 }
 
@@ -166,7 +166,7 @@ function togglePrimary(id, btn) {
         .then(res => res.json())
         .then(data => {
             if (data.success) loadGroups();
-            else { alert(data.error || '操作失敗'); btn.disabled = false; }
+            else { showToast(data.error || '操作失敗', 'error'); btn.disabled = false; }
         });
 }
 
@@ -177,7 +177,7 @@ function deleteGroup(id, name, btn) {
         .then(res => res.json())
         .then(data => {
             if (data.success) loadGroups();
-            else { alert(data.error || '刪除失敗'); btn.disabled = false; }
+            else { showToast(data.error || '刪除失敗', 'error'); btn.disabled = false; }
         });
 }
 </script>

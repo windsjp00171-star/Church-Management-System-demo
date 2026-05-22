@@ -281,7 +281,7 @@ window.addEventListener('DOMContentLoaded', initMealConfig);
 
 function submitForm() {
     const title = document.getElementById('f-title').value.trim();
-    if (!title) { alert('請填寫課程名稱'); return; }
+    if (!title) { showToast('請填寫課程名稱', 'warning'); return; }
 
     const mealEnabled = document.getElementById('f-meal-enabled').checked;
     const meal_options = mealEnabled ? {
@@ -328,7 +328,7 @@ function submitForm() {
         if (d.success) {
             window.location.href = d.course_id ? `/admin/courses/${d.course_id}` : '/admin/courses';
         } else {
-            alert(d.error || '儲存失敗');
+            showToast(d.error || '儲存失敗', 'error');
         }
     });
 }

@@ -69,7 +69,7 @@ function sendAnnouncement() {
     var link  = document.getElementById('ann-link').value.trim();
     var result = document.getElementById('ann-result');
 
-    if (!title) { alert('請填寫公告標題'); return; }
+    if (!title) { showToast('請填寫公告標題', 'warning'); document.getElementById('ann-title').focus(); return; }
     if (!confirm('確定廣播此公告給所有會員嗎？')) return;
 
     result.textContent = '發送中...';

@@ -124,7 +124,7 @@ function submitAdd() {
         })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '新增失敗');
+        else showToast(d.error || '新增失敗', 'error');
     });
 }
 function startEdit(id) {
@@ -150,7 +150,7 @@ function saveEdit(id) {
         })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 function deleteCategory(id, name) {
@@ -159,7 +159,7 @@ function deleteCategory(id, name) {
         .then(r => r.json())
         .then(d => {
             if (d.success) location.reload();
-            else alert(d.error || '刪除失敗');
+            else showToast(d.error || '刪除失敗', 'error');
         });
 }
 // Enter 送出

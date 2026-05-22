@@ -158,7 +158,7 @@ function closeModal() {
 
 function saveQ() {
     const label = document.getElementById('m-label').value.trim();
-    if (!label) { alert('請填寫問題文字'); return; }
+    if (!label) { showToast('請填寫問題文字', 'warning'); return; }
 
     const payload = {
         action:      _editId ? 'update' : 'create',
@@ -177,7 +177,7 @@ function saveQ() {
         body: JSON.stringify(payload)
     }).then(r => r.json()).then(d => {
         if (d.success) { closeModal(); location.reload(); }
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 
@@ -189,7 +189,7 @@ function deleteQ(id) {
         body: JSON.stringify({ action: 'delete', id })
     }).then(r => r.json()).then(d => {
         if (d.success) document.getElementById('q-row-' + id)?.remove();
-        else alert(d.error || '刪除失敗');
+        else showToast(d.error || '刪除失敗', 'error');
     });
 }
 </script>

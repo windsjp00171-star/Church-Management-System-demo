@@ -397,7 +397,7 @@ function submitAdd() {
         body: JSON.stringify({ text, ref: document.getElementById('new-ref').value.trim() || null })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '新增失敗');
+        else showToast(d.error || '新增失敗', 'error');
     });
 }
 
@@ -422,14 +422,14 @@ function saveEdit(id) {
         })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 function deleteVerse(id) {
     if (!confirm('確定刪除此經文？')) return;
     fetch(`/admin/verses/${id}/delete`, { method: 'POST' })
         .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else alert(d.error || '刪除失敗'); });
+        .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
 }
 
 function previewCustomTheme(input) {
@@ -450,7 +450,7 @@ function uploadCustomTheme() {
     const file = document.getElementById('ct-file').files[0];
     const msg = document.getElementById('ct-msg');
     if (!name) { document.getElementById('ct-name').focus(); return; }
-    if (!file) { alert('請選擇卡片背景圖'); return; }
+    if (!file) { showToast('請選擇卡片背景圖', 'warning'); return; }
     const fd = new FormData();
     fd.append('name', name);
     fd.append('symbol', symbol);
@@ -480,7 +480,7 @@ function deleteCustomTheme(id) {
     if (!confirm('確定刪除此自訂樣式？')) return;
     fetch(`/admin/verses/custom-theme/${id}/delete`, { method: 'POST' })
         .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else alert(d.error || '刪除失敗'); });
+        .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
 }
 
 function previewWatermark(input) {
@@ -496,7 +496,7 @@ function previewWatermark(input) {
 
 function uploadWatermark() {
     const file = document.getElementById('watermark-file').files[0];
-    if (!file) { alert('請先選擇圖片'); return; }
+    if (!file) { showToast('請先選擇圖片', 'warning'); return; }
     const fd = new FormData();
     fd.append('image', file);
     const msg = document.getElementById('watermark-msg');

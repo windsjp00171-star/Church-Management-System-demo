@@ -59,7 +59,7 @@ async function deleteForm(id, btn) {
         headers: { 'X-CSRF-Token': '{{ csrf_token() }}' }
     });
     if ((await r.json()).success) btn.closest('[style]').remove();
-    else { alert('刪除失敗'); btn.disabled = false; }
+    else { showToast('刪除失敗', 'error'); btn.disabled = false; }
 }
 </script>
 {% endblock %}

@@ -223,13 +223,13 @@
                     updateCounter();
                     if (data.success) showSuccess(name);
                 } else {
-                    alert(data.error || '簽到失敗，請再試');
+                    showToast(data.error || '簽到失敗，請再試', 'error');
                     el.style.opacity = '';
                     el.style.pointerEvents = '';
                 }
             })
             .catch(() => {
-                alert('網路錯誤，請再試');
+                showToast('網路錯誤，請再試', 'error');
                 el.style.opacity = '';
                 el.style.pointerEvents = '';
             });

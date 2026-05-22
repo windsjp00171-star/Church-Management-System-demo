@@ -183,7 +183,7 @@ function closeModal() {
 
 function submitTxn() {
     const qty = parseInt(document.getElementById('t-qty').value);
-    if (!qty || qty <= 0) { alert('請輸入有效數量'); return; }
+    if (!qty || qty <= 0) { showToast('請輸入有效數量', 'warning'); return; }
     const payload = {
         type: currentType,
         quantity: qty,
@@ -199,7 +199,7 @@ function submitTxn() {
         body: JSON.stringify(payload)
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '操作失敗');
+        else showToast(d.error || '操作失敗', 'error');
     });
 }
 

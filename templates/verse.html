@@ -511,7 +511,7 @@ async function shareCard() {
     } catch (err) {
         if (err.name !== 'AbortError') {
             console.error('share error:', err);
-            alert('分享失敗，請使用「存到手機」再自行分享');
+            showToast('分享失敗，請使用「存到手機」再自行分享', 'error');
         }
     } finally {
         btn.innerHTML = origHtml;
@@ -595,7 +595,7 @@ function saveCard() {
         }
     }).catch(function(err) {
         console.error('html2canvas error:', err);
-        alert('儲存失敗，請截圖儲存\n（' + (err && err.message ? err.message : String(err)) + '）');
+        showToast('儲存失敗，請截圖儲存', 'error');
         btn.textContent = '存到手機';
         btn.disabled = false;
     });
