@@ -4,8 +4,13 @@ from config import Config
 
 _s3 = None
 
+def r2_configured() -> bool:
+    return bool(Config.R2_ENDPOINT and Config.R2_ACCESS_KEY_ID and Config.R2_SECRET_ACCESS_KEY and Config.R2_BUCKET_NAME)
+
 def _get_s3():
     global _s3
+    if not r2_configured():
+        raise RuntimeError('Cloudflare R2 未設定，請確認 R2_ENDPOINT / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY / R2_BUCKET_NAME 環境變數。')
     if _s3 is None:
         _s3 = boto3.client(
             's3',

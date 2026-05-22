@@ -146,6 +146,10 @@ def _get_storage_limit():
 @files_bp.route('/files')
 @login_required
 def index():
+    from storage import r2_configured
+    if not r2_configured():
+        return render_template('files/unavailable.html'), 503
+
     folder_id = request.args.get('folder_id')
     q = request.args.get('q', '').strip()
     role = session.get('role')
