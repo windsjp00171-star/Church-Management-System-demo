@@ -616,13 +616,31 @@ def toggle_cell_group_active(group_id):
 @admin_bp.route('/api/cell-groups/<group_id>/members')
 @admin_required
 def list_cell_group_members(group_id):
-    """取得小組的活躍成員清單（含 user_id 連結狀態）"""
+    """取得小組的活躍成員清單（含 user_id 連結狀態與確認狀態）"""
     members = supabase.table('cell_members')\
-        .select('id, name, user_id')\
+        .select('id, name, user_id, is_confirmed')\
         .eq('group_id', group_id)\
         .eq('is_active', True)\
         .order('id').execute().data or []
     return jsonify(members)
+
+
+@admin_bp.route('/api/cell-groups/<group_id>/members/<member_id>/confirm', methods=['POST'])
+@admin_required
+def confirm_cell_member(group_id, member_id):
+    """確認（核准）自選小組申請"""
+    supabase.table('cell_members').update({'is_confirmed': True})\
+        .eq('id', member_id).eq('group_id', group_id).execute()
+    return jsonify({'success': True})
+
+
+@admin_bp.route('/api/cell-groups/<group_id>/members/<member_id>/reject', methods=['POST'])
+@admin_required
+def reject_cell_member(group_id, member_id):
+    """拒絕（軟刪除）自選小組申請"""
+    supabase.table('cell_members').update({'is_active': False})\
+        .eq('id', member_id).eq('group_id', group_id).execute()
+    return jsonify({'success': True})
 
 
 @admin_bp.route('/api/users/members')

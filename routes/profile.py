@@ -83,6 +83,60 @@ def edit():
     uid = session['user_id']
     if request.method == 'POST':
         data = request.get_json() or {}
+        action = data.get('action', 'save_profile')
+
+        # ── 申請加入牧養小組 ────────────────────────────────────
+        if action == 'request_cell_group':
+            group_id = (data.get('cell_group_id') or '').strip()
+            if not group_id:
+                return jsonify({'error': '請選擇小組'}), 400
+
+            # 確認小組存在
+            grp = supabase.table('cell_groups').select('id, name').eq('id', group_id).eq('is_active', True).execute().data
+            if not grp:
+                return jsonify({'error': '找不到此小組'}), 404
+
+            # 若已有確認中的申請或已確認的記錄，直接回傳
+            existing = supabase.table('cell_members').select('id, is_confirmed')\
+                .eq('group_id', group_id).eq('user_id', uid).eq('is_active', True).execute().data
+            if existing:
+                status = '已在此小組' if existing[0].get('is_confirmed') else '申請已送出，等待管理員確認'
+                return jsonify({'success': True, 'message': status})
+
+            # 取得使用者姓名
+            name = session.get('real_name') or session.get('display_name') or '未命名'
+
+            # 建立待確認記錄
+            supabase.table('cell_members').insert({
+                'group_id': group_id,
+                'name': name,
+                'user_id': uid,
+                'is_active': True,
+                'is_confirmed': False,
+            }).execute()
+
+            # 通知管理員
+            try:
+                admins = supabase.table('users').select('id')\
+                    .eq('is_super_admin', True).execute().data or []
+                if not admins:
+                    admins = supabase.table('users').select('id')\
+                        .eq('is_admin', True).execute().data or []
+                if admins:
+                    from routes.notifications import batch_notify
+                    batch_notify(
+                        user_ids=[a['id'] for a in admins],
+                        title=f'📋 小組申請 — {name}',
+                        body=f'申請加入「{grp[0]["name"]}」，請至小組管理頁面確認。',
+                        type='cell_group',
+                        link='/admin/cell-groups',
+                    )
+            except Exception as e:
+                print(f'[profile] notify error: {e}')
+
+            return jsonify({'success': True, 'message': '申請已送出，等待管理員確認'})
+
+        # ── 儲存一般個人資料 ────────────────────────────────────
         real_name = data.get('real_name', '').strip()
         if not real_name:
             return jsonify({'error': '請填寫真實姓名'}), 400
@@ -99,13 +153,28 @@ def edit():
     user = supabase.table('users').select('*').eq('id', uid).execute().data[0]
     groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
 
+    # 撈牧養小組清單
+    cell_groups = supabase.table('cell_groups').select('id, name').eq('is_active', True).order('name').execute().data or []
+
+    # 使用者目前的小組申請/歸屬狀態
+    my_cell = supabase.table('cell_members').select('id, group_id, is_confirmed')\
+        .eq('user_id', uid).eq('is_active', True).execute().data
+    my_cell_group_id = my_cell[0]['group_id'] if my_cell else None
+    my_cell_confirmed = my_cell[0]['is_confirmed'] if my_cell else None
+
     # 天父日記授權資料
     from routes.diary import sb_list_pastors, sb_get_owner_grants
     pastors = sb_list_pastors()
     granted_ids = sb_get_owner_grants(session.get('line_id', ''))
     granted_map = {pid: True for pid in granted_ids}
 
-    return render_template('profile/edit.html', user=user, groups=groups, pastors=pastors, granted_map=granted_map)
+    return render_template('profile/edit.html',
+        user=user, groups=groups,
+        cell_groups=cell_groups,
+        my_cell_group_id=my_cell_group_id,
+        my_cell_confirmed=my_cell_confirmed,
+        pastors=pastors, granted_map=granted_map,
+    )
 
 
 @profile_bp.route('/admin/api/users/<user_id>/profile', methods=['POST'])

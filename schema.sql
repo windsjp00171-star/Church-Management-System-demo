@@ -512,7 +512,8 @@ CREATE TABLE IF NOT EXISTS cell_members (
     name         TEXT NOT NULL,
     contact_info TEXT,
     is_active    BOOLEAN NOT NULL DEFAULT true,
-    user_id      UUID REFERENCES users(id) ON DELETE SET NULL,  -- 連結系統帳號（nullable）
+    user_id      UUID REFERENCES users(id) ON DELETE SET NULL,
+    is_confirmed BOOLEAN NOT NULL DEFAULT true,  -- false = 使用者自選待管理員確認
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

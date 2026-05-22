@@ -120,21 +120,48 @@ async function loadGroups() {
                     </span>
                 `).join('') || '<span style="color:#bbb; font-size:0.85rem;">尚未指定小組長</span>'}
             </div>
-            ${members.length ? `
-            <div style="border-top:1px solid #f0f0f0; padding-top:12px;">
-                <p style="font-size:0.82rem; color:#888; margin:0 0 8px; font-weight:500;">組員（${members.length} 人）</p>
-                <div style="display:flex; flex-wrap:wrap; gap:6px;">
-                    ${members.map(m => `
-                        <span style="padding:4px 10px; background:${m.user_id ? '#e0f2fe' : '#f8fafc'}; border-radius:20px; font-size:0.83rem; display:flex; align-items:center; gap:5px; cursor:pointer;"
-                            onclick="openLinkModal('${g.id}', '${m.id}', '${escapeAttr(m.name)}', ${m.user_id ? "'"+m.user_id+"'" : 'null'})">
-                            ${escapeHtml(m.name)}
-                            ${m.user_id
-                                ? '<span style="font-size:0.7rem; background:#0284c7; color:white; border-radius:10px; padding:1px 6px;">已連結</span>'
-                                : '<span style="font-size:0.7rem; color:#94a3b8;">連結帳號</span>'}
-                        </span>
-                    `).join('')}
-                </div>
-            </div>` : ''}
+            ${(() => {
+                const confirmed = members.filter(m => m.is_confirmed !== false);
+                const pending   = members.filter(m => m.is_confirmed === false);
+                let html = '';
+                if (pending.length) {
+                    html += `
+                    <div style="border-top:1px solid #fde68a; padding-top:12px; margin-bottom:12px; background:#fffbeb; border-radius:0 0 8px 8px; padding:10px 12px;">
+                        <p style="font-size:0.82rem; color:#92400e; margin:0 0 8px; font-weight:600;">⏳ 待確認申請（${pending.length}）</p>
+                        <div style="display:flex; flex-direction:column; gap:6px;">
+                            ${pending.map(m => `
+                                <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; flex-wrap:wrap;">
+                                    <span style="font-size:0.9rem;">${escapeHtml(m.name)}</span>
+                                    <div style="display:flex; gap:6px;">
+                                        <button onclick="confirmMember('${g.id}', '${m.id}', this)"
+                                            style="padding:4px 12px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">✓ 核准</button>
+                                        <button onclick="rejectMember('${g.id}', '${m.id}', this)"
+                                            style="padding:4px 12px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">✗ 拒絕</button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                }
+                if (confirmed.length) {
+                    html += `
+                    <div style="border-top:1px solid #f0f0f0; padding-top:12px;">
+                        <p style="font-size:0.82rem; color:#888; margin:0 0 8px; font-weight:500;">組員（${confirmed.length} 人）</p>
+                        <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                            ${confirmed.map(m => `
+                                <span style="padding:4px 10px; background:${m.user_id ? '#e0f2fe' : '#f8fafc'}; border-radius:20px; font-size:0.83rem; display:flex; align-items:center; gap:5px; cursor:pointer;"
+                                    onclick="openLinkModal('${g.id}', '${m.id}', '${escapeAttr(m.name)}', ${m.user_id ? "'"+m.user_id+"'" : 'null'})">
+                                    ${escapeHtml(m.name)}
+                                    ${m.user_id
+                                        ? '<span style="font-size:0.7rem; background:#0284c7; color:white; border-radius:10px; padding:1px 6px;">已連結</span>'
+                                        : '<span style="font-size:0.7rem; color:#94a3b8;">連結帳號</span>'}
+                                </span>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                }
+                return html || '';
+            })()}
         </div>
         `;
     }).join('');
@@ -271,6 +298,23 @@ async function unlinkMember() {
     } else {
         showToast(data.error || '操作失敗', 'error');
     }
+}
+
+async function confirmMember(groupId, memberId, btn) {
+    btn.disabled = true;
+    const res = await fetch(`/admin/api/cell-groups/${groupId}/members/${memberId}/confirm`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { showToast('已核准加入', 'success'); loadGroups(); }
+    else { showToast(data.error || '操作失敗', 'error'); btn.disabled = false; }
+}
+
+async function rejectMember(groupId, memberId, btn) {
+    if (!confirm('確定拒絕此申請？')) return;
+    btn.disabled = true;
+    const res = await fetch(`/admin/api/cell-groups/${groupId}/members/${memberId}/reject`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { showToast('已拒絕申請', 'success'); loadGroups(); }
+    else { showToast(data.error || '操作失敗', 'error'); btn.disabled = false; }
 }
 
 function escapeHtml(s) {
