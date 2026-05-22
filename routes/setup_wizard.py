@@ -308,14 +308,29 @@ def _check_db_tables():
     try:
         from db import supabase
         existing = set()
+
+        # 優先嘗試 RPC（繞過 PostgREST schema cache）
+        # 若 RPC 本身也不可用，fallback 到 select limit 0
+        rpc_ok = False
+        try:
+            r = supabase.rpc('check_table_exists', {'tbl_name': 'users'}).execute()
+            if r.data is not None:
+                rpc_ok = True
+        except Exception:
+            pass
+
         for tbl in _CORE_TABLES:
             try:
-                # 用 RPC 查 information_schema，繞過 PostgREST schema cache
-                result = supabase.rpc('check_table_exists', {'tbl_name': tbl}).execute()
-                if result.data:
+                if rpc_ok:
+                    result = supabase.rpc('check_table_exists', {'tbl_name': tbl}).execute()
+                    if result.data:
+                        existing.add(tbl)
+                else:
+                    supabase.table(tbl).select('*').limit(0).execute()
                     existing.add(tbl)
             except Exception:
                 pass
+
         return {t: (t in existing) for t in _CORE_TABLES}
     except Exception:
         return None
