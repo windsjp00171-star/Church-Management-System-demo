@@ -25,13 +25,16 @@
     {% endfor %}
   {% endwith %}
 
-  <form method="post">
+  <form method="post" id="meeting-form">
     {% set meeting_order = [
       ('adult_sunday',    '成人主日', True),
       ('children_sunday', '兒童主日', False),
       ('prayer',          '禱告會',   False),
       ('morning_prayer',  '晨禱',     False),
     ] %}
+
+    <!-- 固定聚會 -->
+    <p style="font-size:.8rem; font-weight:700; color:#aaa; letter-spacing:.05em; margin-bottom:8px;">固定聚會</p>
 
     {% for key, title, has_service_count in meeting_order %}
     {% set cfg = settings.get(key, {}) %}
@@ -46,7 +49,7 @@
         </div>
       </div>
 
-      <div style="display:grid; grid-template-columns: 1fr 1fr{% if has_service_count %} 1fr{% endif %}; gap:16px; flex-wrap:wrap;">
+      <div style="display:grid; grid-template-columns: 1fr 1fr{% if has_service_count %} 1fr{% endif %}; gap:16px;">
 
         <div>
           <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">顯示名稱</label>
@@ -88,6 +91,57 @@
     </div>
     {% endfor %}
 
+    <!-- 自訂聚會 -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin:28px 0 8px;">
+      <p style="font-size:.8rem; font-weight:700; color:#aaa; letter-spacing:.05em; margin:0;">自訂聚會</p>
+      <button type="button" id="add-custom-btn"
+              style="padding:7px 16px; background:#3949ab; color:white; border:none; border-radius:8px;
+                     font-size:.85rem; font-weight:700; cursor:pointer;">
+        ＋ 新增聚會
+      </button>
+    </div>
+
+    <div id="custom-meetings-container">
+      {% for key, cfg in settings.items() %}
+      {% if key.startswith('custom_') %}
+      <div class="custom-card" data-key="{{ key }}"
+           style="background:white; border-radius:14px; padding:24px; margin-bottom:16px;
+                  box-shadow:0 2px 8px rgba(0,0,0,.06); border:1.5px solid #c5cae9; position:relative;">
+
+        <input type="hidden" name="custom_keys[]" value="{{ key }}">
+
+        <button type="button" class="remove-custom-btn"
+                style="position:absolute; top:14px; right:14px; background:#ffebee; border:none; border-radius:6px;
+                       color:#c62828; font-size:.85rem; font-weight:700; padding:4px 10px; cursor:pointer;">
+          刪除
+        </button>
+
+        <div style="display:grid; grid-template-columns: 1fr 1fr; gap:16px;">
+          <div>
+            <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">顯示名稱</label>
+            <input type="text" name="{{ key }}_label" value="{{ cfg.get('label', '') }}" required
+                   style="width:100%; padding:9px 12px; border:1.5px solid #c5cae9; border-radius:8px; font-size:.9rem; box-sizing:border-box;">
+          </div>
+          <div>
+            <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">聚會日（星期幾）</label>
+            <select name="{{ key }}_weekday"
+                    style="width:100%; padding:9px 12px; border:1.5px solid #c5cae9; border-radius:8px; font-size:.9rem; background:white; cursor:pointer;">
+              {% for day in weekday_names %}
+              <option value="{{ loop.index0 }}" {% if cfg.get('weekday', 0) == loop.index0 %}selected{% endif %}>{{ day }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div>
+            <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">圖示（Emoji）</label>
+            <input type="text" name="{{ key }}_emoji" value="{{ cfg.get('emoji', '✨') }}"
+                   style="width:80px; padding:9px 12px; border:1.5px solid #c5cae9; border-radius:8px; font-size:1.1rem; text-align:center; box-sizing:border-box;">
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+
     <div style="margin-top:8px; text-align:right;">
       <button type="submit"
               style="padding:13px 32px; background:#06C755; color:white; border:none; border-radius:12px;
@@ -98,4 +152,49 @@
   </form>
 
 </div>
+
+<script>
+var weekdayOptions = [
+  {% for day in weekday_names %}'<option value="{{ loop.index0 }}">{{ day }}</option>'{% if not loop.last %},{% endif %}{% endfor %}
+];
+
+document.getElementById('add-custom-btn').addEventListener('click', function() {
+  var key = 'custom_' + Date.now();
+  var card = document.createElement('div');
+  card.className = 'custom-card';
+  card.dataset.key = key;
+  card.style.cssText = 'background:white; border-radius:14px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,.06); border:1.5px solid #c5cae9; position:relative;';
+  card.innerHTML =
+    '<input type="hidden" name="custom_keys[]" value="' + key + '">' +
+    '<button type="button" class="remove-custom-btn" style="position:absolute;top:14px;right:14px;background:#ffebee;border:none;border-radius:6px;color:#c62828;font-size:.85rem;font-weight:700;padding:4px 10px;cursor:pointer;">刪除</button>' +
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">' +
+      '<div>' +
+        '<label style="display:block;font-size:.8rem;font-weight:700;color:#555;margin-bottom:6px;">顯示名稱</label>' +
+        '<input type="text" name="' + key + '_label" placeholder="例如：青年崇拜" required style="width:100%;padding:9px 12px;border:1.5px solid #c5cae9;border-radius:8px;font-size:.9rem;box-sizing:border-box;">' +
+      '</div>' +
+      '<div>' +
+        '<label style="display:block;font-size:.8rem;font-weight:700;color:#555;margin-bottom:6px;">聚會日（星期幾）</label>' +
+        '<select name="' + key + '_weekday" style="width:100%;padding:9px 12px;border:1.5px solid #c5cae9;border-radius:8px;font-size:.9rem;background:white;cursor:pointer;">' +
+        weekdayOptions.join('') + '</select>' +
+      '</div>' +
+      '<div>' +
+        '<label style="display:block;font-size:.8rem;font-weight:700;color:#555;margin-bottom:6px;">圖示（Emoji）</label>' +
+        '<input type="text" name="' + key + '_emoji" value="✨" style="width:80px;padding:9px 12px;border:1.5px solid #c5cae9;border-radius:8px;font-size:1.1rem;text-align:center;box-sizing:border-box;">' +
+      '</div>' +
+    '</div>';
+  document.getElementById('custom-meetings-container').appendChild(card);
+  attachRemoveHandlers();
+  card.querySelector('[name$="_label"]').focus();
+});
+
+function attachRemoveHandlers() {
+  document.querySelectorAll('.remove-custom-btn').forEach(function(btn) {
+    btn.onclick = function() {
+      btn.closest('.custom-card').remove();
+    };
+  });
+}
+
+attachRemoveHandlers();
+</script>
 {% endblock %}

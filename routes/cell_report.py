@@ -38,6 +38,7 @@ def _get_meeting_settings() -> Dict[str, Dict]:
     if _MEETING_CFG_CACHE is not None and now - _MEETING_CFG_TS < _MEETING_CFG_TTL:
         return _MEETING_CFG_CACHE
     result = {}
+    # Built-in meetings
     for key, defaults in MEETING_DEFAULTS.items():
         cfg = dict(defaults)
         try:
@@ -47,6 +48,20 @@ def _get_meeting_settings() -> Dict[str, Dict]:
         except Exception:
             pass
         result[key] = cfg
+    # Custom meetings (keys stored as meeting.custom_*)
+    try:
+        res = supabase.table('settings').select('key,value').like('key', 'meeting.custom_%').execute()
+        for row in (res.data or []):
+            raw_key = row['key']          # e.g. "meeting.custom_1234"
+            meeting_key = raw_key[len('meeting.'):]  # e.g. "custom_1234"
+            try:
+                cfg = json.loads(row['value'])
+                cfg['_custom'] = True
+                result[meeting_key] = cfg
+            except Exception:
+                pass
+    except Exception:
+        pass
     _MEETING_CFG_CACHE = result
     _MEETING_CFG_TS = now
     return result
@@ -55,6 +70,34 @@ def _get_meeting_settings() -> Dict[str, Dict]:
 def _invalidate_meeting_cache():
     global _MEETING_CFG_CACHE
     _MEETING_CFG_CACHE = None
+
+
+def _get_custom_meetings_data(mcfg: Dict, base_date=None) -> List[Dict]:
+    """Build display data for custom meetings for the dashboard."""
+    if base_date is None:
+        base_date = datetime.date.today()
+    result = []
+    for key, cfg in mcfg.items():
+        if not key.startswith('custom_'):
+            continue
+        date_obj = _get_last_weekday_date(cfg.get('weekday', 6), base_date)
+        date_str = date_obj.isoformat()
+        count = 0
+        try:
+            res = supabase.table('custom_meeting_reports').select('attendance_count')\
+                .eq('date', date_str).eq('meeting_key', key).execute()
+            if res.data:
+                count = res.data[0].get('attendance_count', 0) or 0
+        except Exception:
+            pass
+        result.append({
+            'key': key,
+            'label': cfg.get('label', '聚會'),
+            'emoji': cfg.get('emoji', '✨'),
+            'date': date_obj,
+            'count': count,
+        })
+    return result
 
 
 def _get_last_weekday_date(weekday: int, ref_date=None) -> datetime.date:
@@ -627,6 +670,9 @@ def pastor_dashboard():
     prayer_count         = (prayer_rep or {}).get('attendance_count', 0) or 0
     morning_prayer_count = (morning_rep or {}).get('attendance_count', 0) or 0
 
+    # Custom meetings
+    custom_meetings = _get_custom_meetings_data(mcfg, base_date)
+
     groups = _get_active_groups()
     group_data = _build_group_data(groups, anchor)
 
@@ -642,6 +688,7 @@ def pastor_dashboard():
                            children=children_count,
                            prayer=prayer_count,
                            morning_prayer=morning_prayer_count,
+                           custom_meetings=custom_meetings,
                            groups=group_data,
                            prev_week=prev_week,
                            next_week=next_week,
@@ -690,6 +737,8 @@ def staff_dashboard():
     prayer_count         = (prayer_rep or {}).get('attendance_count', 0) or 0
     morning_prayer_count = (morning_rep or {}).get('attendance_count', 0) or 0
 
+    custom_meetings = _get_custom_meetings_data(mcfg, base_date)
+
     groups = _get_active_groups()
     group_data = _build_group_data(groups, anchor)
 
@@ -705,6 +754,7 @@ def staff_dashboard():
                            children=children_count,
                            prayer=prayer_count,
                            morning_prayer=morning_prayer_count,
+                           custom_meetings=custom_meetings,
                            groups=group_data,
                            prev_week=prev_week,
                            next_week=next_week,
@@ -841,6 +891,7 @@ def admin_meeting_settings():
     WEEKDAY_NAMES = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
 
     if request.method == 'POST':
+        # Built-in meetings
         keys = ['adult_sunday', 'children_sunday', 'prayer', 'morning_prayer']
         for key in keys:
             weekday = int(request.form.get(f'{key}_weekday', 6))
@@ -854,6 +905,38 @@ def admin_meeting_settings():
                 'emoji': emoji,
             }, ensure_ascii=False)
             supabase.table('settings').upsert({'key': f'meeting.{key}', 'value': payload}).execute()
+
+        # Custom meetings: submitted as custom_keys[] (list of active keys)
+        active_custom_keys = set(request.form.getlist('custom_keys[]'))
+
+        # Delete removed custom meetings from settings
+        try:
+            existing = supabase.table('settings').select('key').like('key', 'meeting.custom_%').execute()
+            for row in (existing.data or []):
+                meeting_key = row['key'][len('meeting.'):]  # e.g. "custom_1234"
+                if meeting_key not in active_custom_keys:
+                    supabase.table('settings').delete().eq('key', row['key']).execute()
+        except Exception:
+            pass
+
+        # Upsert active custom meetings
+        for meeting_key in active_custom_keys:
+            if not meeting_key.startswith('custom_'):
+                continue
+            weekday = int(request.form.get(f'{meeting_key}_weekday', 6))
+            label = (request.form.get(f'{meeting_key}_label') or '').strip()
+            emoji = (request.form.get(f'{meeting_key}_emoji') or '✨').strip()
+            if not label:
+                continue
+            payload = json.dumps({
+                'weekday': weekday,
+                'label': label,
+                'emoji': emoji,
+                'service_count': 1,
+                '_custom': True,
+            }, ensure_ascii=False)
+            supabase.table('settings').upsert({'key': f'meeting.{meeting_key}', 'value': payload}).execute()
+
         _invalidate_meeting_cache()
         flash('聚會設定已儲存', 'success')
         return redirect(url_for('cell_report.admin_meeting_settings'))
@@ -863,6 +946,52 @@ def admin_meeting_settings():
                            settings=settings,
                            weekday_names=WEEKDAY_NAMES,
                            defaults=MEETING_DEFAULTS)
+
+
+@cell_report_bp.route('/cell-report/custom-meeting/<meeting_key>', methods=['GET', 'POST'])
+@login_required
+def custom_meeting(meeting_key):
+    if not meeting_key.startswith('custom_'):
+        abort(404)
+    mcfg = _get_meeting_settings()
+    if meeting_key not in mcfg:
+        abort(404)
+    cfg = mcfg[meeting_key]
+    date_obj = _get_last_weekday_date(cfg.get('weekday', 6))
+    date_str = date_obj.isoformat()
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.data.decode('utf-8'))
+            count = int(data.get('attendance_count', 0))
+        except Exception:
+            count = 0
+        try:
+            existing = supabase.table('custom_meeting_reports').select('id')\
+                .eq('date', date_str).eq('meeting_key', meeting_key).execute()
+            if existing.data:
+                supabase.table('custom_meeting_reports').update({'attendance_count': count})\
+                    .eq('id', existing.data[0]['id']).execute()
+            else:
+                supabase.table('custom_meeting_reports').insert({
+                    'date': date_str, 'meeting_key': meeting_key, 'attendance_count': count
+                }).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    try:
+        res = supabase.table('custom_meeting_reports').select('*')\
+            .eq('date', date_str).eq('meeting_key', meeting_key).execute()
+        report = (res.data or [None])[0]
+    except Exception:
+        report = None
+
+    return render_template('cell_report/custom_meeting_form.html',
+                           report=report or {}, date=date_obj,
+                           label=cfg.get('label', '聚會'),
+                           emoji=cfg.get('emoji', '✨'),
+                           meeting_key=meeting_key)
 
 
 # =========================
