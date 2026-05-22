@@ -189,7 +189,7 @@ def _check_db_tables():
         # Query information_schema for each table
         for tbl in _CORE_TABLES:
             try:
-                res = supabase.table(tbl).select('id').limit(0).execute()
+                supabase.table(tbl).select('*').limit(0).execute()
                 existing.add(tbl)
             except Exception:
                 pass
