@@ -9,73 +9,83 @@ _ENV_GROUPS = [
     {
         'title': 'Flask 基本',
         'emoji': '⚙️',
+        'signup_url': '',
+        'signup_label': '',
         'vars': [
             {
                 'key': 'FLASK_SECRET_KEY',
                 'label': 'Flask Secret Key',
                 'required': True,
                 'secret': True,
-                'hint': '用於 session 加密，請用 python -c "import secrets; print(secrets.token_hex(32))" 生成',
+                'hint': '不需申請帳號。在終端機執行：python -c "import secrets; print(secrets.token_hex(32))"，複製輸出值填入。',
             },
         ],
     },
     {
         'title': 'LINE Login',
         'emoji': '💬',
+        'signup_url': 'https://developers.line.biz/',
+        'signup_label': '申請 LINE Developers 帳號',
+        'signup_steps': '1. 登入 developers.line.biz（用你的 LINE 帳號）→ 2. 建立 Provider → 3. 新增 Channel（選「LINE Login」）→ 4. 在 Channel 頁面取得 Channel ID 與 Channel Secret → 5. 在「Callback URL」填入你的 https://你的網域/auth/callback',
         'vars': [
             {
                 'key': 'LINE_CHANNEL_ID',
                 'label': 'LINE Channel ID',
                 'required': True,
                 'secret': False,
-                'hint': '從 LINE Developers Console → Channel Basic settings 取得',
+                'hint': 'LINE Developers → 你的 Channel → Basic settings → Channel ID',
             },
             {
                 'key': 'LINE_CHANNEL_SECRET',
                 'label': 'LINE Channel Secret',
                 'required': True,
                 'secret': True,
-                'hint': '同上，Channel secret 欄位',
+                'hint': '同上頁面 → Channel secret 欄位',
             },
             {
                 'key': 'LINE_REDIRECT_URI',
                 'label': 'LINE Redirect URI',
                 'required': True,
                 'secret': False,
-                'hint': '格式：https://你的網域/auth/callback',
+                'hint': '格式：https://你的網域/auth/callback（必須與 LINE Developers 後台填寫的 Callback URL 完全一致）',
             },
             {
                 'key': 'LINE_LIFF_ID',
                 'label': 'LINE LIFF ID',
                 'required': False,
                 'secret': False,
-                'hint': '可選，LIFF 應用程式 ID；未設定則 LIFF 功能停用',
+                'hint': '可選。LINE Developers → 你的 Channel → LIFF → 新增 LIFF App → 複製 LIFF ID；未設定則 LINE 內自動登入功能停用',
             },
         ],
     },
     {
         'title': 'Supabase',
         'emoji': '🗄️',
+        'signup_url': 'https://supabase.com/',
+        'signup_label': '申請 Supabase 帳號',
+        'signup_steps': '1. 前往 supabase.com 免費註冊 → 2. 建立新 Project（建議選 ap-southeast-1 新加坡，延遲較低）→ 3. 等待 Project 啟動後，進入 Project Settings → Data API → 複製 Project URL 與 anon public key',
         'vars': [
             {
                 'key': 'SUPABASE_URL',
                 'label': 'Supabase Project URL',
                 'required': True,
                 'secret': False,
-                'hint': '格式：https://xxxxxxxxxxxx.supabase.co',
+                'hint': 'Supabase Dashboard → Project Settings → Data API → Project URL（格式：https://xxxx.supabase.co）',
             },
             {
                 'key': 'SUPABASE_KEY',
                 'label': 'Supabase Anon Key',
                 'required': True,
                 'secret': True,
-                'hint': 'Project Settings → API → anon public key',
+                'hint': '同頁面 → Project API keys → anon public（這是公開金鑰，可安全使用）',
             },
         ],
     },
     {
         'title': '教會資訊',
         'emoji': '⛪',
+        'signup_url': '',
+        'signup_label': '',
         'vars': [
             {
                 'key': 'CHURCH_NAME',
@@ -96,7 +106,7 @@ _ENV_GROUPS = [
                 'label': '管理員 LINE User ID（逗號分隔）',
                 'required': False,
                 'secret': False,
-                'hint': '設定後，這些 LINE 帳號登入即為管理員；可在登入後從個人資料頁複製 User ID',
+                'hint': '登入系統後，從「個人資料」頁面複製你的 LINE User ID，填入此欄。多人用逗號隔開。',
             },
         ],
     },
@@ -104,34 +114,40 @@ _ENV_GROUPS = [
         'title': 'Cloudflare R2（檔案分享）',
         'emoji': '📁',
         'optional_group': True,
+        'signup_url': 'https://dash.cloudflare.com/',
+        'signup_label': '申請 Cloudflare 帳號',
+        'signup_steps': '1. cloudflare.com 免費註冊 → 2. 左側選「R2 Object Storage」→ 3. 建立 Bucket（記住 Bucket 名稱）→ 4. 在 R2 Overview 頁面點「Manage R2 API Tokens」→ 5. 建立 Token（Object Read & Write 權限）→ 複製 Access Key ID、Secret Access Key、Endpoint URL',
         'vars': [
-            {'key': 'R2_ENDPOINT',          'label': 'R2 Endpoint',          'required': False, 'secret': False, 'hint': 'Cloudflare R2 API 端點'},
-            {'key': 'R2_ACCESS_KEY_ID',     'label': 'R2 Access Key ID',     'required': False, 'secret': True,  'hint': ''},
-            {'key': 'R2_SECRET_ACCESS_KEY', 'label': 'R2 Secret Access Key', 'required': False, 'secret': True,  'hint': ''},
-            {'key': 'R2_BUCKET_NAME',       'label': 'R2 Bucket Name',       'required': False, 'secret': False, 'hint': ''},
+            {'key': 'R2_ENDPOINT',          'label': 'R2 Endpoint',          'required': False, 'secret': False, 'hint': '格式：https://帳號ID.r2.cloudflarestorage.com（建立 API Token 後頁面會顯示）'},
+            {'key': 'R2_ACCESS_KEY_ID',     'label': 'R2 Access Key ID',     'required': False, 'secret': True,  'hint': 'Manage R2 API Tokens → 建立 Token 後取得'},
+            {'key': 'R2_SECRET_ACCESS_KEY', 'label': 'R2 Secret Access Key', 'required': False, 'secret': True,  'hint': '同上，只在建立時顯示一次，請立即複製'},
+            {'key': 'R2_BUCKET_NAME',       'label': 'R2 Bucket Name',       'required': False, 'secret': False, 'hint': '你在 Cloudflare R2 建立的 Bucket 名稱'},
         ],
     },
     {
         'title': 'AI 功能（天父日記）',
         'emoji': '🤖',
         'optional_group': True,
+        'signup_url': 'https://console.groq.com/',
+        'signup_label': '申請 Groq 帳號（免費）',
+        'signup_steps': '1. console.groq.com 免費註冊 → 2. 左側選「API Keys」→ 3. 點「Create API Key」→ 複製 key 填入 GROQ_API_KEY。Groq 免費額度對小型教會已十分充足。',
         'vars': [
-            {'key': 'GROQ_API_KEY',      'label': 'Groq API Key（主）',      'required': False, 'secret': True, 'hint': '主要 AI 服務，免費額度充足'},
-            {'key': 'GEMINI_API_KEY',    'label': 'Gemini API Key（備援）',  'required': False, 'secret': True, 'hint': ''},
-            {'key': 'ANTHROPIC_API_KEY', 'label': 'Anthropic API Key（保留）','required': False, 'secret': True, 'hint': ''},
+            {'key': 'GROQ_API_KEY',      'label': 'Groq API Key（主）',      'required': False, 'secret': True, 'hint': 'console.groq.com → API Keys → Create API Key'},
+            {'key': 'GEMINI_API_KEY',    'label': 'Gemini API Key（備援）',  'required': False, 'secret': True, 'hint': 'aistudio.google.com → Get API Key（可選，Groq 失效時自動備援）'},
+            {'key': 'ANTHROPIC_API_KEY', 'label': 'Anthropic API Key（保留）','required': False, 'secret': True, 'hint': '保留欄位，目前系統未主動使用'},
         ],
     },
 ]
 
 # 核心資料表（檢查是否存在）
 _CORE_TABLES = [
-    'users', 'events', 'event_registrations', 'groups', 'settings',
+    'users', 'events', 'registrations', 'groups', 'settings',
     'cell_groups', 'cell_members', 'cell_group_leaders', 'cell_reports',
     'cell_attendance', 'sunday_reports', 'children_sunday_reports',
     'prayer_reports', 'morning_prayer_reports',
     'custom_meeting_reports',
-    'diary_entries', 'diary_whitelist',
-    'portal_cards', 'portal_links',
+    'diary_entries',
+    'portal_card_settings', 'portal_links',
 ]
 
 
@@ -203,6 +219,15 @@ def index():
     if db_tables:
         missing_tables = [t for t, ok in db_tables.items() if not ok]
 
+    # Load schema.sql content for inline display
+    schema_sql = ''
+    try:
+        schema_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'schema.sql')
+        with open(schema_path, 'r', encoding='utf-8') as f:
+            schema_sql = f.read()
+    except Exception:
+        pass
+
     return render_template(
         'setup_wizard/index.html',
         env_groups=env_groups,
@@ -215,6 +240,7 @@ def index():
         supabase_url=Config.SUPABASE_URL or '',
         church_name=Config.CHURCH_NAME,
         line_redirect_uri=Config.LINE_REDIRECT_URI or '',
+        schema_sql=schema_sql,
     )
 
 
