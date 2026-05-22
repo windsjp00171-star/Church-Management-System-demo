@@ -163,7 +163,24 @@
         <span style="font-weight:400; font-size:.72rem; margin-left:8px; color:#6b7280;">
           已設定 {{ group.ok_count }}/{{ group.total_count }}
         </span>
+        {% if group.signup_url %}
+        <a href="{{ group.signup_url }}" target="_blank" rel="noopener"
+           style="display:inline-block; margin-left:10px; font-size:.72rem; font-weight:600;
+                  background:#2563eb; color:#fff; border-radius:6px; padding:2px 10px;
+                  text-decoration:none; vertical-align:middle;">
+          ↗ {{ group.signup_label or '申請帳號' }}
+        </a>
+        {% endif %}
       </div>
+      {% if group.signup_steps %}
+      <details style="margin-bottom:10px; background:#f0f9ff; border:1px solid #bae6fd;
+                      border-radius:8px; padding:8px 12px; font-size:.82rem; color:#0c4a6e;">
+        <summary style="cursor:pointer; font-weight:600; color:#0369a1; list-style:none; display:flex; align-items:center; gap:6px;">
+          <span>📋</span> 如何取得 {{ group.title }} 憑證（點此展開步驟）
+        </summary>
+        <div style="margin-top:8px; line-height:1.8; white-space:pre-wrap;">{{ group.signup_steps }}</div>
+      </details>
+      {% endif %}
       {% for v in group.vars %}
       <div class="env-row">
         {% if v.set %}
@@ -289,32 +306,54 @@
       </div>
       {% endif %}
 
-      <div class="sec-label">建表方式</div>
-      <div style="font-size:.85rem; color:#374151; margin-bottom:10px; line-height:1.6;">
-        至 <strong>Supabase Dashboard → SQL Editor</strong>，
-        貼上 <code>schema.sql</code> 全部內容並執行（支援 <code>CREATE TABLE IF NOT EXISTS</code>，重複執行安全）。
-      </div>
-
+      <div class="sec-label">Supabase 帳號與 Key 取得方式</div>
       <div class="instr-step">
         <div class="instr-num">1</div>
         <div class="instr-body">
-          前往 <strong>app.supabase.com</strong> → 你的 Project → 左側「SQL Editor」
+          前往 <strong>supabase.com</strong>，免費註冊並建立新 Project（選亞太區 ap-southeast-1 延遲較低）
         </div>
       </div>
       <div class="instr-step">
         <div class="instr-num">2</div>
         <div class="instr-body">
-          點「New query」，將 <code>schema.sql</code> 的全部內容貼入。
+          左側選單 → <strong>Project Settings → Data API</strong><br>
+          複製 <strong>Project URL</strong> → 填入 Render 的 <code>SUPABASE_URL</code><br>
+          複製 <strong>anon public</strong> key → 填入 Render 的 <code>SUPABASE_KEY</code>
         </div>
       </div>
+
+      <div class="sec-label" style="margin-top:20px;">建立資料表（執行 SQL）</div>
       <div class="instr-step">
         <div class="instr-num">3</div>
         <div class="instr-body">
-          點「Run」執行，確認下方無錯誤訊息（表格已存在的警告可忽略）。
+          在 Supabase 左側選單 → <strong>SQL Editor</strong> → 點「<strong>New query</strong>」
         </div>
       </div>
       <div class="instr-step">
         <div class="instr-num">4</div>
+        <div class="instr-body">
+          點下方「複製建表 SQL」按鈕，將全部內容貼入 SQL Editor，點「<strong>Run</strong>」執行<br>
+          <span style="color:#888; font-size:.82rem;">（支援 CREATE TABLE IF NOT EXISTS，重複執行安全，出現警告可忽略）</span>
+        </div>
+      </div>
+
+      {% if schema_sql %}
+      <div style="margin:16px 0 4px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span style="font-size:.82rem; color:#555; font-weight:600;">📄 建表 SQL（schema.sql）</span>
+        <button class="copy-btn" onclick="copySchemaSql(this)"
+                style="padding:6px 16px; background:#3b82f6; color:white; border:none; border-radius:6px;
+                       font-size:.82rem; font-weight:700; cursor:pointer;">
+          複製建表 SQL
+        </button>
+      </div>
+      <textarea id="schema-sql-content" readonly
+                style="width:100%; height:160px; font-family:monospace; font-size:.72rem;
+                       border:1px solid #e5e7eb; border-radius:8px; padding:10px; resize:vertical;
+                       background:#f9fafb; color:#374151; box-sizing:border-box; line-height:1.5;">{{ schema_sql }}</textarea>
+      {% endif %}
+
+      <div class="instr-step" style="margin-top:12px;">
+        <div class="instr-num">5</div>
         <div class="instr-body">
           回到此頁重新整理，確認上方「資料表狀態」全部顯示 ✓。
         </div>
@@ -537,6 +576,21 @@ function copyCode(btn, text) {
 function copyId(btn, id) {
   const text = document.getElementById(id).textContent.replace(/複製|已複製！/g, '').trim();
   copyCode(btn, text);
+}
+
+function copySchemaSql(btn) {
+  const ta = document.getElementById('schema-sql-content');
+  if (!ta) return;
+  navigator.clipboard.writeText(ta.value).then(() => {
+    btn.textContent = '已複製！';
+    btn.style.background = '#16a34a';
+    setTimeout(() => { btn.textContent = '複製建表 SQL'; btn.style.background = '#3b82f6'; }, 2500);
+  }).catch(() => {
+    ta.select();
+    document.execCommand('copy');
+    btn.textContent = '已複製！';
+    setTimeout(() => { btn.textContent = '複製建表 SQL'; }, 2500);
+  });
 }
 
 // Auto-open the first section that has issues
