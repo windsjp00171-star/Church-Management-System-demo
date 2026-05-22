@@ -1,50 +1,12 @@
 from flask import Blueprint, session, request, jsonify, render_template, redirect, url_for
-from functools import wraps
 from db import supabase
+from routes.decorators import login_required, admin_required
 from datetime import datetime, timezone, timedelta
-import uuid, io
+import uuid
 
 visitor_forms_bp = Blueprint('visitor_forms', __name__)
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
-
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            return redirect(url_for('auth.login_page'))
-        return f(*args, **kwargs)
-    return decorated
-
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('is_admin'):
-            return '無權限', 403
-        return f(*args, **kwargs)
-    return decorated
-
-
-def coworker_required(f):
-    """同工或管理員才可存取"""
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            return redirect(url_for('auth.login_page'))
-        if session.get('is_admin'):
-            return f(*args, **kwargs)
-        uid = session['user_id']
-        try:
-            user = supabase.table('users').select('group_tags').eq('id', uid).single().execute()
-            tags = (user.data or {}).get('group_tags') or []
-        except Exception:
-            tags = []
-        if '同工' not in tags:
-            return jsonify({'error': '無同工權限'}), 403
-        return f(*args, **kwargs)
-    return decorated
 
 
 @visitor_forms_bp.route('/visitor-form/upload', methods=['POST'])

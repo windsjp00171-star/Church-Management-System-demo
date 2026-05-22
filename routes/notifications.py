@@ -1,6 +1,6 @@
 # 站內通知系統路由
 from flask import Blueprint, session, request, jsonify, render_template, redirect, url_for
-from functools import wraps
+from routes.decorators import login_required, admin_required, super_admin_required
 from db import supabase
 from datetime import datetime, timedelta, timezone
 
@@ -8,38 +8,6 @@ notifications_bp = Blueprint('notifications', __name__)
 TAIPEI_TZ = timezone(timedelta(hours=8))
 
 
-# ── 權限裝飾器 ─────────────────────────────────────────────
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            return jsonify({'error': '請先登入'}), 401
-        return f(*args, **kwargs)
-    return decorated
-
-
-def admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            session['next_url'] = request.url
-            return redirect(url_for('auth.login_page'))
-        if not session.get('is_admin'):
-            return jsonify({'error': '無權限'}), 403
-        return f(*args, **kwargs)
-    return decorated
-
-
-def super_admin_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            session['next_url'] = request.url
-            return redirect(url_for('auth.login_page'))
-        if not session.get('is_super_admin'):
-            return jsonify({'error': '此功能僅限超級管理員'}), 403
-        return f(*args, **kwargs)
-    return decorated
 
 
 # ── 工具函式：建立通知 ─────────────────────────────────────

@@ -1,10 +1,7 @@
 # 代禱牆系統路由
 from flask import Blueprint, render_template, request, session, redirect, jsonify, url_for
 from datetime import datetime, timezone
-from config import Config
-from supabase import create_client
-
-supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
+from db import supabase
 prayer_bp = Blueprint('prayer', __name__)
 
 EMOJIS = ['🙏', '❤️', '🕯️', '✨', '💪']

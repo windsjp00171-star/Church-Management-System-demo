@@ -9,7 +9,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
 from datetime import datetime, timezone, timedelta
 from routes.notifications import create_notification
-from routes.decorators import login_required
+from routes.decorators import login_required, admin_required, super_admin_required
 courses_bp = Blueprint('courses', __name__)
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
@@ -52,28 +52,8 @@ def guard_courses_admin():
 
 # ── 權限裝飾器 ──────────────────────────────────────────
 
-def admin_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            return redirect(url_for('auth.login_page'))
-        if not session.get('is_admin'):
-            return render_template('admin/forbidden.html'), 403
-        return f(*args, **kwargs)
-    return decorated
 
 
-def super_admin_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            return redirect(url_for('auth.login_page'))
-        if not session.get('is_super_admin'):
-            return render_template('admin/forbidden.html'), 403
-        return f(*args, **kwargs)
-    return decorated
 
 
 # ── 工具函式 ──────────────────────────────────────────

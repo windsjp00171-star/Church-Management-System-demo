@@ -1,6 +1,6 @@
 # 教會行事曆路由
 from flask import Blueprint, session, request, jsonify, redirect, render_template, url_for
-from functools import wraps
+from routes.decorators import login_required
 from db import supabase
 from datetime import date, datetime, timezone, timedelta
 import calendar as cal_module
@@ -25,14 +25,6 @@ def _to_taipei(s):
         return None
 
 
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            session['next_url'] = request.url
-            return redirect(url_for('auth.login_page'))
-        return f(*args, **kwargs)
-    return decorated
 
 
 # ── 行事曆頁面（所有登入用戶；管理員多出教會行事管理功能） ────────────
