@@ -26,7 +26,20 @@ _ENV_GROUPS = [
         'emoji': '💬',
         'signup_url': 'https://developers.line.biz/',
         'signup_label': '申請 LINE Developers 帳號',
-        'signup_steps': '1. 登入 developers.line.biz（用你的 LINE 帳號）→ 2. 建立 Provider → 3. 新增 Channel（選「LINE Login」）→ 4. 在 Channel 頁面取得 Channel ID 與 Channel Secret → 5. 在「Callback URL」填入你的 https://你的網域/auth/callback',
+        'signup_steps': (
+            '① 前往 developers.line.biz，點右上角「Log in」→ 用你的 LINE 帳號登入\n'
+            '② 登入後點左側「Providers」→「Create」→ 輸入 Provider 名稱（例：你的教會名稱）→「Create」\n'
+            '③ 進入 Provider 頁面 → 點「Create a new channel」→ 選「LINE Login」\n'
+            '④ 填寫：Channel name（任意）、Channel description、App type 勾選「Web app」→ 點「Create」\n'
+            '⑤ 進入剛建立的 Channel →「Basic settings」分頁：\n'
+            '   • Channel ID（數字）→ 複製填入 LINE_CHANNEL_ID\n'
+            '   • Channel secret（點「Issue」後複製）→ 填入 LINE_CHANNEL_SECRET\n'
+            '⑥ 點「LINE Login」分頁 →「Callback URL」欄位填入：\n'
+            '   https://你的Render網域/auth/callback\n'
+            '   （例：https://church-xxxx.onrender.com/auth/callback）→ 點「Update」儲存\n'
+            '⑦ 回到 Channel 頁面頂部，將狀態從「Development」切換為「Published」\n'
+            '   ⚠️ 未 Publish 前只有你自己能登入，其他會友無法使用'
+        ),
         'vars': [
             {
                 'key': 'LINE_CHANNEL_ID',
@@ -63,7 +76,22 @@ _ENV_GROUPS = [
         'emoji': '🗄️',
         'signup_url': 'https://supabase.com/',
         'signup_label': '申請 Supabase 帳號',
-        'signup_steps': '1. 前往 supabase.com 免費註冊 → 2. 建立新 Project（建議選 ap-southeast-1 新加坡，延遲較低）→ 3. 等待 Project 啟動後，進入 Project Settings → Data API → 複製 Project URL 與 anon public key',
+        'signup_steps': (
+            '① 前往 supabase.com →「Start your project」→「Sign Up」免費註冊（可用 GitHub 帳號）\n'
+            '② 登入後點右上角「New project」\n'
+            '③ 填寫：\n'
+            '   • Name：任意（例：church-system）\n'
+            '   • Database Password：設定強密碼並記住（之後不會用到，但忘了就麻煩了）\n'
+            '   • Region：選「Southeast Asia (Singapore)」— 台灣延遲最低\n'
+            '   → 點「Create new project」，等待約 1-2 分鐘啟動\n'
+            '④ 啟動完成後，左側點「Project Settings（齒輪圖示）」→「Data API」\n'
+            '⑤ 複製「Project URL」→ 填入 SUPABASE_URL\n'
+            '   （格式：https://xxxxxxxxxxxxxxxx.supabase.co）\n'
+            '⑥ 往下找「Project API keys」→ 複製「anon public」那行 →填入 SUPABASE_KEY\n'
+            '   （service_role 那行不要用，權限過大）\n'
+            '⑦ 建表：左側點「SQL Editor」→ 貼上本頁「建表 SQL」→ 點「Run」執行\n'
+            '   看到「Success. No rows returned」表示建表成功'
+        ),
         'vars': [
             {
                 'key': 'SUPABASE_URL',
@@ -116,7 +144,25 @@ _ENV_GROUPS = [
         'optional_group': True,
         'signup_url': 'https://dash.cloudflare.com/',
         'signup_label': '申請 Cloudflare 帳號',
-        'signup_steps': '1. cloudflare.com 免費註冊 → 2. 左側選「R2 Object Storage」→ 3. 建立 Bucket（記住 Bucket 名稱）→ 4. 在 R2 Overview 頁面點「Manage R2 API Tokens」→ 5. 建立 Token（Object Read & Write 權限）→ 複製 Access Key ID、Secret Access Key、Endpoint URL',
+        'signup_steps': (
+            '① 前往 cloudflare.com →「Sign Up」免費註冊\n'
+            '② 登入後，左側選單找「R2 Object Storage」（可能需要先啟用，按提示操作即可）\n'
+            '③ 點「Create bucket」：\n'
+            '   • Bucket name：全英文小寫+連字號（例：church-files）→ 記住這個名稱\n'
+            '   • Location：選「Asia Pacific (APAC)」→「Create bucket」\n'
+            '④ 回到 R2 主頁（左側 R2 Object Storage），點右上角「Manage R2 API Tokens」\n'
+            '⑤ 點「Create API Token」：\n'
+            '   • Token name：任意（例：church-system）\n'
+            '   • Permissions：選「Object Read & Write」\n'
+            '   • Specify bucket：選你剛建立的 bucket\n'
+            '   → 點「Create API Token」\n'
+            '⑥ 建立後頁面顯示憑證（⚠️ 只顯示一次，請立刻複製）：\n'
+            '   • Access Key ID → 填入 R2_ACCESS_KEY_ID\n'
+            '   • Secret Access Key → 填入 R2_SECRET_ACCESS_KEY\n'
+            '   • Endpoint（頁面上方的 S3 API 網址）→ 填入 R2_ENDPOINT\n'
+            '     格式：https://帳號ID.r2.cloudflarestorage.com\n'
+            '⑦ 步驟③的 Bucket 名稱 → 填入 R2_BUCKET_NAME'
+        ),
         'vars': [
             {'key': 'R2_ENDPOINT',          'label': 'R2 Endpoint',          'required': False, 'secret': False, 'hint': '格式：https://帳號ID.r2.cloudflarestorage.com（建立 API Token 後頁面會顯示）'},
             {'key': 'R2_ACCESS_KEY_ID',     'label': 'R2 Access Key ID',     'required': False, 'secret': True,  'hint': 'Manage R2 API Tokens → 建立 Token 後取得'},
@@ -130,7 +176,20 @@ _ENV_GROUPS = [
         'optional_group': True,
         'signup_url': 'https://sentry.io/',
         'signup_label': '申請 Sentry 帳號（免費）',
-        'signup_steps': '1. sentry.io 免費註冊 → 2. 建立新 Project（選 Python → Flask）→ 3. 複製 DSN（格式：https://xxx@xxx.ingest.sentry.io/xxx）填入 SENTRY_DSN。免費方案每月 5,000 筆錯誤，小型教會完全足夠。',
+        'signup_steps': (
+            '① 前往 sentry.io →「Get Started」免費註冊（可用 GitHub 帳號）\n'
+            '② 登入後系統會引導建立第一個 Organization，名稱隨意\n'
+            '③ 點「Create Project」：\n'
+            '   • 選平台：找「Python」→「Flask」\n'
+            '   • Alert frequency：選「Alert me on every new issue」\n'
+            '   • Project name：任意（例：church-system）→「Create Project」\n'
+            '④ 建立後頁面會顯示 DSN，格式如下：\n'
+            '   https://xxxxxxxx@xxxxxxxx.ingest.sentry.io/xxxxxxx\n'
+            '   → 複製填入 SENTRY_DSN\n'
+            '⑤ 若找不到 DSN：左側「Settings」→「Projects」→ 你的 Project\n'
+            '   →「Client Keys (DSN)」→ 複製第一個 DSN\n'
+            '   免費方案每月 5,000 筆錯誤回報，小型教會完全足夠'
+        ),
         'vars': [
             {'key': 'SENTRY_DSN', 'label': 'Sentry DSN', 'required': False, 'secret': True,
              'hint': 'Sentry Dashboard → 你的 Project → Settings → Client Keys (DSN)；未設定則錯誤監控停用'},
@@ -142,7 +201,18 @@ _ENV_GROUPS = [
         'optional_group': True,
         'signup_url': 'https://console.groq.com/',
         'signup_label': '申請 Groq 帳號（免費）',
-        'signup_steps': '1. console.groq.com 免費註冊 → 2. 左側選「API Keys」→ 3. 點「Create API Key」→ 複製 key 填入 GROQ_API_KEY。Groq 免費額度對小型教會已十分充足。',
+        'signup_steps': (
+            '【Groq — 主要 AI，免費】\n'
+            '① 前往 console.groq.com →「Sign Up」（可用 Google 帳號）\n'
+            '② 登入後，左側點「API Keys」\n'
+            '③ 點「Create API Key」→ 輸入名稱（例：church-system）→「Submit」\n'
+            '④ 複製顯示的 key（⚠️ 只顯示一次）→ 填入 GROQ_API_KEY\n'
+            '   免費方案每分鐘 30 次、每天 14,400 次，小型教會完全足夠\n\n'
+            '【Gemini — 備援 AI，可選】\n'
+            '① 前往 aistudio.google.com →「Get API key」（需 Google 帳號）\n'
+            '② 點「Create API key」→ 選或建一個 Google Cloud 專案 → 複製 key → 填入 GEMINI_API_KEY\n'
+            '   Groq 若臨時達到速率限制，系統會自動切換 Gemini 繼續服務'
+        ),
         'vars': [
             {'key': 'GROQ_API_KEY',      'label': 'Groq API Key（主）',      'required': False, 'secret': True, 'hint': 'console.groq.com → API Keys → Create API Key'},
             {'key': 'GEMINI_API_KEY',    'label': 'Gemini API Key（備援）',  'required': False, 'secret': True, 'hint': 'aistudio.google.com → Get API Key（可選，Groq 失效時自動備援）'},
