@@ -80,6 +80,10 @@ def create_app():
     from routes.cell_report import cell_report_bp
     app.register_blueprint(cell_report_bp)
 
+    # ── 同工首頁 ──────────────────────────────────────────────
+    from routes.staff import staff_bp
+    app.register_blueprint(staff_bp)
+
     # ── 部署精靈 ──────────────────────────────────────────────
     from routes.setup_wizard import setup_wizard_bp
     app.register_blueprint(setup_wizard_bp)

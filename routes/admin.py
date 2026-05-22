@@ -1,7 +1,7 @@
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
-from routes.decorators import admin_required, super_admin_required
+from routes.decorators import admin_required, super_admin_required, staff_required
 import secrets
 import uuid
 import io
@@ -1165,7 +1165,7 @@ def event_delete(event_id):
 # =====================
 
 @admin_bp.route('/events/<event_id>/registrations')
-@admin_required
+@staff_required
 def registrations(event_id):
     """查看活動報名名單"""
     # 撈活動資料
@@ -1246,7 +1246,7 @@ def event_reg_qrcode(event_id):
 
 
 @admin_bp.route('/events/<event_id>/qrcode')
-@admin_required
+@staff_required
 def event_qrcode(event_id):
     """顯示活動的電子簽到 QR Code"""
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
