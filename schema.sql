@@ -741,3 +741,19 @@ INSERT INTO portal_cards (key, name, emoji, subtitle, url, visible_to, sort_orde
   ('files',         '檔案管理', '📁', '教會資料夾與檔案',       '/files',                        'admin',       130),
   ('admin',         '後台管理', '⚙️', '使用者、活動、系統設定', '/admin',                        'admin',       140)
 ON CONFLICT (key) DO NOTHING;
+
+
+-- 供部署精靈用：繞過 PostgREST schema cache，直接查 information_schema
+CREATE OR REPLACE FUNCTION public.check_table_exists(tbl_name TEXT)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = tbl_name
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.check_table_exists(TEXT) TO anon, authenticated;

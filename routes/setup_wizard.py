@@ -308,11 +308,12 @@ def _check_db_tables():
     try:
         from db import supabase
         existing = set()
-        # Query information_schema for each table
         for tbl in _CORE_TABLES:
             try:
-                supabase.table(tbl).select('*').limit(0).execute()
-                existing.add(tbl)
+                # 用 RPC 查 information_schema，繞過 PostgREST schema cache
+                result = supabase.rpc('check_table_exists', {'tbl_name': tbl}).execute()
+                if result.data:
+                    existing.add(tbl)
             except Exception:
                 pass
         return {t: (t in existing) for t in _CORE_TABLES}
