@@ -3,160 +3,183 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 - 教會入口整合系統</title>
+    <title>登入 - {{ church_name }}</title>
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
             display: flex;
             flex-direction: column;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
             padding: 24px 16px;
-            background: #f5f5f5;
-            font-family: sans-serif;
-            box-sizing: border-box;
+            background: linear-gradient(160deg, #f0fdf4 0%, #f5f5f5 100%);
+            font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
         }
         .card {
             background: white;
-            padding: 48px 40px;
-            border-radius: 16px;
-            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 48px 40px 40px;
+            border-radius: 20px;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.08);
             text-align: center;
-            width: min(100%, 380px);
-            box-sizing: border-box;
+            width: min(100%, 360px);
         }
-        h1 { font-size: 1.5rem; margin-bottom: 8px; }
-        p  { color: #666; margin-bottom: 32px; }
+        .church-icon {
+            font-size: 2.8rem;
+            margin-bottom: 12px;
+        }
+        .church-name {
+            font-size: 1.4rem;
+            font-weight: 800;
+            color: #111;
+            margin-bottom: 6px;
+        }
+        .church-sub {
+            font-size: 0.85rem;
+            color: #9ca3af;
+            margin-bottom: 36px;
+        }
         .line-btn {
-            display: none;
+            display: flex;
             align-items: center;
+            justify-content: center;
             gap: 10px;
             background: #06C755;
             color: white;
             text-decoration: none;
-            padding: 14px 28px;
-            border-radius: 8px;
-            font-size: 1rem;
-            font-weight: bold;
+            padding: 16px 24px;
+            border-radius: 12px;
+            font-size: 1.05rem;
+            font-weight: 700;
+            width: 100%;
+            border: none;
+            cursor: pointer;
+            transition: background 0.15s, opacity 0.15s;
+            -webkit-tap-highlight-color: transparent;
         }
-        .line-btn:hover { background: #05a847; }
-        .pwa-hint {
-            display: none;
-            margin-top: 16px;
-            font-size: 0.8rem;
-            color: #aaa;
-            line-height: 1.5;
+        .line-btn:active { opacity: 0.85; }
+        .line-btn:hover  { background: #05b84b; }
+        .line-btn svg    { flex-shrink: 0; }
+        .loading-msg {
+            font-size: 0.9rem;
+            color: #9ca3af;
+            margin-bottom: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
+        .spinner {
+            width: 18px; height: 18px;
+            border: 2px solid #e5e7eb;
+            border-top-color: #06C755;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            flex-shrink: 0;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
         .privacy-note {
-            margin: 18px 0 0;
+            margin-top: 20px;
             font-size: 0.78rem;
-            color: #999;
-            text-align: center;
+            color: #c0c0c0;
         }
-        .privacy-note a { color:#06C755; }
-        @media (max-width: 420px) {
-            .card { padding: 36px 24px; }
-            h1 { font-size: 1.35rem; }
-            .line-btn { width: 100%; justify-content: center; }
+        .privacy-note a { color: #06C755; text-decoration: none; }
+        .explain {
+            font-size: 0.8rem;
+            color: #9ca3af;
+            margin-top: 14px;
+            line-height: 1.6;
         }
     </style>
 </head>
 <body>
     <div class="card">
-        <h1>⛪ {{ church_name }}</h1>
-        <p style="color:#666; font-size:0.85rem; margin:-8px 0 4px;">教會入口整合系統</p>
-        <p id="liff-status">登入中，請稍候...</p>
+        <div class="church-icon">⛪</div>
+        <div class="church-name">{{ church_name }}</div>
+        <div class="church-sub">會員服務入口</div>
 
+        <!-- 初始狀態：嘗試 LIFF 時顯示 spinner（非 LINE 環境幾乎立刻消失） -->
+        <div class="loading-msg" id="loading-msg">
+            <div class="spinner"></div>
+            <span>準備登入中…</span>
+        </div>
+
+        <!-- LINE 登入按鈕（預設隱藏，ready 後顯示） -->
         <a href="{{ url_for('auth.login') }}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}"
-           class="line-btn" id="login-btn">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/4/41/LINE_logo.svg"
-                 width="24" height="24" alt="LINE">
+           class="line-btn" id="login-btn" style="display:none;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect width="24" height="24" rx="5" fill="white" fill-opacity="0.2"/>
+                <path d="M20 10.6C20 6.94 16.42 4 12 4C7.58 4 4 6.94 4 10.6C4 13.87 6.88 16.6 10.84 17.12C11.12 17.18 11.5 17.31 11.6 17.54C11.69 17.75 11.66 18.07 11.64 18.28C11.64 18.28 11.52 19.07 11.5 19.18C11.46 19.39 11.32 20.01 12 19.72C12.68 19.43 15.96 17.33 17.44 15.64C18.47 14.53 20 12.71 20 10.6Z" fill="white"/>
+            </svg>
             使用 LINE 登入
         </a>
 
-        <div class="pwa-hint" id="pwa-hint">
-            💡 從 LINE 中開啟連結可自動登入，免點按鈕
+        <div class="explain" id="explain" style="display:none;">
+            點擊後會跳轉到 LINE 授權頁面<br>授權後自動回到本系統
         </div>
     </div>
+
     {% if privacy_policy_url %}
-    <p class="privacy-note">
-        使用本系統即表示您同意我們的
+    <p class="privacy-note" style="margin-top:20px;">
+        使用本系統即表示您同意
         <a href="{{ privacy_policy_url }}" target="_blank" rel="noopener">隱私權政策</a>
     </p>
     {% endif %}
 
-    <!-- LIFF SDK（僅用於 LINE in-app 自動登入） -->
+    {% if line_liff_id %}
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+    {% endif %}
     <script>
-    var loginBtn = document.getElementById('login-btn');
-    var statusEl = document.getElementById('liff-status');
-    var nextUrl  = new URLSearchParams(window.location.search).get('next') || '';
+    var nextUrl = new URLSearchParams(window.location.search).get('next') || '';
 
-    // PWA standalone 模式：顯示提示
-    if (window.matchMedia('(display-mode: standalone)').matches) {
-        document.getElementById('pwa-hint').style.display = 'block';
+    function showBtn() {
+        document.getElementById('loading-msg').style.display = 'none';
+        document.getElementById('login-btn').style.display  = 'flex';
+        document.getElementById('explain').style.display    = 'block';
     }
 
-    // 若 LIFF 5 秒內沒有回應，直接顯示 OAuth 按鈕
-    var liffTimer = setTimeout(function() { showOAuthBtn(); }, 5000);
+    {% if line_liff_id %}
+    // 非 LINE 瀏覽器：user agent 快速判斷，不等 LIFF init
+    if (!/Line\//i.test(navigator.userAgent)) {
+        showBtn();
+    } else {
+        // LINE 內建瀏覽器：跑 LIFF 自動登入
+        var liffTimer = setTimeout(showBtn, 4000);
 
-    liff.init({ liffId: "{{ line_liff_id }}" })
-        .then(function() {
-            clearTimeout(liffTimer);
-            if (!liff.isInClient()) {
-                // 外部瀏覽器 / PWA → 純 OAuth2，不跑 LIFF
-                showOAuthBtn();
-                return;
-            }
+        liff.init({ liffId: "{{ line_liff_id }}" })
+            .then(function() {
+                clearTimeout(liffTimer);
+                if (!liff.isInClient()) { showBtn(); return; }
+                if (!liff.isLoggedIn()) {
+                    var base = window.location.origin + window.location.pathname;
+                    liff.login({ redirectUri: nextUrl ? base + '?next=' + encodeURIComponent(nextUrl) : base });
+                    return;
+                }
+                doLiffLogin();
+            })
+            .catch(function() { clearTimeout(liffTimer); showBtn(); });
 
-            // ── LINE 內部瀏覽器 → LIFF 自動登入 ──
-            if (!liff.isLoggedIn()) {
-                var base = window.location.origin + window.location.pathname;
-                var redirectUri = nextUrl ? base + '?next=' + encodeURIComponent(nextUrl) : base;
-                liff.login({ redirectUri: redirectUri });
-                return;
-            }
-            doLiffLogin();
-        })
-        .catch(function() {
-            clearTimeout(liffTimer);
-            // LIFF 載入失敗 → fallback OAuth2
-            showOAuthBtn();
-        });
-
-    function showOAuthBtn() {
-        statusEl.textContent = '請用 LINE 帳號登入以繼續';
-        loginBtn.style.display = 'inline-flex';
-    }
-
-    function doLiffLogin() {
-        statusEl.textContent = '登入中，請稍候...';
-        var idToken = liff.getIDToken();
-        if (!idToken) {
-            // LIFF context 異常（從非 LIFF URL 開啟）→ 改走 OAuth
-            showOAuthBtn();
-            return;
+        function doLiffLogin() {
+            var idToken = liff.getIDToken();
+            if (!idToken) { showBtn(); return; }
+            document.getElementById('loading-msg').querySelector('span').textContent = '登入中，請稍候…';
+            fetch('/auth/liff-login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id_token: idToken, next_url: nextUrl })
+            })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.redirect) { window.location.href = d.redirect; }
+                else { showBtn(); }
+            })
+            .catch(showBtn);
         }
-        fetch('/auth/liff-login', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id_token: idToken, next_url: nextUrl })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(data) {
-            if (data.redirect) {
-                window.location.href = data.redirect;
-            } else {
-                statusEl.textContent = data.error || '登入失敗，請關閉重新開啟';
-                showOAuthBtn();
-            }
-        })
-        .catch(function() {
-            statusEl.textContent = '網路錯誤，請重試';
-            showOAuthBtn();
-        });
     }
+    {% else %}
+    // 沒有設定 LIFF ID：直接顯示按鈕
+    showBtn();
+    {% endif %}
     </script>
 </body>
 </html>
