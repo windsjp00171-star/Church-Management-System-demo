@@ -920,7 +920,7 @@ def event_clone(event_id):
 
 
 @admin_bp.route('/events/<event_id>/checkin-live')
-@admin_required
+@staff_required
 def checkin_live(event_id):
     """即時簽到狀況頁面"""
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
@@ -942,7 +942,7 @@ def checkin_display(event_id):
 
 
 @admin_bp.route('/events/<event_id>/checkin-live/data')
-@admin_required
+@staff_required
 def checkin_live_data(event_id):
     """即時簽到狀況 JSON API（前端輪詢用）"""
     # 撈所有已報名（registered + walk_in）紀錄
@@ -1225,7 +1225,8 @@ def registrations(event_id):
         user_map=user_map,
         fields=fields,
         answer_map=answer_map,
-        name_override_map=name_override_map
+        name_override_map=name_override_map,
+        is_admin=session.get('is_admin', False) or session.get('is_super_admin', False),
     )
 
 
@@ -1293,7 +1294,7 @@ def toggle_checkin(event_id, reg_id):
 # =====================
 
 @admin_bp.route('/events/<event_id>/checkin-live/search')
-@admin_required
+@staff_required
 def checkin_search(event_id):
     """從全部會員搜尋（供同工代簽，含純簽到活動）"""
     q = request.args.get('q', '').strip()
@@ -1343,7 +1344,7 @@ def checkin_search(event_id):
 
 
 @admin_bp.route('/events/<event_id>/proxy-checkin', methods=['POST'])
-@admin_required
+@staff_required
 def proxy_checkin(event_id):
     """同工代替會友簽到（含無報名紀錄的純簽到情境）"""
     body = request.get_json() or {}

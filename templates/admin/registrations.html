@@ -17,10 +17,12 @@
            style="padding:6px 16px; background:#1565c0; color:white; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold;">
             📥 匯出 Excel
         </a>
+        {% if is_admin %}
         <button onclick="openNotifyPanel()"
            style="padding:6px 16px; background:#fff3e0; color:#e65100; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
             📢 發送通知
         </button>
+        {% endif %}
         {% if event.checkin_enabled %}
         <a href="/admin/events/{{ event.id }}/checkin-live"
            style="padding:6px 16px; background:#e8f5e9; color:#2e7d32; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold;">
@@ -129,7 +131,7 @@
                     {% if event.meal_options and event.meal_options.enabled %}
                     <th style="padding:12px 16px; text-align:center; white-space:nowrap;">🍱 餐點</th>
                     {% endif %}
-                    {% if event.fee %}
+                    {% if event.fee and is_admin %}
                     <th style="padding:12px 16px; text-align:center; white-space:nowrap;">💰 付款</th>
                     {% endif %}
                     <th style="padding:12px 16px; text-align:center; white-space:nowrap;">報到</th>
@@ -188,8 +190,8 @@
                     </td>
                     {% endif %}
 
-                    <!-- 付款狀態（只在有費用時顯示） -->
-                    {% if event.fee %}
+                    <!-- 付款狀態（只在有費用且為管理員時顯示） -->
+                    {% if event.fee and is_admin %}
                     <td style="padding:14px 16px; text-align:center;">
                         {% set ps = reg.payment_status or 'unpaid' %}
                         <button onclick="togglePayment('{{ reg.id }}', this)"
@@ -212,6 +214,7 @@
                                        color:{{ 'white' if reg.checked_in else '#555' }};">
                                 {{ '✓ 已報到' if reg.checked_in else '未報到' }}
                             </button>
+                            {% if is_admin %}
                             <button onclick="cancelReg('{{ event.id }}', '{{ reg.id }}', this)"
                                 style="padding:6px 10px; border:none; border-radius:20px; cursor:pointer; font-size:0.78rem;
                                        background:#ffebee; color:#c62828;"
@@ -229,6 +232,7 @@
                                 title="編輯報名資料">
                                 ✏️
                             </button>
+                            {% endif %}
                         </div>
                     </td>
                 </tr>
@@ -381,7 +385,7 @@ function saveEditModal() {
     // 外部來賓姓名/電話
     if (_editIsGuest) {
         const name = document.getElementById('edit-guest-name').value.trim();
-        if (!name) { alert('請填寫姓名'); return; }
+        if (!name) { showToast('請填寫姓名', 'warning'); return; }
         payload.guest_name = name;
         payload.guest_phone = document.getElementById('edit-guest-phone').value.trim();
     }
@@ -409,7 +413,7 @@ function saveEditModal() {
         body: JSON.stringify(payload)
     }).then(r => r.json()).then(d => {
         if (d.success) { closeEditModal(); location.reload(); }
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 
@@ -506,11 +510,11 @@ function togglePayment(regId, btn) {
                 btn.style.background = colors[ps]?.bg || '#f5f5f5';
                 btn.style.color = colors[ps]?.text || '#333';
             } else {
-                alert(data.error || '操作失敗');
+                showToast(data.error || '操作失敗', 'error');
             }
             btn.disabled = false;
         })
-        .catch(() => { alert('網路錯誤'); btn.disabled = false; });
+        .catch(() => { showToast('網路錯誤', 'error'); btn.disabled = false; });
 }
 
 function toggleCheckin(regId, btn) {
@@ -534,12 +538,12 @@ function toggleCheckin(regId, btn) {
                     btn.closest('tr').style.background = '';
                 }
             } else {
-                alert(data.error || '操作失敗');
+                showToast(data.error || '操作失敗', 'error');
             }
             btn.disabled = false;
         })
         .catch(() => {
-            alert('網路錯誤，請稍後再試');
+            showToast('網路錯誤，請稍後再試', 'error');
             btn.disabled = false;
         });
 }
@@ -556,7 +560,7 @@ function cancelReg(eventId, regId, btn) {
                 row.style.opacity = '0';
                 row.style.transition = 'opacity 0.3s';
                 setTimeout(() => row.remove(), 300);
-            } else { alert(d.error || '刪除失敗'); btn.disabled = false; }
+            } else { showToast(d.error || '刪除失敗', 'error'); btn.disabled = false; }
         });
 }
 
@@ -637,7 +641,7 @@ function wlAdd(userId, el) {
         body: JSON.stringify({ user_id: userId })
     }).then(r => r.json()).then(d => {
         if (d.success) loadWhitelist();
-        else alert(d.error || '加入失敗');
+        else showToast(d.error || '加入失敗', 'error');
     });
 }
 
@@ -646,7 +650,7 @@ function wlRemove(userId, btn) {
     fetch(`/admin/api/whitelist/event/${WL_EVENT_ID}/${userId}/remove`, { method: 'POST' })
         .then(r => r.json()).then(d => {
             if (d.success) loadWhitelist();
-            else { alert(d.error || '移除失敗'); btn.disabled = false; }
+            else { showToast(d.error || '移除失敗', 'error'); btn.disabled = false; }
         });
 }
 
