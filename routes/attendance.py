@@ -205,19 +205,37 @@ def submit_overtime():
 @attendance_bp.route('/admin/attendance')
 @admin_required
 def admin_attendance():
-    # 待審核
-    pending_leaves = supabase.table('leave_requests').select('*, users(real_name, display_name)')\
-        .eq('status', 'pending').order('created_at').execute().data or []
-    pending_ot = supabase.table('overtime_records').select('*, users(real_name, display_name)')\
-        .eq('status', 'pending').order('date').execute().data or []
-    # 同工列表
-    profiles = supabase.table('staff_profiles').select('*, users(real_name, display_name)')\
-        .eq('is_active', True).order('hire_date').execute().data or []
+    db_ok = True
+    pending_leaves = []
+    pending_ot = []
+    profiles = []
+    try:
+        pending_leaves = supabase.table('leave_requests').select('*')\
+            .eq('status', 'pending').order('created_at').execute().data or []
+        pending_ot = supabase.table('overtime_records').select('*')\
+            .eq('status', 'pending').order('date').execute().data or []
+        profiles = supabase.table('staff_profiles').select('*')\
+            .eq('is_active', True).order('hire_date').execute().data or []
+
+        # 批次取得所有相關 user 名稱（避免 PostgREST FK join）
+        user_ids = list({r['user_id'] for r in pending_leaves + pending_ot + profiles})
+        user_map = {}
+        if user_ids:
+            users = supabase.table('users').select('id, real_name, display_name')\
+                .in_('id', user_ids).execute().data or []
+            user_map = {u['id']: u for u in users}
+        for r in pending_leaves + pending_ot + profiles:
+            r['_user'] = user_map.get(r['user_id'], {})
+    except Exception as e:
+        print(f'[attendance admin] DB error: {e}')
+        db_ok = False
+
     return render_template('attendance/admin.html',
         pending_leaves=pending_leaves,
         pending_ot=pending_ot,
         profiles=profiles,
         leave_labels=LEAVE_LABELS,
+        db_ok=db_ok,
     )
 
 

@@ -59,6 +59,15 @@
         </div>
     </div>
 
+    <!-- DB 缺失提示 -->
+    {% if not db_ok %}
+    <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; padding:14px 18px; margin-bottom:20px; color:#991b1b; font-size:0.88rem;">
+        ⚠️ 差勤資料表尚未建立，請前往
+        <a href="/setup-wizard" style="color:#dc2626; font-weight:bold;">部署精靈</a>
+        確認資料庫狀態，或聯繫維運者執行 schema migration。
+    </div>
+    {% endif %}
+
     <!-- 待審核 -->
     {% if pending_leaves or pending_ot %}
     <h3 style="font-size:0.9rem; color:#92400e; background:#fef3c7; padding:8px 14px; border-radius:8px; margin:0 0 14px; display:inline-block;">
@@ -70,7 +79,7 @@
     <div style="background:white; border-radius:12px; padding:16px 18px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.07); border-left:4px solid #f59e0b;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
             <div>
-                <span style="font-weight:bold;">{{ r.users.real_name or r.users.display_name }}</span>
+                <span style="font-weight:bold;">{{ r._user.get('real_name') or r._user.get('display_name') or '（未知）' }}</span>
                 <span style="margin-left:8px; background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:10px; font-size:0.78rem;">請假</span>
                 <span style="margin-left:6px; font-size:0.88rem; color:#555;">{{ leave_labels[r.leave_type] }} · {{ r.hours }}小時</span>
                 <p style="margin:4px 0 0; font-size:0.83rem; color:#888;">{{ r.start_date }} ～ {{ r.end_date }}{% if r.reason %} · {{ r.reason }}{% endif %}</p>
@@ -91,7 +100,7 @@
     <div style="background:white; border-radius:12px; padding:16px 18px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.07); border-left:4px solid #8b5cf6;">
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
             <div>
-                <span style="font-weight:bold;">{{ r.users.real_name or r.users.display_name }}</span>
+                <span style="font-weight:bold;">{{ r._user.get('real_name') or r._user.get('display_name') or '（未知）' }}</span>
                 <span style="margin-left:8px; background:#f5f3ff; color:#6d28d9; padding:2px 8px; border-radius:10px; font-size:0.78rem;">加班</span>
                 <span style="margin-left:6px; font-size:0.88rem; color:#555;">{{ r.date }} · {{ r.hours }}小時</span>
                 {% if r.reason %}<p style="margin:4px 0 0; font-size:0.83rem; color:#888;">{{ r.reason }}</p>{% endif %}
@@ -115,7 +124,7 @@
     {% for p in profiles %}
     <div style="padding:14px 18px; border-bottom:1px solid #f5f5f5; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
         <div>
-            <span style="font-weight:bold;">{{ p.users.real_name or p.users.display_name }}</span>
+            <span style="font-weight:bold;">{{ p._user.get('real_name') or p._user.get('display_name') or '（未知）' }}</span>
             <span style="font-size:0.82rem; color:#888; margin-left:10px;">入職 {{ p.hire_date }} · {{ '週年制' if p.leave_cycle == 'anniversary' else '曆年制' }}</span>
         </div>
         <a href="/admin/attendance/staff/{{ p.user_id }}"
