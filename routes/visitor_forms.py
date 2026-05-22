@@ -100,20 +100,36 @@ def upload_visitor_form():
 @admin_required
 def admin_visitor_forms():
     """後台：留名單列表"""
-    records = supabase.table('visitor_forms')\
-        .select('*, users(real_name, display_name)')\
-        .order('created_at', desc=True).execute().data or []
+    db_ok = True
+    records = []
+    try:
+        records = supabase.table('visitor_forms')\
+            .select('*')\
+            .order('created_at', desc=True).execute().data or []
 
-    # 產生 signed URL（1 小時有效）
-    for r in records:
-        try:
-            signed = supabase.storage.from_('visitor-forms')\
-                .create_signed_url(r['image_path'], 3600)
-            r['signed_url'] = signed.get('signedURL') or signed.get('signedUrl') or ''
-        except Exception:
-            r['signed_url'] = ''
+        # 批次取得上傳者姓名
+        user_ids = list({r['uploaded_by'] for r in records if r.get('uploaded_by')})
+        user_map = {}
+        if user_ids:
+            users = supabase.table('users').select('id, real_name, display_name')\
+                .in_('id', user_ids).execute().data or []
+            user_map = {u['id']: u for u in users}
+        for r in records:
+            r['_user'] = user_map.get(r.get('uploaded_by'), {})
 
-    return render_template('admin/visitor_forms.html', records=records)
+        # 產生 signed URL（1 小時有效）
+        for r in records:
+            try:
+                signed = supabase.storage.from_('visitor-forms')\
+                    .create_signed_url(r['image_path'], 3600)
+                r['signed_url'] = signed.get('signedURL') or signed.get('signedUrl') or ''
+            except Exception:
+                r['signed_url'] = ''
+    except Exception as e:
+        print(f'[visitor_forms admin] DB error: {e}')
+        db_ok = False
+
+    return render_template('admin/visitor_forms.html', records=records, db_ok=db_ok)
 
 
 @visitor_forms_bp.route('/admin/visitor-forms/<record_id>/delete', methods=['POST'])

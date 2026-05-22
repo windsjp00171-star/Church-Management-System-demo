@@ -8,7 +8,11 @@
         <span style="background:var(--green-bg);color:var(--green);padding:3px 10px;border-radius:20px;font-size:0.8rem;font-weight:bold;">{{ records|length }} 筆</span>
     </div>
 
-    {% if not records %}
+    {% if not db_ok %}
+    <div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:10px;padding:14px 18px;margin-bottom:20px;color:#991b1b;font-size:0.88rem;">
+        ⚠️ 留名單資料表尚未建立，請前往 <a href="/setup-wizard" style="color:#dc2626;font-weight:bold;">部署精靈</a> 確認資料庫狀態。
+    </div>
+    {% elif not records %}
     <div style="text-align:center;padding:60px 20px;color:var(--text-3);">
         <div style="font-size:2.5rem;margin-bottom:12px;">📄</div>
         <div>尚無留名單記錄</div>
@@ -16,7 +20,7 @@
     {% else %}
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;">
         {% for r in records %}
-        {% set uploader = r.get('users') or {} %}
+        {% set uploader = r.get('_user') or r.get('users') or {} %}
         <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;box-shadow:var(--shadow-sm);">
             {% if r.signed_url %}
             <a href="{{ r.signed_url }}" target="_blank" rel="noopener">
