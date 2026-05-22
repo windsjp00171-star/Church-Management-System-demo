@@ -182,7 +182,7 @@ function saveQ() {
 }
 
 function deleteQ(id) {
-    if (!confirm('確定要刪除這個問題嗎？')) return;
+    if (!window.confirm('確定要刪除這個問題嗎？')) return;
     fetch('/admin/gospel/form-questions/save', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},

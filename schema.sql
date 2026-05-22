@@ -374,20 +374,36 @@ CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id, crea
 
 CREATE TABLE IF NOT EXISTS gospel_cards (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title      TEXT NOT NULL,
-    content    TEXT NOT NULL,
+    question   TEXT NOT NULL,
+    answer     TEXT NOT NULL,
+    icon       TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_active  BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS gospel_form_questions (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    label       TEXT NOT NULL,
+    placeholder TEXT,
+    is_textarea BOOLEAN NOT NULL DEFAULT false,
+    is_required BOOLEAN NOT NULL DEFAULT false,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    is_active   BOOLEAN NOT NULL DEFAULT true,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS gospel_inquiries (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID REFERENCES users(id),
-    name       TEXT,
-    content    TEXT NOT NULL,
-    is_read    BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name          TEXT,
+    contact       TEXT,
+    message       TEXT,
+    extra_answers JSONB,
+    status        TEXT NOT NULL DEFAULT 'pending',
+    assigned_to   TEXT,
+    notes         TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ============================================================

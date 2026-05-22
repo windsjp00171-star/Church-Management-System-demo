@@ -1,9 +1,7 @@
 # 福音探索系統路由
 from flask import Blueprint, render_template, request, session, jsonify
-from config import Config
-from supabase import create_client
+from db import supabase
 
-supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
 gospel_bp = Blueprint('gospel', __name__)
 
 STATUS_LABELS = {
@@ -201,8 +199,12 @@ def admin_card_update(card_id):
 def admin_form_questions():
     if not session.get('is_admin'):
         return render_template('admin/forbidden.html'), 403
-    questions = supabase.table('gospel_form_questions')\
-        .select('*').order('sort_order').execute().data or []
+    try:
+        questions = supabase.table('gospel_form_questions')\
+            .select('*').order('sort_order').execute().data or []
+    except Exception as e:
+        print(f'[gospel] form_questions error: {e}')
+        questions = []
     return render_template('gospel/admin_form_questions.html', questions=questions)
 
 

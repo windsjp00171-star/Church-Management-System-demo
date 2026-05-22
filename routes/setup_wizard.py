@@ -160,6 +160,7 @@ _CORE_TABLES = [
     'custom_meeting_reports',
     'diary_entries',
     'portal_card_settings', 'portal_links',
+    'gospel_cards', 'gospel_form_questions', 'gospel_inquiries',
 ]
 
 
