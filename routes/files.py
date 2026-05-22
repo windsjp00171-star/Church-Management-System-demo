@@ -167,10 +167,10 @@ def index():
     folders = folders_q.order('name').execute().data or []
 
     if q:
-        files_q = supabase.table('files').select('*, users(display_name)').ilike('name', f'%{q}%')
+        files_q = supabase.table('files').select('*').ilike('name', f'%{q}%')
         folders = [f for f in folders if q.lower() in f['name'].lower()]
     else:
-        files_q = supabase.table('files').select('*, users(display_name)')
+        files_q = supabase.table('files').select('*')
         if folder_id:
             files_q = files_q.eq('folder_id', folder_id)
         else:
@@ -178,12 +178,20 @@ def index():
     all_files = files_q.order('created_at', desc=True).execute().data or []
     files = [f for f in all_files if _can_access_file(f)]
 
+    # 批次取上傳者姓名
+    uploader_ids = list({f['uploaded_by'] for f in files if f.get('uploaded_by')})
+    uploader_map = {}
+    if uploader_ids:
+        up_users = supabase.table('users').select('id, display_name')\
+            .in_('id', uploader_ids).execute().data or []
+        uploader_map = {u['id']: u['display_name'] for u in up_users}
+
     # 圖片縮圖 URL（本地簽名，無網路請求）
     for f in files:
         ext = os.path.splitext(f['name'])[1].lower()
         f['thumb_url'] = get_presigned_url(f['file_key'], expires=3600) if ext in IMAGE_EXTS else None
         f['size_label'] = _format_size(f.get('file_size'))
-        f['uploader'] = (f.get('users') or {}).get('display_name', '')
+        f['uploader'] = uploader_map.get(f.get('uploaded_by'), '')
 
     current_folder = None
     if folder_id:
