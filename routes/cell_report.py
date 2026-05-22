@@ -4,12 +4,13 @@
 url_prefix="/cell-report"
 """
 import json
+import time
 import datetime
 from typing import Any, Dict, List, Optional
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    session, flash, jsonify
+    session, flash, jsonify, abort
 )
 
 from db import supabase
@@ -18,6 +19,50 @@ from routes.decorators import (
 )
 
 cell_report_bp = Blueprint('cell_report', __name__)
+
+# ── 聚會設定（快取）──────────────────────────────────────────
+MEETING_DEFAULTS: Dict[str, Dict] = {
+    'adult_sunday':    {'label': '成人主日', 'emoji': '⛪', 'weekday': 6, 'service_count': 2},
+    'children_sunday': {'label': '兒童主日', 'emoji': '🧒', 'weekday': 6, 'service_count': 1},
+    'prayer':          {'label': '禱告會',   'emoji': '🙏', 'weekday': 2, 'service_count': 1},
+    'morning_prayer':  {'label': '晨禱',     'emoji': '🌅', 'weekday': 4, 'service_count': 1},
+}
+_MEETING_CFG_CACHE: Optional[Dict] = None
+_MEETING_CFG_TS: float = 0.0
+_MEETING_CFG_TTL = 300
+
+
+def _get_meeting_settings() -> Dict[str, Dict]:
+    global _MEETING_CFG_CACHE, _MEETING_CFG_TS
+    now = time.time()
+    if _MEETING_CFG_CACHE is not None and now - _MEETING_CFG_TS < _MEETING_CFG_TTL:
+        return _MEETING_CFG_CACHE
+    result = {}
+    for key, defaults in MEETING_DEFAULTS.items():
+        cfg = dict(defaults)
+        try:
+            res = supabase.table('settings').select('value').eq('key', f'meeting.{key}').execute()
+            if res.data:
+                cfg.update(json.loads(res.data[0]['value']))
+        except Exception:
+            pass
+        result[key] = cfg
+    _MEETING_CFG_CACHE = result
+    _MEETING_CFG_TS = now
+    return result
+
+
+def _invalidate_meeting_cache():
+    global _MEETING_CFG_CACHE
+    _MEETING_CFG_CACHE = None
+
+
+def _get_last_weekday_date(weekday: int, ref_date=None) -> datetime.date:
+    """回傳最近一次指定星期幾的日期（0=週一…6=週日）。"""
+    if ref_date is None:
+        ref_date = datetime.date.today()
+    days_since = (ref_date.weekday() - weekday) % 7
+    return ref_date - datetime.timedelta(days=days_since)
 
 
 
@@ -553,33 +598,39 @@ def pastor_dashboard():
     else:
         base_date = datetime.date.today()
 
-    sunday = _get_last_sunday(base_date)
-    week_end = sunday
-    week_start = sunday - datetime.timedelta(days=6)
+    mcfg = _get_meeting_settings()
+    anchor_weekday = mcfg['adult_sunday']['weekday']
+    anchor = _get_last_weekday_date(anchor_weekday, base_date)
+    week_end = anchor
+    week_start = anchor - datetime.timedelta(days=6)
     prev_week = week_end - datetime.timedelta(days=7)
     next_week = week_end + datetime.timedelta(days=7)
 
-    adult_report = _get_sunday_report(sunday.isoformat())
-    children_report = _get_children_report(sunday.isoformat())
-    prayer_rep = _get_prayer_report(_get_last_wednesday(sunday).isoformat())
-    morning_rep = _get_morning_prayer_report(_get_last_friday(sunday).isoformat())
+    children_date = _get_last_weekday_date(mcfg['children_sunday']['weekday'], base_date)
+    prayer_date   = _get_last_weekday_date(mcfg['prayer']['weekday'], base_date)
+    morning_date  = _get_last_weekday_date(mcfg['morning_prayer']['weekday'], base_date)
 
-    adult_first = (adult_report or {}).get('first_service_count', 0) or 0
+    adult_report    = _get_sunday_report(anchor.isoformat())
+    children_report = _get_children_report(children_date.isoformat())
+    prayer_rep      = _get_prayer_report(prayer_date.isoformat())
+    morning_rep     = _get_morning_prayer_report(morning_date.isoformat())
+
+    adult_first  = (adult_report or {}).get('first_service_count', 0) or 0
     adult_second = (adult_report or {}).get('second_service_count', 0) or 0
-    adult_count = adult_first + adult_second
-    children_count = (children_report or {}).get('attendance_count', 0) or 0
-    prayer_count = (prayer_rep or {}).get('attendance_count', 0) or 0
+    adult_count  = adult_first + adult_second
+    children_count       = (children_report or {}).get('attendance_count', 0) or 0
+    prayer_count         = (prayer_rep or {}).get('attendance_count', 0) or 0
     morning_prayer_count = (morning_rep or {}).get('attendance_count', 0) or 0
 
     groups = _get_active_groups()
-    group_data = _build_group_data(groups, sunday)
+    group_data = _build_group_data(groups, anchor)
 
-    today_sunday = _get_last_sunday(datetime.date.today())
+    today_anchor = _get_last_weekday_date(anchor_weekday, datetime.date.today())
 
     return render_template('cell_report/dashboard.html',
-                           sunday_date=sunday,
-                           prayer_date=_get_last_wednesday(sunday),
-                           morning_prayer_date=_get_last_friday(sunday),
+                           sunday_date=anchor,
+                           prayer_date=prayer_date,
+                           morning_prayer_date=morning_date,
                            adult=adult_count,
                            adult_first=adult_first,
                            adult_second=adult_second,
@@ -591,14 +642,15 @@ def pastor_dashboard():
                            next_week=next_week,
                            week_start=week_start,
                            week_end=week_end,
-                           is_current_week=sunday == today_sunday,
+                           is_current_week=anchor == today_anchor,
                            dashboard_title='牧者查閱',
                            is_pastor=True,
-                           is_staff=False)
+                           is_staff=False,
+                           meeting_cfg=mcfg)
 
 
-@staff_required
 @cell_report_bp.get('/cell-report/staff-dashboard')
+@staff_required
 def staff_dashboard():
     week_str = request.args.get('week')
     if week_str:
@@ -609,33 +661,39 @@ def staff_dashboard():
     else:
         base_date = datetime.date.today()
 
-    sunday = _get_last_sunday(base_date)
-    week_end = sunday
-    week_start = sunday - datetime.timedelta(days=6)
+    mcfg = _get_meeting_settings()
+    anchor_weekday = mcfg['adult_sunday']['weekday']
+    anchor = _get_last_weekday_date(anchor_weekday, base_date)
+    week_end = anchor
+    week_start = anchor - datetime.timedelta(days=6)
     prev_week = week_end - datetime.timedelta(days=7)
     next_week = week_end + datetime.timedelta(days=7)
 
-    adult_report = _get_sunday_report(sunday.isoformat())
-    children_report = _get_children_report(sunday.isoformat())
-    prayer_rep = _get_prayer_report(_get_last_wednesday(sunday).isoformat())
-    morning_rep = _get_morning_prayer_report(_get_last_friday(sunday).isoformat())
+    children_date = _get_last_weekday_date(mcfg['children_sunday']['weekday'], base_date)
+    prayer_date   = _get_last_weekday_date(mcfg['prayer']['weekday'], base_date)
+    morning_date  = _get_last_weekday_date(mcfg['morning_prayer']['weekday'], base_date)
 
-    adult_first = (adult_report or {}).get('first_service_count', 0) or 0
+    adult_report    = _get_sunday_report(anchor.isoformat())
+    children_report = _get_children_report(children_date.isoformat())
+    prayer_rep      = _get_prayer_report(prayer_date.isoformat())
+    morning_rep     = _get_morning_prayer_report(morning_date.isoformat())
+
+    adult_first  = (adult_report or {}).get('first_service_count', 0) or 0
     adult_second = (adult_report or {}).get('second_service_count', 0) or 0
-    adult_count = adult_first + adult_second
-    children_count = (children_report or {}).get('attendance_count', 0) or 0
-    prayer_count = (prayer_rep or {}).get('attendance_count', 0) or 0
+    adult_count  = adult_first + adult_second
+    children_count       = (children_report or {}).get('attendance_count', 0) or 0
+    prayer_count         = (prayer_rep or {}).get('attendance_count', 0) or 0
     morning_prayer_count = (morning_rep or {}).get('attendance_count', 0) or 0
 
     groups = _get_active_groups()
-    group_data = _build_group_data(groups, sunday)
+    group_data = _build_group_data(groups, anchor)
 
-    today_sunday = _get_last_sunday(datetime.date.today())
+    today_anchor = _get_last_weekday_date(anchor_weekday, datetime.date.today())
 
     return render_template('cell_report/dashboard.html',
-                           sunday_date=sunday,
-                           prayer_date=_get_last_wednesday(sunday),
-                           morning_prayer_date=_get_last_friday(sunday),
+                           sunday_date=anchor,
+                           prayer_date=prayer_date,
+                           morning_prayer_date=morning_date,
                            adult=adult_count,
                            adult_first=adult_first,
                            adult_second=adult_second,
@@ -647,23 +705,25 @@ def staff_dashboard():
                            next_week=next_week,
                            week_start=week_start,
                            week_end=week_end,
-                           is_current_week=sunday == today_sunday,
+                           is_current_week=anchor == today_anchor,
                            dashboard_title='同工查閱',
                            is_pastor=False,
-                           is_staff=True)
+                           is_staff=True,
+                           meeting_cfg=mcfg)
 
 
 @cell_report_bp.route('/cell-report/sunday', methods=['GET', 'POST'])
 def sunday():
-    """主日報告（公開，無需登入）"""
-    date_obj = _get_last_sunday()
+    cfg = _get_meeting_settings()['adult_sunday']
+    date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
+    service_count = cfg.get('service_count', 2)
 
     if request.method == 'POST':
         try:
             data = json.loads(request.data.decode('utf-8'))
             first = int(data.get('first_service_count', 0))
-            second = int(data.get('second_service_count', 0))
+            second = int(data.get('second_service_count', 0)) if service_count >= 2 else 0
         except Exception:
             first = second = 0
 
@@ -679,13 +739,16 @@ def sunday():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_sunday_report(date_str)
-    return render_template('cell_report/sunday_form.html', report=report or {}, date=date_obj)
+    return render_template('cell_report/sunday_form.html',
+                           report=report or {}, date=date_obj,
+                           service_count=service_count,
+                           label=cfg.get('label', '成人主日'))
 
 
 @cell_report_bp.route('/cell-report/children', methods=['GET', 'POST'])
 def children():
-    """兒童主日報告（公開，無需登入）"""
-    date_obj = _get_last_sunday()
+    cfg = _get_meeting_settings()['children_sunday']
+    date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
@@ -704,13 +767,15 @@ def children():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_children_report(date_str)
-    return render_template('cell_report/children_sunday_form.html', report=report or {}, date=date_obj)
+    return render_template('cell_report/children_sunday_form.html',
+                           report=report or {}, date=date_obj,
+                           label=cfg.get('label', '兒童主日'))
 
 
 @cell_report_bp.route('/cell-report/prayer', methods=['GET', 'POST'])
 def prayer():
-    """禱告會報告（公開，無需登入）"""
-    date_obj = _get_last_wednesday()
+    cfg = _get_meeting_settings()['prayer']
+    date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
@@ -729,13 +794,15 @@ def prayer():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_prayer_report(date_str)
-    return render_template('cell_report/prayer_form.html', report=report or {}, date=date_obj)
+    return render_template('cell_report/prayer_form.html',
+                           report=report or {}, date=date_obj,
+                           label=cfg.get('label', '禱告會'))
 
 
 @cell_report_bp.route('/cell-report/morning-prayer', methods=['GET', 'POST'])
 def morning_prayer():
-    """晨禱報告（公開，無需登入）"""
-    date_obj = _get_last_friday()
+    cfg = _get_meeting_settings()['morning_prayer']
+    date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
@@ -754,7 +821,43 @@ def morning_prayer():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_morning_prayer_report(date_str)
-    return render_template('cell_report/morning_prayer_form.html', report=report or {}, date=date_obj)
+    return render_template('cell_report/morning_prayer_form.html',
+                           report=report or {}, date=date_obj,
+                           label=cfg.get('label', '晨禱'))
+
+
+# ── 聚會設定後台 ─────────────────────────────────────────────
+@cell_report_bp.route('/cell-report/admin/meeting-settings', methods=['GET', 'POST'])
+@login_required
+def admin_meeting_settings():
+    if not (session.get('is_admin') or session.get('is_pastor')):
+        abort(403)
+
+    WEEKDAY_NAMES = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+
+    if request.method == 'POST':
+        keys = ['adult_sunday', 'children_sunday', 'prayer', 'morning_prayer']
+        for key in keys:
+            weekday = int(request.form.get(f'{key}_weekday', 6))
+            service_count = int(request.form.get(f'{key}_service_count', 1))
+            label = (request.form.get(f'{key}_label') or MEETING_DEFAULTS[key]['label']).strip()
+            emoji = (request.form.get(f'{key}_emoji') or MEETING_DEFAULTS[key]['emoji']).strip()
+            payload = json.dumps({
+                'weekday': weekday,
+                'service_count': service_count,
+                'label': label,
+                'emoji': emoji,
+            }, ensure_ascii=False)
+            supabase.table('settings').upsert({'key': f'meeting.{key}', 'value': payload}).execute()
+        _invalidate_meeting_cache()
+        flash('聚會設定已儲存', 'success')
+        return redirect(url_for('cell_report.admin_meeting_settings'))
+
+    settings = _get_meeting_settings()
+    return render_template('cell_report/admin_meeting_settings.html',
+                           settings=settings,
+                           weekday_names=WEEKDAY_NAMES,
+                           defaults=MEETING_DEFAULTS)
 
 
 # =========================

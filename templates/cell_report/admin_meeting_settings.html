@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}聚會設定{% endblock %}
+{% block content %}
+
+<div style="max-width:720px; margin:0 auto 60px; padding:0 16px;">
+
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+      <h2 style="margin:0; font-size:1.3rem; font-weight:800;">⚙️ 聚會設定</h2>
+      <p style="color:#888; font-size:.85rem; margin:4px 0 0;">設定各聚會的星期幾及堂數，系統將依此計算填報日期。</p>
+    </div>
+    <a href="{{ url_for('cell_report.portal') }}"
+       style="padding:8px 16px; background:#f5f5f5; color:#555; border-radius:8px; text-decoration:none; font-size:.85rem;">
+      ← 返回
+    </a>
+  </div>
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for cat, msg in messages %}
+    <div style="padding:12px 16px; border-radius:10px; margin-bottom:16px;
+                background:{% if cat=='success' %}#e8f5e9{% else %}#ffebee{% endif %};
+                color:{% if cat=='success' %}#2e7d32{% else %}#c62828{% endif %};">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endwith %}
+
+  <form method="post">
+    {% set meeting_order = [
+      ('adult_sunday',    '成人主日', True),
+      ('children_sunday', '兒童主日', False),
+      ('prayer',          '禱告會',   False),
+      ('morning_prayer',  '晨禱',     False),
+    ] %}
+
+    {% for key, title, has_service_count in meeting_order %}
+    {% set cfg = settings.get(key, {}) %}
+    <div style="background:white; border-radius:14px; padding:24px; margin-bottom:16px;
+                box-shadow:0 2px 8px rgba(0,0,0,.06); border:1px solid #eee;">
+
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+        <span style="font-size:1.6rem;">{{ cfg.get('emoji', '') }}</span>
+        <div>
+          <p style="font-weight:700; font-size:1rem; margin:0; color:#333;">{{ title }}</p>
+          <p style="font-size:.78rem; color:#aaa; margin:2px 0 0;">meeting_key: {{ key }}</p>
+        </div>
+      </div>
+
+      <div style="display:grid; grid-template-columns: 1fr 1fr{% if has_service_count %} 1fr{% endif %}; gap:16px; flex-wrap:wrap;">
+
+        <div>
+          <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">顯示名稱</label>
+          <input type="text" name="{{ key }}_label" value="{{ cfg.get('label', title) }}"
+                 style="width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:.9rem; box-sizing:border-box;">
+        </div>
+
+        <div>
+          <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">聚會日（星期幾）</label>
+          <select name="{{ key }}_weekday"
+                  style="width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:.9rem; background:white; cursor:pointer;">
+            {% for day in weekday_names %}
+            <option value="{{ loop.index0 }}" {% if cfg.get('weekday', 0) == loop.index0 %}selected{% endif %}>{{ day }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        {% if has_service_count %}
+        <div>
+          <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">堂數</label>
+          <select name="{{ key }}_service_count"
+                  style="width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:.9rem; background:white; cursor:pointer;">
+            <option value="1" {% if cfg.get('service_count', 2) == 1 %}selected{% endif %}>1 堂</option>
+            <option value="2" {% if cfg.get('service_count', 2) == 2 %}selected{% endif %}>2 堂</option>
+            <option value="3" {% if cfg.get('service_count', 2) == 3 %}selected{% endif %}>3 堂</option>
+          </select>
+        </div>
+        {% else %}
+        <input type="hidden" name="{{ key }}_service_count" value="1">
+        {% endif %}
+
+        <div style="grid-column: 1 / -1;">
+          <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">圖示（Emoji）</label>
+          <input type="text" name="{{ key }}_emoji" value="{{ cfg.get('emoji', '') }}"
+                 style="width:80px; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:1.1rem; text-align:center; box-sizing:border-box;">
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+
+    <div style="margin-top:8px; text-align:right;">
+      <button type="submit"
+              style="padding:13px 32px; background:#06C755; color:white; border:none; border-radius:12px;
+                     font-size:1rem; font-weight:700; cursor:pointer; box-shadow:0 4px 14px rgba(6,199,85,.3);">
+        儲存設定
+      </button>
+    </div>
+  </form>
+
+</div>
+{% endblock %}
