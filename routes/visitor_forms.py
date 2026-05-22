@@ -36,8 +36,11 @@ def coworker_required(f):
         if session.get('is_admin'):
             return f(*args, **kwargs)
         uid = session['user_id']
-        user = supabase.table('users').select('group_tags').eq('id', uid).single().execute()
-        tags = (user.data or {}).get('group_tags') or []
+        try:
+            user = supabase.table('users').select('group_tags').eq('id', uid).single().execute()
+            tags = (user.data or {}).get('group_tags') or []
+        except Exception:
+            tags = []
         if '同工' not in tags:
             return jsonify({'error': '無同工權限'}), 403
         return f(*args, **kwargs)
@@ -52,8 +55,11 @@ def upload_visitor_form():
 
     # 同工或管理員驗證
     if not session.get('is_admin'):
-        user = supabase.table('users').select('group_tags').eq('id', uid).single().execute()
-        tags = (user.data or {}).get('group_tags') or []
+        try:
+            user = supabase.table('users').select('group_tags').eq('id', uid).single().execute()
+            tags = (user.data or {}).get('group_tags') or []
+        except Exception:
+            tags = []
         if '同工' not in tags:
             return jsonify({'error': '無同工權限'}), 403
 

@@ -172,6 +172,8 @@ def _check_db_tables():
 def index():
     # Allow access if: system not configured (Supabase missing) OR user is admin
     if Config.SUPABASE_URL and Config.SUPABASE_KEY:
+        if not session.get('user_id'):
+            return redirect(url_for('auth.login_page'))
         if not (session.get('is_admin') or session.get('is_pastor') or session.get('is_super_admin')):
             return redirect(url_for('event.portal'))
 

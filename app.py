@@ -29,6 +29,7 @@ from routes.notifications import notifications_bp
 
 
 def create_app():
+    Config._validate()
     app = Flask(__name__)
     app.config.from_object(Config)
 
