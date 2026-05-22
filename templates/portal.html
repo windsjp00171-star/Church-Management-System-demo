@@ -411,11 +411,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <a href="/cell-report/sunday" style="display:flex;flex-direction:column;background:#F0FFF4;border:1px solid #9AE6B4;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:1rem;margin-bottom:4px;">⛪ <span style="font-size:.72rem;font-weight:600;color:#276749;">成人主日</span></span>
       {% if as and as.sunday %}
-        <span style="font-size:1.7rem;font-weight:800;color:#276749;line-height:1;">{{ as.sunday.attendance_count }}</span>
-        <span style="font-size:.65rem;color:#68D391;margin-top:2px;">{{ as.sunday.report_date }}</span>
+        {% set sc = (as.sunday.first_service_count or 0) + (as.sunday.second_service_count or 0) %}
+        <span style="font-size:2.4rem;font-weight:800;color:#276749;line-height:1;">{{ sc }}</span>
+        <span style="font-size:.65rem;color:#276749;opacity:.6;margin-top:4px;">{{ as.sunday.date }}</span>
       {% else %}
-        <span style="font-size:1rem;font-weight:700;color:#A0AEC0;line-height:1;">—</span>
-        <span style="font-size:.65rem;color:#CBD5E0;margin-top:2px;">尚未填報</span>
+        <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
+        <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
       {% endif %}
       <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#9AE6B4;">填報 ›</span>
     </a>
@@ -424,11 +425,11 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <a href="/cell-report/children" style="display:flex;flex-direction:column;background:#EBF8FF;border:1px solid #90CDF4;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:1rem;margin-bottom:4px;">🧒 <span style="font-size:.72rem;font-weight:600;color:#2C5282;">兒童主日</span></span>
       {% if as and as.children %}
-        <span style="font-size:1.7rem;font-weight:800;color:#2C5282;line-height:1;">{{ as.children.attendance_count }}</span>
-        <span style="font-size:.65rem;color:#90CDF4;margin-top:2px;">{{ as.children.report_date }}</span>
+        <span style="font-size:2.4rem;font-weight:800;color:#2C5282;line-height:1;">{{ as.children.attendance_count }}</span>
+        <span style="font-size:.65rem;color:#2C5282;opacity:.6;margin-top:4px;">{{ as.children.date }}</span>
       {% else %}
-        <span style="font-size:1rem;font-weight:700;color:#A0AEC0;line-height:1;">—</span>
-        <span style="font-size:.65rem;color:#CBD5E0;margin-top:2px;">尚未填報</span>
+        <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
+        <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
       {% endif %}
       <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#90CDF4;">填報 ›</span>
     </a>
@@ -437,11 +438,11 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <a href="/cell-report/prayer" style="display:flex;flex-direction:column;background:#FAF5FF;border:1px solid #D6BCFA;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:1rem;margin-bottom:4px;">🙏 <span style="font-size:.72rem;font-weight:600;color:#553C9A;">禱告會</span></span>
       {% if as and as.prayer %}
-        <span style="font-size:1.7rem;font-weight:800;color:#553C9A;line-height:1;">{{ as.prayer.attendance_count }}</span>
-        <span style="font-size:.65rem;color:#D6BCFA;margin-top:2px;">{{ as.prayer.report_date }}</span>
+        <span style="font-size:2.4rem;font-weight:800;color:#553C9A;line-height:1;">{{ as.prayer.attendance_count }}</span>
+        <span style="font-size:.65rem;color:#553C9A;opacity:.6;margin-top:4px;">{{ as.prayer.date }}</span>
       {% else %}
-        <span style="font-size:1rem;font-weight:700;color:#A0AEC0;line-height:1;">—</span>
-        <span style="font-size:.65rem;color:#CBD5E0;margin-top:2px;">尚未填報</span>
+        <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
+        <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
       {% endif %}
       <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#D6BCFA;">填報 ›</span>
     </a>
@@ -450,12 +451,11 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <a href="/cell-report/morning-prayer" style="display:flex;flex-direction:column;background:#FFFAF0;border:1px solid #FBBF24;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:1rem;margin-bottom:4px;">🌅 <span style="font-size:.72rem;font-weight:600;color:#92400E;">晨禱</span></span>
       {% if as and as.morning %}
-        {% set mc = (as.morning.first_service_count or 0) + (as.morning.second_service_count or 0) %}
-        <span style="font-size:1.7rem;font-weight:800;color:#92400E;line-height:1;">{{ mc }}</span>
-        <span style="font-size:.65rem;color:#FBBF24;margin-top:2px;">{{ as.morning.report_date }}</span>
+        <span style="font-size:2.4rem;font-weight:800;color:#92400E;line-height:1;">{{ as.morning.attendance_count }}</span>
+        <span style="font-size:.65rem;color:#92400E;opacity:.6;margin-top:4px;">{{ as.morning.date }}</span>
       {% else %}
-        <span style="font-size:1rem;font-weight:700;color:#A0AEC0;line-height:1;">—</span>
-        <span style="font-size:.65rem;color:#CBD5E0;margin-top:2px;">尚未填報</span>
+        <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
+        <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
       {% endif %}
       <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#FBBF24;">填報 ›</span>
     </a>

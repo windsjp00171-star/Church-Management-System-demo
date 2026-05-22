@@ -22,9 +22,9 @@ button { font-family: inherit; }
   --color-accent:    #e8a020;
   --color-accent-dark: #c9881a;
   --color-bg:        #f5f7fa;
-  --color-text:      #333;
-  --color-text-light: #666;
-  --color-text-muted: #999;
+  --color-text:      #1f2937;
+  --color-text-light: #4b5563;
+  --color-text-muted: #6b7280;
   --color-surface:   #ffffff;
   --color-border:    #e0e5ed;
   --color-border-light: #f0f3f7;

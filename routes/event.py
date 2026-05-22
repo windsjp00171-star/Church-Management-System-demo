@@ -350,13 +350,13 @@ def portal():
             def _latest(table, *cols):
                 fields = ','.join(cols)
                 r = supabase.table(table).select(fields)\
-                    .order('report_date', desc=True).limit(1).execute()
+                    .order('date', desc=True).limit(1).execute()
                 return r.data[0] if r.data else None
             attendance_summary = {
-                'sunday':   _latest('sunday_reports',          'report_date','attendance_count'),
-                'children': _latest('children_sunday_reports', 'report_date','attendance_count'),
-                'prayer':   _latest('prayer_reports',          'report_date','attendance_count'),
-                'morning':  _latest('morning_prayer_reports',  'report_date','first_service_count','second_service_count'),
+                'sunday':   _latest('sunday_reports',          'date','first_service_count','second_service_count'),
+                'children': _latest('children_sunday_reports', 'date','attendance_count'),
+                'prayer':   _latest('prayer_reports',          'date','attendance_count'),
+                'morning':  _latest('morning_prayer_reports',  'date','attendance_count'),
             }
         except Exception:
             pass

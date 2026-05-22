@@ -31,7 +31,7 @@
   <!-- 聚會統計卡片 -->
   <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:28px;">
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
-      <div style="font-size:1.8rem; font-weight:700; color:#06C755;">{{ adult }}</div>
+      <div style="font-size:2.4rem; font-weight:800; color:#06C755;">{{ adult }}</div>
       <div style="font-size:0.85rem; color:#666; margin-top:4px;">
         {{ meeting_cfg.adult_sunday.label if meeting_cfg else '成人主日' }}（{{ sunday_date.strftime('%m/%d') }}）
       </div>
@@ -40,19 +40,19 @@
       {% endif %}
     </div>
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
-      <div style="font-size:1.8rem; font-weight:700; color:#4a90d9;">{{ children }}</div>
+      <div style="font-size:2.4rem; font-weight:800; color:#4a90d9;">{{ children }}</div>
       <div style="font-size:0.85rem; color:#666; margin-top:4px;">
         {{ meeting_cfg.children_sunday.label if meeting_cfg else '兒童主日' }}
       </div>
     </div>
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
-      <div style="font-size:1.8rem; font-weight:700; color:#9c6de8;">{{ prayer }}</div>
+      <div style="font-size:2.4rem; font-weight:800; color:#9c6de8;">{{ prayer }}</div>
       <div style="font-size:0.85rem; color:#666; margin-top:4px;">
         {{ meeting_cfg.prayer.label if meeting_cfg else '禱告會' }}（{{ prayer_date.strftime('%m/%d') }}）
       </div>
     </div>
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
-      <div style="font-size:1.8rem; font-weight:700; color:#e8a83e;">{{ morning_prayer }}</div>
+      <div style="font-size:2.4rem; font-weight:800; color:#e8a83e;">{{ morning_prayer }}</div>
       <div style="font-size:0.85rem; color:#666; margin-top:4px;">
         {{ meeting_cfg.morning_prayer.label if meeting_cfg else '晨禱' }}（{{ morning_prayer_date.strftime('%m/%d') }}）
       </div>
