@@ -417,35 +417,44 @@ def my_history():
         .execute().data or []
 
     # 撈完訓認證（主要顯示來源）
-    certifications = supabase.table('course_certifications')\
-        .select('*, course_categories(id, name)')\
-        .eq('user_id', uid)\
-        .order('certified_at', desc=True)\
-        .execute().data or []
+    try:
+        certifications = supabase.table('course_certifications')\
+            .select('*, course_categories(id, name)')\
+            .eq('user_id', uid)\
+            .order('certified_at', desc=True)\
+            .execute().data or []
+    except Exception:
+        certifications = []
 
     # 撈進行中的報名（enrolled / absent 狀態，不含已完訓）
-    enrollments = supabase.table('course_enrollments')\
-        .select('*, courses(id, title, period, total_sessions)')\
-        .eq('user_id', uid)\
-        .in_('status', ['enrolled', 'absent'])\
-        .order('created_at', desc=True)\
-        .execute().data or []
+    try:
+        enrollments = supabase.table('course_enrollments')\
+            .select('*, courses(id, title, period, total_sessions)')\
+            .eq('user_id', uid)\
+            .in_('status', ['enrolled', 'absent'])\
+            .order('created_at', desc=True)\
+            .execute().data or []
+    except Exception:
+        enrollments = []
 
     # 每個進行中學程的出席堂次數
     for e in enrollments:
         course_id = e.get('courses', {}).get('id') if e.get('courses') else None
         if course_id:
-            sessions_result = supabase.table('course_sessions')\
-                .select('id').eq('course_id', course_id).execute().data or []
-            session_ids = [s['id'] for s in sessions_result]
-            if session_ids:
-                att = supabase.table('session_attendance')\
-                    .select('id', count='exact')\
-                    .eq('user_id', uid)\
-                    .in_('session_id', session_ids)\
-                    .execute()
-                e['attended_count'] = att.count or 0
-            else:
+            try:
+                sessions_result = supabase.table('course_sessions')\
+                    .select('id').eq('course_id', course_id).execute().data or []
+                session_ids = [s['id'] for s in sessions_result]
+                if session_ids:
+                    att = supabase.table('session_attendance')\
+                        .select('id', count='exact')\
+                        .eq('user_id', uid)\
+                        .in_('session_id', session_ids)\
+                        .execute()
+                    e['attended_count'] = att.count or 0
+                else:
+                    e['attended_count'] = 0
+            except Exception:
                 e['attended_count'] = 0
         else:
             e['attended_count'] = 0
