@@ -1264,7 +1264,7 @@ def event_qrcode(event_id):
 
 
 @admin_bp.route('/events/<event_id>/registrations/<reg_id>/checkin', methods=['POST'])
-@admin_required
+@staff_required
 def toggle_checkin(event_id, reg_id):
     """切換報到狀態"""
     result = supabase.table('registrations')\

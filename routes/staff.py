@@ -1,5 +1,5 @@
 from flask import Blueprint, render_template, session
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone, timedelta, time
 from db import supabase
 from routes.decorators import staff_required
 
@@ -17,10 +17,12 @@ def index():
 
     # 撈今天到7天內的活動
     try:
+        today_start = datetime.combine(today, time.min).replace(tzinfo=TAIPEI_TZ).astimezone(timezone.utc).isoformat()
+        week_end = datetime.combine(week_later, time.max).replace(tzinfo=TAIPEI_TZ).astimezone(timezone.utc).isoformat()
         events_res = supabase.table('events')\
             .select('id, title, event_start, event_end, checkin_enabled, checkin_token, is_open, capacity')\
-            .gte('event_start', today.isoformat())\
-            .lte('event_start', week_later.isoformat() + 'T23:59:59')\
+            .gte('event_start', today_start)\
+            .lte('event_start', week_end)\
             .order('event_start').execute()
         events = events_res.data or []
     except Exception:

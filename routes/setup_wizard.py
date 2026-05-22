@@ -220,7 +220,7 @@ def index():
 @setup_wizard_bp.get('/setup-wizard/db-status')
 def db_status():
     """AJAX: return DB table check results."""
-    if not (session.get('is_admin') or session.get('is_pastor')):
+    if not (session.get('is_admin') or session.get('is_pastor') or session.get('is_super_admin')):
         return jsonify({'error': 'unauthorized'}), 403
     tables = _check_db_tables()
     if tables is None:
