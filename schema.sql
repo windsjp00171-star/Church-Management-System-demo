@@ -757,3 +757,53 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.check_table_exists(TEXT) TO anon, authenticated;
+
+-- ============================================================
+-- 差勤系統
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS staff_profiles (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    hire_date            DATE NOT NULL,
+    leave_cycle          TEXT NOT NULL DEFAULT 'anniversary'
+                             CHECK (leave_cycle IN ('anniversary', 'calendar')),
+    initial_leave_hours  NUMERIC(6,2) NOT NULL DEFAULT 0,
+    initial_comp_hours   NUMERIC(6,2) NOT NULL DEFAULT 0,
+    is_active            BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS leave_requests (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    leave_type   TEXT NOT NULL CHECK (leave_type IN ('annual','comp','personal','sick','other')),
+    start_date   DATE NOT NULL,
+    end_date     DATE NOT NULL,
+    hours        NUMERIC(5,2) NOT NULL,
+    reason       TEXT,
+    status       TEXT NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','approved','rejected')),
+    reviewed_by  UUID REFERENCES users(id),
+    reviewed_at  TIMESTAMPTZ,
+    review_note  TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS overtime_records (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date         DATE NOT NULL,
+    hours        NUMERIC(5,2) NOT NULL,
+    reason       TEXT,
+    status       TEXT NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','approved','rejected')),
+    reviewed_by  UUID REFERENCES users(id),
+    reviewed_at  TIMESTAMPTZ,
+    review_note  TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+GRANT ALL ON staff_profiles TO anon, authenticated;
+GRANT ALL ON leave_requests TO anon, authenticated;
+GRANT ALL ON overtime_records TO anon, authenticated;

@@ -103,6 +103,10 @@ def create_app():
     from routes.changelog import changelog_bp
     app.register_blueprint(changelog_bp)
 
+    # ── 差勤系統 ──────────────────────────────────────────────
+    from routes.attendance import attendance_bp
+    app.register_blueprint(attendance_bp)
+
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',

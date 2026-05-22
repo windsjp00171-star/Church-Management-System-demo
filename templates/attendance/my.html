@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% block title %}我的差勤{% endblock %}
+{% block content %}
+<div style="max-width:520px; margin:0 auto; padding:16px 16px 60px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+        <h2 style="margin:0;">📋 我的差勤</h2>
+        <a href="/" style="color:#888; font-size:0.9rem; text-decoration:none;">← 返回首頁</a>
+    </div>
+
+    <!-- 時數餘額卡 -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+        <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6); color:white; border-radius:14px; padding:20px;">
+            <p style="margin:0 0 4px; font-size:0.8rem; opacity:0.85;">特休剩餘</p>
+            <p style="margin:0; font-size:2rem; font-weight:800;">{{ '%.1f'|format(annual_left) }}</p>
+            <p style="margin:4px 0 0; font-size:0.78rem; opacity:0.75;">小時（本週期共 {{ '%.0f'|format(entitlement) }} 小時）</p>
+        </div>
+        <div style="background:linear-gradient(135deg,#059669,#10b981); color:white; border-radius:14px; padding:20px;">
+            <p style="margin:0 0 4px; font-size:0.8rem; opacity:0.85;">補休剩餘</p>
+            <p style="margin:0; font-size:2rem; font-weight:800;">{{ '%.1f'|format(comp_left) }}</p>
+            <p style="margin:4px 0 0; font-size:0.78rem; opacity:0.75;">小時</p>
+        </div>
+    </div>
+
+    <!-- 入職資訊 -->
+    <div style="background:#f8fafc; border-radius:10px; padding:12px 16px; margin-bottom:20px; font-size:0.85rem; color:#555; display:flex; gap:20px; flex-wrap:wrap;">
+        <span>📅 入職日：<strong>{{ hire_date }}</strong></span>
+        <span>⚙️ 計算制：<strong>{{ '週年制' if profile.leave_cycle == 'anniversary' else '曆年制' }}</strong></span>
+    </div>
+
+    <!-- 申請請假 -->
+    <div class="card" style="padding:20px; margin-bottom:16px;">
+        <h3 style="margin:0 0 14px; font-size:1rem;">🗓 申請請假</h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <div style="flex:1; min-width:100px;">
+                <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:4px;">假別</label>
+                <select id="l-type" style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem;">
+                    <option value="annual">特休</option>
+                    <option value="comp">補休</option>
+                    <option value="personal">事假</option>
+                    <option value="sick">病假</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+            <div style="flex:0 0 80px;">
+                <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:4px;">時數</label>
+                <input id="l-hours" type="number" min="0.5" step="0.5" placeholder="8"
+                    style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+            </div>
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <div style="flex:1;">
+                <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:4px;">開始日期</label>
+                <input id="l-start" type="date" style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+            </div>
+            <div style="flex:1;">
+                <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:4px;">結束日期</label>
+                <input id="l-end" type="date" style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+            </div>
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:4px;">原因（選填）</label>
+            <input id="l-reason" type="text" placeholder="簡短說明"
+                style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <button onclick="submitLeave()"
+            style="width:100%; padding:11px; background:#1d4ed8; color:white; border:none; border-radius:8px; font-size:0.95rem; font-weight:bold; cursor:pointer;">
+            送出申請
+        </button>
+    </div>
+
+    <!-- 登錄加班 -->
+    <div class="card" style="padding:20px; margin-bottom:20px;">
+        <h3 style="margin:0 0 14px; font-size:1rem;">⏰ 登錄加班（換補休）</h3>
+        <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;">
+            <div style="flex:1;">
+                <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:4px;">日期</label>
+                <input id="ot-date" type="date" style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+            </div>
+            <div style="flex:0 0 80px;">
+                <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:4px;">時數</label>
+                <input id="ot-hours" type="number" min="0.5" step="0.5" placeholder="2"
+                    style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+            </div>
+        </div>
+        <div style="margin-bottom:12px;">
+            <label style="font-size:0.8rem; color:#666; display:block; margin-bottom:4px;">說明</label>
+            <input id="ot-reason" type="text" placeholder="例：主日活動支援"
+                style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <button onclick="submitOvertime()"
+            style="width:100%; padding:11px; background:#059669; color:white; border:none; border-radius:8px; font-size:0.95rem; font-weight:bold; cursor:pointer;">
+            送出加班
+        </button>
+    </div>
+
+    <!-- 紀錄 -->
+    <h3 style="font-size:0.95rem; color:#666; margin:0 0 10px;">近期請假紀錄</h3>
+    {% if requests %}
+    <div style="display:flex; flex-direction:column; gap:8px; margin-bottom:20px;">
+    {% for r in requests %}
+    <div style="background:white; border-radius:10px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.07);
+         border-left:4px solid {{ '#10b981' if r.status == 'approved' else ('#ef4444' if r.status == 'rejected' else '#f59e0b') }};">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div>
+                <span style="font-weight:bold; font-size:0.9rem;">{{ leave_labels[r.leave_type] }}</span>
+                <span style="font-size:0.85rem; color:#555; margin-left:8px;">{{ r.start_date }} ～ {{ r.end_date }}（{{ r.hours }}小時）</span>
+            </div>
+            <span style="font-size:0.78rem; padding:2px 10px; border-radius:20px;
+                background:{{ '#d1fae5' if r.status == 'approved' else ('#fee2e2' if r.status == 'rejected' else '#fef3c7') }};
+                color:{{ '#065f46' if r.status == 'approved' else ('#991b1b' if r.status == 'rejected' else '#92400e') }};">
+                {{ '✓ 核准' if r.status == 'approved' else ('✗ 駁回' if r.status == 'rejected' else '⏳ 待審') }}
+            </span>
+        </div>
+        {% if r.reason %}<p style="font-size:0.82rem; color:#888; margin:4px 0 0;">{{ r.reason }}</p>{% endif %}
+        {% if r.review_note %}<p style="font-size:0.82rem; color:#c2410c; margin:4px 0 0;">備注：{{ r.review_note }}</p>{% endif %}
+    </div>
+    {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:#aaa; font-size:0.85rem; margin-bottom:20px;">尚無請假紀錄</p>
+    {% endif %}
+
+    <h3 style="font-size:0.95rem; color:#666; margin:0 0 10px;">近期加班紀錄</h3>
+    {% if overtimes %}
+    <div style="display:flex; flex-direction:column; gap:8px;">
+    {% for r in overtimes %}
+    <div style="background:white; border-radius:10px; padding:14px 16px; box-shadow:0 1px 3px rgba(0,0,0,0.07);
+         border-left:4px solid {{ '#10b981' if r.status == 'approved' else ('#ef4444' if r.status == 'rejected' else '#f59e0b') }};">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
+            <div>
+                <span style="font-weight:bold; font-size:0.9rem;">{{ r.date }}</span>
+                <span style="font-size:0.85rem; color:#555; margin-left:8px;">加班 {{ r.hours }} 小時</span>
+            </div>
+            <span style="font-size:0.78rem; padding:2px 10px; border-radius:20px;
+                background:{{ '#d1fae5' if r.status == 'approved' else ('#fee2e2' if r.status == 'rejected' else '#fef3c7') }};
+                color:{{ '#065f46' if r.status == 'approved' else ('#991b1b' if r.status == 'rejected' else '#92400e') }};">
+                {{ '✓ 核准' if r.status == 'approved' else ('✗ 駁回' if r.status == 'rejected' else '⏳ 待審') }}
+            </span>
+        </div>
+        {% if r.reason %}<p style="font-size:0.82rem; color:#888; margin:4px 0 0;">{{ r.reason }}</p>{% endif %}
+    </div>
+    {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:#aaa; font-size:0.85rem;">尚無加班紀錄</p>
+    {% endif %}
+</div>
+
+<script>
+function submitLeave() {
+    const type = document.getElementById('l-type').value;
+    const hours = parseFloat(document.getElementById('l-hours').value);
+    const start = document.getElementById('l-start').value;
+    const end = document.getElementById('l-end').value;
+    if (!hours || !start || !end) { showToast('請填寫完整資料', 'error'); return; }
+    if (end < start) { showToast('結束日期不能早於開始日期', 'error'); return; }
+    fetch('/attendance/request', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ leave_type: type, hours, start_date: start, end_date: end,
+            reason: document.getElementById('l-reason').value.trim() })
+    }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('✅ 申請已送出', 'success'); setTimeout(() => location.reload(), 1000); }
+        else showToast('❌ ' + (d.error || '送出失敗'), 'error');
+    });
+}
+function submitOvertime() {
+    const date = document.getElementById('ot-date').value;
+    const hours = parseFloat(document.getElementById('ot-hours').value);
+    if (!date || !hours) { showToast('請填寫完整資料', 'error'); return; }
+    fetch('/attendance/overtime', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ date, hours, reason: document.getElementById('ot-reason').value.trim() })
+    }).then(r => r.json()).then(d => {
+        if (d.success) { showToast('✅ 加班已登錄', 'success'); setTimeout(() => location.reload(), 1000); }
+        else showToast('❌ ' + (d.error || '送出失敗'), 'error');
+    });
+}
+// 預設今天
+document.getElementById('l-start').value = new Date().toISOString().slice(0,10);
+document.getElementById('l-end').value   = new Date().toISOString().slice(0,10);
+document.getElementById('ot-date').value = new Date().toISOString().slice(0,10);
+</script>
+{% endblock %}
