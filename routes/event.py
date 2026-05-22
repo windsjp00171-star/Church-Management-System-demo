@@ -383,6 +383,16 @@ def portal():
         last_seen = None
     unread_changelog = get_unread_changelog(last_seen) if uid else None
 
+    # 是否為全職同工（有 staff_profiles 記錄）
+    is_fulltime_staff = False
+    if uid:
+        try:
+            sp = supabase.table('staff_profiles').select('id')\
+                .eq('user_id', uid).eq('is_active', True).limit(1).execute().data
+            is_fulltime_staff = bool(sp)
+        except Exception:
+            pass
+
     return render_template('portal.html',
         open_events=open_events,
         open_courses=open_courses,
@@ -403,6 +413,7 @@ def portal():
         leader_groups=leader_groups,
         attendance_summary=attendance_summary,
         unread_changelog=unread_changelog,
+        is_fulltime_staff=is_fulltime_staff,
     )
 
 

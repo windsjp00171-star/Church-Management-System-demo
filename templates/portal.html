@@ -805,6 +805,16 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
         {# ── 小組長功能 ── #}
         {% if session.cell_group_ids or is_super_admin %}
+        {% if is_fulltime_staff %}
+        <div class="fi-wrap ti" style="--d:{{ base_d + 460 }}ms">
+            <a href="/attendance" class="fg-tile" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);">
+                <div class="fg-icon" style="background:#ede9fe;color:#6d28d9;">🗓</div>
+                <div class="fg-name" style="color:#4c1d95;">我的差勤</div>
+                <div class="fg-sub">特休、補休、加班登錄</div>
+            </a>
+        </div>
+        {% endif %}
+
         {% if card_settings.get('cell_report', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('cell_report', true) %} fi-hidden{% endif %}" data-key="cell_report" data-type="fixed" style="--d:{{ base_d + 480 }}ms">
             <a href="/cell-report/portal" class="fg-tile" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
