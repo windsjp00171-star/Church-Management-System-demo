@@ -59,6 +59,9 @@ class Config:
     ENABLE_COURSES       = os.getenv('ENABLE_COURSES',       'true').lower() != 'false'
     ENABLE_VISITOR_FORMS = os.getenv('ENABLE_VISITOR_FORMS', 'true').lower() != 'false'
 
+    # ── 錯誤監控（可選，未設定則停用）──────────────────────────────
+    SENTRY_DSN = os.getenv('SENTRY_DSN') or None
+
     # ── 部署旗標 ────────────────────────────────────────────────────
     RENDER = bool(os.getenv('RENDER', False))
 

@@ -30,6 +30,17 @@ from routes.notifications import notifications_bp
 
 def create_app():
     Config._validate()
+
+    if Config.SENTRY_DSN:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        sentry_sdk.init(
+            dsn=Config.SENTRY_DSN,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=0.1,
+            send_default_pii=False,
+        )
+
     app = Flask(__name__)
     app.config.from_object(Config)
 

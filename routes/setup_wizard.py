@@ -125,6 +125,18 @@ _ENV_GROUPS = [
         ],
     },
     {
+        'title': '錯誤監控（Sentry）',
+        'emoji': '🔍',
+        'optional_group': True,
+        'signup_url': 'https://sentry.io/',
+        'signup_label': '申請 Sentry 帳號（免費）',
+        'signup_steps': '1. sentry.io 免費註冊 → 2. 建立新 Project（選 Python → Flask）→ 3. 複製 DSN（格式：https://xxx@xxx.ingest.sentry.io/xxx）填入 SENTRY_DSN。免費方案每月 5,000 筆錯誤，小型教會完全足夠。',
+        'vars': [
+            {'key': 'SENTRY_DSN', 'label': 'Sentry DSN', 'required': False, 'secret': True,
+             'hint': 'Sentry Dashboard → 你的 Project → Settings → Client Keys (DSN)；未設定則錯誤監控停用'},
+        ],
+    },
+    {
         'title': 'AI 功能（天父日記）',
         'emoji': '🤖',
         'optional_group': True,

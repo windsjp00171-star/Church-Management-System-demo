@@ -143,6 +143,9 @@ ANTHROPIC_API_KEY=
 # 管理員 LINE User IDs（逗號分隔）
 ADMIN_LINE_USER_IDS=
 
+# 錯誤監控（可選）
+SENTRY_DSN=
+
 # Render 部署
 RENDER=
 ```
