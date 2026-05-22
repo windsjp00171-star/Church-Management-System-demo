@@ -815,25 +815,14 @@ def admin_group_overview():
         return render_template('courses/group_overview.html',
             all_courses=[], group_names=[], group_data={}, no_group_users=[])
 
-    # 主標籤小組（is_primary != false）才納入門訓分組
-    groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
-    group_names = [g['name'] for g in groups if g.get('is_primary', True)]
+    # 從 cell_groups 取得所有活躍小組（作為門訓分組依據）
+    cell_groups = supabase.table('cell_groups').select('id, name').eq('is_active', True).order('name').execute().data or []
+    group_names = [g['name'] for g in cell_groups]
+    cell_group_map = {g['id']: g['name'] for g in cell_groups}
 
-    # 所有有小組標籤的用戶（批次撈）
-    all_users_raw = []
-    offset = 0
-    batch = 500
-    while True:
-        rows = supabase.table('users')\
-            .select('id, real_name, display_name, group_tags')\
-            .not_.is_('group_tags', 'null')\
-            .range(offset, offset + batch - 1).execute().data or []
-        all_users_raw.extend(rows)
-        if len(rows) < batch:
-            break
-        offset += batch
-
-    users = [u for u in all_users_raw if u.get('group_tags')]
+    # 取得所有有連結 user_id 的活躍小組成員
+    members_raw = supabase.table('cell_members').select('group_id, user_id, name')\
+        .eq('is_active', True).not_.is_('user_id', 'null').execute().data or []
 
     # 所有完訓認證（從 course_certificates 撈）
     all_certs = supabase.table('course_certificates').select('user_id, category_id, certified_at').execute().data or []
@@ -841,29 +830,28 @@ def admin_group_overview():
     # 建立 cert_map: user_id → { category_id: certified_at }
     cert_map = {}
     for c in all_certs:
-        uid = c['user_id']
-        cid = c['category_id']
-        cert_map.setdefault(uid, {})[cid] = c.get('certified_at', '')
+        cert_map.setdefault(c['user_id'], {})[c['category_id']] = c.get('certified_at', '')
 
     # 按小組分組
     group_data = {name: [] for name in group_names}
-    no_group_users = []
+    placed_user_ids = set()
 
-    for u in sorted(users, key=lambda x: (x.get('real_name') or x.get('display_name') or '')):
-        tags = u.get('group_tags') or []
-        user_certs = {cat['id']: cert_map.get(u['id'], {}).get(cat['id']) for cat in all_cats}
-        user_entry = {
-            'id': u['id'],
-            'name': u.get('real_name') or u.get('display_name') or '—',
-            'courses': user_certs,  # category_id → certified_at or None
-        }
-        placed = False
-        for tag in tags:
-            if tag in group_data:
-                group_data[tag].append(user_entry)
-                placed = True
-        if not placed:
-            no_group_users.append(user_entry)
+    for m in sorted(members_raw, key=lambda x: x.get('name') or ''):
+        gname = cell_group_map.get(m['group_id'])
+        if not gname:
+            continue
+        uid = m['user_id']
+        if uid in placed_user_ids:
+            continue  # 同一人在多個小組時只放一次
+        placed_user_ids.add(uid)
+        user_certs = {cat['id']: cert_map.get(uid, {}).get(cat['id']) for cat in all_cats}
+        group_data[gname].append({
+            'id': uid,
+            'name': m.get('name') or '—',
+            'courses': user_certs,
+        })
+
+    no_group_users = []  # 未分配到任何小組的用戶（保留欄位供模板使用）
 
     return render_template('courses/group_overview.html',
         all_courses=all_cats,   # 前端模板用 all_courses，這裡傳 categories
@@ -881,23 +869,14 @@ def admin_group_overview_export():
     all_cats = supabase.table('course_categories').select('id, name, sort_order')\
         .eq('is_active', True).order('sort_order').execute().data or []
 
-    # 主標籤小組
-    groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
-    group_names = [g['name'] for g in groups if g.get('is_primary', True)]
+    # 從 cell_groups 取得所有活躍小組
+    cell_groups = supabase.table('cell_groups').select('id, name').eq('is_active', True).order('name').execute().data or []
+    group_names = [g['name'] for g in cell_groups]
+    cell_group_map = {g['id']: g['name'] for g in cell_groups}
 
-    # 所有有小組的用戶
-    all_users_raw = []
-    offset = 0
-    while True:
-        rows = supabase.table('users')\
-            .select('id, real_name, display_name, group_tags')\
-            .not_.is_('group_tags', 'null')\
-            .range(offset, offset + 499).execute().data or []
-        all_users_raw.extend(rows)
-        if len(rows) < 500:
-            break
-        offset += 500
-    users = [u for u in all_users_raw if u.get('group_tags')]
+    # 取得所有有連結 user_id 的活躍小組成員
+    members_raw = supabase.table('cell_members').select('group_id, user_id, name')\
+        .eq('is_active', True).not_.is_('user_id', 'null').execute().data or []
 
     # 完訓認證
     all_certs = supabase.table('course_certificates').select('user_id, category_id, certified_at').execute().data or []
@@ -908,20 +887,21 @@ def admin_group_overview_export():
     # 按小組整理
     group_data = {name: [] for name in group_names}
     no_group_users = []
-    for u in sorted(users, key=lambda x: (x.get('real_name') or x.get('display_name') or '')):
-        tags = u.get('group_tags') or []
+    placed_user_ids = set()
+    for m in sorted(members_raw, key=lambda x: x.get('name') or ''):
+        gname = cell_group_map.get(m['group_id'])
+        if not gname:
+            continue
+        uid = m['user_id']
+        if uid in placed_user_ids:
+            continue
+        placed_user_ids.add(uid)
         user_entry = {
-            'name': u.get('real_name') or u.get('display_name') or '—',
-            'tags': tags,
-            'courses': {cat['id']: cert_map.get(u['id'], {}).get(cat['id']) for cat in all_cats},
+            'name': m.get('name') or '—',
+            'tags': [gname],
+            'courses': {cat['id']: cert_map.get(uid, {}).get(cat['id']) for cat in all_cats},
         }
-        placed = False
-        for tag in tags:
-            if tag in group_data:
-                group_data[tag].append(user_entry)
-                placed = True
-        if not placed:
-            no_group_users.append(user_entry)
+        group_data[gname].append(user_entry)
 
     # ── 建立 Excel ──
     wb = Workbook()

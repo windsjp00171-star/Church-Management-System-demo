@@ -4,7 +4,7 @@
     <div style="margin-bottom:20px;">
         <a href="/admin" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回後台</a>
     </div>
-    <h2 style="margin:0 0 24px; font-size:1.4rem;">📋 小組回報管理</h2>
+    <h2 style="margin:0 0 24px; font-size:1.4rem;">小組回報管理</h2>
 
     <!-- 新增小組 -->
     <div style="background:white; border-radius:12px; padding:20px; margin-bottom:24px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
@@ -43,9 +43,34 @@
     </div>
 </div>
 
+<!-- 連結帳號 Modal -->
+<div id="link-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:white; border-radius:16px; padding:28px; width:90%; max-width:460px;">
+        <h3 style="margin:0 0 8px; font-size:1.05rem;">連結系統帳號</h3>
+        <p style="margin:0 0 14px; color:#666; font-size:0.9rem;">成員：<strong id="link-member-name"></strong></p>
+        <div style="position:relative; margin-bottom:12px;">
+            <input id="link-search-input" type="text" placeholder="輸入姓名搜尋..."
+                style="width:100%; padding:10px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;"
+                oninput="searchUsersForLink(this.value)">
+        </div>
+        <div id="link-search-results" style="max-height:200px; overflow-y:auto; border:1px solid #eee; border-radius:8px; margin-bottom:16px; display:none;"></div>
+        <div id="link-current-user" style="margin-bottom:16px; font-size:0.9rem; color:#555;"></div>
+        <div style="display:flex; gap:10px; justify-content:flex-end; flex-wrap:wrap;">
+            <button onclick="unlinkMember()" id="btn-unlink"
+                style="padding:8px 16px; border:1px solid #ef4444; border-radius:8px; background:white; color:#ef4444; cursor:pointer; display:none;">
+                解除連結
+            </button>
+            <button onclick="closeLinkModal()" style="padding:8px 18px; border:1px solid #ddd; border-radius:8px; background:white; cursor:pointer;">取消</button>
+        </div>
+    </div>
+</div>
+
 <script>
 const DAYS = ['週日','週一','週二','週三','週四','週五','週六'];
 let currentGroupId = null;
+let currentMemberId = null;
+let currentMemberHasUser = false;
+let _linkSearchTimer = null;
 
 async function loadGroups() {
     const res = await fetch('/admin/api/cell-groups');
@@ -55,7 +80,16 @@ async function loadGroups() {
         el.innerHTML = '<p style="color:#999; text-align:center; padding:40px 0;">還沒有小組，先新增一個吧</p>';
         return;
     }
-    el.innerHTML = groups.map(g => `
+
+    // 撈每個小組的成員清單
+    const memberPromises = groups.map(g =>
+        fetch(`/admin/api/cell-groups/${g.id}/members`).then(r => r.ok ? r.json() : []).catch(() => [])
+    );
+    const allMembers = await Promise.all(memberPromises);
+
+    el.innerHTML = groups.map((g, idx) => {
+        const members = allMembers[idx] || [];
+        return `
         <div style="background:white; border-radius:12px; padding:20px; margin-bottom:16px; box-shadow:0 1px 4px rgba(0,0,0,0.08);">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <div>
@@ -77,7 +111,7 @@ async function loadGroups() {
                     </button>
                 </div>
             </div>
-            <div id="leaders-${g.id}" style="display:flex; flex-wrap:wrap; gap:8px;">
+            <div id="leaders-${g.id}" style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:${members.length ? '14px' : '0'};">
                 ${(g.leaders || []).map(l => `
                     <span style="padding:4px 10px; background:#f1f5f9; border-radius:20px; font-size:0.85rem; display:flex; align-items:center; gap:6px;">
                         ${l.real_name || l.display_name}
@@ -86,8 +120,24 @@ async function loadGroups() {
                     </span>
                 `).join('') || '<span style="color:#bbb; font-size:0.85rem;">尚未指定小組長</span>'}
             </div>
+            ${members.length ? `
+            <div style="border-top:1px solid #f0f0f0; padding-top:12px;">
+                <p style="font-size:0.82rem; color:#888; margin:0 0 8px; font-weight:500;">組員（${members.length} 人）</p>
+                <div style="display:flex; flex-wrap:wrap; gap:6px;">
+                    ${members.map(m => `
+                        <span style="padding:4px 10px; background:${m.user_id ? '#e0f2fe' : '#f8fafc'}; border-radius:20px; font-size:0.83rem; display:flex; align-items:center; gap:5px; cursor:pointer;"
+                            onclick="openLinkModal('${g.id}', '${m.id}', '${escapeAttr(m.name)}', ${m.user_id ? "'"+m.user_id+"'" : 'null'})">
+                            ${escapeHtml(m.name)}
+                            ${m.user_id
+                                ? '<span style="font-size:0.7rem; background:#0284c7; color:white; border-radius:10px; padding:1px 6px;">已連結</span>'
+                                : '<span style="font-size:0.7rem; color:#94a3b8;">連結帳號</span>'}
+                        </span>
+                    `).join('')}
+                </div>
+            </div>` : ''}
         </div>
-    `).join('');
+        `;
+    }).join('');
 }
 
 async function createGroup() {
@@ -143,6 +193,91 @@ async function toggleActive(groupId, btn) {
     const res = await fetch(`/admin/api/cell-groups/${groupId}/toggle-active`, { method: 'POST' });
     const data = await res.json();
     if (data.success) loadGroups();
+}
+
+// ── 連結帳號 ──────────────────────────────
+
+function openLinkModal(groupId, memberId, memberName, userId) {
+    currentGroupId = groupId;
+    currentMemberId = memberId;
+    currentMemberHasUser = !!userId;
+    document.getElementById('link-member-name').textContent = memberName;
+    document.getElementById('link-search-input').value = '';
+    document.getElementById('link-search-results').style.display = 'none';
+    document.getElementById('link-search-results').innerHTML = '';
+    document.getElementById('link-current-user').textContent = userId
+        ? '目前已連結帳號，可搜尋新帳號覆蓋，或點「解除連結」移除。'
+        : '尚未連結帳號，搜尋姓名後選取。';
+    document.getElementById('btn-unlink').style.display = currentMemberHasUser ? 'block' : 'none';
+    document.getElementById('link-modal').style.display = 'flex';
+}
+
+function closeLinkModal() {
+    document.getElementById('link-modal').style.display = 'none';
+    currentGroupId = null;
+    currentMemberId = null;
+}
+
+function searchUsersForLink(q) {
+    clearTimeout(_linkSearchTimer);
+    const resultsEl = document.getElementById('link-search-results');
+    if (!q.trim()) { resultsEl.style.display = 'none'; return; }
+    _linkSearchTimer = setTimeout(async () => {
+        const res = await fetch(`/admin/api/users/search-for-cell?q=${encodeURIComponent(q)}`);
+        const users = await res.json();
+        if (!users.length) {
+            resultsEl.innerHTML = '<p style="padding:10px 14px; color:#999; font-size:0.9rem; margin:0;">找不到符合的使用者</p>';
+        } else {
+            resultsEl.innerHTML = users.map(u => `
+                <div onclick="selectLinkUser('${u.id}', '${escapeAttr(u.name)}')"
+                    style="padding:10px 14px; cursor:pointer; font-size:0.92rem; border-bottom:1px solid #f0f0f0;"
+                    onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='white'">
+                    ${escapeHtml(u.name)}
+                </div>
+            `).join('');
+        }
+        resultsEl.style.display = 'block';
+    }, 300);
+}
+
+async function selectLinkUser(userId, userName) {
+    document.getElementById('link-search-results').style.display = 'none';
+    if (!confirm(`確定將此成員連結至「${userName}」的系統帳號？`)) return;
+    const res = await fetch(`/cell-report/${currentGroupId}/ajax/link-member/${currentMemberId}`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_id: userId })
+    });
+    const data = await res.json();
+    if (data.success) {
+        showToast('連結成功', 'success');
+        closeLinkModal();
+        loadGroups();
+    } else {
+        showToast(data.error || '連結失敗', 'error');
+    }
+}
+
+async function unlinkMember() {
+    if (!confirm('確定解除此成員的帳號連結？')) return;
+    const res = await fetch(`/cell-report/${currentGroupId}/ajax/link-member/${currentMemberId}`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ user_id: null })
+    });
+    const data = await res.json();
+    if (data.success) {
+        showToast('已解除連結', 'success');
+        closeLinkModal();
+        loadGroups();
+    } else {
+        showToast(data.error || '操作失敗', 'error');
+    }
+}
+
+function escapeHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+function escapeAttr(s) {
+    return String(s).replace(/'/g,"\\'").replace(/"/g,'&quot;');
 }
 
 loadGroups();

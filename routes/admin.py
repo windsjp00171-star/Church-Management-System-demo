@@ -613,6 +613,18 @@ def toggle_cell_group_active(group_id):
     return jsonify({'success': True, 'is_active': new_val})
 
 
+@admin_bp.route('/api/cell-groups/<group_id>/members')
+@admin_required
+def list_cell_group_members(group_id):
+    """取得小組的活躍成員清單（含 user_id 連結狀態）"""
+    members = supabase.table('cell_members')\
+        .select('id, name, user_id')\
+        .eq('group_id', group_id)\
+        .eq('is_active', True)\
+        .order('id').execute().data or []
+    return jsonify(members)
+
+
 @admin_bp.route('/api/users/members')
 @admin_required
 def list_members_simple():
