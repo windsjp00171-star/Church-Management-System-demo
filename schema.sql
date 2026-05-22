@@ -65,8 +65,9 @@ CREATE TABLE IF NOT EXISTS users (
     is_staff       BOOLEAN NOT NULL DEFAULT false,
     role           TEXT NOT NULL DEFAULT 'pending',
     line_id        TEXT,                   -- church-data-hub 相容欄位
-    is_blocked     BOOLEAN NOT NULL DEFAULT false,
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    is_blocked              BOOLEAN NOT NULL DEFAULT false,
+    last_seen_changelog_at  TIMESTAMPTZ,     -- 更新日誌已讀時間戳
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ============================================================

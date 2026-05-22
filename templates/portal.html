@@ -2,6 +2,69 @@
 {% block title %}{{ church_name }}{% endblock %}
 {% block content %}
 
+{% if unread_changelog %}
+<div id="changelog-banner" style="background:linear-gradient(90deg,#1d4ed8,#3b82f6); color:white;
+     padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+     animation:slideDown .4s ease;">
+    <span style="font-size:1.1rem;">🆕</span>
+    <div style="flex:1; min-width:0;">
+        {% if unread_changelog.version %}
+        <span style="font-size:0.75rem; background:rgba(255,255,255,0.2); border-radius:10px; padding:1px 8px; margin-right:6px;">{{ unread_changelog.version }}</span>
+        {% endif %}
+        <strong>{{ unread_changelog.title }}</strong>
+        <span style="font-size:0.83rem; opacity:0.85; margin-left:8px;">{{ unread_changelog.published_at }}</span>
+    </div>
+    <div style="display:flex; gap:8px; flex-shrink:0;">
+        <button onclick="showChangelog()"
+            style="padding:5px 14px; background:rgba(255,255,255,0.2); color:white; border:1px solid rgba(255,255,255,0.4);
+                   border-radius:6px; cursor:pointer; font-size:0.85rem;">
+            查看詳情
+        </button>
+        <button onclick="dismissChangelog()"
+            style="padding:5px 14px; background:rgba(255,255,255,0.15); color:white; border:none;
+                   border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+            知道了 ✕
+        </button>
+    </div>
+</div>
+
+<!-- Changelog 詳情 Modal -->
+<div id="changelog-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; border-radius:16px; padding:28px; width:100%; max-width:480px; max-height:80vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+            <div>
+                {% if unread_changelog.version %}
+                <span style="font-size:0.8rem; background:#eff6ff; color:#1d4ed8; border-radius:10px; padding:2px 9px; font-weight:600;">{{ unread_changelog.version }}</span>
+                {% endif %}
+                <h3 style="margin:6px 0 0; font-size:1.05rem;">{{ unread_changelog.title }}</h3>
+                <p style="color:#9ca3af; font-size:0.8rem; margin:2px 0 0;">{{ unread_changelog.published_at }}</p>
+            </div>
+            <button onclick="document.getElementById('changelog-modal').style.display='none'"
+                style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#9ca3af; line-height:1; padding:0 0 0 12px;">✕</button>
+        </div>
+        <div style="font-size:0.92rem; color:#374151; white-space:pre-wrap; line-height:1.7; margin-bottom:20px;">{{ unread_changelog.content }}</div>
+        <button onclick="dismissChangelog()"
+            style="width:100%; padding:12px; background:#3b82f6; color:white; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer;">
+            知道了！
+        </button>
+    </div>
+</div>
+
+<style>
+@keyframes slideDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+</style>
+<script>
+function showChangelog() {
+    document.getElementById('changelog-modal').style.display = 'flex';
+}
+function dismissChangelog() {
+    document.getElementById('changelog-banner').style.display = 'none';
+    document.getElementById('changelog-modal').style.display = 'none';
+    fetch('/api/changelogs/mark-seen', { method: 'POST' });
+}
+</script>
+{% endif %}
+
 {% set user_name = session.real_name or session.display_name or '家人' %}
 {% set is_visitor = session.get('member_type', 'member') == 'visitor' %}
 {# 動態卡片名稱：優先用 card_names（context processor），fallback 用 portal_cards_config #}

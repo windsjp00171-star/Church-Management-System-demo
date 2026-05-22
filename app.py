@@ -99,6 +99,10 @@ def create_app():
     from routes.setup_wizard import setup_wizard_bp
     app.register_blueprint(setup_wizard_bp)
 
+    # ── 更新日誌 ──────────────────────────────────────────────
+    from routes.changelog import changelog_bp
+    app.register_blueprint(changelog_bp)
+
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',

@@ -373,6 +373,16 @@ def portal():
         _hero_custom = []
     hero_theme = _pick_theme(uid or 'guest', today_tw, _hero_custom)
 
+    # 未讀 changelog
+    from routes.changelog import get_unread_changelog
+    try:
+        user_row = supabase.table('users').select('last_seen_changelog_at')\
+            .eq('id', uid).execute().data
+        last_seen = user_row[0].get('last_seen_changelog_at') if user_row else None
+    except Exception:
+        last_seen = None
+    unread_changelog = get_unread_changelog(last_seen) if uid else None
+
     return render_template('portal.html',
         open_events=open_events,
         open_courses=open_courses,
@@ -392,6 +402,7 @@ def portal():
         pending_report=pending_report,
         leader_groups=leader_groups,
         attendance_summary=attendance_summary,
+        unread_changelog=unread_changelog,
     )
 
 
