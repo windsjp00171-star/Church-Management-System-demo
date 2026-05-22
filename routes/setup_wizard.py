@@ -129,6 +129,7 @@ _CORE_TABLES = [
     'cell_groups', 'cell_members', 'cell_group_leaders', 'cell_reports',
     'cell_attendance', 'sunday_reports', 'children_sunday_reports',
     'prayer_reports', 'morning_prayer_reports',
+    'custom_meeting_reports',
     'diary_entries', 'diary_whitelist',
     'portal_cards', 'portal_links',
 ]

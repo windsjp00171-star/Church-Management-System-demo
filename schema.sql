@@ -582,6 +582,20 @@ CREATE TABLE IF NOT EXISTS morning_prayer_reports (
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- 自訂聚會人數（由管理員在聚會設定中新增的聚會類型）
+CREATE TABLE IF NOT EXISTS custom_meeting_reports (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date             DATE NOT NULL,
+    meeting_key      TEXT NOT NULL,
+    attendance_count INTEGER NOT NULL DEFAULT 0,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (date, meeting_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_custom_meeting_reports_date ON custom_meeting_reports (date);
+CREATE INDEX IF NOT EXISTS idx_custom_meeting_reports_key  ON custom_meeting_reports (meeting_key);
+
 -- 週記事
 CREATE TABLE IF NOT EXISTS week_notes (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
