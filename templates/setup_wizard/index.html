@@ -542,6 +542,148 @@ ADMIN_LINE_USER_IDS=U你的LINE_USER_ID</div>
     </div>
   </div>
 
+  <!-- ── STEP 7: 新增教會 SOP ──────────────────────────────── -->
+  <div class="wiz-step">
+    <div class="wiz-step-head" onclick="toggle('sop-body', this)">
+      <div class="wiz-step-num num-info">7</div>
+      <div class="wiz-step-title">新增教會部署 SOP</div>
+      <span class="wiz-step-badge badge-info">維運筆記</span>
+      <span class="wiz-step-chevron">▼</span>
+    </div>
+    <div class="wiz-step-body" id="sop-body">
+
+      <!-- 平台分工表 -->
+      <div class="sec-label">平台管理分工</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+
+        <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:14px;">
+          <p style="font-weight:700; font-size:.85rem; color:#0369a1; margin:0 0 10px;">🧑‍💻 維運者（你）管理</p>
+          <table style="width:100%; font-size:.82rem; border-collapse:collapse;">
+            <tr><td style="padding:4px 6px; font-weight:600;">GitHub</td><td style="padding:4px 6px; color:#555;">Private repo 源碼</td></tr>
+            <tr style="background:#e0f2fe;"><td style="padding:4px 6px; font-weight:600;">Render</td><td style="padding:4px 6px; color:#555;">你的帳號，每間教會一個 Web Service</td></tr>
+            <tr><td style="padding:4px 6px; font-weight:600;">Groq / Gemini</td><td style="padding:4px 6px; color:#555;">AI API Key（共用）</td></tr>
+            <tr style="background:#e0f2fe;"><td style="padding:4px 6px; font-weight:600;">Sentry</td><td style="padding:4px 6px; color:#555;">錯誤監控（選填）</td></tr>
+            <tr><td style="padding:4px 6px; font-weight:600;">Flask Secret Key</td><td style="padding:4px 6px; color:#555;">每間教會各生成一組</td></tr>
+          </table>
+        </div>
+
+        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:14px;">
+          <p style="font-weight:700; font-size:.85rem; color:#c2410c; margin:0 0 10px;">⛪ 教會端管理</p>
+          <table style="width:100%; font-size:.82rem; border-collapse:collapse;">
+            <tr><td style="padding:4px 6px; font-weight:600;">Supabase</td><td style="padding:4px 6px; color:#555;">他們的資料庫，他們的帳號</td></tr>
+            <tr style="background:#ffedd5;"><td style="padding:4px 6px; font-weight:600;">LINE Developers</td><td style="padding:4px 6px; color:#555;">LINE Login Channel，用他們的 LINE 帳號申請</td></tr>
+            <tr><td style="padding:4px 6px; font-weight:600;">Cloudflare R2</td><td style="padding:4px 6px; color:#555;">檔案分享用（選填）</td></tr>
+          </table>
+          <p style="font-size:.75rem; color:#9a3412; margin:8px 0 0;">教會端只需提供帳號資料給你，不需碰代碼或 Render。</p>
+        </div>
+      </div>
+
+      <!-- SOP 步驟 -->
+      <div class="sec-label">新增一間教會的完整 SOP</div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:8px;">
+
+        <div class="instr-step">
+          <div class="instr-num">1</div>
+          <div class="instr-body">
+            <strong>請教會端申請 Supabase</strong><br>
+            前往 <a href="https://supabase.com" target="_blank">supabase.com</a> → 建立帳號 → 新增 Project（免費方案即可）<br>
+            完成後到 <strong>Project Settings → API</strong>，複製：<br>
+            &nbsp;• Project URL → 給你填 <code>SUPABASE_URL</code><br>
+            &nbsp;• anon public key → 給你填 <code>SUPABASE_KEY</code>
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">2</div>
+          <div class="instr-body">
+            <strong>請教會端申請 LINE Login Channel</strong><br>
+            前往 <a href="https://developers.line.biz" target="_blank">developers.line.biz</a> → 用教會負責人的 LINE 帳號登入<br>
+            建立 Provider → 新增 LINE Login Channel<br>
+            完成後複製：<br>
+            &nbsp;• Channel ID → 給你填 <code>LINE_CHANNEL_ID</code><br>
+            &nbsp;• Channel Secret → 給你填 <code>LINE_CHANNEL_SECRET</code><br>
+            ⚠️ Callback URL 先留空，等你建完 Render 服務後再回來填
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">3</div>
+          <div class="instr-body">
+            <strong>在你的 Render 帳號建新 Web Service</strong><br>
+            Dashboard → New + → Web Service → 選你的 GitHub repo<br>
+            Name 取好識別名稱（例：church-grace-system）<br>
+            Region 選 Singapore，Branch 選 main
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">4</div>
+          <div class="instr-body">
+            <strong>填入環境變數</strong>（Environment Variables 區塊）<br>
+            <div style="background:#1e1e2e; color:#cdd6f4; border-radius:8px; padding:12px; font-family:monospace; font-size:.76rem; margin-top:6px; white-space:pre; overflow-x:auto;">RENDER=true
+FLASK_SECRET_KEY=&lt;python -c "import secrets; print(secrets.token_hex(32))"&gt;
+LINE_CHANNEL_ID=&lt;教會端提供&gt;
+LINE_CHANNEL_SECRET=&lt;教會端提供&gt;
+LINE_REDIRECT_URI=https://&lt;你命名的服務&gt;.onrender.com/auth/callback
+SUPABASE_URL=&lt;教會端提供&gt;
+SUPABASE_KEY=&lt;教會端提供&gt;
+CHURCH_NAME=&lt;教會全名，例：天恩浸信會&gt;
+CHURCH_SHORT_NAME=&lt;教會簡稱，例：天恩堂&gt;
+ADMIN_LINE_USER_IDS=&lt;教會管理員的 LINE User ID&gt;</div>
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">5</div>
+          <div class="instr-body">
+            <strong>建立 Render 服務並取得網址</strong><br>
+            點「Create Web Service」→ 等待 Build 完成（約 3～5 分鐘）<br>
+            部署成功後取得網址：<code>https://church-xxx.onrender.com</code>
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">6</div>
+          <div class="instr-body">
+            <strong>回到 LINE Developers 填 Callback URL</strong><br>
+            進入該教會的 LINE Login Channel → LINE Login 分頁<br>
+            在 Callback URL 填入：<code>https://你的服務.onrender.com/auth/callback</code><br>
+            儲存後即可使用 LINE 登入
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">7</div>
+          <div class="instr-body">
+            <strong>在 Supabase SQL Editor 建立資料表</strong><br>
+            進入教會的 Supabase 專案 → SQL Editor → 貼上 Step 3 的 schema.sql → 執行<br>
+            回到本精靈 Step 3 確認所有資料表顯示 ✓
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">8</div>
+          <div class="instr-body">
+            <strong>首次登入 & 設定管理員</strong><br>
+            用你的 LINE 登入系統 → 進入個人資料頁確認你的 LINE User ID<br>
+            將 ID 填入 Render 的 <code>ADMIN_LINE_USER_IDS</code> 環境變數 → 儲存 → 重啟<br>
+            重新登入後即可進入後台管理
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">9</div>
+          <div class="instr-body">
+            <strong>交付網址給教會，完成！</strong><br>
+            教會不需要帳號、不需要碰代碼，直接用 LINE 掃碼或開連結進入系統即可使用。<br>
+            未來代碼更新：你 push 到 GitHub → 所有教會服務自動 redeploy。
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
   <!-- ── 底部：快速連結 ────────────────────────────────────── -->
   <div style="margin-top:32px; display:flex; gap:10px; flex-wrap:wrap;">
     <a href="{{ url_for('event.portal') }}"
