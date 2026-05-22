@@ -488,16 +488,45 @@ def add_member_ajax(group_id):
     if not name:
         return jsonify({'success': False, 'error': '姓名不可空白'}), 400
 
-    res = supabase.table('cell_members').insert({
+    # 可選：同時連結系統帳號 user_id
+    user_id = (data.get('user_id') or '').strip() or None
+
+    insert_payload = {
         'group_id': group_id,
         'name': name,
         'is_active': True,
-    }).execute()
+    }
+    if user_id:
+        insert_payload['user_id'] = user_id
+
+    res = supabase.table('cell_members').insert(insert_payload).execute()
 
     if res.data:
         member = res.data[0]
         return jsonify({'success': True, 'member_id': member['id'], 'name': member['name']})
     return jsonify({'success': False, 'error': '新增失敗'}), 500
+
+
+@login_required
+@cell_report_bp.post('/cell-report/<group_id>/ajax/link-member/<member_id>')
+def link_member_ajax(group_id, member_id):
+    """連結（或解除連結）小組成員與系統帳號
+    JSON body: { user_id: "uuid" | null }
+    """
+    if not _has_group_access(group_id):
+        return jsonify({'success': False, 'error': '沒有權限'}), 403
+
+    try:
+        data = json.loads(request.data.decode('utf-8'))
+    except Exception:
+        return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+
+    user_id = data.get('user_id') or None  # null 表示解除連結
+
+    supabase.table('cell_members').update({'user_id': user_id})\
+        .eq('id', member_id).eq('group_id', group_id).execute()
+
+    return jsonify({'success': True, 'user_id': user_id})
 
 
 @login_required

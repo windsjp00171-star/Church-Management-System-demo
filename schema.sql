@@ -12,6 +12,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 基礎設定表
 -- ============================================================
 
+-- 服事角色標籤（敬拜團、招待、兒主等）— 不再用於週間小組分組，小組改用 cell_groups
+-- is_primary 欄位保留以維持向下相容，UI 不再顯示主/副標籤切換
 CREATE TABLE IF NOT EXISTS groups (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        TEXT NOT NULL,
@@ -510,6 +512,7 @@ CREATE TABLE IF NOT EXISTS cell_members (
     name         TEXT NOT NULL,
     contact_info TEXT,
     is_active    BOOLEAN NOT NULL DEFAULT true,
+    user_id      UUID REFERENCES users(id) ON DELETE SET NULL,  -- 連結系統帳號（nullable）
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 

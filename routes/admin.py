@@ -437,38 +437,23 @@ def list_groups():
 @admin_bp.route('/api/groups', methods=['POST'])
 @admin_required
 def add_group():
-    """新增小組（僅超級管理員）"""
+    """新增服事角色標籤（僅超級管理員）"""
     if not session.get('is_super_admin'):
-        return jsonify({'error': '只有超級管理員可新增小組'}), 403
+        return jsonify({'error': '只有超級管理員可新增標籤'}), 403
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     if not name:
-        return jsonify({'error': '小組名稱不能為空'}), 400
-    is_primary = data.get('is_primary', True)
+        return jsonify({'error': '標籤名稱不能為空'}), 400
     try:
         # 取目前最大排序值
         existing = supabase.table('groups').select('sort_order').order('sort_order', desc=True).limit(1).execute()
         next_order = (existing.data[0]['sort_order'] + 1) if existing.data else 1
         result = supabase.table('groups').insert({
-            'name': name, 'sort_order': next_order, 'is_primary': is_primary
+            'name': name, 'sort_order': next_order, 'is_primary': False
         }).execute()
         return jsonify({'success': True, 'group': result.data[0]})
     except Exception as e:
-        return jsonify({'error': '小組名稱已存在或發生錯誤'}), 400
-
-
-@admin_bp.route('/api/groups/<group_id>/toggle-primary', methods=['POST'])
-@admin_required
-def toggle_group_primary(group_id):
-    """切換主/副標籤（僅超級管理員）"""
-    if not session.get('is_super_admin'):
-        return jsonify({'error': '只有超級管理員可修改'}), 403
-    current = supabase.table('groups').select('is_primary').eq('id', group_id).execute()
-    if not current.data:
-        return jsonify({'error': '找不到此小組'}), 404
-    new_val = not current.data[0].get('is_primary', True)
-    supabase.table('groups').update({'is_primary': new_val}).eq('id', group_id).execute()
-    return jsonify({'success': True, 'is_primary': new_val})
+        return jsonify({'error': '標籤名稱已存在或發生錯誤'}), 400
 
 
 @admin_bp.route('/api/groups/<group_id>/delete', methods=['POST'])
@@ -634,6 +619,30 @@ def list_members_simple():
     """供小組長選人用的簡易會員清單"""
     result = supabase.table('users').select('id, real_name, display_name').order('real_name').execute()
     return jsonify(result.data or [])
+
+
+@admin_bp.route('/api/users/search-for-cell')
+@admin_required
+def search_users_for_cell():
+    """搜尋使用者供連結牧養小組成員帳號用
+    ?q=  關鍵字（真實姓名或 LINE 暱稱），回傳 [{id, name}] 最多 20 筆
+    """
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify([])
+    by_real = supabase.table('users').select('id, real_name, display_name')\
+        .ilike('real_name', f'%{q}%').limit(20).execute().data or []
+    by_line = supabase.table('users').select('id, real_name, display_name')\
+        .ilike('display_name', f'%{q}%').limit(20).execute().data or []
+    seen, merged = set(), []
+    for u in by_real + by_line:
+        if u['id'] not in seen:
+            seen.add(u['id'])
+            merged.append({
+                'id': u['id'],
+                'name': u.get('real_name') or u.get('display_name') or '—',
+            })
+    return jsonify(merged[:20])
 
 
 @admin_bp.route('/api/users/<user_id>/toggle-pastor', methods=['POST'])
