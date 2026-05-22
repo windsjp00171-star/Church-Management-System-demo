@@ -830,6 +830,18 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
         {% endif %}
 
+        {% if is_super_admin or is_admin %}
+        <div class="fi-wrap ti" style="--d:{{ base_d + 840 }}ms">
+            <a href="/setup-wizard" class="fg-tile" style="background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);border-color:rgba(255,255,255,.1);">
+                <div class="fg-icon" style="background:rgba(255,255,255,.12);color:white;">
+                    🧙
+                </div>
+                <div class="fg-name" style="color:white;">部署精靈</div>
+                <div class="fg-sub" style="color:rgba(255,255,255,.55);">環境設定與部署狀態</div>
+            </a>
+        </div>
+        {% endif %}
+
     </div>
 </div>
 

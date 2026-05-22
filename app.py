@@ -79,6 +79,10 @@ def create_app():
     from routes.cell_report import cell_report_bp
     app.register_blueprint(cell_report_bp)
 
+    # ── 部署精靈 ──────────────────────────────────────────────
+    from routes.setup_wizard import setup_wizard_bp
+    app.register_blueprint(setup_wizard_bp)
+
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',
