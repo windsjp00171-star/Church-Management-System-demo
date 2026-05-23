@@ -75,11 +75,17 @@ def _get_role() -> str:
 
 
 def _get_user_group_ids():
-    """取得當前用戶所屬群組 ID 集合，每個 request 只查一次 DB。"""
+    """取得當前用戶所屬服事分組 ID 集合（從 group_tags 對應 groups 表），每個 request 只查一次 DB。"""
     if not hasattr(g, 'user_group_ids'):
-        user_id = session.get('user_id')
-        res = supabase.table('group_members').select('group_id').eq('user_id', user_id).execute()
-        g.user_group_ids = {r['group_id'] for r in (res.data or [])}
+        group_tags = session.get('group_tags') or []
+        if group_tags:
+            try:
+                res = supabase.table('groups').select('id').in_('name', group_tags).execute()
+                g.user_group_ids = {r['id'] for r in (res.data or [])}
+            except Exception:
+                g.user_group_ids = set()
+        else:
+            g.user_group_ids = set()
     return g.user_group_ids
 
 
