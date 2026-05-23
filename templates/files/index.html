@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block title %}檔案總覽 — 資料交換中心{% endblock %}
 
-{% block head %}
+{% block extra_css %}
 <style>
 /* ── 基礎變數對齊 ── */
 :root {
@@ -168,7 +168,7 @@
 .drop-text { font-size: 1.3rem; font-weight: 700; color: var(--f-primary-dark); }
 .drop-subtext { font-size: .9rem; color: #555; margin-top: 4px; }
 </style>
-{% endblock %}
+{% endblock extra_css %}
 
 {% block content %}
 <div class="page-header">
