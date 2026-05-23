@@ -663,6 +663,79 @@ def done(group_id):
                            is_backfill=week_date != this_week_date)
 
 
+@cell_report_bp.get('/cell-report/<group_id>/view-report')
+@login_required
+def view_report(group_id):
+    """Read-only report detail for pastors / staff / admins."""
+    if not (session.get('is_pastor') or session.get('is_staff') or session.get('is_admin')):
+        return _no_permission()
+
+    group = _get_group(group_id)
+    if not group:
+        flash('找不到小組', 'error')
+        return redirect(url_for('cell_report.pastor_dashboard'))
+
+    week_date_str = request.args.get('week_date', '')
+    try:
+        week_date = datetime.date.fromisoformat(week_date_str)
+    except Exception:
+        week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
+
+    res = (
+        supabase.table('cell_reports')
+        .select('*')
+        .eq('group_id', group_id)
+        .eq('week_date', week_date.isoformat())
+        .execute()
+    )
+    report = (res.data or [None])[0]
+
+    members = _get_members(group_id)
+    attendance_map = {}
+    if report:
+        attendance_map = _get_attendance_map(group_id, report['id'])
+
+    display_rows = []
+    for m in members:
+        att = attendance_map.get(str(m['id'])) or {}
+        display_rows.append({
+            'name': m['name'],
+            'cell': _status_to_label(att.get('cell_status', '')),
+            'sunday': _status_to_label(att.get('sunday_status', '')),
+            'rpg': _status_to_label(att.get('rpg_status', '')),
+        })
+
+    # Newcomers
+    newcomers = []
+    if report and report.get('newcomer_raw'):
+        try:
+            parsed = json.loads(report['newcomer_raw'])
+            newcomers = parsed if isinstance(parsed, list) else []
+        except Exception:
+            pass
+
+    prev_week = week_date - datetime.timedelta(days=7)
+    next_week = week_date + datetime.timedelta(days=7)
+    this_week = _get_last_meeting_date_for_group(group, datetime.date.today())
+
+    back_url = url_for('cell_report.pastor_dashboard', week=week_date.isoformat()) \
+        if session.get('is_pastor') \
+        else url_for('cell_report.staff_dashboard', week=week_date.isoformat())
+    if session.get('is_admin') and not session.get('is_pastor') and not session.get('is_staff'):
+        back_url = url_for('cell_report.pastor_dashboard', week=week_date.isoformat())
+
+    return render_template('cell_report/view_report.html',
+                           group=group,
+                           report=report,
+                           week_date=week_date,
+                           display_rows=display_rows,
+                           newcomers=newcomers,
+                           prev_week=prev_week,
+                           next_week=next_week,
+                           is_current_week=week_date == this_week,
+                           back_url=back_url)
+
+
 @pastor_required
 @cell_report_bp.get('/cell-report/pastor-dashboard')
 def pastor_dashboard():
@@ -1128,6 +1201,8 @@ def _build_group_data(groups: List[Dict], sunday: datetime.date) -> List[Dict]:
         result.append({
             'group': g,
             'meet_date': meet_date,
+            'report_id': report['id'] if report else None,
+            'week_date': meet_date.isoformat(),
             'attend': attend,
             'has_report': has_report,
             'no_meeting': no_meeting,
