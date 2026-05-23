@@ -886,9 +886,12 @@ def sunday():
 
         try:
             report = _get_or_create_sunday_report(date_str)
+            from datetime import timezone
             supabase.table('sunday_reports').update({
                 'first_service_count': first,
                 'second_service_count': second,
+                'submitted_by': session.get('user_id'),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -896,10 +899,12 @@ def sunday():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_sunday_report(date_str)
+    submitter_name = _get_submitter_name(report)
     return render_template('cell_report/sunday_form.html',
                            report=report or {}, date=date_obj,
                            service_count=service_count,
-                           label=cfg.get('label', '成人主日'))
+                           label=cfg.get('label', '成人主日'),
+                           submitter_name=submitter_name)
 
 
 @cell_report_bp.route('/cell-report/children', methods=['GET', 'POST'])
@@ -916,17 +921,24 @@ def children():
             count = 0
 
         try:
+            from datetime import timezone
             report = _get_or_create_children_report(date_str)
-            supabase.table('children_sunday_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
+            supabase.table('children_sunday_reports').update({
+                'attendance_count': count,
+                'submitted_by': session.get('user_id'),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+            }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
             print(f"[children POST error] {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_children_report(date_str)
+    submitter_name = _get_submitter_name(report)
     return render_template('cell_report/children_sunday_form.html',
                            report=report or {}, date=date_obj,
-                           label=cfg.get('label', '兒童主日'))
+                           label=cfg.get('label', '兒童主日'),
+                           submitter_name=submitter_name)
 
 
 @cell_report_bp.route('/cell-report/prayer', methods=['GET', 'POST'])
@@ -943,17 +955,24 @@ def prayer():
             count = 0
 
         try:
+            from datetime import timezone
             report = _get_or_create_prayer_report(date_str)
-            supabase.table('prayer_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
+            supabase.table('prayer_reports').update({
+                'attendance_count': count,
+                'submitted_by': session.get('user_id'),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+            }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
             print(f"[prayer POST error] {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_prayer_report(date_str)
+    submitter_name = _get_submitter_name(report)
     return render_template('cell_report/prayer_form.html',
                            report=report or {}, date=date_obj,
-                           label=cfg.get('label', '禱告會'))
+                           label=cfg.get('label', '禱告會'),
+                           submitter_name=submitter_name)
 
 
 @cell_report_bp.route('/cell-report/morning-prayer', methods=['GET', 'POST'])
@@ -970,17 +989,24 @@ def morning_prayer():
             count = 0
 
         try:
+            from datetime import timezone
             report = _get_or_create_morning_prayer_report(date_str)
-            supabase.table('morning_prayer_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
+            supabase.table('morning_prayer_reports').update({
+                'attendance_count': count,
+                'submitted_by': session.get('user_id'),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+            }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
             print(f"[morning_prayer POST error] {e}")
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_morning_prayer_report(date_str)
+    submitter_name = _get_submitter_name(report)
     return render_template('cell_report/morning_prayer_form.html',
                            report=report or {}, date=date_obj,
-                           label=cfg.get('label', '晨禱'))
+                           label=cfg.get('label', '晨禱'),
+                           submitter_name=submitter_name)
 
 
 # ── 聚會設定後台 ─────────────────────────────────────────────
@@ -1069,14 +1095,21 @@ def custom_meeting(meeting_key):
         except Exception:
             count = 0
         try:
+            from datetime import timezone
+            uid = session.get('user_id')
+            now_iso = datetime.now(timezone.utc).isoformat()
             existing = supabase.table('custom_meeting_reports').select('id')\
                 .eq('date', date_str).eq('meeting_key', meeting_key).execute()
             if existing.data:
-                supabase.table('custom_meeting_reports').update({'attendance_count': count})\
-                    .eq('id', existing.data[0]['id']).execute()
+                supabase.table('custom_meeting_reports').update({
+                    'attendance_count': count,
+                    'submitted_by': uid,
+                    'updated_at': now_iso,
+                }).eq('id', existing.data[0]['id']).execute()
             else:
                 supabase.table('custom_meeting_reports').insert({
-                    'date': date_str, 'meeting_key': meeting_key, 'attendance_count': count
+                    'date': date_str, 'meeting_key': meeting_key,
+                    'attendance_count': count, 'submitted_by': uid,
                 }).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -1089,16 +1122,35 @@ def custom_meeting(meeting_key):
     except Exception:
         report = None
 
+    submitter_name = _get_submitter_name(report)
     return render_template('cell_report/custom_meeting_form.html',
                            report=report or {}, date=date_obj,
                            label=cfg.get('label', '聚會'),
                            emoji=cfg.get('emoji', '✨'),
-                           meeting_key=meeting_key)
+                           meeting_key=meeting_key,
+                           submitter_name=submitter_name)
 
 
 # =========================
 # 聚會報告 helper
 # =========================
+
+def _get_submitter_name(report: Optional[Dict]) -> Optional[str]:
+    """從 report 的 submitted_by 查詢用戶名稱"""
+    if not report:
+        return None
+    uid = report.get('submitted_by')
+    if not uid:
+        return None
+    try:
+        res = supabase.table('users').select('real_name, display_name').eq('id', uid).execute()
+        if res.data:
+            u = res.data[0]
+            return u.get('real_name') or u.get('display_name') or '未知'
+    except Exception:
+        pass
+    return None
+
 
 def _get_sunday_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('sunday_reports').select('*').eq('date', date_str).execute()
