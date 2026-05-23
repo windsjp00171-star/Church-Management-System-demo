@@ -299,7 +299,21 @@ def portal():
             pass
 
     # ── 角色判斷：牧者、小組長、待辦週報 ──
+    # 每次載入 portal 時從 DB 刷新 is_pastor / is_staff / is_super_admin，
+    # 避免管理員設定後要重新登入才生效的問題。
     is_pastor = session.get('is_pastor', False)
+    if uid:
+        try:
+            role_row = supabase.table('users')\
+                .select('is_pastor, is_staff, is_super_admin')\
+                .eq('id', uid).single().execute()
+            if role_row.data:
+                is_pastor = bool(role_row.data.get('is_pastor', False))
+                session['is_pastor']      = is_pastor
+                session['is_staff']       = bool(role_row.data.get('is_staff', False))
+                session['is_super_admin'] = bool(role_row.data.get('is_super_admin', False))
+        except Exception:
+            pass
     is_group_leader = False
     pending_report = False
     leader_groups = []
