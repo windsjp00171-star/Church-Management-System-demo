@@ -807,3 +807,18 @@ CREATE TABLE IF NOT EXISTS overtime_records (
 GRANT ALL ON staff_profiles TO anon, authenticated;
 GRANT ALL ON leave_requests TO anon, authenticated;
 GRANT ALL ON overtime_records TO anon, authenticated;
+
+-- ============================================================
+-- Migrations（補欄位，安全可重複執行）
+-- 若資料庫是以舊版 schema.sql 建立，執行以下 ALTER TABLE 補上缺少的欄位。
+-- ============================================================
+
+-- 2026-05 cell_members 新增 user_id（連結系統帳號）與 is_confirmed（待審核旗標）
+ALTER TABLE cell_members
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE cell_members
+  ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN NOT NULL DEFAULT true;
+
+-- 重新載入 PostgREST schema 快取（讓 API 立即看到新欄位）
+NOTIFY pgrst, 'reload schema';
