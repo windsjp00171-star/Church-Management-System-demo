@@ -1,5 +1,5 @@
 # 會員個人資料路由
-from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, current_app
+from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, current_app, flash
 from db import supabase
 from routes.decorators import login_required
 
@@ -87,54 +87,65 @@ def edit():
 
         # ── 申請加入牧養小組 ────────────────────────────────────
         if action == 'request_cell_group':
-            group_id = (data.get('cell_group_id') or '').strip()
-            if not group_id:
-                return jsonify({'error': '請選擇小組'}), 400
-
-            # 確認小組存在
-            grp = supabase.table('cell_groups').select('id, name').eq('id', group_id).eq('is_active', True).execute().data
-            if not grp:
-                return jsonify({'error': '找不到此小組'}), 404
-
-            # 若已有確認中的申請或已確認的記錄，直接回傳
-            existing = supabase.table('cell_members').select('id, is_confirmed')\
-                .eq('group_id', group_id).eq('user_id', uid).eq('is_active', True).execute().data
-            if existing:
-                status = '已在此小組' if existing[0].get('is_confirmed') else '申請已送出，等待管理員確認'
-                return jsonify({'success': True, 'message': status})
-
-            # 取得使用者姓名
-            name = session.get('real_name') or session.get('display_name') or '未命名'
-
-            # 建立待確認記錄
-            supabase.table('cell_members').insert({
-                'group_id': group_id,
-                'name': name,
-                'user_id': uid,
-                'is_active': True,
-                'is_confirmed': False,
-            }).execute()
-
-            # 通知管理員
             try:
-                admins = supabase.table('users').select('id')\
-                    .eq('is_super_admin', True).execute().data or []
-                if not admins:
-                    admins = supabase.table('users').select('id')\
-                        .eq('is_admin', True).execute().data or []
-                if admins:
-                    from routes.notifications import batch_notify
-                    batch_notify(
-                        user_ids=[a['id'] for a in admins],
-                        title=f'📋 小組申請 — {name}',
-                        body=f'申請加入「{grp[0]["name"]}」，請至小組管理頁面確認。',
-                        type='cell_group',
-                        link='/admin/cell-groups',
-                    )
-            except Exception as e:
-                print(f'[profile] notify error: {e}')
+                group_id = (data.get('cell_group_id') or '').strip()
+                if not group_id:
+                    return jsonify({'error': '請選擇小組'}), 400
 
-            return jsonify({'success': True, 'message': '申請已送出，等待管理員確認'})
+                # 確認小組存在
+                grp = supabase.table('cell_groups').select('id, name').eq('id', group_id).eq('is_active', True).execute().data
+                if not grp:
+                    return jsonify({'error': '找不到此小組'}), 404
+
+                # 若已有確認中的申請或已確認的記錄，直接回傳
+                try:
+                    existing = supabase.table('cell_members').select('id, is_confirmed')\
+                        .eq('group_id', group_id).eq('user_id', uid).eq('is_active', True).execute().data
+                except Exception:
+                    existing = supabase.table('cell_members').select('id')\
+                        .eq('group_id', group_id).eq('user_id', uid).eq('is_active', True).execute().data
+                if existing:
+                    status = '已在此小組' if existing[0].get('is_confirmed', True) else '申請已送出，等待管理員確認'
+                    return jsonify({'success': True, 'message': status})
+
+                # 取得使用者姓名
+                name = session.get('real_name') or session.get('display_name') or '未命名'
+
+                # 建立待確認記錄（is_confirmed 欄位可能不存在則省略）
+                insert_payload = {
+                    'group_id': group_id,
+                    'name': name,
+                    'user_id': uid,
+                    'is_active': True,
+                }
+                try:
+                    supabase.table('cell_members').insert({**insert_payload, 'is_confirmed': False}).execute()
+                except Exception:
+                    supabase.table('cell_members').insert(insert_payload).execute()
+
+                # 通知管理員
+                try:
+                    admins = supabase.table('users').select('id')\
+                        .eq('is_super_admin', True).execute().data or []
+                    if not admins:
+                        admins = supabase.table('users').select('id')\
+                            .eq('is_admin', True).execute().data or []
+                    if admins:
+                        from routes.notifications import batch_notify
+                        batch_notify(
+                            user_ids=[a['id'] for a in admins],
+                            title=f'📋 小組申請 — {name}',
+                            body=f'申請加入「{grp[0]["name"]}」，請至小組管理頁面確認。',
+                            type='cell_group',
+                            link='/admin/cell-groups',
+                        )
+                except Exception as e:
+                    print(f'[profile] notify error: {e}')
+
+                return jsonify({'success': True, 'message': '申請已送出，等待管理員確認'})
+            except Exception as e:
+                print(f'[profile] request_cell_group error: {e}')
+                return jsonify({'error': f'申請失敗：{e}'}), 500
 
         # ── 儲存一般個人資料 ────────────────────────────────────
         real_name = data.get('real_name', '').strip()

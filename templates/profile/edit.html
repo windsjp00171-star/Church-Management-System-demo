@@ -186,7 +186,10 @@ function requestCellGroup() {
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ action: 'request_cell_group', cell_group_id: sel.value })
     })
-    .then(r => r.json())
+    .then(r => {
+        if (!r.ok) throw new Error('伺服器錯誤 ' + r.status);
+        return r.json();
+    })
     .then(d => {
         if (d.success) {
             showToast('✅ ' + (d.message || '申請已送出'), 'success');
@@ -194,6 +197,9 @@ function requestCellGroup() {
         } else {
             showToast('❌ ' + (d.error || '申請失敗'), 'error');
         }
+    })
+    .catch(err => {
+        showToast('❌ 申請失敗：' + err.message, 'error');
     });
 }
 </script>
