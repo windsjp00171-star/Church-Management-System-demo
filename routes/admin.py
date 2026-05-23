@@ -2268,3 +2268,86 @@ def reorder_portal_cards():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+# 資料交換中心後台
+# ══════════════════════════════════════════
+
+@admin_bp.route('/files')
+@admin_required
+def files_admin():
+    """資料交換中心管理後台"""
+    import settings_store
+
+    # 總用量
+    all_files = supabase.table('files').select('id, name, file_size, owner_id, created_at, visibility').execute().data or []
+    total_used = sum(f.get('file_size') or 0 for f in all_files)
+    max_bytes = settings_store.get_max_storage_bytes()
+    max_gb = int(settings_store.get('max_storage_gb') or 10)
+
+    # 每位用戶用量
+    user_usage = {}
+    for f in all_files:
+        oid = f.get('owner_id') or 'unknown'
+        user_usage[oid] = user_usage.get(oid, 0) + (f.get('file_size') or 0)
+
+    # 取得用戶名稱
+    user_ids = [uid for uid in user_usage if uid != 'unknown']
+    user_map = {}
+    if user_ids:
+        urows = supabase.table('users').select('id, real_name, display_name').in_('id', user_ids).execute().data or []
+        for u in urows:
+            user_map[u['id']] = u.get('real_name') or u.get('display_name') or '未知'
+
+    user_stats = sorted([
+        {'id': uid, 'name': user_map.get(uid, uid[:8] + '…'), 'bytes': sz}
+        for uid, sz in user_usage.items()
+    ], key=lambda x: x['bytes'], reverse=True)
+
+    # 最近上傳（20筆）
+    recent_files = sorted(all_files, key=lambda f: f.get('created_at') or '', reverse=True)[:20]
+    for f in recent_files:
+        oid = f.get('owner_id', '')
+        f['owner_name'] = user_map.get(oid, '未知')
+
+    return render_template('admin/files_admin.html',
+                           total_used=total_used,
+                           max_bytes=max_bytes,
+                           max_gb=max_gb,
+                           user_stats=user_stats,
+                           recent_files=recent_files,
+                           file_count=len(all_files))
+
+
+@admin_bp.route('/api/files/set-limit', methods=['POST'])
+@admin_required
+def files_set_limit():
+    """設定全域儲存上限"""
+    data = request.get_json(silent=True) or {}
+    try:
+        gb = int(data.get('max_gb') or 10)
+        if gb < 1 or gb > 1000:
+            return jsonify({'error': 'GB 需介於 1～1000'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': '請輸入有效數字'}), 400
+    import settings_store
+    settings_store.set('max_storage_gb', gb)
+    return jsonify({'success': True, 'max_gb': gb})
+
+
+@admin_bp.route('/api/files/<file_id>/delete', methods=['POST'])
+@admin_required
+def files_admin_delete(file_id):
+    """管理員強制刪除任意檔案"""
+    from storage import delete_file as r2_delete
+    row = supabase.table('files').select('file_key, name').eq('id', file_id).execute().data
+    if not row:
+        return jsonify({'error': '檔案不存在'}), 404
+    file_key = row[0]['file_key']
+    try:
+        r2_delete(file_key)
+    except Exception:
+        pass
+    supabase.table('files').delete().eq('id', file_id).execute()
+    return jsonify({'success': True})
