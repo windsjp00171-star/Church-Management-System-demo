@@ -145,7 +145,7 @@ def edit():
                 return jsonify({'success': True, 'message': '申請已送出，等待管理員確認'})
             except Exception as e:
                 print(f'[profile] request_cell_group error: {e}')
-                return jsonify({'error': f'申請失敗：{e}'}), 500
+                return jsonify({'error': str(e)})
 
         # ── 儲存一般個人資料 ────────────────────────────────────
         real_name = data.get('real_name', '').strip()
