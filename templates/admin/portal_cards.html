@@ -6,7 +6,7 @@
     <div class="page-header-left">
         <a href="/admin" style="color:var(--text-3);text-decoration:none;font-size:.85rem;">← 後台管理</a>
         <div class="page-title" style="margin-top:4px;">🗂 門戶卡片管理</div>
-        <div class="page-subtitle">設定首頁功能卡片的名稱、顯示對象與開關</div>
+        <div class="page-subtitle">設定首頁功能卡片的名稱、顯示對象與開關，可拖拉調整順序</div>
     </div>
 </div>
 
@@ -23,6 +23,7 @@
 {% for card in cards %}
 <div class="pc-row" data-key="{{ card.key }}">
     <div class="pc-row-inner">
+        <div class="pc-drag-handle" title="拖拉排序">⠿</div>
         <div class="pc-emoji-wrap">
             <span class="pc-emoji">{{ card.emoji or '🔗' }}</span>
         </div>
@@ -98,8 +99,32 @@
 .pc-toggle.on { background: var(--green); }
 .pc-toggle.on::after { transform: translateX(16px); }
 .pc-toggle-label { font-size: .8rem; color: var(--text-3); }
+.pc-drag-handle {
+    font-size: 1.2rem;
+    color: var(--text-3);
+    cursor: grab;
+    padding: 4px 2px;
+    flex-shrink: 0;
+    user-select: none;
+    line-height: 1;
+    margin-top: 10px;
+}
+.pc-drag-handle:active { cursor: grabbing; }
+.pc-row.sortable-ghost { opacity: .4; }
+.pc-row.sortable-drag { box-shadow: var(--shadow-md); }
+#reorder-status {
+    font-size: .82rem;
+    color: var(--text-3);
+    text-align: center;
+    margin-top: -8px;
+    margin-bottom: 24px;
+    min-height: 1.2em;
+}
 </style>
 
+<div id="reorder-status"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
 const _csrf = "{{ csrf_token() }}";
 const _fromDb = {{ 'true' if from_db else 'false' }};
@@ -123,6 +148,42 @@ document.querySelectorAll('.pc-toggle-wrap').forEach(wrap => {
         lbl.textContent = cb.checked ? '顯示' : '隱藏';
     });
 });
+
+const _reorderStatus = document.getElementById('reorder-status');
+
+Sortable.create(document.getElementById('cards-list'), {
+    handle: '.pc-drag-handle',
+    animation: 150,
+    ghostClass: 'sortable-ghost',
+    dragClass: 'sortable-drag',
+    onEnd: saveOrder
+});
+
+async function saveOrder() {
+    if (!_fromDb) return;
+    const rows = document.querySelectorAll('#cards-list .pc-row');
+    const order = Array.from(rows).map((r, i) => ({
+        key: r.dataset.key,
+        sort_order: (i + 1) * 10
+    }));
+    _reorderStatus.textContent = '排序儲存中…';
+    try {
+        const r = await fetch('/admin/api/portal-cards/reorder', {
+            method: 'POST',
+            headers: {'Content-Type':'application/json','X-CSRF-Token':_csrf},
+            body: JSON.stringify({order})
+        });
+        const d = await r.json();
+        if (d.success) {
+            _reorderStatus.textContent = '✓ 順序已儲存';
+            setTimeout(() => { _reorderStatus.textContent = ''; }, 2000);
+        } else {
+            _reorderStatus.textContent = '❌ ' + (d.error || '排序失敗');
+        }
+    } catch(e) {
+        _reorderStatus.textContent = '❌ 網路錯誤';
+    }
+}
 
 async function saveCard(btn) {
     if (!_fromDb) {
