@@ -123,26 +123,18 @@
       <div style="font-size:.9rem; font-weight:700; color:#333; margin-bottom:14px;">小組長牧養回報</div>
 
       <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; margin-bottom:14px;">
-        {% for label, status_field, note_field in [
-            ('靈命狀況', 'spiritual_status', 'spiritual_note'),
-            ('家庭狀況', 'family_status', 'family_note'),
-            ('工作狀況', 'work_status', 'work_note'),
-            ('健康狀況', 'health_status', 'health_note'),
+        {% for label, status_field in [
+            ('靈命光景', 'spiritual_status'),
+            ('家人關係', 'family_status'),
+            ('工作人際', 'work_status'),
+            ('身體健康', 'health_status'),
         ] %}
         <div style="padding:12px 14px; background:#fafafa; border-radius:8px;">
           <div style="font-size:.78rem; color:#888; margin-bottom:4px;">{{ label }}</div>
           <div style="font-size:.9rem; font-weight:600; color:#333;">
             {% set sv = report.get(status_field, '') %}
-            {% if sv == 'good' %}😊 良好
-            {% elif sv == 'normal' %}😐 普通
-            {% elif sv == 'concern' %}😟 需關懷
-            {% elif sv == 'urgent' %}🆘 緊急
-            {% else %}{{ sv or '—' }}{% endif %}
+            {% if sv %}{{ sv }}{% else %}—{% endif %}
           </div>
-          {% set nv = report.get(note_field, '') %}
-          {% if nv %}
-          <div style="font-size:.82rem; color:#666; margin-top:4px;">{{ nv }}</div>
-          {% endif %}
         </div>
         {% endfor %}
       </div>

@@ -30,6 +30,7 @@
 
   <!-- 聚會統計卡片 -->
   <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:28px;">
+    {% if not module_cfg or module_cfg.get('show_adult_sunday', True) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#06C755;">{{ adult }}</div>
       <div style="font-size:0.85rem; color:#666; margin-top:4px;">
@@ -39,24 +40,31 @@
       <div style="font-size:0.8rem; color:#999;">一：{{ adult_first }}  二：{{ adult_second }}</div>
       {% endif %}
     </div>
+    {% endif %}
+    {% if not module_cfg or module_cfg.get('show_children_sunday', True) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#4a90d9;">{{ children }}</div>
       <div style="font-size:0.85rem; color:#666; margin-top:4px;">
         {{ meeting_cfg.children_sunday.label if meeting_cfg else '兒童主日' }}
       </div>
     </div>
+    {% endif %}
+    {% if not module_cfg or module_cfg.get('show_prayer', True) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#9c6de8;">{{ prayer }}</div>
       <div style="font-size:0.85rem; color:#666; margin-top:4px;">
         {{ meeting_cfg.prayer.label if meeting_cfg else '禱告會' }}（{{ prayer_date.strftime('%m/%d') }}）
       </div>
     </div>
+    {% endif %}
+    {% if not module_cfg or module_cfg.get('show_morning_prayer', True) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#e8a83e;">{{ morning_prayer }}</div>
       <div style="font-size:0.85rem; color:#666; margin-top:4px;">
         {{ meeting_cfg.morning_prayer.label if meeting_cfg else '晨禱' }}（{{ morning_prayer_date.strftime('%m/%d') }}）
       </div>
     </div>
+    {% endif %}
     {% for cm in (custom_meetings or []) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#555;">{{ cm.count }}</div>
@@ -107,22 +115,30 @@
   <div style="margin-top:32px; padding-top:24px; border-top:1px solid #eee;">
     <h2 style="font-size:1rem; font-weight:700; margin-bottom:12px;">快速更新聚會人數</h2>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      {% if not module_cfg or module_cfg.get('show_adult_sunday', True) %}
       <a href="{{ url_for('cell_report.sunday') }}"
          style="padding:10px 16px; background:#06C755; color:#fff; border-radius:8px; text-decoration:none;">
         主日報告
       </a>
+      {% endif %}
+      {% if not module_cfg or module_cfg.get('show_children_sunday', True) %}
       <a href="{{ url_for('cell_report.children') }}"
          style="padding:10px 16px; background:#4a90d9; color:#fff; border-radius:8px; text-decoration:none;">
         兒童主日
       </a>
+      {% endif %}
+      {% if not module_cfg or module_cfg.get('show_prayer', True) %}
       <a href="{{ url_for('cell_report.prayer') }}"
          style="padding:10px 16px; background:#9c6de8; color:#fff; border-radius:8px; text-decoration:none;">
         禱告會
       </a>
+      {% endif %}
+      {% if not module_cfg or module_cfg.get('show_morning_prayer', True) %}
       <a href="{{ url_for('cell_report.morning_prayer') }}"
          style="padding:10px 16px; background:#e8a83e; color:#fff; border-radius:8px; text-decoration:none;">
         晨禱
       </a>
+      {% endif %}
       {% for cm in (custom_meetings or []) %}
       <a href="{{ url_for('cell_report.custom_meeting', meeting_key=cm.key) }}"
          style="padding:10px 16px; background:#607d8b; color:#fff; border-radius:8px; text-decoration:none;">

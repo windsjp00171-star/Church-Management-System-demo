@@ -54,61 +54,67 @@
     <form method="post" style="display:flex; flex-direction:column; gap:0;">
 
       <!-- 四大面向自評 -->
-      <section style="margin-bottom:8px;">
-        <p style="font-size:.95rem; font-weight:700; color:var(--color-primary); margin-bottom:16px;">小組長自評（必填）</p>
-
-        {% set pill_bg = {'good': '#16a34a', 'ok': '#2563eb', 'concern': '#d97706', 'urgent': '#dc2626'} %}
-        {% set pill_bd = {'good': '#15803d', 'ok': '#1d4ed8', 'concern': '#b45309', 'urgent': '#b91c1c'} %}
-
-        {% set aspects = [
-          ('spiritual_status', '靈命狀況', 'spiritual_note'),
-          ('family_status',    '家庭狀況', 'family_note'),
-          ('work_status',      '工作／學業狀況', 'work_note'),
-          ('health_status',    '健康狀況', 'health_note'),
-        ] %}
-
-        {% for field, label, note_field in aspects %}
-        <div class="form-group">
-          <label class="form-label form-label-required">{{ label }}</label>
-          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-            {% for val, lbl in [('good','良好'),('ok','普通'),('concern','需關懷'),('urgent','緊急')] %}
-            {% set is_sel = report and report.get(field) == val %}
-            <label class="status-pill" data-field="{{ field }}" data-val="{{ val }}"
-                   style="display:flex; align-items:center; gap:6px; cursor:pointer;
-                          padding:7px 14px; border-radius:20px; font-size:.85rem; font-weight:600;
-                          border:1.5px solid {{ pill_bd[val] if is_sel else 'var(--color-border)' }};
-                          background:{{ pill_bg[val] if is_sel else 'var(--color-surface)' }};
-                          color:{{ '#fff' if is_sel else 'var(--color-text)' }};
-                          transition:all var(--transition);">
-              <input type="radio" name="{{ field }}" value="{{ val }}"
-                     {% if is_sel %}checked{% endif %}
-                     style="display:none;">
-              {{ lbl }}
-            </label>
-            {% endfor %}
+      {% if module_cfg.get('show_self_assessment', True) %}
+      <section style="margin-bottom:20px;">
+        <div style="background:var(--color-surface,#fff); border:2px solid var(--color-primary,#06C755); border-radius:16px; padding:20px 18px;">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <div style="display:flex; align-items:center; gap:8px;">
+              <span style="font-size:1.2rem;">🙏</span>
+              <span style="font-weight:700; font-size:.95rem;">小組長自評</span>
+            </div>
+            <span style="color:#dc2626; font-size:.78rem; font-weight:600;">必填</span>
           </div>
-          <input type="text" name="{{ note_field }}" class="form-control"
-                 value="{{ (report[note_field] if report and report.get(note_field)) or '' }}"
-                 placeholder="補充說明（選填）"
-                 style="border-radius:10px; padding:10px 13px;">
-        </div>
-        {% if not loop.last %}<hr class="divider" style="margin:4px 0 20px;">{% endif %}
-        {% endfor %}
-      </section>
 
-      <hr class="divider">
+          {% set aspects = [
+            ('spiritual_status', '靈命光景', ['平穩得力', '起伏不定', '低沉疲乏']),
+            ('family_status',    '家人關係', ['一起禱告', '相安無事', '有所爭執']),
+            ('work_status',      '工作人際', ['恩典夠用', '忙而混亂', '存在壓力']),
+            ('health_status',    '身體健康', ['有些運動', '還算可以', '生病疼痛']),
+          ] %}
+
+          {% for field, label, options in aspects %}
+          <div>
+            <p style="font-size:.85rem; font-weight:600; color:#444; margin:0 0 8px;">{{ label }}</p>
+            <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
+              {% for opt in options %}
+              {% set is_sel = report and report.get(field) == opt %}
+              <label style="cursor:pointer; display:block; margin:0;">
+                <input type="radio" name="{{ field }}" value="{{ opt }}"
+                       {% if is_sel %}checked{% endif %}
+                       class="self-radio" style="display:none;">
+                <div style="padding:12px 6px; border-radius:10px;
+                            border:2px solid {{ 'var(--color-primary,#06C755)' if is_sel else '#e2e8f0' }};
+                            background:{{ '#f0fff4' if is_sel else 'var(--color-surface,#fff)' }};
+                            text-align:center; font-size:.85rem; font-weight:600;
+                            color:{{ '#065f46' if is_sel else 'var(--color-text,#555)' }};
+                            transition:all .15s; user-select:none;">
+                  {{ opt }}
+                </div>
+              </label>
+              {% endfor %}
+            </div>
+          </div>
+          {% if not loop.last %}
+          <div style="border-top:1px solid var(--color-border,#e2e8f0); margin:16px 0;"></div>
+          {% endif %}
+          {% endfor %}
+        </div>
+      </section>
+      {% endif %}
 
       <!-- 小組整體狀況 -->
-      <div class="form-group" style="margin-top:20px;">
+      {% if module_cfg.get('show_group_status', True) %}
+      <div class="form-group" style="margin-top:4px;">
         <label class="form-label form-label-required">小組整體狀況</label>
-        <textarea name="group_status" rows="4" required class="form-control"
+        <textarea name="group_status" rows="4" class="form-control"
                   placeholder="請描述本週小組聚會情況、氛圍、值得感恩或需代禱的事項..."
                   style="border-radius:10px; padding:11px 13px; resize:vertical;">{{ (report.group_status if report and report.get('group_status')) or '' }}</textarea>
       </div>
-
       <hr class="divider">
+      {% endif %}
 
       <!-- 新朋友 -->
+      {% if module_cfg.get('show_newcomers', True) %}
       <div class="form-group" style="margin-top:20px;">
         <label class="form-label">新朋友資訊（選填）</label>
         <div id="newcomers-list" style="display:flex; flex-direction:column; gap:10px; margin-bottom:12px;">
@@ -134,19 +140,21 @@
         <input type="hidden" name="newcomers_json" id="newcomers-json"
                value="{{ newcomers | tojson }}">
       </div>
-
       <hr class="divider">
+      {% endif %}
 
       <!-- 同工會建議 -->
+      {% if module_cfg.get('show_coworker_suggestion', True) %}
       <div class="form-group" style="margin-top:20px;">
         <label class="form-label">同工會建議（選填）</label>
         <textarea name="coworker_suggestion" rows="3" class="form-control"
                   placeholder="有什麼想向教會同工反映或建議的事項..."
                   style="border-radius:10px; padding:11px 13px; resize:vertical;">{{ (report.coworker_suggestion if report and report.get('coworker_suggestion')) or '' }}</textarea>
       </div>
+      {% endif %}
 
       <button type="submit" class="btn btn-primary"
-              style="width:100%; padding:14px; font-size:1rem; border-radius:12px; margin-top:8px; font-weight:700;">
+              style="width:100%; padding:14px; font-size:1rem; border-radius:12px; margin-top:20px; font-weight:700;">
         送出回報 ✓
       </button>
     </form>
@@ -154,24 +162,15 @@
 </div>
 
 <script>
-const PILL_COLORS = {
-  good:    { bg: '#16a34a', border: '#15803d' },
-  ok:      { bg: '#2563eb', border: '#1d4ed8' },
-  concern: { bg: '#d97706', border: '#b45309' },
-  urgent:  { bg: '#dc2626', border: '#b91c1c' },
-};
-
-document.querySelectorAll('input[type="radio"]').forEach(radio => {
+document.querySelectorAll('.self-radio').forEach(radio => {
   radio.addEventListener('change', () => {
     const name = radio.name;
-    document.querySelectorAll(`input[name="${name}"]`).forEach(r => {
-      const label = r.closest('label');
-      if (!label) return;
-      const active = r.checked;
-      const c = PILL_COLORS[r.value] || {};
-      label.style.background = active ? (c.bg || 'var(--color-primary)') : 'var(--color-surface)';
-      label.style.color = active ? '#fff' : 'var(--color-text)';
-      label.style.borderColor = active ? (c.border || 'var(--color-primary)') : 'var(--color-border)';
+    document.querySelectorAll(`.self-radio[name="${name}"]`).forEach(r => {
+      const box = r.nextElementSibling;
+      const sel = r.checked;
+      box.style.borderColor = sel ? 'var(--color-primary, #06C755)' : '#e2e8f0';
+      box.style.background = sel ? '#f0fff4' : 'var(--color-surface, #fff)';
+      box.style.color = sel ? '#065f46' : 'var(--color-text, #555)';
     });
   });
 });
