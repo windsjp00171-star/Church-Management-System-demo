@@ -91,7 +91,7 @@
             未回報
           </span>
         {% endif %}
-        {% if (is_pastor or is_staff) and item.has_report %}
+        {% if is_pastor and item.has_report %}
           <a href="{{ url_for('cell_report.view_report', group_id=item.group.id, week_date=item.week_date) }}"
              style="padding:4px 12px; background:#06C755; color:#fff; border-radius:20px;
                     font-size:0.82rem; text-decoration:none; white-space:nowrap;">

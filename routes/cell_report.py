@@ -667,7 +667,7 @@ def done(group_id):
 @login_required
 def view_report(group_id):
     """Read-only report detail for pastors / staff / admins."""
-    if not (session.get('is_pastor') or session.get('is_staff') or session.get('is_admin')):
+    if not (session.get('is_pastor') or session.get('is_admin')):
         return _no_permission()
 
     group = _get_group(group_id)
