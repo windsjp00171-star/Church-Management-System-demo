@@ -716,13 +716,6 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
             <div class="section-label" style="margin:0;">更多功能</div>
             <svg id="fg-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .25s;"><path d="M6 9l6 6 6-6"/></svg>
         </button>
-        {% if is_super_admin %}
-        <button id="edit-mode-btn" onclick="toggleEditMode()" class="btn btn-outline btn-sm"
-            style="font-size:.75rem;padding:4px 10px;display:flex;align-items:center;gap:5px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-            編輯首頁
-        </button>
-        {% endif %}
     </div>
 
     <div class="fg-grid" id="feature-list" style="display:none;">
@@ -1072,36 +1065,12 @@ const PORTAL_CSRF   = '{{ csrf_token() }}';
         }).catch(() => {});
 })();
 
-/* ── 超管編輯模式 ── */
-let editMode = false;
 function toggleFgGrid() {
     const grid = document.getElementById('feature-list');
     const chevron = document.getElementById('fg-chevron');
     const open = grid.style.display === 'none';
     grid.style.display = open ? 'grid' : 'none';
     chevron.style.transform = open ? 'rotate(180deg)' : '';
-}
-function toggleEditMode() {
-    editMode = !editMode;
-    document.body.classList.toggle('edit-mode', editMode);
-    // Ensure the feature grid is visible when entering edit mode
-    if (editMode) {
-        const grid = document.getElementById('feature-list');
-        const chevron = document.getElementById('fg-chevron');
-        if (grid && grid.style.display === 'none') {
-            grid.style.display = 'grid';
-            if (chevron) chevron.style.transform = 'rotate(180deg)';
-        }
-    }
-    const btn = document.getElementById('edit-mode-btn');
-    if (btn) {
-        btn.innerHTML = editMode
-            ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> 完成'
-            : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> 編輯首頁';
-        btn.style.background   = editMode ? 'var(--green)' : '';
-        btn.style.color        = editMode ? 'white' : '';
-        btn.style.borderColor  = editMode ? 'var(--green)' : '';
-    }
 }
 
 /* ── 互動層「抽經文卡」點擊 → 開啟 modal ── */
