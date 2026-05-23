@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}資料匯出{% endblock %}
+{% block content %}
+<div class="container" style="max-width:720px; margin:40px auto 80px; padding:0 16px;">
+
+  <a href="{{ url_for('admin.index') }}" style="display:inline-flex; align-items:center; gap:6px;
+     color:#06C755; text-decoration:none; font-size:.9rem; margin-bottom:20px;">← 返回後台</a>
+
+  <h1 style="font-size:1.4rem; font-weight:700; margin:0 0 6px;">📤 資料匯出</h1>
+  <p style="color:#666; font-size:.9rem; margin:0 0 24px;">
+    選擇要匯出的模組，系統將打包成 <code>.zip</code> 檔案（JSON 格式）供備份或遷移至新教會使用。
+  </p>
+
+  <!-- 警告 -->
+  <div style="padding:14px 16px; background:#fff8e1; border-left:4px solid #f59e0b;
+              border-radius:8px; margin-bottom:24px; font-size:.88rem; color:#78350f;">
+    ⚠️ 此功能僅限<strong>超級管理員</strong>使用。匯出檔案可能包含個人資料（LINE ID、電話），
+    請妥善保管，不得外流。
+  </div>
+
+  <form method="POST" action="{{ url_for('data_transfer.data_export_download') }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+
+    <h2 style="font-size:1rem; font-weight:700; margin:0 0 12px;">選擇匯出模組</h2>
+    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:28px;">
+      {% for key, mod in modules.items() %}
+      <label style="display:flex; align-items:flex-start; gap:12px; padding:14px 16px;
+                    background:#fff; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.07);
+                    cursor:pointer; border:2px solid transparent;"
+             id="label-{{ key }}">
+        <input type="checkbox" name="modules" value="{{ key }}" checked
+               style="margin-top:2px; accent-color:#06C755; width:16px; height:16px; flex-shrink:0;"
+               onchange="toggleLabel('{{ key }}', this.checked)">
+        <div>
+          <div style="font-weight:600; font-size:.95rem;">{{ mod.label }}</div>
+          <div style="font-size:.82rem; color:#888; margin-top:2px;">{{ mod.description }}</div>
+          {% if mod.get('warning') %}
+          <div style="font-size:.78rem; color:#d97706; margin-top:4px;">⚠️ 含敏感個人資料</div>
+          {% endif %}
+        </div>
+      </label>
+      {% endfor %}
+    </div>
+
+    <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:12px;">
+      <button type="button" onclick="selectAll(true)"
+              style="padding:6px 14px; border:1px solid #ccc; border-radius:8px;
+                     background:#fff; font-size:.85rem; cursor:pointer;">全選</button>
+      <button type="button" onclick="selectAll(false)"
+              style="padding:6px 14px; border:1px solid #ccc; border-radius:8px;
+                     background:#fff; font-size:.85rem; cursor:pointer;">全部取消</button>
+    </div>
+
+    <button type="submit"
+            style="width:100%; padding:14px; background:#06C755; color:#fff; font-size:1rem;
+                   font-weight:700; border:none; border-radius:12px; cursor:pointer; margin-top:8px;">
+      📥 下載匯出 ZIP
+    </button>
+  </form>
+
+  <!-- 分隔線 -->
+  <div style="margin:40px 0 0; padding-top:28px; border-top:1px solid #eee;">
+    <p style="font-size:.85rem; color:#999; text-align:center;">
+      需要匯入資料？前往
+      <a href="{{ url_for('data_transfer.data_import') }}"
+         style="color:#06C755; text-decoration:none; font-weight:600;">📤 資料匯入</a>
+    </p>
+  </div>
+
+</div>
+
+<script>
+function toggleLabel(key, checked) {
+  var label = document.getElementById('label-' + key);
+  label.style.borderColor = checked ? '#06C755' : 'transparent';
+  label.style.background = checked ? '#f0fdf4' : '#fff';
+}
+
+function selectAll(v) {
+  document.querySelectorAll('input[name="modules"]').forEach(function(cb) {
+    cb.checked = v;
+    toggleLabel(cb.value, v);
+  });
+}
+
+// 初始化邊框
+document.querySelectorAll('input[name="modules"]').forEach(function(cb) {
+  toggleLabel(cb.value, cb.checked);
+});
+</script>
+{% endblock %}

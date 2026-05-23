@@ -107,6 +107,10 @@ def create_app():
     from routes.attendance import attendance_bp
     app.register_blueprint(attendance_bp)
 
+    # ── 資料匯出 / 匯入 ────────────────────────────────────────
+    from routes.data_transfer import data_transfer_bp
+    app.register_blueprint(data_transfer_bp)
+
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',

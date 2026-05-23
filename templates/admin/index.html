@@ -199,6 +199,22 @@
         </div>
     </a>
 
+    <a href="{{ url_for('data_transfer.data_export') }}" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">📤</div>
+            <div class="admin-card-name">資料匯出</div>
+            <div class="admin-card-desc">備份或遷移至新教會（ZIP）</div>
+        </div>
+    </a>
+
+    <a href="{{ url_for('data_transfer.data_import') }}" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fef2f2; color:#dc2626;">📥</div>
+            <div class="admin-card-name">資料匯入</div>
+            <div class="admin-card-desc">從 ZIP 還原資料至新系統</div>
+        </div>
+    </a>
+
     <a href="/setup-wizard" style="text-decoration:none;">
         <div class="admin-card" style="background:linear-gradient(135deg,#0f2027,#203a43); border-color:rgba(255,255,255,.1);">
             <div class="admin-card-icon" style="background:rgba(255,255,255,.12); color:white;">🧙</div>
