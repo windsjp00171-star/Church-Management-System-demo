@@ -25,6 +25,8 @@
         <span class="navbar-brand-text">{{ config.CHURCH_SHORT_NAME or config.CHURCH_NAME or '教會行政系統' }}</span>
     </a>
 
+    <div class="navbar-spacer"></div>
+
     <div class="navbar-user">
         {% if session.user_id or session.line_id %}
             <a href="/profile" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
@@ -33,8 +35,7 @@
                 {% endif %}
                 <span class="navbar-username">{{ session.real_name or '' }}</span>
             </a>
-            <a href="/auth/logout" class="btn btn-sm btn-logout">登出</a>
-            <!-- 🔔 通知鈴鐺（放最右，面板才不會超出螢幕） -->
+            <!-- 🔔 通知鈴鐺 -->
             <div class="notif-wrap" id="notifWrap">
                 <button class="notif-btn" id="notifBtn" onclick="toggleNotifPanel()" aria-label="通知">
                     🔔
@@ -50,6 +51,7 @@
                     </div>
                 </div>
             </div>
+            <a href="/auth/logout" class="btn btn-sm btn-logout">登出</a>
         {% else %}
             <a href="/auth/login" class="btn btn-sm btn-primary">LINE 登入</a>
         {% endif %}
