@@ -1,646 +1,970 @@
 {% extends "base.html" %}
-{% block title %}使用手冊{% endblock %}
+{% block title %}使用說明書{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── Role pill navigation ─────────────────────────────────── */
+.manual-sticky-nav {
+  position: sticky;
+  top: var(--navbar-height, 58px);
+  z-index: 100;
+  background: var(--color-bg);
+  padding: 10px 0 0;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--color-border);
+}
+.manual-pills {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 10px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.manual-pills::-webkit-scrollbar { display: none; }
+
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  padding: 6px 14px;
+  border-radius: var(--radius-full);
+  font-size: 0.82rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text-light);
+  background: var(--color-surface);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+.role-pill:hover, .role-pill.active {
+  background: var(--color-primary);
+  color: #fff;
+  border-color: var(--color-primary);
+}
+
+/* ── Section wrapper ──────────────────────────────────────── */
+.manual-section {
+  margin-bottom: 48px;
+  scroll-margin-top: calc(var(--navbar-height, 58px) + 60px);
+}
+
+/* ── Section header ───────────────────────────────────────── */
+.section-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  border-left: 5px solid transparent;
+  margin-bottom: 0;
+}
+.section-header-member  { background: #e8f5e9; border-left-color: var(--color-success); }
+.section-header-leader  { background: #fff8e1; border-left-color: var(--color-accent);  }
+.section-header-staff   { background: var(--color-info-bg);    border-left-color: var(--color-info);    }
+.section-header-pastor  { background: #f3e5f5; border-left-color: #7b1fa2; }
+.section-header-admin   { background: var(--color-error-bg);   border-left-color: var(--color-error);   }
+
+.section-header-icon {
+  font-size: 1.6rem;
+  line-height: 1;
+}
+.section-header h2 {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin: 0 0 2px;
+  color: var(--color-text);
+}
+.section-header p {
+  font-size: 0.8rem;
+  color: var(--color-text-light);
+  margin: 0;
+}
+
+/* ── Feature block ────────────────────────────────────────── */
+.feature-block {
+  background: var(--color-surface);
+  border-radius: 0;
+  padding: 22px 24px;
+  border-bottom: 1px solid var(--color-border-light);
+  box-shadow: none;
+}
+.feature-block:last-child {
+  border-bottom: none;
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+}
+.feature-block-first {
+  border-top: 1px solid var(--color-border-light);
+}
+.manual-card {
+  box-shadow: var(--shadow-sm);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  margin-bottom: 24px;
+}
+
+.feature-block h3 {
+  font-size: 0.97rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ── Steps & lists ────────────────────────────────────────── */
+.manual-steps {
+  padding-left: 22px;
+  margin: 0 0 12px;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  line-height: 2;
+}
+.manual-steps li { margin-bottom: 2px; }
+
+.manual-ul {
+  padding-left: 20px;
+  margin: 0 0 12px;
+  color: var(--color-text);
+  font-size: 0.88rem;
+  line-height: 2;
+  list-style: disc;
+}
+
+/* ── Callout boxes ────────────────────────────────────────── */
+.callout {
+  border-radius: var(--radius);
+  padding: 11px 15px;
+  font-size: 0.83rem;
+  margin-top: 10px;
+  line-height: 1.65;
+}
+.callout-green  { background: var(--color-success-bg); color: #1b5e20; }
+.callout-blue   { background: var(--color-info-bg);    color: #0d47a1; }
+.callout-amber  { background: var(--color-warning-bg); color: #bf360c; }
+.callout-purple { background: #f3e5f5; color: #4a148c; }
+.callout-red    { background: var(--color-error-bg);   color: #b71c1c; }
+.callout-gray   { background: #f5f5f5; color: var(--color-text-light); }
+
+/* ── Inherit note ─────────────────────────────────────────── */
+.inherit-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  background: var(--color-bg);
+  border: 1px dashed var(--color-border);
+  border-radius: var(--radius);
+  padding: 10px 14px;
+  font-size: 0.83rem;
+  color: var(--color-text-light);
+  margin-bottom: 18px;
+}
+.inherit-note strong { color: var(--color-text); }
+
+/* ── Table ────────────────────────────────────────────────── */
+.manual-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+  margin: 10px 0 12px;
+}
+.manual-table thead tr {
+  background: #f5f7fa;
+}
+.manual-table th {
+  padding: 9px 12px;
+  text-align: left;
+  border-bottom: 2px solid var(--color-border);
+  color: var(--color-text-light);
+  font-weight: 600;
+  font-size: 0.79rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+.manual-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--color-border-light);
+  color: var(--color-text);
+  vertical-align: top;
+}
+.manual-table tbody tr:last-child td { border-bottom: none; }
+.manual-table tbody tr:hover { background: #fafbfd; }
+
+/* ── Super-admin badge ────────────────────────────────────── */
+.super-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #fff3e0;
+  color: #e65100;
+  border: 1px solid #ffcc80;
+  border-radius: var(--radius-full);
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+
+/* ── Q&A ──────────────────────────────────────────────────── */
+.qa-item {
+  background: var(--color-surface);
+  border-left: 3px solid var(--color-primary);
+  border-radius: 0 var(--radius) var(--radius) 0;
+  padding: 14px 18px;
+  margin-bottom: 12px;
+}
+.qa-q {
+  font-weight: 700;
+  color: var(--color-primary);
+  font-size: 0.9rem;
+  margin-bottom: 6px;
+}
+.qa-a {
+  color: var(--color-text);
+  font-size: 0.86rem;
+  line-height: 1.75;
+}
+
+/* ── Page header ──────────────────────────────────────────── */
+.manual-page-header {
+  text-align: center;
+  padding: 28px 0 20px;
+}
+.manual-page-header h1 {
+  font-size: 1.55rem;
+  font-weight: 700;
+  color: var(--color-primary);
+  margin: 0 0 6px;
+}
+.manual-page-header p {
+  color: var(--color-text-light);
+  font-size: 0.88rem;
+  margin: 0;
+}
+
+/* ── Step badge ───────────────────────────────────────────── */
+.step-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* ── Scroll top link ──────────────────────────────────────── */
+.back-top {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--color-text-muted);
+  font-size: 0.8rem;
+  text-decoration: none;
+  margin-top: 4px;
+}
+.back-top:hover { color: var(--color-primary); }
+
+@media (max-width: 480px) {
+  .feature-block { padding: 18px 16px; }
+  .manual-page-header h1 { font-size: 1.3rem; }
+}
+</style>
+{% endblock %}
+
 {% block content %}
+<div class="page-container" style="max-width: 680px;">
 
-<div style="max-width:800px; margin:0 auto;">
+  <!-- Page header -->
+  <div class="manual-page-header">
+    <h1>📖 使用說明書</h1>
+    <p>選擇您的身分，查看對應的功能說明</p>
+  </div>
 
-<div style="margin-bottom:20px;">
-    <a href="/" style="color:#06C755; text-decoration:none; font-size:0.9rem;">← 返回首頁</a>
-</div>
+  <!-- Sticky role-pill navigation -->
+  <div class="manual-sticky-nav" id="manual-top">
+    <div class="manual-pills">
+      <a href="#member" class="role-pill">👤 一般會友</a>
+      <a href="#leader" class="role-pill">🏘 小組長</a>
+      <a href="#staff"  class="role-pill">🤝 同工／執事</a>
+      <a href="#pastor" class="role-pill">✝ 牧者</a>
+      <a href="#admin"  class="role-pill">⚙️ 管理員</a>
+    </div>
+  </div>
 
-<h2 style="margin-bottom:4px;">📖 系統操作導覽</h2>
-<p style="color:#999; font-size:0.85rem; margin-bottom:28px;">{{ church_name }} 教會入口整合系統</p>
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 1 — 一般會友
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="manual-section" id="member">
+    <div class="manual-card">
 
-<!-- 目錄 -->
-<div style="background:white; border-radius:12px; padding:20px 24px; margin-bottom:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <p style="font-weight:bold; margin-bottom:12px; color:#333;">📋 目錄</p>
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+      <div class="section-header section-header-member">
+        <div class="section-header-icon">👤</div>
         <div>
-            <p style="font-size:0.82rem; color:#888; margin-bottom:6px; font-weight:bold;">👤 一般會友</p>
-            <a href="#login"        style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">1. 如何登入</a>
-            <a href="#profile"      style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">2. 填寫個人資料</a>
-            <a href="#register"     style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">3. 報名活動</a>
-            <a href="#cancel"       style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">4. 取消報名</a>
-            <a href="#course"       style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">5. 門訓學程</a>
-            <a href="#my-history"   style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">6. 我的記錄</a>
-            <a href="#calendar"     style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">7. 行事曆 / 個人行程</a>
-            <a href="#bulletin"     style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">8. 每週週報</a>
-            <a href="#verse"        style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">9. 每日經文祝福卡</a>
-            <a href="#notification" style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">10. 站內通知</a>
-            <a href="#prayer"       style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">11. 代禱牆</a>
-            <a href="#shortcut"     style="display:block; color:#06C755; text-decoration:none; font-size:0.9rem; padding:4px 0;">12. 加到手機主畫面</a>
+          <h2>一般會友</h2>
+          <p>所有登入會友皆可使用的功能</p>
         </div>
+      </div>
+
+      <!-- 登入 -->
+      <div class="feature-block feature-block-first">
+        <h3>🔑 登入</h3>
+        <ol class="manual-steps">
+          <li>使用 LINE 帳號登入，點首頁「登入」按鈕</li>
+          <li>首次登入需填寫<strong>真實姓名</strong>、選擇所屬服事團隊</li>
+          <li>登入後系統記住身分，下次自動進入</li>
+        </ol>
+        <div class="callout callout-green">
+          💡 本系統以 LINE 帳號識別身分，無獨立帳號密碼，不需另行記憶。
+        </div>
+      </div>
+
+      <!-- 個人資料 -->
+      <div class="feature-block">
+        <h3>📋 個人資料 <span class="badge badge-gray" style="font-size:0.72rem;">/profile</span></h3>
+        <ul class="manual-ul">
+          <li>修改真實姓名</li>
+          <li>調整所屬服事團隊</li>
+          <li>授權牧者查閱天父日記（詳見下方說明）</li>
+        </ul>
+        <div class="callout callout-gray">
+          💡 點導覽列右上角您的姓名即可進入個人資料頁面。
+        </div>
+      </div>
+
+      <!-- 活動報名 -->
+      <div class="feature-block">
+        <h3>🎉 活動報名 <span class="badge badge-gray" style="font-size:0.72rem;">/events</span></h3>
+        <ol class="manual-steps">
+          <li>瀏覽開放中的活動，點擊卡片查看詳情</li>
+          <li>填寫報名表（欄位依活動而定）</li>
+          <li>名額已滿會自動加入候補，有人取消時自動升格</li>
+          <li>已報名的活動可在「我的歷史」查閱或取消</li>
+        </ol>
+        <div class="callout callout-amber">
+          ⚠️ 部分活動設有報名截止日期，請在期限內完成報名。取消報名請進入活動詳情頁操作。
+        </div>
+      </div>
+
+      <!-- 門訓學程 -->
+      <div class="feature-block">
+        <h3>📚 門訓學程 <span class="badge badge-gray" style="font-size:0.72rem;">/courses</span></h3>
+        <ol class="manual-steps">
+          <li>瀏覽教會開設的門訓課程</li>
+          <li>查看課程要求（先修課程、教材費、截止日期）</li>
+          <li>報名後出席每堂課，系統自動記錄出席率</li>
+          <li>出席率達 80% 即可取得結業證書</li>
+        </ol>
+        <div class="callout callout-purple">
+          📖 部分課程需先完成先修課程才能報名，請在課程詳情頁確認資格。
+        </div>
+      </div>
+
+      <!-- 天父日記 -->
+      <div class="feature-block">
+        <h3>📔 天父日記 <span class="badge badge-gray" style="font-size:0.72rem;">/diary</span></h3>
+        <ul class="manual-ul">
+          <li>每日依據讀經計畫記錄靈修默想</li>
+          <li>可使用「AI 反思引導」獲得個人化反思問題</li>
+          <li>日記可加密鎖定，保護私密內容</li>
+          <li>若希望牧者關顧，可在「個人資料」授權牧者查閱</li>
+        </ul>
+        <div class="callout callout-blue">
+          🔒 授權後牧者可查閱您所有日記，包括加密日記。您可隨時在個人資料頁撤銷授權。
+        </div>
+      </div>
+
+      <!-- 代禱麥田 -->
+      <div class="feature-block">
+        <h3>🌾 代禱麥田 <span class="badge badge-gray" style="font-size:0.72rem;">/prayer</span></h3>
+        <ul class="manual-ul">
+          <li>發佈個人代禱需求（可匿名）</li>
+          <li>為他人的禱告回應（表情符號或留言）</li>
+          <li>禱告蒙應允後可標記，麥穗會呈現金色光暈</li>
+        </ul>
+        <div class="callout callout-green">
+          ✨ 每個代禱就像一粒麥子，隨著弟兄姊妹的回應一起成長茁壯。
+        </div>
+      </div>
+
+      <!-- 行事曆 -->
+      <div class="feature-block">
+        <h3>📅 行事曆 <span class="badge badge-gray" style="font-size:0.72rem;">/calendar</span></h3>
+        <ul class="manual-ul">
+          <li>瀏覽教會本月活動與課程堂次</li>
+          <li>可新增個人私人事項（只有自己看得到）</li>
+        </ul>
+      </div>
+
+      <!-- 每週週報 -->
+      <div class="feature-block">
+        <h3>📰 每週週報 <span class="badge badge-gray" style="font-size:0.72rem;">首頁資訊列</span></h3>
+        <ul class="manual-ul">
+          <li>查閱教會本週公告與週報 PDF</li>
+          <li>從首頁資訊列「本週週報」區塊進入</li>
+        </ul>
+        <div class="callout callout-gray">
+          💡 歷史週報也可在同頁面查閱，方便回顧過往公告。
+        </div>
+      </div>
+
+      <!-- 牧養小組自選 -->
+      <div class="feature-block">
+        <h3>🏠 牧養小組自選 <span class="badge badge-gray" style="font-size:0.72rem;">/profile</span></h3>
+        <ol class="manual-steps">
+          <li>進入「個人資料」頁面（導覽列右上角點您的姓名）</li>
+          <li>在「牧養小組」區塊選擇您想加入的小組</li>
+          <li>點「申請加入」送出申請，狀態顯示為「待確認」</li>
+          <li>管理員核准後狀態更新為「已確認」，正式成為該小組成員</li>
+        </ol>
+        <div class="callout callout-amber">
+          ⏳ 申請送出後需等管理員確認，確認前小組長回報單不會看到您。如有急需請直接聯繫管理員。
+        </div>
+      </div>
+
+      <!-- 系統更新通知 -->
+      <div class="feature-block">
+        <h3>🔔 系統更新通知</h3>
+        <ul class="manual-ul">
+          <li>系統有新版本功能時，首頁頂部會出現藍色提示橫幅</li>
+          <li>橫幅顯示版本號、更新標題與發佈日期</li>
+          <li>點「查看更新」可瀏覽完整更新說明</li>
+          <li>點「✕ 我知道了」即可關閉橫幅，下次登入不再重複顯示</li>
+        </ul>
+      </div>
+
+    </div><!-- .manual-card -->
+    <a href="#manual-top" class="back-top">↑ 回到頂部</a>
+  </div><!-- #member -->
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 2 — 小組長
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="manual-section" id="leader">
+    <div class="manual-card">
+
+      <div class="section-header section-header-leader">
+        <div class="section-header-icon">🏘</div>
         <div>
-            <p style="font-size:0.82rem; color:#888; margin-bottom:6px; font-weight:bold;">🔧 管理員</p>
-            <a href="#admin-event"   style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">13. 建立 / 編輯活動</a>
-            <a href="#admin-reg"     style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">14. 管理報名名單</a>
-            <a href="#admin-checkin" style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">15. 電子簽到</a>
-            <a href="#admin-cal"     style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">16. 教會行事管理</a>
-            <a href="#admin-course"  style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">17. 門訓課程管理</a>
-            <a href="#admin-notify"  style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">18. 發送通知 / 廣播公告</a>
-            <a href="#admin-group"   style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">19. 小組標籤管理</a>
-            <a href="#admin-users"   style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">20. 用戶管理 / 身分升級</a>
-            <a href="#admin-discussion" style="display:block; color:#1565c0; text-decoration:none; font-size:0.9rem; padding:4px 0;">21. 小組討論管理</a>
-            <p style="font-size:0.82rem; color:#c62828; margin:10px 0 6px; font-weight:bold;">👑 超級管理員</p>
-            <a href="#super-admin"   style="display:block; color:#c62828; text-decoration:none; font-size:0.9rem; padding:4px 0;">22. 權限說明</a>
+          <h2>小組長</h2>
+          <p>小組回報單填寫與成員出席管理</p>
         </div>
-    </div>
-</div>
+      </div>
 
-<!-- ===== 一般會友 ===== -->
-<div style="background:#e8f5e9; border-radius:8px; padding:10px 16px; margin-bottom:16px;">
-    <p style="font-weight:bold; color:#2e7d32; margin:0;">👤 一般會友篇</p>
-</div>
-
-<!-- 1. 登入 -->
-<div id="login" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">1. 如何登入</h3>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>開啟系統網址，點選綠色 <strong>「LINE 登入」</strong> 按鈕</li>
-        <li>系統會跳轉到 LINE 授權頁面，點 <strong>「同意」</strong></li>
-        <li>完成後自動回到首頁，右上角會顯示你的 LINE 大頭貼</li>
-    </ol>
-    <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; margin-top:12px; font-size:0.85rem; color:#666;">
-        💡 第一次登入會要求填寫基本資料（必填），填完才能進入系統
-    </div>
-</div>
-
-<!-- 2. 個人資料 -->
-<div id="profile" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">2. 填寫 / 修改個人資料</h3>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>第一次登入後，系統會自動跳到個人資料頁（<strong>必須填寫，無法跳過</strong>）</li>
-        <li>先選擇 <strong>身分</strong>：
-            <ul style="margin-top:4px; padding-left:16px; line-height:2;">
-                <li>🏠 <strong>本教會會友</strong>：可看到門訓學程、行事曆、代禱牆等完整功能，需填寫所屬小組</li>
-                <li>🙋 <strong>外部人員 / 訪客</strong>：僅顯示活動報名、每日經文等基本功能</li>
-            </ul>
-        </li>
-        <li>填寫 <strong>真實姓名</strong>（LINE 暱稱不一定是真名）</li>
-        <li>會友請選擇 <strong>所屬小組</strong>（可多選）和 <strong>服事團隊</strong>（選填）</li>
-        <li>點 <strong>「完成，開始使用」</strong></li>
-    </ol>
-    <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; margin-top:12px; font-size:0.85rem; color:#666;">
-        💡 之後想修改資料，點首頁右上角名字 → 個人資料
-    </div>
-</div>
-
-<!-- 3. 報名 -->
-<div id="register" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">3. 報名活動</h3>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">會友報名（LINE 登入）</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>首頁「現正開放報名」區塊找到活動，點 <strong>「立即報名」</strong></li>
-        <li>確認活動資訊後，填寫報名表單</li>
-        <li>點 <strong>「確認報名」</strong> 完成，系統會發送站內通知確認</li>
-    </ol>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">外部朋友報名（無需 LINE）</p>
-    <p style="color:#555; font-size:0.9rem; margin-bottom:8px;">部分活動開放外部報名，連結分享後無需 LINE 即可報名：</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:12px;">
-        <li>開啟報名連結，看到 <strong>「你的身分是？」</strong> 選擇頁</li>
-        <li>點 <strong>「我是外部朋友」</strong>，進入報名表單</li>
-        <li>填寫 <strong>姓名</strong> 及其他活動需要的資料</li>
-        <li>點 <strong>「確認報名」</strong>，報名完成</li>
-    </ol>
-
-    <div style="background:#fff3e0; border-radius:8px; padding:12px 16px; margin-top:4px; font-size:0.85rem; color:#e65100;">
-        ⚠️ 注意事項：<br>
-        • 報名截止時間過後無法再報名<br>
-        • 部分活動為 <strong>限定名單</strong>，不在名單內看不到報名按鈕<br>
-        • 部分活動可代替他人報名（同帳號多筆），代報者填寫被代報者姓名即可
-    </div>
-</div>
-
-<!-- 4. 取消報名 -->
-<div id="cancel" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">4. 取消報名</h3>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>點活動詳情頁</li>
-        <li>找到已報名的區塊，點 <strong>「取消此筆報名」</strong></li>
-        <li>確認後即取消（已簽到者無法取消）</li>
-    </ol>
-</div>
-
-<!-- 5. 門訓學程 -->
-<div id="course" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">5. 門訓學程</h3>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>首頁「現正開放報名」區找到門訓課程，點 <strong>「立即報名」</strong></li>
-        <li>確認前置學程資格後完成報名</li>
-        <li>報名後系統會自動發站內通知確認，包含費用資訊</li>
-        <li>每堂課結束後由管理員記錄出席</li>
-        <li>完課後管理員會在系統標記，可在 <strong>「我的記錄」</strong> 查看進度</li>
-    </ol>
-    <div style="background:#f3e5f5; border-radius:8px; padding:12px 16px; margin-top:12px; font-size:0.85rem; color:#6a1b9a;">
-        📚 部分學程需先完成前置學程才能報名；<br>
-        初次報名者教材為必購，已完訓的回鍋學員可自行選擇是否購買
-    </div>
-</div>
-
-<!-- 6. 我的記錄 -->
-<div id="my-history" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">6. 我的記錄</h3>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>點上方導覽列的 <strong>「我的記錄」</strong></li>
-        <li>切換兩個 Tab 查看：
-            <ul style="margin-top:4px; padding-left:16px; line-height:2;">
-                <li><strong>活動報名</strong>：所有報名過的活動、簽到狀態、付款狀態</li>
-                <li><strong>門訓學程</strong>：所有學程、出席堂次進度條、完課狀態、費用付款狀態</li>
-            </ul>
-        </li>
-    </ol>
-</div>
-
-<!-- 7. 行事曆 -->
-<div id="calendar" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">7. 行事曆 / 個人行程</h3>
-    <p style="color:#555; margin-bottom:12px;">首頁行事曆整合了教會公告事項與個人私人行程，只有你自己看得到自己的行程。</p>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">行事曆顏色說明</p>
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
-        <span style="background:#7b1fa2; color:white; font-size:0.82rem; padding:4px 12px; border-radius:20px;">⛪ 教會行事</span>
-        <span style="background:#06C755; color:white; font-size:0.82rem; padding:4px 12px; border-radius:20px;">🎉 活動</span>
-        <span style="background:#1e88e5; color:white; font-size:0.82rem; padding:4px 12px; border-radius:20px;">📖 門訓堂次</span>
-        <span style="background:#e65100; color:white; font-size:0.82rem; padding:4px 12px; border-radius:20px;">🙋 個人行程</span>
-    </div>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">新增個人行程</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:12px;">
-        <li>在首頁行事曆點選 <strong>任意一天</strong></li>
-        <li>下方出現當天行程詳情</li>
-        <li>點橘色虛線 <strong>「＋ 新增個人行程」</strong> 按鈕</li>
-        <li>填寫標題與備註（日期已自動帶入），點 <strong>「儲存」</strong></li>
-    </ol>
-    <div style="background:#fff3e0; border-radius:8px; padding:12px 16px; font-size:0.85rem; color:#e65100;">
-        🙋 個人行程只有<strong>你自己</strong>看得到，其他人無法看到你的個人行程
-    </div>
-</div>
-
-<!-- 8. 週報 -->
-<div id="bulletin" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">8. 每週週報</h3>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>首頁找到 <strong>「本週週報」</strong> 區塊</li>
-        <li>點 <strong>「閱讀完整週報」</strong> 查看本週週報全文</li>
-        <li>點 <strong>「查看所有週報」</strong> 可翻閱歷史週報</li>
-    </ol>
-    <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; margin-top:12px; font-size:0.85rem; color:#666;">
-        💡 每週由管理員更新，包含本週聚會資訊、代禱事項、重要公告等
-    </div>
-</div>
-
-<!-- 9. 每日經文祝福卡 -->
-<div id="verse" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">9. 每日經文祝福卡</h3>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>首頁功能選單點 <strong>「🎴 每日經文」</strong></li>
-        <li>系統自動抽出今日祝福卡，顯示經文內容、出處與你的名字</li>
-        <li>點 <strong>「📲 存到手機」</strong> 可下載圖片，分享或存為桌布</li>
-    </ol>
-    <div style="background:#f3e5f5; border-radius:8px; padding:12px 16px; margin-top:12px; font-size:0.85rem; color:#6a1b9a;">
-        🎴 每人每天只能抽一次，隔天零點後自動解鎖
-    </div>
-</div>
-
-<!-- 10. 站內通知 -->
-<div id="notification" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">10. 🔔 站內通知</h3>
-    <p style="color:#555; margin-bottom:12px;">右上角的鈴鐺圖示是系統通知中心，會自動接收以下類型通知：</p>
-    <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
-        <div style="background:#e8f5e9; border-radius:8px; padding:12px 16px; font-size:0.88rem;">
-            <strong>📋 報名成功</strong>：報名活動或課程後自動發送，包含時間、費用等確認資訊
+      <div class="feature-block feature-block-first">
+        <div class="inherit-note">
+          ✅ 小組長擁有<strong>一般會友的所有功能</strong>，以下是額外的小組管理功能。
         </div>
-        <div style="background:#fff3e0; border-radius:8px; padding:12px 16px; font-size:0.88rem;">
-            <strong>💰 繳費提醒</strong>：活動/課程前幾天，若有費用尚未繳清，系統會自動提醒
+      </div>
+
+      <!-- 首頁提醒 -->
+      <div class="feature-block">
+        <h3>🔔 首頁提醒</h3>
+        <ul class="manual-ul">
+          <li>登入後首頁會顯示本週週報是否已填寫</li>
+          <li>若尚未填寫，會出現橘色提示橫幅</li>
+        </ul>
+      </div>
+
+      <!-- 小組回報單 -->
+      <div class="feature-block">
+        <h3>📝 小組回報單填寫 <span class="badge badge-gray" style="font-size:0.72rem;">/cell-report/portal</span></h3>
+        <p style="font-size:0.84rem; color:var(--color-text-light); margin-bottom:14px;">共三個步驟，每週填寫一次：</p>
+
+        <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:14px;">
+
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            <span class="step-chip">1</span>
+            <div>
+              <div style="font-weight:700; font-size:0.88rem; color:var(--color-text); margin-bottom:4px;">聚會基本資訊</div>
+              <ul class="manual-ul" style="margin:0;">
+                <li>選擇聚會日期</li>
+                <li>若本週無聚會，勾選「本週無聚會」並填寫原因</li>
+                <li>填寫出席人數（含組長）</li>
+              </ul>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            <span class="step-chip">2</span>
+            <div>
+              <div style="font-weight:700; font-size:0.88rem; color:var(--color-text); margin-bottom:4px;">成員出席紀錄</div>
+              <ul class="manual-ul" style="margin:0;">
+                <li>為每位成員記錄出席狀態（出席／遲到／請假／缺席）</li>
+                <li>分別記錄：小組聚會、主日崇拜、靈修（RPG）</li>
+              </ul>
+            </div>
+          </div>
+
+          <div style="display:flex; gap:12px; align-items:flex-start;">
+            <span class="step-chip">3</span>
+            <div>
+              <div style="font-weight:700; font-size:0.88rem; color:var(--color-text); margin-bottom:4px;">補充資訊</div>
+              <ul class="manual-ul" style="margin:0;">
+                <li>小組整體狀況描述</li>
+                <li>新朋友資訊（如有）</li>
+                <li>給同工的建議</li>
+              </ul>
+            </div>
+          </div>
+
         </div>
-        <div style="background:#e3f2fd; border-radius:8px; padding:12px 16px; font-size:0.88rem;">
-            <strong>📢 活動通知</strong>：管理員針對已報名者發送的重要通知（如場地異動）
+
+        <div class="callout callout-green">
+          💾 填完後點「完成」即儲存，可隨時回來修改。系統自動保存每步驟進度，下次進入從上次中斷處繼續。
         </div>
-        <div style="background:#f3e5f5; border-radius:8px; padding:12px 16px; font-size:0.88rem;">
-            <strong>📣 全體公告</strong>：超級管理員發送的全體廣播公告
+      </div>
+
+    </div><!-- .manual-card -->
+    <a href="#manual-top" class="back-top">↑ 回到頂部</a>
+  </div><!-- #leader -->
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 3 — 同工／執事
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="manual-section" id="staff">
+    <div class="manual-card">
+
+      <div class="section-header section-header-staff">
+        <div class="section-header-icon">🤝</div>
+        <div>
+          <h2>同工／執事</h2>
+          <p>聚會人數回報與行政管理</p>
         </div>
-    </div>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>點右上角 <strong>🔔 鈴鐺</strong>，展開通知面板</li>
-        <li>紅色數字代表未讀通知數量</li>
-        <li>點任一通知可跳轉到相關頁面，並標記為已讀</li>
-        <li>點 <strong>「全部已讀」</strong> 一次清除所有未讀</li>
-    </ol>
-</div>
+      </div>
 
-<!-- 11. 代禱牆 -->
-<div id="prayer" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">11. 🌾 代禱牆</h3>
-    <p style="color:#555; margin-bottom:16px;">
-        點導覽列 <strong>「🌾 代禱」</strong> 進入代禱牆，這裡可以提出代禱需求、為弟兄姊妹代禱回應。<br>
-        每則代禱就像一粒麥子，隨著大家的回應一起成長。
-    </p>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">麥子成長階段</p>
-    <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:16px;">
-        <span style="background:#fff8dc; border:1px solid #e8c56a; color:#5c3a00; font-size:0.85rem; padding:5px 14px; border-radius:20px;">🌰 種子：剛發出，0 回應</span>
-        <span style="background:#fff8dc; border:1px solid #e8c56a; color:#5c3a00; font-size:0.85rem; padding:5px 14px; border-radius:20px;">🌱 發芽：1–3 人回應</span>
-        <span style="background:#fff8dc; border:1px solid #e8c56a; color:#5c3a00; font-size:0.85rem; padding:5px 14px; border-radius:20px;">🌿 生長：4–9 人回應</span>
-        <span style="background:#fff8dc; border:1px solid #e8c56a; color:#5c3a00; font-size:0.85rem; padding:5px 14px; border-radius:20px;">🌾 成熟：10+ 人回應</span>
-        <span style="background:#fffde7; border:1px solid #f9a825; color:#5c3a00; font-size:0.85rem; padding:5px 14px; border-radius:20px;">✨🌾 蒙應允：禱告蒙神垂聽</span>
-    </div>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">發出代禱</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>點金色 <strong>「🙏 發出代禱」</strong> 按鈕</li>
-        <li>填寫標題、詳細內容（選填）、選擇類別</li>
-        <li>可選擇 <strong>具名</strong> 或 <strong>匿名</strong> 發出</li>
-        <li>點 <strong>「🌾 播下這粒種子」</strong></li>
-    </ol>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">為他人代禱</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>點卡片下方的表情符號（🙏 ❤️ 🕯️ ✨ 💪）表達代禱支持</li>
-        <li>點 <strong>「💬 回應」</strong> 展開留言區，用文字鼓勵</li>
-        <li>留言也可選擇匿名</li>
-    </ul>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">標記蒙應允</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>當禱告蒙神垂聽，點自己代禱卡片上的 <strong>「✨ 蒙應允」</strong></li>
-        <li>卡片會發出金光，記錄這份恩典 ✨</li>
-    </ul>
-</div>
-
-<!-- 12. 加到手機主畫面 -->
-<div id="shortcut" style="background:white; border-radius:12px; padding:24px; margin-bottom:32px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:6px; color:#333;">12. 加到手機主畫面（桌面捷徑）</h3>
-    <p style="color:#888; font-size:0.85rem; margin-bottom:20px;">加完之後像 App 一樣點圖示開啟，不用每次從 LINE 找連結</p>
-
-    <div style="background:#fff3e0; border-radius:8px; padding:12px 16px; margin-bottom:20px; font-size:0.88rem; color:#e65100;">
-        ⚠️ <strong>重要：</strong>從 LINE 開啟時，LINE 內建瀏覽器<strong>沒有「加到主畫面」功能</strong>，<br>
-        必須先切換到手機的預設瀏覽器（Chrome 或 Safari）才能操作。
-    </div>
-
-    <div style="margin-bottom:24px;">
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-            <span style="background:#34a853; color:white; font-size:0.78rem; font-weight:bold; padding:3px 10px; border-radius:20px;">Android</span>
-            <span style="font-weight:bold; color:#333;">Chrome 操作步驟</span>
+      <div class="feature-block feature-block-first">
+        <div class="inherit-note">
+          ✅ 同工擁有<strong>一般會友的所有功能</strong>，以下是行政相關功能。
         </div>
-        <ol style="line-height:2.4; color:#444; padding-left:20px;">
-            <li>在 LINE 中開啟系統連結後，點右上角 <strong>「⋯」</strong></li>
-            <li>點 <strong>「用其他應用程式開啟」→ 選 Chrome</strong></li>
-            <li>Chrome 開啟後，點右上角 <strong>「⋮」（三個點）</strong></li>
-            <li>點 <strong>「新增至主畫面」</strong></li>
-            <li>名稱保持「{{ church_short_name }}」，點 <strong>「新增」</strong> 完成</li>
-        </ol>
-        <div style="background:#e8f5e9; border-radius:8px; padding:10px 14px; margin-top:8px; font-size:0.82rem; color:#2e7d32;">
-            💡 部分 Android 手機 Chrome 會在網址列下方自動出現「新增到主畫面」橫幅，直接點就好
-        </div>
-    </div>
+      </div>
 
-    <div>
-        <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
-            <span style="background:#555; color:white; font-size:0.78rem; font-weight:bold; padding:3px 10px; border-radius:20px;">iPhone</span>
-            <span style="font-weight:bold; color:#333;">Safari 操作步驟</span>
-        </div>
-        <ol style="line-height:2.4; color:#444; padding-left:20px;">
-            <li>在 LINE 中開啟系統連結後，點右下角 <strong>「⋯」</strong></li>
-            <li>點 <strong>「在 Safari 中開啟」</strong></li>
-            <li>Safari 開啟後，點畫面底部中間的 <strong>分享按鈕（方框加箭頭 ↑）</strong></li>
-            <li>往下滑找到 <strong>「加入主畫面」</strong>，點一下</li>
-            <li>名稱保持「{{ church_short_name }}」，點右上角 <strong>「新增」</strong> 完成</li>
-        </ol>
-        <div style="background:#e3f2fd; border-radius:8px; padding:10px 14px; margin-top:8px; font-size:0.82rem; color:#1565c0;">
-            💡 iPhone 必須用 Safari，Chrome for iOS 目前不支援加到主畫面
-        </div>
-    </div>
-</div>
+      <!-- 首頁快速入口 -->
+      <div class="feature-block">
+        <h3>⚡ 首頁快速入口</h3>
+        <ul class="manual-ul">
+          <li>登入後首頁會直接顯示聚會人數回報的快速按鈕</li>
+          <li>一鍵進入對應聚會類型的填寫頁面</li>
+        </ul>
+      </div>
 
-<!-- ===== 管理員 ===== -->
-<div style="background:#e3f2fd; border-radius:8px; padding:10px 16px; margin-bottom:16px;">
-    <p style="font-weight:bold; color:#1565c0; margin:0;">🔧 管理員篇</p>
-</div>
+      <!-- 聚會人數回報 -->
+      <div class="feature-block">
+        <h3>📊 聚會人數回報</h3>
+        <p style="font-size:0.84rem; color:var(--color-text-light); margin-bottom:12px;">每次聚會結束後填寫，各類型路徑如下：</p>
 
-<!-- 13. 建立活動 -->
-<div id="admin-event" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">13. 建立 / 編輯活動</h3>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">建立新活動</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>後台 → <strong>「活動管理」</strong> → 右上角 <strong>「新增活動」</strong></li>
-        <li>填寫活動基本資訊（名稱、地點、時間、人數上限、費用）</li>
-        <li>設定 <strong>⏰ 繳費提醒天數</strong>（預設 3 天前，有費用且未繳才會通知）</li>
-        <li>設定 <strong>報名開放時間</strong>（可設定自動開始/截止）</li>
-        <li>上傳 <strong>活動海報</strong>（選填）</li>
-        <li>新增 <strong>自訂報名欄位</strong>（見下方說明）</li>
-        <li>點 <strong>「儲存活動」</strong></li>
-    </ol>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">自訂報名欄位類型</p>
-    <div style="overflow-x:auto; margin-bottom:16px;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
+        <div style="overflow-x:auto;">
+          <table class="manual-table">
             <thead>
-                <tr style="background:#f5f5f5;">
-                    <th style="padding:8px 12px; text-align:left; border-bottom:1px solid #e0e0e0;">類型</th>
-                    <th style="padding:8px 12px; text-align:left; border-bottom:1px solid #e0e0e0;">說明</th>
-                </tr>
+              <tr>
+                <th>聚會類型</th>
+                <th>路徑</th>
+                <th>填寫欄位</th>
+              </tr>
             </thead>
             <tbody>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">文字</td><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#666;">單行文字輸入</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">長文字</td><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#666;">多行文字輸入（適合備注）</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">單選</td><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#666;">多個選項只能選一個，可加「其他」開放填寫</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">多選</td><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#666;">可勾選多個選項，可加「其他」開放填寫</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">下拉選單</td><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#666;">下拉選擇，可設定跳題條件</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">數字</td><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#666;">只能輸入數字</td></tr>
-                <tr><td style="padding:8px 12px;">日期</td><td style="padding:8px 12px; color:#666;">日期選擇器</td></tr>
+              <tr>
+                <td>成人主日</td>
+                <td><code style="font-size:0.78rem; background:#f5f5f5; padding:2px 5px; border-radius:4px;">/cell-report/sunday</code></td>
+                <td>第一堂人數、第二堂人數</td>
+              </tr>
+              <tr>
+                <td>兒童主日</td>
+                <td><code style="font-size:0.78rem; background:#f5f5f5; padding:2px 5px; border-radius:4px;">/cell-report/children</code></td>
+                <td>出席人數</td>
+              </tr>
+              <tr>
+                <td>禱告會</td>
+                <td><code style="font-size:0.78rem; background:#f5f5f5; padding:2px 5px; border-radius:4px;">/cell-report/prayer</code></td>
+                <td>出席人數</td>
+              </tr>
+              <tr>
+                <td>晨禱</td>
+                <td><code style="font-size:0.78rem; background:#f5f5f5; padding:2px 5px; border-radius:4px;">/cell-report/morning-prayer</code></td>
+                <td>出席人數</td>
+              </tr>
+              <tr>
+                <td style="color:#607d8b;">自訂聚會（如青年崇拜）</td>
+                <td><code style="font-size:0.78rem; background:#f5f5f5; padding:2px 5px; border-radius:4px;">/cell-report/custom-meeting/…</code></td>
+                <td>出席人數（由管理員在聚會設定中新增）</td>
+              </tr>
             </tbody>
-        </table>
-    </div>
-
-    <div style="background:#e8f5e9; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#2e7d32;">
-        💡 <strong>跳題條件</strong>：設定「只在特定答案時才顯示此問題」，例如選了「需要接送」才顯示地址欄位
-    </div>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">進階設定</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px;">
-        <li><strong>同帳號重複報名</strong>：允許同一帳號幫多人報名（代報）</li>
-        <li><strong>開放外部報名</strong>：讓沒有 LINE 帳號的朋友也能用姓名報名；報名頁會先詢問身分，選「外部朋友」直接填表，無需登入</li>
-        <li><strong>限定白名單報名</strong>：只有名單內的人才能報名</li>
-        <li><strong>啟用電子簽到</strong>：產生 QR Code 供現場掃描報到</li>
-    </ul>
-    <div style="background:#e8f5e9; border-radius:8px; padding:12px 16px; margin-top:12px; font-size:0.85rem; color:#2e7d32;">
-        💡 <strong>代報小提醒</strong>：同帳號幫多人報名時，建議在報名表中加入「姓名」欄位讓報名者填寫被代報者的名字，系統簽到名單會以此欄位顯示，而非帳號持有人的名字
-    </div>
-</div>
-
-<!-- 14. 報名名單 -->
-<div id="admin-reg" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">14. 管理報名名單</h3>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>後台 → 活動管理 → 點 <strong>「名單」</strong></li>
-        <li>可看到所有報名者姓名、填寫答案、簽到狀態</li>
-        <li>有設定費用的活動可手動切換 <strong>付款狀態</strong>：<br>
-            ⬜ 未付款 → ✅ 已付款 → 🔵 免收費（點按鈕循環切換）</li>
-        <li>右上角 <strong>「📢 發送通知」</strong>：針對已報名者發送活動通知</li>
-        <li>右上角 <strong>「匯出 Excel」</strong>：下載完整名單</li>
-    </ol>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">✏️ 補填 / 修改報名資料</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:12px;">
-        <li>每筆報名右側有 <strong>✏️ 按鈕</strong></li>
-        <li>點開右側滑入面板，可補填或修改所有自訂欄位答案</li>
-        <li>點 <strong>「儲存」</strong> 完成</li>
-    </ol>
-    <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; font-size:0.85rem; color:#666;">
-        💡 若活動啟用白名單，名單頁下方可新增/移除報名資格名單
-    </div>
-</div>
-
-<!-- 15. 電子簽到 -->
-<div id="admin-checkin" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">15. 電子簽到</h3>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">設定簽到</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>建立活動時勾選 <strong>「啟用電子簽到」</strong></li>
-        <li>選擇模式：</li>
-    </ul>
-    <div style="margin-left:20px; margin-bottom:16px;">
-        <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; margin-bottom:10px; font-size:0.9rem;">
-            <strong>僅限已報名者</strong>：只有事先報名的會友能掃碼簽到
+          </table>
         </div>
-        <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; margin-bottom:10px; font-size:0.9rem;">
-            <strong>全開放</strong>：任何人掃碼都能簽到，系統自動建立到場紀錄
+
+        <div class="callout callout-blue">
+          💡 填完點「送出」即可，合計人數會自動計算。自訂聚會的連結會出現在 Dashboard 下方「快速更新」區塊。
         </div>
-        <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:12px 16px; font-size:0.9rem;">
-            ⚡ <strong>掃碼即自動簽到</strong>：會友掃碼後不需點確認，直接完成簽到。<br>
-            <span style="color:#8d6e63; font-size:0.85rem;">適合核心同工會等場合，一掃即到。</span>
+      </div>
+
+      <!-- 同工查閱 -->
+      <div class="feature-block">
+        <h3>📋 同工查閱 <span class="badge badge-gray" style="font-size:0.72rem;">/cell-report/staff-dashboard</span></h3>
+        <ul class="manual-ul">
+          <li>查看本週所有聚會人數（含自訂聚會類型）</li>
+          <li>查看所有小組本週回報情況</li>
+          <li>篩選查看特定週次的歷史資料</li>
+          <li>確認哪些小組尚未回報（標示為「未回報」）</li>
+        </ul>
+      </div>
+
+      <!-- 同工首頁 -->
+      <div class="feature-block">
+        <h3>⚡ 同工首頁 <span class="badge badge-gray" style="font-size:0.72rem;">/staff</span></h3>
+        <ul class="manual-ul">
+          <li>顯示今天及未來 7 天的活動清單</li>
+          <li>每個活動顯示報名人數、已簽到人數、待簽到人數</li>
+          <li>一鍵進入「門口簽到」模式（免跳轉到後台）</li>
+        </ul>
+        <div class="callout callout-gray">
+          💡 今天有活動時，會以綠色大按鈕「🔍 開始門口簽到」醒目顯示，方便同工在現場快速開啟。
         </div>
+      </div>
+
+      <!-- 全職同工差勤 -->
+      <div class="feature-block">
+        <h3>🗓 全職同工差勤 <span class="badge badge-gray" style="font-size:0.72rem;">/attendance</span></h3>
+        <div class="callout callout-blue" style="margin-bottom:14px;">
+          💼 此功能僅限<strong>全職同工</strong>（由管理員設定的 staff_profiles 紀錄）使用，兼職義工同工不適用。
+        </div>
+        <ul class="manual-ul">
+          <li>查看剩餘<strong>特休時數</strong>（依入職日期按勞基法計算）與<strong>補休時數</strong></li>
+          <li>申請假單（特休、補休、事假、病假、其他），填寫日期範圍、時數與事由</li>
+          <li>登錄加班紀錄，經管理員核准後累積為補休時數</li>
+          <li>查看歷史請假與加班紀錄及審核狀態</li>
+        </ul>
+        <div class="callout callout-amber">
+          ⏳ 假單與加班記錄送出後均為「待審核」狀態，需等管理員核准後時數才會變動。若遲遲未收到回覆，請聯繫管理員。
+        </div>
+        <div class="callout callout-green">
+          📅 特休依「週年制」計算（入職滿半年起算），各教會可在部署時設定「曆年制」。目前法定天數：滿半年 3 天、1 年 7 天、2 年 10 天、3 年 14 天、5 年 15 天，之後每年 +1 天（上限 30 天）。
+        </div>
+      </div>
+
+    </div><!-- .manual-card -->
+    <a href="#manual-top" class="back-top">↑ 回到頂部</a>
+  </div><!-- #staff -->
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 4 — 牧者
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="manual-section" id="pastor">
+    <div class="manual-card">
+
+      <div class="section-header section-header-pastor">
+        <div class="section-header-icon">✝</div>
+        <div>
+          <h2>牧者</h2>
+          <p>牧養關顧與小組數據總覽</p>
+        </div>
+      </div>
+
+      <div class="feature-block feature-block-first">
+        <div class="inherit-note">
+          ✅ 牧者擁有<strong>一般會友的所有功能</strong>，以下是牧養關顧相關功能。
+        </div>
+      </div>
+
+      <!-- 首頁快速入口 -->
+      <div class="feature-block">
+        <h3>⚡ 首頁快速入口</h3>
+        <ul class="manual-ul">
+          <li>登入後首頁會顯示聚會人數回報入口與相關管理連結</li>
+        </ul>
+      </div>
+
+      <!-- 牧者查閱 -->
+      <div class="feature-block">
+        <h3>📊 牧者查閱 <span class="badge badge-gray" style="font-size:0.72rem;">/cell-report/pastor-dashboard</span></h3>
+        <ul class="manual-ul">
+          <li>查看所有負責小組本週的出席人數與回報狀態</li>
+          <li>切換不同週次查看歷史數據</li>
+          <li>快速識別哪些小組本週無聚會或未回報</li>
+        </ul>
+      </div>
+
+      <!-- 查閱天父日記 -->
+      <div class="feature-block">
+        <h3>📔 查閱成員天父日記 <span class="badge badge-gray" style="font-size:0.72rem;">/diary/pastor</span></h3>
+        <ul class="manual-ul">
+          <li>僅可查閱「已授權」的會友日記</li>
+          <li>會友需主動在個人資料頁面授權</li>
+          <li>查閱後可留言關顧，會友會收到通知</li>
+        </ul>
+        <div class="callout callout-purple">
+          🔒 牧者只能查閱<strong>會友主動授權</strong>的日記，系統嚴格保護隱私。
+        </div>
+      </div>
+
+      <!-- 聚會人數回報 -->
+      <div class="feature-block">
+        <h3>📊 聚會人數回報</h3>
+        <div class="callout callout-gray">
+          聚會人數回報功能與同工相同，請參閱「<a href="#staff" style="color:var(--color-info);">同工／執事</a>」章節中的說明。
+        </div>
+      </div>
+
+    </div><!-- .manual-card -->
+    <a href="#manual-top" class="back-top">↑ 回到頂部</a>
+  </div><!-- #pastor -->
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 5 — 管理員
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="manual-section" id="admin">
+    <div class="manual-card">
+
+      <div class="section-header section-header-admin">
+        <div class="section-header-icon">⚙️</div>
+        <div>
+          <h2>管理員</h2>
+          <p>後台位於 /admin，需管理員權限才能進入</p>
+        </div>
+      </div>
+
+      <div class="feature-block feature-block-first">
+        <div class="inherit-note">
+          ✅ 管理員擁有<strong>所有會友的功能</strong>，以下是後台管理專屬功能。
+        </div>
+      </div>
+
+      <!-- 活動管理 -->
+      <div class="feature-block">
+        <h3>🎉 活動管理 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/events</span></h3>
+        <ul class="manual-ul">
+          <li>建立新活動：填寫標題、時間、地點、容量、報名期限</li>
+          <li>設計報名表：新增自訂欄位（文字、單選、複選、日期等）</li>
+          <li>查閱報名名單：匯出名單、查看候補順序</li>
+          <li>產生簽到 QR Code</li>
+        </ul>
+      </div>
+
+      <!-- 現場簽到 -->
+      <div class="feature-block">
+        <h3>✅ 現場簽到 <span class="badge badge-gray" style="font-size:0.72rem;">從活動管理進入</span></h3>
+        <ul class="manual-ul">
+          <li>即時查看簽到人數（3 秒自動更新）</li>
+          <li>手動搜尋補簽到</li>
+          <li>匯出出席名單</li>
+        </ul>
+        <div class="callout callout-purple">
+          🎉 可啟用「派對動畫」，會友簽到時播放彩帶爆炸與氣球動畫，適合特殊場合。
+        </div>
+      </div>
+
+      <!-- 門訓課程管理 -->
+      <div class="feature-block">
+        <h3>📚 門訓課程管理 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/courses</span></h3>
+        <ul class="manual-ul">
+          <li>建立課程：設定堂次、先修要求、教材費、截止日期</li>
+          <li>查閱每堂課出席紀錄，手動標記出席</li>
+          <li>手動標記結業，或一鍵批次完訓達標者</li>
+        </ul>
+      </div>
+
+      <!-- 會員管理 -->
+      <div class="feature-block">
+        <h3>
+          👥 會員管理 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/users</span>
+          <span class="super-badge">⚠️ 需超級管理員</span>
+        </h3>
+        <ul class="manual-ul">
+          <li>查詢會友資料，搜尋姓名或小組</li>
+          <li>調整角色權限（設定牧者、同工、管理員）</li>
+          <li>修改會友所屬團隊</li>
+          <li>將訪客升級為會友，解鎖完整功能</li>
+        </ul>
+      </div>
+
+      <!-- 首頁卡片設定 -->
+      <div class="feature-block">
+        <h3>
+          🃏 首頁卡片設定 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/portal-cards</span>
+          <span class="super-badge">⚠️ 需超級管理員</span>
+        </h3>
+        <ul class="manual-ul">
+          <li>顯示或隱藏首頁功能卡片</li>
+          <li>自訂卡片名稱與副標題</li>
+          <li>調整卡片排列順序</li>
+        </ul>
+      </div>
+
+      <!-- 每週週報上傳 -->
+      <div class="feature-block">
+        <h3>📰 每週週報上傳 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/bulletins</span></h3>
+        <ul class="manual-ul">
+          <li>上傳 PDF 格式週報</li>
+          <li>系統自動顯示於會友首頁資訊列</li>
+        </ul>
+      </div>
+
+      <!-- 聚會設定 -->
+      <div class="feature-block">
+        <h3>⚙️ 聚會設定 <span class="badge badge-gray" style="font-size:0.72rem;">/cell-report/admin/meeting-settings</span></h3>
+        <ul class="manual-ul">
+          <li>調整各固定聚會（成人主日、兒童主日、禱告會、晨禱）的星期幾、堂數、顯示名稱與 Emoji</li>
+          <li>點「＋ 新增聚會」可建立自訂聚會類型（如青年崇拜、週五靈修）</li>
+          <li>自訂聚會會自動出現在 Dashboard 人數卡片與「快速更新」連結</li>
+          <li>點「刪除」可移除不再使用的自訂聚會；固定聚會不可刪除</li>
+        </ul>
+        <div class="callout callout-blue">
+          💡 更改設定後需點「儲存設定」才會生效。系統每 5 分鐘更新快取，儲存後立即生效。
+        </div>
+      </div>
+
+      <!-- 福音探索管理 -->
+      <div class="feature-block">
+        <h3>🌱 福音探索管理 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/gospel</span></h3>
+        <ul class="manual-ul">
+          <li>查閱新朋友留下的詢問</li>
+          <li>更新跟進狀態（待跟進／跟進中／已完成）</li>
+          <li>分配負責同工</li>
+        </ul>
+      </div>
+
+      <!-- 牧養小組管理 -->
+      <div class="feature-block">
+        <h3>
+          🏠 牧養小組管理 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/cell-groups</span>
+          <span class="super-badge">⚠️ 需超級管理員</span>
+        </h3>
+        <ul class="manual-ul">
+          <li>新增、編輯、停用牧養小組</li>
+          <li>查看各組成員清單，包含待確認的申請（標示 ⏳）</li>
+          <li>點「✓ 確認」核准會友的加入申請；點「✗ 拒絕」婉拒申請</li>
+          <li>手動新增或移除組員</li>
+        </ul>
+        <div class="callout callout-blue">
+          💡 會友從個人資料頁面申請加入小組後，需管理員在此頁面核准，申請才算生效。
+        </div>
+      </div>
+
+      <!-- 差勤管理 -->
+      <div class="feature-block">
+        <h3>🗓 差勤管理 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/attendance</span></h3>
+        <ul class="manual-ul">
+          <li>新增全職同工：填寫所屬使用者、入職日期、特休計算制度（週年制／曆年制）、初始補休時數</li>
+          <li>查看所有待審請假單與加班記錄</li>
+          <li>核准或拒絕假單（可填寫備注），核准後時數自動扣減或累積</li>
+          <li>查看各同工剩餘假期與補休時數總覽</li>
+        </ul>
+        <div class="callout callout-amber">
+          ⚠️ 只有被加入為「全職同工」的帳號才能看到首頁的「我的差勤」入口。請確認在此頁面正確設定同工資料。
+        </div>
+      </div>
+
+      <!-- 更新日誌 -->
+      <div class="feature-block">
+        <h3>
+          📋 更新日誌 <span class="badge badge-gray" style="font-size:0.72rem;">/admin/changelogs</span>
+          <span class="super-badge">⚠️ 需超級管理員</span>
+        </h3>
+        <ul class="manual-ul">
+          <li>查看系統維運日誌與歷次更新記錄</li>
+          <li>更新日誌由系統維護者統一發佈，所有教會同步收到</li>
+          <li>會友登入後若有新版本，首頁會自動顯示藍色提示橫幅</li>
+        </ul>
+        <div class="callout callout-gray">
+          💡 更新日誌存放於程式碼庫中（changelogs.json），推送新程式碼後所有教會同步生效，無需各教會個別操作。
+        </div>
+      </div>
+
+    </div><!-- .manual-card -->
+    <a href="#manual-top" class="back-top">↑ 回到頂部</a>
+  </div><!-- #admin -->
+
+
+  <!-- ══════════════════════════════════════════════════════════
+       Q&A
+  ═══════════════════════════════════════════════════════════ -->
+  <div class="manual-section" id="qa">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:16px;">
+      <span style="font-size:1.4rem;">❓</span>
+      <div>
+        <div style="font-size:1.05rem; font-weight:700; color:var(--color-primary);">常見問題</div>
+        <div style="font-size:0.8rem; color:var(--color-text-muted);">使用上有疑問，先看看這裡</div>
+      </div>
     </div>
 
-    <div style="background:#fdf4ff; border:1px solid #e9d5ff; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.9rem;">
-        🎉 <strong>派對動畫（選填）</strong>：勾選後，會友簽到成功時播放彩帶爆炸 + 氣球浮升動畫。<br>
-        <span style="color:#7e22ce; font-size:0.85rem;">適合週年慶、聖誕、聚會等特別場合。一般聚會可不勾選。</span>
+    <div class="qa-item">
+      <div class="qa-q">Q：忘記帳號怎麼辦？</div>
+      <div class="qa-a">本系統使用 LINE 帳號登入，沒有獨立密碼。請確認使用正確的 LINE 帳號登入。若需更換 LINE 帳號，請聯繫管理員。</div>
     </div>
 
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">活動當天流程（會友）</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>後台活動管理 → 點 <strong>「QR」</strong> 顯示簽到 QR Code</li>
-        <li>投影或列印，讓會友自行掃描</li>
-        <li>會友掃碼用 LINE 登入即完成簽到</li>
-        <li>後台點 <strong>「即時」</strong> 查看即時簽到狀況（3 秒自動更新）</li>
-    </ol>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">外部朋友簽到（開放外部報名的活動）</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>外部朋友掃碼後，看到 <strong>「你的身分是？」</strong> 選擇頁</li>
-        <li>點 <strong>「我是外部朋友」</strong>，進入打碼名單頁</li>
-        <li>名單上顯示已報名的外部朋友名字（中間文字打碼，如「王●明」）</li>
-        <li>找到自己的名字，點選即完成簽到</li>
-    </ol>
-    <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.85rem; color:#555;">
-        💡 候補轉正式報名的外部朋友，同樣會出現在打碼名單，可自行簽到；仍在候補的朋友不在名單中，由同工協助代簽
+    <div class="qa-item">
+      <div class="qa-q">Q：為什麼有些功能看不到？</div>
+      <div class="qa-a">功能顯示依您的身分而定。若您是小組長但看不到小組回報單，請聯繫管理員確認身分設定是否正確。</div>
     </div>
 
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">🎉 現場展示頁（大螢幕 / 平板用）</p>
-    <p style="color:#555; font-size:0.9rem; margin-bottom:10px;">開啟派對動畫後，「即時簽到狀況」頁右上角會出現紫色 <strong>「🎉 現場展示」</strong> 按鈕。</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:8px; font-size:0.9rem;">
-        <li>點擊後在新分頁開啟，拉到現場電視或平板全螢幕</li>
-        <li>每 3 秒自動偵測新簽到，有人到場即自動觸發動畫</li>
-        <li>顯示：歡迎 + <strong>到場者名字（大字）</strong> + 彩帶 + 氣球</li>
-        <li>6 秒後自動恢復待機畫面，顯示目前到場人數</li>
-        <li>同工代簽時，氣球顯示<strong>被簽到者</strong>的名字，不是代簽的管理員</li>
-    </ul>
-</div>
-
-<!-- 16. 教會行事管理 -->
-<div id="admin-cal" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">16. 教會行事管理</h3>
-    <p style="color:#555; margin-bottom:12px;">管理員可在行事曆新增教會公告行事，所有會友都看得到。</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:12px;">
-        <li>首頁行事曆點選目標日期</li>
-        <li>點出現的紫色虛線 <strong>「＋ 教會行事」</strong> 按鈕</li>
-        <li>填寫標題、說明、選擇顏色，點 <strong>「儲存」</strong></li>
-        <li>若需修改：點當天行事旁的 <strong>「✏️ 編輯」</strong> 或 <strong>「🗑 刪除」</strong></li>
-    </ol>
-    <div style="background:#f3e5f5; border-radius:8px; padding:12px 16px; font-size:0.85rem; color:#6a1b9a;">
-        💡 教會行事、系統活動、門訓堂次都會顯示在行事曆上
-    </div>
-</div>
-
-<!-- 17. 門訓課程 -->
-<div id="admin-course" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">17. 門訓課程管理</h3>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">建立課程</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>後台 → <strong>「門訓學程」</strong> → <strong>「新增學程」</strong></li>
-        <li>填寫課程名稱、期數、總堂次、完課門檻</li>
-        <li>可設定 <strong>教材費</strong> 與 <strong>⏰ 繳費提醒天數</strong></li>
-        <li>若有前置學程，選擇必須先完成的課程</li>
-        <li>建立後進入課程詳情，新增各堂次（日期、標題）</li>
-    </ol>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">出席名單管理</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>名單頁「本期出席」Tab：點每堂格子手動標記出席</li>
-        <li><strong>教材欄位</strong>：點擊 ✓/— 切換該學員是否需要購買教材</li>
-        <li><strong>💰 付款欄</strong>：點按鈕循環切換 ⬜ 未付款 → ✅ 已付款 → 🔵 免收費</li>
-        <li>達標者可 <strong>「✅ 一鍵完訓達標者」</strong> 批次處理</li>
-        <li>「新增學員」Tab：搜尋後點 <strong>「加入」</strong>，可勾選直接標記完訓</li>
-    </ul>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">名單顯示格式</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>顯示格式為：<strong>真實姓名（LINE 暱稱）</strong></li>
-        <li>🔄 回鍋 標籤：曾完訓後再次報名的學員</li>
-    </ul>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">小組完課總覽</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>後台 → <strong>「門訓總覽」</strong>：依小組分區顯示每人各課程狀態</li>
-        <li>支援列印，方便與牧者/小組長確認</li>
-    </ul>
-</div>
-
-<!-- 18. 發送通知 / 廣播公告 -->
-<div id="admin-notify" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">18. 發送通知 / 廣播公告</h3>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">針對已報名者發送通知</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>活動或課程的名單頁 → 點右上角 <strong>「📢 發送通知」</strong></li>
-        <li>填寫通知內容（如場地異動、注意事項）</li>
-        <li>點 <strong>「📢 發送」</strong>，所有已報名者的鈴鐺會收到通知</li>
-    </ol>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">繳費提醒（自動）</p>
-    <div style="background:#fff3e0; border-radius:8px; padding:12px 16px; margin-bottom:16px; font-size:0.88rem; color:#e65100;">
-        ⏰ 系統會在活動/課程開始前 N 天（你在表單設定的天數，預設 3 天），<br>
-        自動提醒<strong>有費用尚未繳清</strong>的學員，已付款者不會收到提醒
+    <div class="qa-item">
+      <div class="qa-q">Q：活動報名後要怎麼取消？</div>
+      <div class="qa-a">進入「活動報名」頁面，找到已報名的活動，點選「取消報名」即可。請注意部分活動可能設有取消截止日期。</div>
     </div>
 
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">📣 全體廣播公告（超管限定）</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>後台 → <strong>「📢 公告廣播」</strong>（需超級管理員）</li>
-        <li>填寫公告標題、內容</li>
-        <li>點 <strong>「發送全體公告」</strong>，所有使用者都會收到站內通知</li>
-    </ol>
-</div>
-
-<!-- 19. 小組管理 -->
-<div id="admin-group" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">19. 小組標籤管理</h3>
-    <p style="color:#444; margin-bottom:12px;">小組標籤分兩種，影響會友資料填寫和門訓總覽分組：</p>
-    <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
-            <thead>
-                <tr style="background:#f5f5f5;">
-                    <th style="padding:8px 12px; text-align:left; border-bottom:1px solid #e0e0e0;">類型</th>
-                    <th style="padding:8px 12px; text-align:left; border-bottom:1px solid #e0e0e0;">說明</th>
-                    <th style="padding:8px 12px; text-align:left; border-bottom:1px solid #e0e0e0;">範例</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; font-weight:bold; color:#2e7d32;">主標籤</td>
-                    <td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#666;">會友所屬的週間小組，門訓總覽依此分組</td>
-                    <td style="padding:8px 12px; border-bottom:1px solid #f0f0f0; color:#666;">恩典組、喜樂組</td>
-                </tr>
-                <tr>
-                    <td style="padding:8px 12px; font-weight:bold; color:#e65100;">副標籤</td>
-                    <td style="padding:8px 12px; color:#666;">服事團隊（選填），不影響門訓分組</td>
-                    <td style="padding:8px 12px; color:#666;">敬拜團、招待</td>
-                </tr>
-            </tbody>
-        </table>
+    <div class="qa-item">
+      <div class="qa-q">Q：天父日記授權後，牧者可以看到哪些內容？</div>
+      <div class="qa-a">授權後牧者可查閱您所有的日記記錄，包括加密鎖定的日記。您可以隨時在「個人資料」撤銷授權。</div>
     </div>
-    <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; margin-top:12px; font-size:0.85rem; color:#666;">
-        💡 後台 → 「小組管理」可新增、修改、調整排序、切換主/副標籤（需超級管理員）
+
+    <div class="qa-item">
+      <div class="qa-q">Q：小組回報單沒填完可以先存嗎？</div>
+      <div class="qa-a">可以，系統會自動儲存每個步驟完成後的資料，下次進入會從上次的進度繼續。</div>
     </div>
-</div>
 
-<!-- 20. 用戶管理 -->
-<div id="admin-users" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">20. 用戶管理 / 訪客升級為會友</h3>
-    <p style="color:#444; margin-bottom:12px;">當外部人員成為會友，管理員可手動升級身分：</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>後台 → <strong>「用戶管理」</strong>（需超級管理員）</li>
-        <li>上方 Tab 可篩選：<strong>全部 / 🏠 會友 / 🙋 訪客</strong></li>
-        <li>搜尋姓名 → 點 <strong>「編輯資料」</strong></li>
-        <li>身分從「訪客 / 外部人員」改為 <strong>「本教會會友」</strong></li>
-        <li>選擇所屬小組後儲存，對方下次登入即自動看到完整功能</li>
-    </ol>
-
-    <p style="font-weight:bold; color:#555; margin-bottom:8px;">快捷連結的訪客顯示控制</p>
-    <ul style="line-height:2.2; color:#444; padding-left:20px;">
-        <li>後台 → <strong>「快捷連結管理」</strong> → 編輯連結 → 勾選 <strong>「僅限會友」</strong></li>
-        <li>勾選後訪客看不到，會友才看得到</li>
-    </ul>
-</div>
-
-<!-- 21. 小組討論管理 -->
-<div id="admin-discussion" style="background:white; border-radius:12px; padding:24px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">21. 小組討論管理</h3>
-    <p style="color:#555; margin-bottom:12px;">設定每週在首頁顯示的影片連結與討論問題，供小組聚會使用。</p>
-    <ol style="line-height:2.2; color:#444; padding-left:20px; margin-bottom:16px;">
-        <li>後台 → <strong>「小組討論」</strong></li>
-        <li>點 <strong>「＋ 新增」</strong>，填寫標題、YouTube 連結、顯示日期區間</li>
-        <li>依序輸入討論問題，按 Enter 或「新增問題」加入</li>
-        <li>勾選「啟用」後，在指定日期範圍內會自動顯示在首頁</li>
-    </ol>
-    <div style="background:#f5f5f5; border-radius:8px; padding:12px 16px; font-size:0.88rem; color:#555;">
-        💡 日期範圍到期後會自動停止顯示，不需手動關閉。可同時建立多份排程，系統依日期自動切換。
+    <div class="qa-item">
+      <div class="qa-q">Q：我是全職同工但看不到「我的差勤」？</div>
+      <div class="qa-a">差勤功能需由管理員先在「差勤管理」頁面將您新增為全職同工（設定入職日期等資料）後才會出現。請聯繫教會行政管理員協助設定。</div>
     </div>
-</div>
 
-<!-- ===== 超管 ===== -->
-<div style="background:#ffebee; border-radius:8px; padding:10px 16px; margin-bottom:16px;">
-    <p style="font-weight:bold; color:#c62828; margin:0;">👑 超級管理員篇</p>
-</div>
-
-<!-- 22. 超管權限說明 -->
-<div id="super-admin" style="background:white; border-radius:12px; padding:24px; margin-bottom:32px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <h3 style="margin-bottom:16px; color:#333;">22. 權限說明</h3>
-    <p style="color:#555; margin-bottom:16px;">系統分為兩個管理員等級，各自能使用的功能如下：</p>
-
-    <div style="overflow-x:auto;">
-        <table style="width:100%; border-collapse:collapse; font-size:0.88rem;">
-            <thead>
-                <tr style="background:#f5f5f5;">
-                    <th style="padding:10px 12px; text-align:left; border-bottom:2px solid #e0e0e0;">功能</th>
-                    <th style="padding:10px 12px; text-align:center; border-bottom:2px solid #e0e0e0; white-space:nowrap;">🔧 管理員<br><span style="font-weight:normal; font-size:0.78rem; color:#888;">小組長</span></th>
-                    <th style="padding:10px 12px; text-align:center; border-bottom:2px solid #e0e0e0; white-space:nowrap;">👑 超級管理員<br><span style="font-weight:normal; font-size:0.78rem; color:#888;">行政同工</span></th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr style="background:#f9f9f9;">
-                    <td colspan="3" style="padding:8px 12px; font-weight:bold; color:#666; font-size:0.82rem;">活動管理</td>
-                </tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">活動管理 / 報名名單</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">電子簽到</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">針對已報名者發送通知</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr style="background:#f9f9f9;">
-                    <td colspan="3" style="padding:8px 12px; font-weight:bold; color:#666; font-size:0.82rem;">系統管理（超管限定）</td>
-                </tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">門訓學程管理</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">用戶管理 / 身分升級</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">小組管理</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">每日經文管理</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">快捷連結管理</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">週報管理</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">小組討論管理</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px; border-bottom:1px solid #f0f0f0;">首頁卡片顯示開關</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; border-bottom:1px solid #f0f0f0; color:#2e7d32;">✅</td></tr>
-                <tr><td style="padding:8px 12px;">📣 全體廣播公告</td><td style="padding:8px 12px; text-align:center; color:#bbb;">—</td><td style="padding:8px 12px; text-align:center; color:#2e7d32;">✅</td></tr>
-            </tbody>
-        </table>
+    <div class="qa-item">
+      <div class="qa-q">Q：申請加入牧養小組後，什麼時候才算生效？</div>
+      <div class="qa-a">申請送出後狀態為「待確認」，需等管理員在「牧養小組管理」頁面核准。核准後個人資料頁會顯示「已確認」，您也會正式出現在小組長的出席回報名單中。</div>
     </div>
-    <div style="background:#ffebee; border-radius:8px; padding:12px 16px; margin-top:16px; font-size:0.85rem; color:#c62828;">
-        👑 超級管理員由系統直接設定，如需調整請聯絡系統管理員
+
+    <div class="qa-item">
+      <div class="qa-q">Q：遇到問題怎麼聯繫？</div>
+      <div class="qa-a">請聯繫教會行政同工，或在「代禱麥田」留言告知。</div>
     </div>
-</div>
+  </div><!-- #qa -->
 
-<div style="text-align:center; padding-bottom:32px; color:#bbb; font-size:0.8rem;">
-    {{ church_name }} 教會入口整合系統 · 如有問題請聯絡系統管理員
-</div>
+  <!-- Footer -->
+  <div style="text-align:center; padding: 8px 0 40px; color:var(--color-text-muted); font-size:0.78rem;">
+    如有其他問題，請聯繫教會行政同工
+  </div>
 
-</div>
+</div><!-- .page-container -->
+
+<script>
+/* Highlight active pill on scroll */
+(function(){
+  var sections = ['member','leader','staff','pastor','admin'];
+  var pills = document.querySelectorAll('.role-pill');
+  var observer = new IntersectionObserver(function(entries){
+    entries.forEach(function(entry){
+      if(entry.isIntersecting){
+        var id = entry.target.id;
+        pills.forEach(function(p){
+          p.classList.toggle('active', p.getAttribute('href') === '#' + id);
+        });
+      }
+    });
+  }, { rootMargin: '-20% 0px -70% 0px', threshold: 0 });
+  sections.forEach(function(id){
+    var el = document.getElementById(id);
+    if(el) observer.observe(el);
+  });
+})();
+</script>
 {% endblock %}

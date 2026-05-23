@@ -22,9 +22,9 @@ button { font-family: inherit; }
   --color-accent:    #e8a020;
   --color-accent-dark: #c9881a;
   --color-bg:        #f5f7fa;
-  --color-text:      #333;
-  --color-text-light: #666;
-  --color-text-muted: #999;
+  --color-text:      #1f2937;
+  --color-text-light: #4b5563;
+  --color-text-muted: #6b7280;
   --color-surface:   #ffffff;
   --color-border:    #e0e5ed;
   --color-border-light: #f0f3f7;
@@ -939,3 +939,79 @@ select.form-control { cursor: pointer; }
 .member-chip.active { background: #2e2a26; color: #fff; }
 .grant-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; background: none; border: none; padding: 0 0 0 10px; cursor: pointer; font-size: 16px; font-family: "Noto Serif TC", serif; font-weight: 600; color: #2e2a26; border-left: 3px solid #b8956a; text-align: left; }
 .grant-badge { font-size: 12px; font-weight: 500; background: #f0ebe3; color: #7a5c3a; padding: 2px 8px; border-radius: 10px; }
+
+/* ============================================================
+   UTILITY CLASSES — Design System Extensions
+   ============================================================ */
+
+/* Section label (plain) — small gray uppercase label, no left bar accent.
+   Distinct from .section-label which has a colored bar decoration. */
+.section-label-sm {
+  font-size: .72rem;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  margin: 0 0 12px;
+}
+
+/* Engagement card — soft gradient tile, no border */
+.engage-card {
+  display: block;
+  border-radius: 16px;
+  padding: 22px 18px;
+  text-decoration: none;
+  border: none;
+  transition: transform .18s;
+}
+.engage-card:active { transform: scale(.97); }
+.engage-card-icon  { font-size: 1.5rem; margin: 0 0 8px; line-height: 1; display: block; }
+.engage-card-title { font-weight: 700; color: var(--color-text); font-size: .92rem; margin: 0; }
+.engage-card-sub   { color: var(--color-text-muted); font-size: .76rem; margin: 5px 0 0; line-height: 1.4; }
+
+/* Info row — subtle bordered list item used in low-weight info layers */
+.info-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #EDF2F7;
+  text-decoration: none;
+  color: var(--color-text);
+}
+.info-row:last-child { border-bottom: none; }
+.info-row-label { font-size: .83rem; color: #4A5568; flex: 1; min-width: 0; }
+.info-row-value { font-size: .75rem; color: var(--color-text-muted); white-space: nowrap; }
+
+/* Callout boxes */
+.callout {
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: .875rem;
+}
+.callout-success { background: #F0FFF4; border: 1px solid #9AE6B4; color: #276749; }
+.callout-info    { background: #EBF8FF; border: 1px solid #90CDF4; color: #2C5282; }
+.callout-warning { background: #FFFBEB; border: 1px solid #FBBF24; color: #92400E; }
+.callout-neutral { background: #F7FAFC; border: 1px solid #E2E8F0; color: #4A5568; }
+
+/* Stack — vertical flex with gap */
+.stack    { display: flex; flex-direction: column; }
+.stack-8  { gap: 8px; }
+.stack-12 { gap: 12px; }
+
+/* Row — horizontal flex helpers */
+.row    { display: flex; align-items: center; }
+.row-8  { gap: 8px; }
+.row-12 { gap: 12px; }
+.row-sb { justify-content: space-between; }
+
+/* Spacing helpers (extends existing mb-16, mb-24) */
+.mb-8  { margin-bottom: 8px; }
+.mb-28 { margin-bottom: 28px; }
+.mb-32 { margin-bottom: 32px; }
+.mb-36 { margin-bottom: 36px; }
+.mb-40 { margin-bottom: 40px; }
+.mb-44 { margin-bottom: 44px; }

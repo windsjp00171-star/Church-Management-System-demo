@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}更新日誌管理{% endblock %}
+{% block content %}
+
+<div style="max-width:720px; margin:0 auto; padding-top:8px;">
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
+    <div>
+        <a href="/admin" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回後台</a>
+        <h2 style="margin:6px 0 2px;">📋 更新日誌管理</h2>
+        <p style="color:#888; font-size:0.83rem; margin:0;">發布後所有教會登入時會看到更新通知，點「知道了」後消失。</p>
+    </div>
+    <button onclick="showForm()"
+        style="padding:9px 20px; background:#3b82f6; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+        ＋ 新增更新
+    </button>
+</div>
+
+<!-- 新增表單 -->
+<div id="new-form" style="display:none; background:#f0f9ff; border:1px solid #bae6fd; border-radius:12px; padding:20px; margin-bottom:24px;">
+    <p style="font-weight:bold; margin:0 0 14px;">新增更新公告</p>
+    <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+        <div style="flex:0 0 120px;">
+            <label style="font-size:0.82rem; color:#555; display:block; margin-bottom:4px;">版本號（選填）</label>
+            <input id="n-version" type="text" placeholder="例：v1.2"
+                style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+        <div style="flex:1; min-width:200px;">
+            <label style="font-size:0.82rem; color:#555; display:block; margin-bottom:4px;">標題 *</label>
+            <input id="n-title" type="text" placeholder="例：新增牧養小組自選功能"
+                style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+        </div>
+    </div>
+    <div style="margin-bottom:12px;">
+        <label style="font-size:0.82rem; color:#555; display:block; margin-bottom:4px;">更新內容 *</label>
+        <textarea id="n-content" rows="5" placeholder="說明這次更新了什麼、修了什麼問題。&#10;有問題請聯繫維運者。"
+            style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box; resize:vertical; line-height:1.6;"></textarea>
+    </div>
+    <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+        <label style="display:flex; align-items:center; gap:6px; font-size:0.88rem; cursor:pointer;">
+            <input id="n-published" type="checkbox" checked style="width:16px; height:16px;">
+            立即發布（取消打勾 = 存草稿）
+        </label>
+        <div style="margin-left:auto; display:flex; gap:8px;">
+            <button onclick="submitNew()"
+                style="padding:8px 20px; background:#3b82f6; color:white; border:none; border-radius:7px; cursor:pointer; font-weight:bold;">
+                發布
+            </button>
+            <button onclick="hideForm()"
+                style="padding:8px 14px; background:#f5f5f5; color:#666; border:none; border-radius:7px; cursor:pointer;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 列表 -->
+{% if logs %}
+<div style="display:flex; flex-direction:column; gap:14px;">
+{% for log in logs %}
+<div id="log-{{ log.id }}" style="background:white; border-radius:12px; padding:20px; box-shadow:0 1px 4px rgba(0,0,0,0.07);
+     border-left:4px solid {{ '#3b82f6' if log.is_published else '#d1d5db' }};">
+
+    <!-- 顯示模式 -->
+    <div id="view-{{ log.id }}">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px; flex-wrap:wrap; margin-bottom:8px;">
+            <div>
+                {% if log.version %}
+                <span style="font-size:0.75rem; background:#eff6ff; color:#1d4ed8; border-radius:10px; padding:2px 8px; font-weight:600; margin-right:6px;">{{ log.version }}</span>
+                {% endif %}
+                <span style="font-weight:bold; font-size:1rem;">{{ log.title }}</span>
+                {% if not log.is_published %}
+                <span style="font-size:0.75rem; background:#f3f4f6; color:#9ca3af; border-radius:10px; padding:2px 8px; margin-left:6px;">草稿</span>
+                {% endif %}
+            </div>
+            <span style="font-size:0.78rem; color:#9ca3af; white-space:nowrap;">{{ log.published_at[:10] }}</span>
+        </div>
+        <p style="font-size:0.88rem; color:#4b5563; margin:0 0 14px; white-space:pre-wrap; line-height:1.6;">{{ log.content }}</p>
+        <div style="display:flex; gap:8px;">
+            <button onclick="startEdit('{{ log.id }}')"
+                style="padding:5px 14px; background:#eff6ff; color:#1d4ed8; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+                ✏️ 編輯
+            </button>
+            <button onclick="deleteLog('{{ log.id }}')"
+                style="padding:5px 14px; background:#f5f5f5; color:#999; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
+                刪除
+            </button>
+        </div>
+    </div>
+
+    <!-- 編輯模式 -->
+    <div id="edit-{{ log.id }}" style="display:none;">
+        <div style="display:flex; gap:10px; margin-bottom:10px; flex-wrap:wrap;">
+            <input id="e-version-{{ log.id }}" type="text" value="{{ log.version or '' }}" placeholder="版本號"
+                style="flex:0 0 100px; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem;">
+            <input id="e-title-{{ log.id }}" type="text" value="{{ log.title }}"
+                style="flex:1; min-width:180px; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem;">
+        </div>
+        <textarea id="e-content-{{ log.id }}" rows="4"
+            style="width:100%; padding:7px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem; box-sizing:border-box; resize:vertical; margin-bottom:10px; line-height:1.6;">{{ log.content }}</textarea>
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; cursor:pointer;">
+                <input id="e-pub-{{ log.id }}" type="checkbox" {{ 'checked' if log.is_published else '' }} style="width:15px; height:15px;">
+                已發布
+            </label>
+            <div style="margin-left:auto; display:flex; gap:8px;">
+                <button onclick="saveEdit('{{ log.id }}')"
+                    style="padding:6px 16px; background:#3b82f6; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+                    儲存
+                </button>
+                <button onclick="cancelEdit('{{ log.id }}')"
+                    style="padding:6px 12px; background:#f5f5f5; color:#666; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                    取消
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+</div>
+{% else %}
+<div style="text-align:center; padding:60px; color:#aaa; background:white; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+    <div style="font-size:2.5rem;">📋</div>
+    <p style="margin-top:12px;">還沒有任何更新日誌，點上方「新增更新」開始吧</p>
+</div>
+{% endif %}
+</div>
+
+<script>
+function showForm() {
+    document.getElementById('new-form').style.display = 'block';
+    document.getElementById('n-title').focus();
+}
+function hideForm() {
+    document.getElementById('new-form').style.display = 'none';
+}
+function submitNew() {
+    const title = document.getElementById('n-title').value.trim();
+    const content = document.getElementById('n-content').value.trim();
+    if (!title || !content) { showToast('請填寫標題與內容', 'error'); return; }
+    fetch('/admin/changelogs/new', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            version: document.getElementById('n-version').value.trim(),
+            title, content,
+            is_published: document.getElementById('n-published').checked,
+        })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else showToast(d.error || '新增失敗', 'error');
+    });
+}
+function startEdit(id) {
+    document.getElementById('view-' + id).style.display = 'none';
+    document.getElementById('edit-' + id).style.display = 'block';
+}
+function cancelEdit(id) {
+    document.getElementById('view-' + id).style.display = 'block';
+    document.getElementById('edit-' + id).style.display = 'none';
+}
+function saveEdit(id) {
+    const title = document.getElementById('e-title-' + id).value.trim();
+    const content = document.getElementById('e-content-' + id).value.trim();
+    if (!title || !content) { showToast('請填寫標題與內容', 'error'); return; }
+    fetch(`/admin/changelogs/${id}/edit`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            version: document.getElementById('e-version-' + id).value.trim(),
+            title, content,
+            is_published: document.getElementById('e-pub-' + id).checked,
+        })
+    }).then(r => r.json()).then(d => {
+        if (d.success) location.reload();
+        else showToast(d.error || '儲存失敗', 'error');
+    });
+}
+function deleteLog(id) {
+    if (!confirm('確定刪除這筆更新記錄？')) return;
+    fetch(`/admin/changelogs/${id}/delete`, { method: 'POST' })
+        .then(r => r.json()).then(d => {
+            if (d.success) location.reload();
+            else showToast(d.error || '刪除失敗', 'error');
+        });
+}
+</script>
+{% endblock %}

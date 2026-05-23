@@ -1,0 +1,762 @@
+{% extends "base.html" %}
+{% block title %}部署精靈 — {{ church_name }}{% endblock %}
+{% block content %}
+<style>
+.wiz-wrap { max-width:860px; margin:40px auto; padding:0 16px 60px; }
+.wiz-header { margin-bottom:32px; }
+.wiz-header h1 { font-size:1.6rem; font-weight:800; margin:0 0 4px; }
+.wiz-header p  { color:#4b5563; margin:0; }
+
+.wiz-step { background:#fff; border-radius:14px; box-shadow:0 1px 4px rgba(0,0,0,.08);
+            margin-bottom:20px; overflow:hidden; }
+.wiz-step-head { display:flex; align-items:center; gap:10px;
+                 padding:16px 20px; cursor:pointer; user-select:none; }
+.wiz-step-head:hover { background:#fafafa; }
+.wiz-step-num  { width:28px; height:28px; border-radius:50%; display:flex; align-items:center;
+                 justify-content:center; font-size:.8rem; font-weight:700; flex-shrink:0; }
+.num-ok   { background:#d1fae5; color:#065f46; }
+.num-warn { background:#fef3c7; color:#92400e; }
+.num-err  { background:#fee2e2; color:#991b1b; }
+.num-info { background:#e0e7ff; color:#3730a3; }
+.wiz-step-title { font-weight:700; font-size:1rem; flex:1; }
+.wiz-step-badge { font-size:.78rem; padding:2px 10px; border-radius:20px; }
+.badge-ok   { background:#d1fae5; color:#065f46; }
+.badge-warn { background:#fef3c7; color:#92400e; }
+.badge-err  { background:#fee2e2; color:#991b1b; }
+.badge-info { background:#e0e7ff; color:#3730a3; }
+.wiz-step-chevron { color:#9ca3af; transition:transform .2s; }
+.wiz-step-body { display:none; padding:0 20px 20px; border-top:1px solid #f3f4f6; }
+.wiz-step-body.open { display:block; }
+
+/* env var rows */
+.env-row  { display:flex; align-items:flex-start; gap:10px; padding:10px 0;
+            border-bottom:1px solid #f3f4f6; }
+.env-row:last-child { border-bottom:none; }
+.env-dot  { width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:5px; }
+.dot-ok   { background:#10b981; }
+.dot-miss { background:#ef4444; }
+.dot-opt  { background:#d1d5db; }
+.env-info { flex:1; }
+.env-key  { font-family:monospace; font-size:.88rem; font-weight:600; color:#111827; }
+.env-label{ font-size:.8rem; color:#4b5563; }
+.env-val  { font-family:monospace; font-size:.78rem; color:#6b7280; margin-top:2px;
+            word-break:break-all; }
+.env-hint { font-size:.75rem; color:#9ca3af; margin-top:3px; }
+.env-badge-req { font-size:.7rem; padding:1px 6px; border-radius:10px;
+                 background:#fef2f2; color:#dc2626; font-weight:600; margin-left:6px; }
+
+/* table status */
+.tbl-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:8px; }
+.tbl-row  { display:flex; align-items:center; gap:8px; padding:6px 10px;
+            border-radius:8px; font-size:.85rem; background:#f9fafb; }
+.tbl-ok   { background:#f0fdf4; color:#15803d; }
+.tbl-miss { background:#fef2f2; color:#dc2626; }
+
+/* code block */
+.code-block { background:#1e1e2e; color:#cdd6f4; border-radius:10px; padding:16px;
+              font-family:monospace; font-size:.78rem; overflow-x:auto; white-space:pre;
+              line-height:1.6; position:relative; }
+.copy-btn   { position:absolute; top:10px; right:10px; padding:4px 12px;
+              background:#313244; color:#cdd6f4; border:none; border-radius:6px;
+              font-size:.75rem; cursor:pointer; }
+.copy-btn:hover { background:#45475a; }
+.copy-btn.copied { background:#a6e3a1; color:#1e1e2e; }
+
+/* summary bar */
+.summary-bar { padding:16px 20px; border-radius:12px; margin-bottom:28px;
+               display:flex; align-items:center; gap:12px; }
+.bar-ok   { background:#d1fae5; border:1px solid #a7f3d0; }
+.bar-warn { background:#fef3c7; border:1px solid #fde68a; }
+.bar-err  { background:#fee2e2; border:1px solid #fecaca; }
+.bar-icon { font-size:1.6rem; }
+.bar-text h3 { margin:0 0 2px; font-size:1rem; font-weight:700; }
+.bar-text p  { margin:0; font-size:.85rem; color:#4b5563; }
+
+/* section label */
+.sec-label { font-size:.75rem; font-weight:700; letter-spacing:.06em;
+             text-transform:uppercase; color:#9ca3af; margin:18px 0 6px; }
+
+/* instructions */
+.instr-step { display:flex; gap:12px; margin-bottom:14px; }
+.instr-num  { width:24px; height:24px; border-radius:50%; background:#3b82f6; color:#fff;
+              display:flex; align-items:center; justify-content:center;
+              font-size:.75rem; font-weight:700; flex-shrink:0; }
+.instr-body { flex:1; font-size:.85rem; color:#374151; }
+.instr-body strong { color:#111827; }
+.instr-body code { background:#f3f4f6; border-radius:4px; padding:1px 5px;
+                   font-size:.82rem; color:#dc2626; }
+.instr-body a { color:#3b82f6; }
+
+.tag-optional { font-size:.72rem; padding:2px 7px; background:#f0f9ff; color:#0369a1;
+                border-radius:10px; font-weight:600; }
+</style>
+
+<div class="wiz-wrap">
+  <div class="wiz-header">
+    <h1>🧙 部署精靈</h1>
+    <p>逐步檢查設定，讓你的教會管理系統順利上線。</p>
+  </div>
+
+  <!-- ── 總狀態列 ───────────────────────────────────────── -->
+  {% if all_required_ok and (db_tables is none or missing_tables|length == 0) %}
+  <div class="summary-bar bar-ok">
+    <div class="bar-icon">✅</div>
+    <div class="bar-text">
+      <h3>設定完整，系統正常運行中</h3>
+      <p>所有必要環境變數已設定，資料庫資料表已建立。</p>
+    </div>
+  </div>
+  {% elif not all_required_ok %}
+  <div class="summary-bar bar-err">
+    <div class="bar-icon">🚨</div>
+    <div class="bar-text">
+      <h3>尚有必填環境變數未設定</h3>
+      <p>缺少：{% for v in required_missing %}<strong>{{ v.key }}</strong>{% if not loop.last %}、{% endif %}{% endfor %}。請依下方指引完成設定。</p>
+    </div>
+  </div>
+  {% elif missing_tables|length > 0 %}
+  <div class="summary-bar bar-warn">
+    <div class="bar-icon">⚠️</div>
+    <div class="bar-text">
+      <h3>資料庫部分資料表尚未建立</h3>
+      <p>請至 Supabase SQL Editor 執行建表 SQL。</p>
+    </div>
+  </div>
+  {% else %}
+  <div class="summary-bar bar-warn">
+    <div class="bar-icon">🔍</div>
+    <div class="bar-text">
+      <h3>請依下方各步驟確認設定</h3>
+      <p>點擊各步驟展開詳細內容。</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ── STEP 1: 環境變數 ──────────────────────────────────── -->
+  <div class="wiz-step">
+    <div class="wiz-step-head" onclick="toggle('env-body', this)">
+      {% if all_required_ok %}
+        <div class="wiz-step-num num-ok">1</div>
+      {% else %}
+        <div class="wiz-step-num num-err">1</div>
+      {% endif %}
+      <div class="wiz-step-title">環境變數設定</div>
+      {% if all_required_ok %}
+        <span class="wiz-step-badge badge-ok">✓ 必填項目完整</span>
+      {% else %}
+        <span class="wiz-step-badge badge-err">⚠ {{ required_missing|length }} 個必填項目缺少</span>
+      {% endif %}
+      <span class="wiz-step-chevron">▼</span>
+    </div>
+    <div class="wiz-step-body{% if not all_required_ok %} open{% endif %}" id="env-body">
+
+      <div class="sec-label">Render 設定方式</div>
+      <div style="font-size:.85rem; color:#374151; margin-bottom:12px; line-height:1.6;">
+        至 <strong>Render Dashboard → 你的 Web Service → Environment</strong>，
+        在「Environment Variables」區塊逐一新增以下變數後，點「Save Changes」並等待重新部署完成。
+      </div>
+
+      {% for group in env_groups %}
+      <div class="sec-label" style="margin-top:20px;">
+        {{ group.emoji }} {{ group.title }}
+        {% if group.get('optional_group') %}<span class="tag-optional">可選功能</span>{% endif %}
+        {% if not group.get('deploy_guide_only') %}
+        <span style="font-weight:400; font-size:.72rem; margin-left:8px; color:#6b7280;">
+          已設定 {{ group.ok_count }}/{{ group.total_count }}
+        </span>
+        {% endif %}
+        {% if group.signup_url %}
+        <a href="{{ group.signup_url }}" target="_blank" rel="noopener"
+           style="display:inline-block; margin-left:10px; font-size:.72rem; font-weight:600;
+                  background:#2563eb; color:#fff; border-radius:6px; padding:2px 10px;
+                  text-decoration:none; vertical-align:middle;">
+          ↗ {{ group.signup_label or '申請帳號' }}
+        </a>
+        {% endif %}
+      </div>
+      {% if group.signup_steps %}
+      <details style="margin-bottom:10px; background:{{ '#fff7ed' if group.get('deploy_guide_only') else '#f0f9ff' }};
+                      border:1px solid {{ '#fed7aa' if group.get('deploy_guide_only') else '#bae6fd' }};
+                      border-radius:8px; padding:8px 12px; font-size:.82rem;
+                      color:{{ '#431407' if group.get('deploy_guide_only') else '#0c4a6e' }};"
+                      {% if group.get('deploy_guide_only') %}open{% endif %}>
+        <summary style="cursor:pointer; font-weight:600;
+                         color:{{ '#c2410c' if group.get('deploy_guide_only') else '#0369a1' }};
+                         list-style:none; display:flex; align-items:center; gap:6px;">
+          <span>{{ '🚀' if group.get('deploy_guide_only') else '📋' }}</span>
+          {% if group.get('deploy_guide_only') %}
+            部署流程說明（點此收合）
+          {% else %}
+            如何取得 {{ group.title }} 憑證（點此展開步驟）
+          {% endif %}
+        </summary>
+        <div style="margin-top:8px; line-height:1.8; white-space:pre-wrap;">{{ group.signup_steps }}</div>
+      </details>
+      {% endif %}
+      {% for v in group.vars %}
+      <div class="env-row">
+        {% if v.set %}
+          <div class="env-dot dot-ok"></div>
+        {% elif v.required %}
+          <div class="env-dot dot-miss"></div>
+        {% else %}
+          <div class="env-dot dot-opt"></div>
+        {% endif %}
+        <div class="env-info">
+          <div>
+            <span class="env-key">{{ v.key }}</span>
+            {% if v.required %}<span class="env-badge-req">必填</span>{% endif %}
+          </div>
+          <div class="env-label">{{ v.label }}</div>
+          {% if v.set %}
+            <div class="env-val">{{ v.value_preview }}</div>
+          {% else %}
+            <div class="env-val" style="color:#ef4444;">（未設定）</div>
+          {% endif %}
+          {% if v.hint %}
+          <div class="env-hint">{{ v.hint }}</div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+      {% endfor %}
+
+      <div class="sec-label" style="margin-top:20px;">快速生成 Secret Key</div>
+      <div style="font-size:.83rem; color:#374151; margin-bottom:6px;">在終端機執行以下指令，複製輸出的字串作為 FLASK_SECRET_KEY：</div>
+      <div class="code-block" style="white-space:normal; word-break:break-all;">python -c "import secrets; print(secrets.token_hex(32))"<button class="copy-btn" onclick="copyCode(this, 'python -c \"import secrets; print(secrets.token_hex(32))\"')">複製</button></div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: LINE Login 設定 ───────────────────────────── -->
+  <div class="wiz-step">
+    <div class="wiz-step-head" onclick="toggle('line-body', this)">
+      <div class="wiz-step-num num-info">2</div>
+      <div class="wiz-step-title">LINE Login 設定</div>
+      <span class="wiz-step-badge badge-info">設定指引</span>
+      <span class="wiz-step-chevron">▼</span>
+    </div>
+    <div class="wiz-step-body" id="line-body">
+      <div class="instr-step">
+        <div class="instr-num">1</div>
+        <div class="instr-body">
+          前往 <strong>LINE Developers Console</strong>（developers.line.biz），
+          登入後建立或選擇一個 Provider，在「Channels」中建立新的 <strong>LINE Login</strong> Channel。
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">2</div>
+        <div class="instr-body">
+          在 Channel Basic settings 取得：<br>
+          • <code>Channel ID</code> → 填入 <code>LINE_CHANNEL_ID</code><br>
+          • <code>Channel secret</code> → 填入 <code>LINE_CHANNEL_SECRET</code>
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">3</div>
+        <div class="instr-body">
+          在 Channel settings → <strong>LINE Login</strong> 分頁，
+          將以下網址加入「Callback URL」：<br>
+          <code>
+            {% if render_url %}{{ render_url }}/auth/callback{% elif line_redirect_uri %}{{ line_redirect_uri }}{% else %}https://你的網域/auth/callback{% endif %}
+          </code><br>
+          同時將這個網址填入 <code>LINE_REDIRECT_URI</code> 環境變數。
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">4</div>
+        <div class="instr-body">
+          將 Channel 狀態從「Developing」切換為 <strong>Published</strong>，
+          否則只有 Channel 管理員帳號可以登入。
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">5</div>
+        <div class="instr-body">
+          （可選）若要啟用 LIFF，在「LIFF」分頁新增應用，
+          Endpoint URL 填入你的網站首頁，取得 LIFF ID 填入 <code>LINE_LIFF_ID</code>。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: Supabase 資料庫 ──────────────────────────── -->
+  <div class="wiz-step">
+    <div class="wiz-step-head" onclick="toggle('db-body', this)">
+      {% if db_tables is none %}
+        <div class="wiz-step-num num-err">3</div>
+      {% elif missing_tables|length == 0 %}
+        <div class="wiz-step-num num-ok">3</div>
+      {% else %}
+        <div class="wiz-step-num num-warn">3</div>
+      {% endif %}
+      <div class="wiz-step-title">Supabase 資料庫建立</div>
+      {% if db_tables is none %}
+        <span class="wiz-step-badge badge-err">無法連線</span>
+      {% elif missing_tables|length == 0 %}
+        <span class="wiz-step-badge badge-ok">✓ 所有資料表已建立</span>
+      {% else %}
+        <span class="wiz-step-badge badge-warn">⚠ {{ missing_tables|length }} 個資料表尚未建立</span>
+      {% endif %}
+      <span class="wiz-step-chevron">▼</span>
+    </div>
+    <div class="wiz-step-body{% if db_tables is none or missing_tables|length > 0 %} open{% endif %}" id="db-body">
+
+      {% if db_tables is none %}
+      <div style="padding:12px; background:#fef2f2; border-radius:8px; color:#dc2626; font-size:.85rem; margin-bottom:16px;">
+        無法連接 Supabase，請先設定 SUPABASE_URL 和 SUPABASE_KEY 環境變數並重新部署。
+      </div>
+      {% else %}
+
+      <div class="sec-label">資料表狀態</div>
+      <div class="tbl-grid" style="margin-bottom:16px;">
+        {% for tbl in core_tables %}
+        <div class="tbl-row {% if db_tables[tbl] %}tbl-ok{% else %}tbl-miss{% endif %}">
+          {% if db_tables[tbl] %}✓{% else %}✗{% endif %}
+          {{ tbl }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+
+      <div class="sec-label">Supabase 帳號與 Key 取得方式</div>
+      <div class="instr-step">
+        <div class="instr-num">1</div>
+        <div class="instr-body">
+          前往 <strong>supabase.com</strong>，免費註冊並建立新 Project（選亞太區 ap-southeast-1 延遲較低）
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">2</div>
+        <div class="instr-body">
+          左側選單 → <strong>Project Settings → Data API</strong><br>
+          複製 <strong>Project URL</strong> → 填入 Render 的 <code>SUPABASE_URL</code><br>
+          複製 <strong>anon public</strong> key → 填入 Render 的 <code>SUPABASE_KEY</code>
+        </div>
+      </div>
+
+      <div class="sec-label" style="margin-top:20px;">建立資料表（執行 SQL）</div>
+      <div class="instr-step">
+        <div class="instr-num">3</div>
+        <div class="instr-body">
+          在 Supabase 左側選單 → <strong>SQL Editor</strong> → 點「<strong>New query</strong>」
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">4</div>
+        <div class="instr-body">
+          點下方「複製建表 SQL」按鈕，將全部內容貼入 SQL Editor，點「<strong>Run</strong>」執行<br>
+          <span style="color:#888; font-size:.82rem;">（支援 CREATE TABLE IF NOT EXISTS，重複執行安全，出現警告可忽略）</span>
+        </div>
+      </div>
+
+      {% if schema_sql %}
+      <div style="margin:16px 0 4px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <span style="font-size:.82rem; color:#555; font-weight:600;">📄 建表 SQL（schema.sql）</span>
+        <button class="copy-btn" onclick="copySchemaSql(this)"
+                style="padding:6px 16px; background:#3b82f6; color:white; border:none; border-radius:6px;
+                       font-size:.82rem; font-weight:700; cursor:pointer;">
+          複製建表 SQL
+        </button>
+      </div>
+      <textarea id="schema-sql-content" readonly
+                style="width:100%; height:160px; font-family:monospace; font-size:.72rem;
+                       border:1px solid #e5e7eb; border-radius:8px; padding:10px; resize:vertical;
+                       background:#f9fafb; color:#374151; box-sizing:border-box; line-height:1.5;">{{ schema_sql }}</textarea>
+      {% endif %}
+
+      <div class="instr-step" style="margin-top:12px;">
+        <div class="instr-num">5</div>
+        <div class="instr-body">
+          回到此頁重新整理，確認上方「資料表狀態」全部顯示 ✓。
+        </div>
+      </div>
+
+      <div class="sec-label" style="margin-top:16px;">初始管理員設定</div>
+      <div style="font-size:.85rem; color:#374151; margin-bottom:10px; line-height:1.6;">
+        用自己的 LINE 帳號登入系統後，至 Supabase SQL Editor 執行以下 SQL
+        將自己設為管理員（記得替換 LINE User ID）：
+      </div>
+      <div style="position:relative;">
+        <div class="code-block" id="admin-sql">UPDATE users SET is_admin = true, is_super_admin = true
+WHERE line_id = 'U你的LINE_USER_ID';
+
+-- 查詢自己的 LINE User ID（登入後在個人資料頁可看到）
+SELECT id, real_name, line_id, is_admin FROM users ORDER BY created_at DESC LIMIT 10;</div>
+        <button class="copy-btn" onclick="copyId(this, 'admin-sql')">複製</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 4: 管理員初始設定 ──────────────────────────── -->
+  <div class="wiz-step">
+    <div class="wiz-step-head" onclick="toggle('admin-body', this)">
+      <div class="wiz-step-num num-info">4</div>
+      <div class="wiz-step-title">首次登入與管理員設定</div>
+      <span class="wiz-step-badge badge-info">操作指引</span>
+      <span class="wiz-step-chevron">▼</span>
+    </div>
+    <div class="wiz-step-body" id="admin-body">
+      <div class="instr-step">
+        <div class="instr-num">1</div>
+        <div class="instr-body">
+          系統部署完成後，使用 LINE 帳號登入。首次登入的帳號將自動建立 users 資料。
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">2</div>
+        <div class="instr-body">
+          至個人資料頁複製自己的 <strong>LINE User ID</strong>（格式：U 開頭的 32 位字串）。
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">3</div>
+        <div class="instr-body">
+          方案 A（推薦）：將此 User ID 填入 <code>ADMIN_LINE_USER_IDS</code> 環境變數，重新部署後即為管理員。<br>
+          方案 B：在 Supabase SQL Editor 執行上方 SQL，直接設定資料庫欄位。
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">4</div>
+        <div class="instr-body">
+          取得管理員權限後，至 <strong>後台管理 → 小組管理</strong> 建立小組與組員，
+          並在 <strong>聚會設定</strong>（<code>/cell-report/admin/meeting-settings</code>）設定各聚會的星期幾與堂數。
+          若有額外聚會類型（如青年崇拜），可點「＋ 新增聚會」自訂，系統會自動在 Dashboard 與回報頁面反映。
+        </div>
+      </div>
+      <div class="instr-step">
+        <div class="instr-num">5</div>
+        <div class="instr-body">
+          （可選）至 <strong>後台管理 → 門戶設定</strong> 調整首頁顯示的功能卡片。
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 5: 可選功能 ──────────────────────────────────── -->
+  <div class="wiz-step">
+    <div class="wiz-step-head" onclick="toggle('opt-body', this)">
+      <div class="wiz-step-num num-info">5</div>
+      <div class="wiz-step-title">可選功能設定</div>
+      <span class="wiz-step-badge badge-info">依需求設定</span>
+      <span class="wiz-step-chevron">▼</span>
+    </div>
+    <div class="wiz-step-body" id="opt-body">
+
+      <div class="sec-label">📁 Cloudflare R2 檔案分享</div>
+      <div style="font-size:.85rem; color:#374151; margin-bottom:12px; line-height:1.6;">
+        設定 R2 後，教會可上傳檔案與資料夾共享。未設定則檔案功能停用（其餘功能不受影響）。<br>
+        <strong>設定步驟：</strong><br>
+        1. 前往 Cloudflare Dashboard → R2 → 建立 Bucket<br>
+        2. 在「Manage R2 API Tokens」建立 Token（Object Read &amp; Write 權限）<br>
+        3. 將 Endpoint / Access Key / Secret Key / Bucket Name 填入對應環境變數
+      </div>
+
+      <div class="sec-label">🤖 AI 功能（天父日記 AI 反思引導）</div>
+      <div style="font-size:.85rem; color:#374151; margin-bottom:12px; line-height:1.6;">
+        設定 Groq API Key 後，天父日記可啟用 AI 反思引導功能。Groq 提供免費額度，足夠小型教會使用。<br>
+        <strong>取得方式：</strong>前往 console.groq.com 免費申請 API Key，填入 <code>GROQ_API_KEY</code>。
+      </div>
+
+      <div class="sec-label">🔧 功能模組開關</div>
+      <div class="tbl-grid">
+        {% for key, label in [
+          ('ENABLE_PRAYER', '代禱牆'),
+          ('ENABLE_GOSPEL', '福音探索'),
+          ('ENABLE_BULLETIN', '每週週報'),
+          ('ENABLE_CALENDAR', '行事曆'),
+          ('ENABLE_COURSES', '門訓學程'),
+          ('ENABLE_VISITOR_FORMS', '留名單'),
+        ] %}
+        <div class="tbl-row" style="background:#f0f9ff; color:#0369a1;">
+          <code style="font-size:.75rem;">{{ key }}</code>
+          <span>{{ label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="font-size:.8rem; color:#6b7280; margin-top:8px;">
+        在 Render 環境變數設定 <code>ENABLE_XXXXX=false</code> 可停用對應模組。
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 6: Render 部署設定 ────────────────────────────── -->
+  <div class="wiz-step">
+    <div class="wiz-step-head" onclick="toggle('render-body', this)">
+      <div class="wiz-step-num num-info">6</div>
+      <div class="wiz-step-title">Render 部署設定</div>
+      <span class="wiz-step-badge badge-info">部署參數</span>
+      <span class="wiz-step-chevron">▼</span>
+    </div>
+    <div class="wiz-step-body" id="render-body">
+      <div class="sec-label">Build & Start 設定</div>
+      <div class="tbl-grid" style="grid-template-columns:1fr; margin-bottom:16px;">
+        <div style="font-size:.85rem;">
+          <table style="width:100%; border-collapse:collapse;">
+            <tr style="background:#f9fafb;">
+              <td style="padding:8px 12px; font-weight:600; width:140px;">Build Command</td>
+              <td style="padding:8px 12px; font-family:monospace; font-size:.82rem;">pip install -r requirements.txt</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; font-weight:600;">Start Command</td>
+              <td style="padding:8px 12px; font-family:monospace; font-size:.82rem;">gunicorn "app:create_app()" --limit-request-line 8190</td>
+            </tr>
+            <tr style="background:#f9fafb;">
+              <td style="padding:8px 12px; font-weight:600;">Runtime</td>
+              <td style="padding:8px 12px; font-family:monospace; font-size:.82rem;">Python 3 (auto-detected from runtime.txt)</td>
+            </tr>
+            <tr>
+              <td style="padding:8px 12px; font-weight:600;">Plan</td>
+              <td style="padding:8px 12px;">Free tier 可用（冷啟動約 30 秒）；付費 Starter 無冷啟動問題</td>
+            </tr>
+          </table>
+        </div>
+      </div>
+
+      <div class="sec-label">重要環境變數</div>
+      <div style="font-size:.85rem; color:#374151; margin-bottom:8px;">
+        Render 免費方案預設不設定 <code>RENDER</code> 旗標，
+        需手動在 Environment 新增 <code>RENDER=true</code> 讓系統知道自己在 production 環境
+        （啟用 HTTPS-only session cookie）。
+      </div>
+      <div style="position:relative; margin-bottom:16px;">
+        <div class="code-block" id="render-env">RENDER=true
+FLASK_SECRET_KEY=（用 python 生成的 32 位 hex 字串）
+LINE_CHANNEL_ID=（LINE Developers 取得）
+LINE_CHANNEL_SECRET=（LINE Developers 取得）
+LINE_REDIRECT_URI=https://你的網域.onrender.com/auth/callback
+SUPABASE_URL=https://你的專案.supabase.co
+SUPABASE_KEY=（Supabase anon key）
+CHURCH_NAME=你的教會名稱
+CHURCH_SHORT_NAME=教會簡稱
+ADMIN_LINE_USER_IDS=U你的LINE_USER_ID</div>
+        <button class="copy-btn" onclick="copyId(this, 'render-env')">複製</button>
+      </div>
+
+      <div class="sec-label">自訂網域</div>
+      <div style="font-size:.85rem; color:#374151; line-height:1.6;">
+        1. 在 Render Service → Settings → Custom Domains 新增你的網域<br>
+        2. 在 DNS 設定 CNAME 指向 Render 提供的值<br>
+        3. 等待 SSL 憑證自動簽發（約 10 分鐘）<br>
+        4. 更新 <code>LINE_REDIRECT_URI</code> 為新網域並重新部署
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 7: 新增教會 SOP ──────────────────────────────── -->
+  <div class="wiz-step">
+    <div class="wiz-step-head" onclick="toggle('sop-body', this)">
+      <div class="wiz-step-num num-info">7</div>
+      <div class="wiz-step-title">新增教會部署 SOP</div>
+      <span class="wiz-step-badge badge-info">維運筆記</span>
+      <span class="wiz-step-chevron">▼</span>
+    </div>
+    <div class="wiz-step-body" id="sop-body">
+
+      <!-- 平台分工表 -->
+      <div class="sec-label">平台管理分工</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
+
+        <div style="background:#f0f9ff; border:1px solid #bae6fd; border-radius:10px; padding:14px;">
+          <p style="font-weight:700; font-size:.85rem; color:#0369a1; margin:0 0 10px;">🧑‍💻 維運者（你）管理</p>
+          <table style="width:100%; font-size:.82rem; border-collapse:collapse;">
+            <tr><td style="padding:4px 6px; font-weight:600;">GitHub</td><td style="padding:4px 6px; color:#555;">Private repo 源碼</td></tr>
+            <tr style="background:#e0f2fe;"><td style="padding:4px 6px; font-weight:600;">Render</td><td style="padding:4px 6px; color:#555;">你的帳號，每間教會一個 Web Service</td></tr>
+            <tr><td style="padding:4px 6px; font-weight:600;">Sentry</td><td style="padding:4px 6px; color:#555;">錯誤監控（選填，可共用一個 project）</td></tr>
+            <tr style="background:#e0f2fe;"><td style="padding:4px 6px; font-weight:600;">Flask Secret Key</td><td style="padding:4px 6px; color:#555;">每間教會各生成一組</td></tr>
+          </table>
+        </div>
+
+        <div style="background:#fff7ed; border:1px solid #fed7aa; border-radius:10px; padding:14px;">
+          <p style="font-weight:700; font-size:.85rem; color:#c2410c; margin:0 0 10px;">⛪ 教會端管理</p>
+          <table style="width:100%; font-size:.82rem; border-collapse:collapse;">
+            <tr><td style="padding:4px 6px; font-weight:600;">Supabase</td><td style="padding:4px 6px; color:#555;">他們的資料庫，他們的帳號</td></tr>
+            <tr style="background:#ffedd5;"><td style="padding:4px 6px; font-weight:600;">LINE Developers</td><td style="padding:4px 6px; color:#555;">LINE Login Channel，用他們的 LINE 帳號申請</td></tr>
+            <tr><td style="padding:4px 6px; font-weight:600;">Groq / Gemini</td><td style="padding:4px 6px; color:#555;">天父日記 AI（各自申請，避免 rate limit 互相影響）</td></tr>
+            <tr style="background:#ffedd5;"><td style="padding:4px 6px; font-weight:600;">Cloudflare R2</td><td style="padding:4px 6px; color:#555;">檔案分享用（選填）</td></tr>
+          </table>
+          <p style="font-size:.75rem; color:#9a3412; margin:8px 0 0;">教會端只需提供帳號資料給你，不需碰代碼或 Render。</p>
+        </div>
+      </div>
+
+      <!-- SOP 步驟 -->
+      <div class="sec-label">新增一間教會的完整 SOP</div>
+      <div style="display:flex; flex-direction:column; gap:12px; margin-bottom:8px;">
+
+        <div class="instr-step">
+          <div class="instr-num">1</div>
+          <div class="instr-body">
+            <strong>請教會端申請 Supabase</strong><br>
+            前往 <a href="https://supabase.com" target="_blank">supabase.com</a> → 建立帳號 → 新增 Project（免費方案即可）<br>
+            完成後到 <strong>Project Settings → API</strong>，複製：<br>
+            &nbsp;• Project URL → 給你填 <code>SUPABASE_URL</code><br>
+            &nbsp;• anon public key → 給你填 <code>SUPABASE_KEY</code>
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">2</div>
+          <div class="instr-body">
+            <strong>請教會端申請 LINE Login Channel</strong><br>
+            前往 <a href="https://developers.line.biz" target="_blank">developers.line.biz</a> → 用教會負責人的 LINE 帳號登入<br>
+            建立 Provider → 新增 LINE Login Channel<br>
+            完成後複製：<br>
+            &nbsp;• Channel ID → 給你填 <code>LINE_CHANNEL_ID</code><br>
+            &nbsp;• Channel Secret → 給你填 <code>LINE_CHANNEL_SECRET</code><br>
+            ⚠️ Callback URL 先留空，等你建完 Render 服務後再回來填
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">3</div>
+          <div class="instr-body">
+            <strong>在你的 Render 帳號建新 Web Service</strong><br>
+            Dashboard → New + → Web Service → 選你的 GitHub repo<br>
+            Name 取好識別名稱（例：church-grace-system）<br>
+            Region 選 Singapore，Branch 選 main
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">4</div>
+          <div class="instr-body">
+            <strong>填入環境變數</strong>（Environment Variables 區塊）<br>
+            <div style="background:#1e1e2e; color:#cdd6f4; border-radius:8px; padding:12px; font-family:monospace; font-size:.76rem; margin-top:6px; white-space:pre; overflow-x:auto;"># ── 必填 ──────────────────────────────────
+RENDER=true
+FLASK_SECRET_KEY=&lt;python -c "import secrets; print(secrets.token_hex(32))"&gt;
+LINE_CHANNEL_ID=&lt;教會端提供&gt;
+LINE_CHANNEL_SECRET=&lt;教會端提供&gt;
+LINE_REDIRECT_URI=https://&lt;你命名的服務&gt;.onrender.com/auth/callback
+SUPABASE_URL=&lt;教會端提供&gt;
+SUPABASE_KEY=&lt;教會端提供&gt;
+CHURCH_NAME=&lt;教會全名，例：天恩浸信會&gt;
+CHURCH_SHORT_NAME=&lt;教會簡稱，例：天恩堂&gt;
+ADMIN_LINE_USER_IDS=&lt;教會管理員的 LINE User ID&gt;
+
+# ── 天父日記 AI（教會端各自申請，填教會自己的 key）──
+GROQ_API_KEY=&lt;教會端申請 groq.com 取得&gt;
+GEMINI_API_KEY=&lt;教會端申請 aistudio.google.com 取得，備援用&gt;</div>
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">5</div>
+          <div class="instr-body">
+            <strong>建立 Render 服務並取得網址</strong><br>
+            點「Create Web Service」→ 等待 Build 完成（約 3～5 分鐘）<br>
+            部署成功後取得網址：<code>https://church-xxx.onrender.com</code>
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">6</div>
+          <div class="instr-body">
+            <strong>回到 LINE Developers 填 Callback URL</strong><br>
+            進入該教會的 LINE Login Channel → LINE Login 分頁<br>
+            在 Callback URL 填入：<code>https://你的服務.onrender.com/auth/callback</code><br>
+            儲存後即可使用 LINE 登入
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">7</div>
+          <div class="instr-body">
+            <strong>在 Supabase SQL Editor 建立資料表</strong><br>
+            進入教會的 Supabase 專案 → SQL Editor → 貼上 Step 3 的 schema.sql → 執行<br>
+            回到本精靈 Step 3 確認所有資料表顯示 ✓
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">8</div>
+          <div class="instr-body">
+            <strong>首次登入 & 設定管理員</strong><br>
+            用你的 LINE 登入系統 → 進入個人資料頁確認你的 LINE User ID<br>
+            將 ID 填入 Render 的 <code>ADMIN_LINE_USER_IDS</code> 環境變數 → 儲存 → 重啟<br>
+            重新登入後即可進入後台管理
+          </div>
+        </div>
+
+        <div class="instr-step">
+          <div class="instr-num">9</div>
+          <div class="instr-body">
+            <strong>交付網址給教會，完成！</strong><br>
+            教會不需要帳號、不需要碰代碼，直接用 LINE 掃碼或開連結進入系統即可使用。<br>
+            未來代碼更新：你 push 到 GitHub → 所有教會服務自動 redeploy。
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── 底部：快速連結 ────────────────────────────────────── -->
+  <div style="margin-top:32px; display:flex; gap:10px; flex-wrap:wrap;">
+    <a href="{{ url_for('event.portal') }}"
+       style="padding:10px 18px; background:#3b82f6; color:#fff; border-radius:8px;
+              text-decoration:none; font-size:.9rem;">
+      ← 返回首頁
+    </a>
+    {% if session.get('is_admin') %}
+    <a href="{{ url_for('admin.index') }}"
+       style="padding:10px 18px; background:#f0f4ff; color:#3730a3; border:1px solid #c7d2fe;
+              border-radius:8px; text-decoration:none; font-size:.9rem;">
+      後台管理
+    </a>
+    <a href="{{ url_for('cell_report.admin_meeting_settings') }}"
+       style="padding:10px 18px; background:#f0f4ff; color:#3730a3; border:1px solid #c7d2fe;
+              border-radius:8px; text-decoration:none; font-size:.9rem;">
+      聚會設定
+    </a>
+    {% endif %}
+    <a href="/setup-wizard/db-status" target="_blank"
+       style="padding:10px 18px; background:#f9fafb; color:#4b5563; border:1px solid #e5e7eb;
+              border-radius:8px; text-decoration:none; font-size:.9rem;">
+      資料庫狀態 JSON
+    </a>
+  </div>
+</div>
+
+<script>
+function toggle(bodyId, head) {
+  const body = document.getElementById(bodyId);
+  const chev = head.querySelector('.wiz-step-chevron');
+  const open = body.classList.toggle('open');
+  chev.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function copyCode(btn, text) {
+  navigator.clipboard.writeText(text).then(() => {
+    btn.textContent = '已複製！';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = '複製'; btn.classList.remove('copied'); }, 2000);
+  });
+}
+
+function copyId(btn, id) {
+  const text = document.getElementById(id).textContent.replace(/複製|已複製！/g, '').trim();
+  copyCode(btn, text);
+}
+
+function copySchemaSql(btn) {
+  const ta = document.getElementById('schema-sql-content');
+  if (!ta) return;
+  navigator.clipboard.writeText(ta.value).then(() => {
+    btn.textContent = '已複製！';
+    btn.style.background = '#16a34a';
+    setTimeout(() => { btn.textContent = '複製建表 SQL'; btn.style.background = '#3b82f6'; }, 2500);
+  }).catch(() => {
+    ta.select();
+    document.execCommand('copy');
+    btn.textContent = '已複製！';
+    setTimeout(() => { btn.textContent = '複製建表 SQL'; }, 2500);
+  });
+}
+
+// Auto-open the first section that has issues
+document.addEventListener('DOMContentLoaded', () => {
+  {% if all_required_ok and (db_tables is none or missing_tables|length == 0) %}
+  // All good, default collapse
+  {% endif %}
+});
+</script>
+{% endblock %}

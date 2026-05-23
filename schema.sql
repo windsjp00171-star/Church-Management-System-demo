@@ -12,6 +12,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 基礎設定表
 -- ============================================================
 
+-- 服事角色標籤（敬拜團、招待、兒主等）— 不再用於週間小組分組，小組改用 cell_groups
+-- is_primary 欄位保留以維持向下相容，UI 不再顯示主/副標籤切換
 CREATE TABLE IF NOT EXISTS groups (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name        TEXT NOT NULL,
@@ -63,8 +65,9 @@ CREATE TABLE IF NOT EXISTS users (
     is_staff       BOOLEAN NOT NULL DEFAULT false,
     role           TEXT NOT NULL DEFAULT 'pending',
     line_id        TEXT,                   -- church-data-hub 相容欄位
-    is_blocked     BOOLEAN NOT NULL DEFAULT false,
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+    is_blocked              BOOLEAN NOT NULL DEFAULT false,
+    last_seen_changelog_at  TIMESTAMPTZ,     -- 更新日誌已讀時間戳
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ============================================================
@@ -374,20 +377,36 @@ CREATE INDEX IF NOT EXISTS notifications_user_idx ON notifications(user_id, crea
 
 CREATE TABLE IF NOT EXISTS gospel_cards (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    title      TEXT NOT NULL,
-    content    TEXT NOT NULL,
+    question   TEXT NOT NULL,
+    answer     TEXT NOT NULL,
+    icon       TEXT,
     sort_order INTEGER NOT NULL DEFAULT 0,
     is_active  BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS gospel_form_questions (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    label       TEXT NOT NULL,
+    placeholder TEXT,
+    is_textarea BOOLEAN NOT NULL DEFAULT false,
+    is_required BOOLEAN NOT NULL DEFAULT false,
+    sort_order  INTEGER NOT NULL DEFAULT 0,
+    is_active   BOOLEAN NOT NULL DEFAULT true,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS gospel_inquiries (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID REFERENCES users(id),
-    name       TEXT,
-    content    TEXT NOT NULL,
-    is_read    BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name          TEXT,
+    contact       TEXT,
+    message       TEXT,
+    extra_answers JSONB,
+    status        TEXT NOT NULL DEFAULT 'pending',
+    assigned_to   TEXT,
+    notes         TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- ============================================================
@@ -494,6 +513,8 @@ CREATE TABLE IF NOT EXISTS cell_members (
     name         TEXT NOT NULL,
     contact_info TEXT,
     is_active    BOOLEAN NOT NULL DEFAULT true,
+    user_id      UUID REFERENCES users(id) ON DELETE SET NULL,
+    is_confirmed BOOLEAN NOT NULL DEFAULT true,  -- false = 使用者自選待管理員確認
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
@@ -508,43 +529,49 @@ CREATE TABLE IF NOT EXISTS cell_group_leaders (
 
 -- 週報主表
 CREATE TABLE IF NOT EXISTS cell_reports (
-    id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    group_id          UUID NOT NULL REFERENCES cell_groups(id),
-    week_date         DATE NOT NULL,
-    attendance_count  INTEGER NOT NULL DEFAULT 0,
-    member_count      INTEGER NOT NULL DEFAULT 0,
-    status_worship    TEXT,
-    status_prayer     TEXT,
-    status_word       TEXT,
-    status_service    TEXT,
-    newcomer_raw      TEXT,
-    coworker_note     TEXT,
-    no_meeting        BOOLEAN NOT NULL DEFAULT false,
-    no_meeting_reason TEXT,
-    is_complete       BOOLEAN NOT NULL DEFAULT false,
-    created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    group_id            UUID NOT NULL REFERENCES cell_groups(id),
+    week_date           DATE NOT NULL,
+    attendance_count    INTEGER,
+    no_meeting          BOOLEAN NOT NULL DEFAULT false,
+    no_meeting_reason   TEXT,
+    is_complete         BOOLEAN NOT NULL DEFAULT false,
+    -- 小組長自評四大面向
+    spiritual_status    TEXT,
+    spiritual_note      TEXT,
+    family_status       TEXT,
+    family_note         TEXT,
+    work_status         TEXT,
+    work_note           TEXT,
+    health_status       TEXT,
+    health_note         TEXT,
+    -- 整體狀況與建議
+    group_status        TEXT,
+    coworker_suggestion TEXT,
+    newcomer_raw        TEXT,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (group_id, week_date)
 );
 
 -- 出席紀錄
 CREATE TABLE IF NOT EXISTS cell_attendance (
-    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_id  UUID NOT NULL REFERENCES cell_reports(id) ON DELETE CASCADE,
-    member_id  UUID NOT NULL REFERENCES cell_members(id) ON DELETE CASCADE,
-    status     TEXT NOT NULL DEFAULT 'present'
-                   CHECK (status IN ('present','absent','leave','visitor')),
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    report_id     UUID NOT NULL REFERENCES cell_reports(id) ON DELETE CASCADE,
+    member_id     UUID NOT NULL REFERENCES cell_members(id) ON DELETE CASCADE,
+    cell_status   TEXT,   -- 小組聚會出席狀態: full/late/leave/absent
+    sunday_status TEXT,   -- 主日出席狀態: full/late/leave/absent
+    rpg_status    TEXT,   -- 靈修狀態: full/late/leave/absent
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (report_id, member_id)
 );
 
 -- 成人主日聚會人數
 CREATE TABLE IF NOT EXISTS sunday_reports (
     id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_date          DATE NOT NULL UNIQUE,
+    date                 DATE NOT NULL UNIQUE,
     first_service_count  INTEGER NOT NULL DEFAULT 0,
     second_service_count INTEGER NOT NULL DEFAULT 0,
-    topic                TEXT,
     notes                TEXT,
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -552,7 +579,7 @@ CREATE TABLE IF NOT EXISTS sunday_reports (
 -- 兒童主日聚會人數
 CREATE TABLE IF NOT EXISTS children_sunday_reports (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_date      DATE NOT NULL UNIQUE,
+    date             DATE NOT NULL UNIQUE,
     attendance_count INTEGER NOT NULL DEFAULT 0,
     notes            TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -561,7 +588,7 @@ CREATE TABLE IF NOT EXISTS children_sunday_reports (
 -- 禱告會人數
 CREATE TABLE IF NOT EXISTS prayer_reports (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_date      DATE NOT NULL UNIQUE,
+    date             DATE NOT NULL UNIQUE,
     attendance_count INTEGER NOT NULL DEFAULT 0,
     notes            TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -570,11 +597,25 @@ CREATE TABLE IF NOT EXISTS prayer_reports (
 -- 晨禱人數
 CREATE TABLE IF NOT EXISTS morning_prayer_reports (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    report_date      DATE NOT NULL UNIQUE,
+    date             DATE NOT NULL UNIQUE,
     attendance_count INTEGER NOT NULL DEFAULT 0,
     notes            TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 自訂聚會人數（由管理員在聚會設定中新增的聚會類型）
+CREATE TABLE IF NOT EXISTS custom_meeting_reports (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date             DATE NOT NULL,
+    meeting_key      TEXT NOT NULL,
+    attendance_count INTEGER NOT NULL DEFAULT 0,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (date, meeting_key)
+);
+
+CREATE INDEX IF NOT EXISTS idx_custom_meeting_reports_date ON custom_meeting_reports (date);
+CREATE INDEX IF NOT EXISTS idx_custom_meeting_reports_key  ON custom_meeting_reports (meeting_key);
 
 -- 週記事
 CREATE TABLE IF NOT EXISTS week_notes (
@@ -700,3 +741,91 @@ INSERT INTO portal_cards (key, name, emoji, subtitle, url, visible_to, sort_orde
   ('files',         '檔案管理', '📁', '教會資料夾與檔案',       '/files',                        'admin',       130),
   ('admin',         '後台管理', '⚙️', '使用者、活動、系統設定', '/admin',                        'admin',       140)
 ON CONFLICT (key) DO NOTHING;
+
+
+-- 供部署精靈用：繞過 PostgREST schema cache，直接查 information_schema
+CREATE OR REPLACE FUNCTION public.check_table_exists(tbl_name TEXT)
+RETURNS BOOLEAN
+LANGUAGE SQL
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM information_schema.tables
+    WHERE table_schema = 'public' AND table_name = tbl_name
+  );
+$$;
+
+GRANT EXECUTE ON FUNCTION public.check_table_exists(TEXT) TO anon, authenticated;
+
+-- ============================================================
+-- 差勤系統
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS staff_profiles (
+    id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id              UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+    hire_date            DATE NOT NULL,
+    leave_cycle          TEXT NOT NULL DEFAULT 'anniversary'
+                             CHECK (leave_cycle IN ('anniversary', 'calendar')),
+    initial_leave_hours  NUMERIC(6,2) NOT NULL DEFAULT 0,
+    initial_comp_hours   NUMERIC(6,2) NOT NULL DEFAULT 0,
+    is_active            BOOLEAN NOT NULL DEFAULT true,
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS leave_requests (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    leave_type   TEXT NOT NULL CHECK (leave_type IN ('annual','comp','personal','sick','other')),
+    start_date   DATE NOT NULL,
+    end_date     DATE NOT NULL,
+    hours        NUMERIC(5,2) NOT NULL,
+    reason       TEXT,
+    status       TEXT NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','approved','rejected')),
+    reviewed_by  UUID REFERENCES users(id),
+    reviewed_at  TIMESTAMPTZ,
+    review_note  TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS overtime_records (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    date         DATE NOT NULL,
+    hours        NUMERIC(5,2) NOT NULL,
+    reason       TEXT,
+    status       TEXT NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','approved','rejected')),
+    reviewed_by  UUID REFERENCES users(id),
+    reviewed_at  TIMESTAMPTZ,
+    review_note  TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+GRANT ALL ON staff_profiles TO anon, authenticated;
+GRANT ALL ON leave_requests TO anon, authenticated;
+GRANT ALL ON overtime_records TO anon, authenticated;
+
+-- ============================================================
+-- Migrations（補欄位，安全可重複執行）
+-- 若資料庫是以舊版 schema.sql 建立，執行以下 ALTER TABLE 補上缺少的欄位。
+-- ============================================================
+
+-- 2026-05 church_events / personal_events 新增 remind_days（提前幾天通知）
+ALTER TABLE church_events
+  ADD COLUMN IF NOT EXISTS remind_days INT NOT NULL DEFAULT 3;
+
+ALTER TABLE personal_events
+  ADD COLUMN IF NOT EXISTS remind_days INT NOT NULL DEFAULT 1;
+
+-- 2026-05 cell_members 新增 user_id（連結系統帳號）與 is_confirmed（待審核旗標）
+ALTER TABLE cell_members
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;
+
+ALTER TABLE cell_members
+  ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN NOT NULL DEFAULT true;
+
+-- 重新載入 PostgREST schema 快取（讓 API 立即看到新欄位）
+NOTIFY pgrst, 'reload schema';

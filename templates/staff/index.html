@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% block title %}同工首頁{% endblock %}
+{% block content %}
+<style>
+.sw { max-width:600px; margin:0 auto; padding:24px 16px 60px; }
+
+.sw-greeting { margin-bottom:28px; }
+.sw-greeting h1 { font-size:1.5rem; font-weight:800; margin:0 0 4px; color:#111827; }
+.sw-greeting p  { font-size:0.9rem; color:#6b7280; margin:0; }
+
+.sw-section-label {
+    font-size:0.72rem; font-weight:700; letter-spacing:.07em;
+    text-transform:uppercase; color:#9ca3af; margin:0 0 10px;
+}
+
+/* 活動卡片 */
+.ev-card {
+    background:#fff; border-radius:16px;
+    box-shadow:0 1px 4px rgba(0,0,0,.08);
+    margin-bottom:14px; overflow:hidden;
+}
+.ev-card-body { padding:18px 20px; }
+.ev-title { font-size:1.1rem; font-weight:700; color:#111827; margin-bottom:4px; }
+.ev-meta  { font-size:0.82rem; color:#9ca3af; margin-bottom:14px; }
+
+.ev-counts {
+    display:flex; gap:10px; margin-bottom:16px; flex-wrap:wrap;
+}
+.ev-count-pill {
+    padding:6px 14px; border-radius:20px; font-size:0.85rem; font-weight:600;
+    display:flex; align-items:center; gap:5px;
+}
+.pill-reg     { background:#f0f9ff; color:#0369a1; }
+.pill-checkin { background:#f0fdf4; color:#15803d; }
+.pill-remain  { background:#fef3c7; color:#92400e; }
+
+.ev-actions { display:flex; gap:10px; flex-wrap:wrap; }
+.btn-checkin-main {
+    flex:1; min-width:140px; padding:14px 20px;
+    background:#06C755; color:#fff; border:none; border-radius:12px;
+    font-size:1rem; font-weight:700; cursor:pointer; text-decoration:none;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+    -webkit-tap-highlight-color:transparent;
+}
+.btn-checkin-main:active { opacity:.85; }
+.btn-checkin-disabled {
+    flex:1; min-width:140px; padding:14px 20px;
+    background:#f3f4f6; color:#9ca3af; border:none; border-radius:12px;
+    font-size:1rem; font-weight:600; cursor:default; text-decoration:none;
+    display:flex; align-items:center; justify-content:center; gap:6px;
+}
+.btn-secondary {
+    padding:14px 16px; background:#f9fafb; color:#374151;
+    border:1px solid #e5e7eb; border-radius:12px;
+    font-size:0.9rem; font-weight:600; text-decoration:none;
+    display:flex; align-items:center; justify-content:center; gap:4px;
+    white-space:nowrap; -webkit-tap-highlight-color:transparent;
+}
+
+/* 快速入口 */
+.quick-grid {
+    display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:28px;
+}
+.quick-card {
+    background:#fff; border-radius:14px; padding:18px 16px;
+    box-shadow:0 1px 4px rgba(0,0,0,.08);
+    text-decoration:none; display:flex; flex-direction:column; align-items:flex-start; gap:8px;
+    border:1px solid transparent; transition:border-color .15s;
+    -webkit-tap-highlight-color:transparent;
+}
+.quick-card:active { border-color:#d1d5db; }
+.quick-icon { font-size:1.6rem; }
+.quick-name { font-weight:700; font-size:0.95rem; color:#111827; }
+.quick-desc { font-size:0.78rem; color:#9ca3af; }
+
+.empty-box {
+    text-align:center; padding:32px 20px; background:#f9fafb;
+    border-radius:14px; color:#9ca3af; font-size:0.9rem;
+}
+</style>
+
+<div class="sw">
+  <div class="sw-greeting">
+    <h1>👋 {{ staff_name }}</h1>
+    <p>同工服務入口 — {{ today_label }}</p>
+  </div>
+
+  <!-- ── 今日活動 ─────────────────────────────── -->
+  <div class="sw-section-label" style="margin-bottom:10px;">今日活動</div>
+
+  {% if today_events %}
+    {% for ev in today_events %}
+    <div class="ev-card">
+      <div class="ev-card-body">
+        <div class="ev-title">{{ ev.title }}</div>
+        <div class="ev-meta">{{ ev.date_label }}{% if ev.event_start %} · {{ ev.event_start[11:16] }}{% endif %}</div>
+
+        <div class="ev-counts">
+          <div class="ev-count-pill pill-reg">
+            📋 已報名 {{ ev.reg_count }} 人
+          </div>
+          <div class="ev-count-pill pill-checkin">
+            ✅ 已簽到 {{ ev.checkin_count }} 人
+          </div>
+          {% if ev.reg_count > ev.checkin_count %}
+          <div class="ev-count-pill pill-remain">
+            ⏳ 待簽到 {{ ev.reg_count - ev.checkin_count }} 人
+          </div>
+          {% endif %}
+        </div>
+
+        <div class="ev-actions">
+          {% if ev.checkin_enabled and ev.checkin_token %}
+          <a href="/checkin/{{ ev.id }}/{{ ev.checkin_token }}"
+             class="btn-checkin-main">
+            🔍 開始門口簽到
+          </a>
+          {% else %}
+          <div class="btn-checkin-disabled">簽到尚未開啟</div>
+          {% endif %}
+          <a href="/admin/events/{{ ev.id }}/registrations" class="btn-secondary">名單</a>
+          {% if ev.checkin_enabled and ev.checkin_token %}
+          <a href="/admin/events/{{ ev.id }}/qrcode" class="btn-secondary">QR</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="empty-box">今天沒有安排活動</div>
+  {% endif %}
+
+  <!-- ── 即將到來 ─────────────────────────────── -->
+  {% if upcoming_events %}
+  <div class="sw-section-label" style="margin-top:28px; margin-bottom:10px;">即將到來（7天內）</div>
+  {% for ev in upcoming_events %}
+  <div class="ev-card">
+    <div class="ev-card-body">
+      <div class="ev-title">{{ ev.title }}</div>
+      <div class="ev-meta">{{ ev.date_label }}</div>
+      <div class="ev-counts">
+        <div class="ev-count-pill pill-reg">📋 已報名 {{ ev.reg_count }} 人</div>
+      </div>
+      <div class="ev-actions">
+        <a href="/admin/events/{{ ev.id }}/registrations" class="btn-secondary">查看報名名單</a>
+        {% if ev.checkin_enabled and ev.checkin_token %}
+        <a href="/admin/events/{{ ev.id }}/qrcode" class="btn-secondary">簽到 QR Code</a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- ── 快速入口 ─────────────────────────────── -->
+  <div class="sw-section-label" style="margin-top:32px; margin-bottom:10px;">快速入口</div>
+  <div class="quick-grid">
+    <a href="/cell-report/staff-dashboard" class="quick-card">
+      <div class="quick-icon">📊</div>
+      <div class="quick-name">小組回報總覽</div>
+      <div class="quick-desc">本週各組回報狀況</div>
+    </a>
+    <a href="/admin/visitor-forms" class="quick-card">
+      <div class="quick-icon">📋</div>
+      <div class="quick-name">留名單</div>
+      <div class="quick-desc">新朋友留名單管理</div>
+    </a>
+    <a href="/events" class="quick-card">
+      <div class="quick-icon">🎉</div>
+      <div class="quick-name">所有活動</div>
+      <div class="quick-desc">查看與報名活動</div>
+    </a>
+    <a href="/" class="quick-card">
+      <div class="quick-icon">🏠</div>
+      <div class="quick-name">回首頁</div>
+      <div class="quick-desc">會員服務入口</div>
+    </a>
+  </div>
+</div>
+{% endblock %}

@@ -1,6 +1,6 @@
 # 教會行事曆路由
 from flask import Blueprint, session, request, jsonify, redirect, render_template, url_for
-from functools import wraps
+from routes.decorators import login_required
 from db import supabase
 from datetime import date, datetime, timezone, timedelta
 import calendar as cal_module
@@ -25,14 +25,6 @@ def _to_taipei(s):
         return None
 
 
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            session['next_url'] = request.url
-            return redirect(url_for('auth.login_page'))
-        return f(*args, **kwargs)
-    return decorated
 
 
 # ── 行事曆頁面（所有登入用戶；管理員多出教會行事管理功能） ────────────
@@ -151,12 +143,17 @@ def personal_event_new():
     event_date = (data.get('event_date') or '').strip()
     if not title or not event_date:
         return jsonify({'success': False, 'error': '標題與日期為必填'})
+    try:
+        remind_days = int(data.get('remind_days') or 1)
+    except (ValueError, TypeError):
+        remind_days = 1
     supabase.table('personal_events').insert({
         'user_id':     session['user_id'],
         'title':       title,
         'event_date':  event_date,
         'description': (data.get('description') or '').strip() or None,
         'color':       data.get('color') or '#e65100',
+        'remind_days': remind_days,
     }).execute()
     return jsonify({'success': True})
 

@@ -130,6 +130,18 @@
             {% if event.location %}&nbsp;·&nbsp;📍 {{ event.location }}{% endif %}
         </div>
 
+        <div class="identity-selector" style="background: #F7FAFC; border: 2px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+            <p style="font-weight: 600; margin-bottom: 12px; color: #2D3748;">請選擇您的身份：</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 14px; border: 2px solid var(--green); border-radius: 8px; background: #e8f5e9; font-size: 0.9rem; font-weight: 600; color: #2e7d32;">
+                    <input type="radio" name="guest_type" value="guest" checked style="accent-color: var(--green);"> 外部朋友（非教會成員）
+                </label>
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 14px; border: 1px solid #CBD5E0; border-radius: 8px; background: white; font-size: 0.9rem; color: #4A5568;">
+                    <input type="radio" name="guest_type" value="member" style="accent-color: var(--green);"> 教會成員（請用 LINE 登入報名）
+                </label>
+            </div>
+        </div>
+
         <div class="section-title">外部朋友報名表</div>
 
         <!-- 姓名必填 -->
@@ -314,6 +326,13 @@
         }
 
         function submitExternal() {
+            // Block submission if user identified as a church member
+            const memberRadio = document.querySelector('input[name="guest_type"][value="member"]');
+            if (memberRadio && memberRadio.checked) {
+                showError('教會成員請點下方「返回」，使用 LINE 登入報名，以便正確記錄出席紀錄。');
+                return;
+            }
+
             const guestName = document.getElementById('guest-name').value.trim();
             if (!guestName) {
                 showError('請填寫姓名');

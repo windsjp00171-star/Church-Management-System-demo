@@ -25,6 +25,8 @@
         <span class="navbar-brand-text">{{ config.CHURCH_SHORT_NAME or config.CHURCH_NAME or '教會行政系統' }}</span>
     </a>
 
+    <div class="navbar-spacer"></div>
+
     <div class="navbar-user">
         {% if session.user_id or session.line_id %}
             <a href="/profile" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
@@ -33,6 +35,22 @@
                 {% endif %}
                 <span class="navbar-username">{{ session.real_name or '' }}</span>
             </a>
+            <!-- 🔔 通知鈴鐺 -->
+            <div class="notif-wrap" id="notifWrap">
+                <button class="notif-btn" id="notifBtn" onclick="toggleNotifPanel()" aria-label="通知">
+                    🔔
+                    <span class="notif-badge" id="notifBadge" style="display:none;">0</span>
+                </button>
+                <div class="notif-panel" id="notifPanel" style="display:none;">
+                    <div class="notif-header">
+                        <span>通知</span>
+                        <button onclick="markAllRead()" style="font-size:0.78rem;color:#1d4ed8;background:none;border:none;cursor:pointer;">全部已讀</button>
+                    </div>
+                    <div id="notifList" class="notif-list">
+                        <p style="text-align:center;color:#aaa;padding:20px;font-size:0.85rem;">載入中…</p>
+                    </div>
+                </div>
+            </div>
             <a href="/auth/logout" class="btn btn-sm btn-logout">登出</a>
         {% else %}
             <a href="/auth/login" class="btn btn-sm btn-primary">LINE 登入</a>
@@ -145,5 +163,109 @@ function openExternalBrowser() {
 </script>
 
 {% block extra_js %}{% endblock %}
+
+{% if session.user_id or session.line_id %}
+<style>
+.notif-wrap{position:relative;}
+.notif-btn{background:none;border:none;font-size:1.25rem;cursor:pointer;padding:4px 6px;position:relative;line-height:1;}
+.notif-badge{position:absolute;top:0;right:0;background:#e53e3e;color:#fff;font-size:0.65rem;font-weight:bold;
+  min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;}
+.notif-panel{position:absolute;right:0;top:calc(100% + 8px);width:300px;background:#fff;border-radius:12px;
+  box-shadow:0 8px 30px rgba(0,0,0,.15);z-index:9999;overflow:hidden;}
+.notif-header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;
+  border-bottom:1px solid #f0f0f0;font-weight:bold;font-size:0.9rem;}
+.notif-list{max-height:320px;overflow-y:auto;}
+.notif-item{padding:12px 16px;border-bottom:1px solid #f7f7f7;cursor:pointer;transition:background .15s;}
+.notif-item:hover{background:#f9fafb;}
+.notif-item.unread{background:#eff6ff;}
+.notif-item-title{font-size:0.88rem;font-weight:600;color:#1e293b;margin:0 0 2px;}
+.notif-item-body{font-size:0.8rem;color:#64748b;margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.notif-item-time{font-size:0.72rem;color:#94a3b8;}
+.notif-empty{text-align:center;color:#aaa;padding:24px;font-size:0.85rem;}
+</style>
+<script>
+var _notifOpen = false;
+
+function toggleNotifPanel() {
+    _notifOpen = !_notifOpen;
+    var panel = document.getElementById('notifPanel');
+    panel.style.display = _notifOpen ? 'block' : 'none';
+    if (_notifOpen) loadNotifications();
+}
+
+document.addEventListener('click', function(e) {
+    var wrap = document.getElementById('notifWrap');
+    if (wrap && !wrap.contains(e.target)) {
+        _notifOpen = false;
+        document.getElementById('notifPanel').style.display = 'none';
+    }
+});
+
+function loadNotifications() {
+    fetch('/api/notifications')
+        .then(function(r){ return r.json(); })
+        .then(function(d) {
+            var badge = document.getElementById('notifBadge');
+            if (d.unread > 0) {
+                badge.textContent = d.unread > 99 ? '99+' : d.unread;
+                badge.style.display = 'flex';
+            } else {
+                badge.style.display = 'none';
+            }
+            renderNotifications(d.notifications || []);
+        })
+        .catch(function(){});
+}
+
+function renderNotifications(items) {
+    var list = document.getElementById('notifList');
+    if (!items.length) {
+        list.innerHTML = '<p class="notif-empty">目前沒有通知</p>';
+        return;
+    }
+    list.innerHTML = items.map(function(n) {
+        var time = n.created_at ? n.created_at.slice(0,16).replace('T',' ') : '';
+        return '<div class="notif-item' + (n.is_read ? '' : ' unread') + '" ' +
+            'onclick="onNotifClick(\'' + n.id + '\',\'' + (n.link||'') + '\')">' +
+            '<p class="notif-item-title">' + escHtml(n.title||'') + '</p>' +
+            (n.body ? '<p class="notif-item-body">' + escHtml(n.body) + '</p>' : '') +
+            '<p class="notif-item-time">' + time + '</p>' +
+            '</div>';
+    }).join('');
+}
+
+function onNotifClick(id, link) {
+    fetch('/api/notifications/' + id + '/read', {method:'POST'}).catch(function(){});
+    if (link) { window.location.href = link; }
+    else { loadNotifications(); }
+}
+
+function markAllRead() {
+    fetch('/api/notifications/read-all', {method:'POST'})
+        .then(function(){ loadNotifications(); })
+        .catch(function(){});
+}
+
+function escHtml(s) {
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// 頁面載入時靜默更新未讀數
+(function(){
+    fetch('/api/notifications')
+        .then(function(r){ return r.json(); })
+        .then(function(d) {
+            if (d.unread > 0) {
+                var badge = document.getElementById('notifBadge');
+                if (badge) {
+                    badge.textContent = d.unread > 99 ? '99+' : d.unread;
+                    badge.style.display = 'flex';
+                }
+            }
+        })
+        .catch(function(){});
+})();
+</script>
+{% endif %}
 </body>
 </html>

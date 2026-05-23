@@ -630,7 +630,7 @@ window.addEventListener('DOMContentLoaded', initMealConfig);
 // ==========================================
 function submitForm() {
     const title = document.getElementById('title').value.trim();
-    if (!title) { alert('請填寫活動名稱！'); return; }
+    if (!title) { showToast('請填寫活動名稱', 'warning'); document.getElementById('title').focus(); return; }
 
     const fields = [];
     document.querySelectorAll('.field-row').forEach((row, index) => {
@@ -712,9 +712,9 @@ function submitForm() {
     }))
     .then(data => {
         if (data.success) window.location.href = '/admin/events';
-        else alert('建立失敗：' + (data.error || '未知錯誤'));
+        else showToast('建立失敗：' + (data.error || '未知錯誤'), 'error');
     })
-    .catch(err => alert('錯誤：' + err.message));
+    .catch(err => showToast('錯誤：' + err.message, 'error'));
 }
 
 // ==========================================
@@ -889,12 +889,12 @@ function uploadPoster(input) {
                 const ph = document.getElementById('poster-placeholder');
                 if (ph) ph.style.display = 'none';
             } else {
-                alert(data.error || '上傳失敗');
+                showToast(data.error || '上傳失敗', 'error');
             }
         })
         .catch(() => {
             uploading.style.display = 'none';
-            alert('上傳失敗，請重試');
+            showToast('上傳失敗，請重試', 'error');
         });
 }
 

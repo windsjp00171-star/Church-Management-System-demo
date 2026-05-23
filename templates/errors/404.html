@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}找不到頁面 — {{ church_name }}{% endblock %}
+{% block content %}
+<div style="display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:60vh; text-align:center; padding:40px 24px;">
+    <div style="font-size:4rem; margin-bottom:12px;">🗺</div>
+    <h1 style="font-size:1.5rem; font-weight:700; color:var(--color-text); margin:0 0 8px;">找不到這個頁面</h1>
+    <p style="color:var(--color-text-light); font-size:0.9rem; margin:0 0 28px; max-width:340px;">
+        您要找的頁面不存在或已被移除。請確認網址是否正確，或回到首頁重新開始。
+    </p>
+    <div style="display:flex; gap:12px; flex-wrap:wrap; justify-content:center;">
+        <a href="/" style="padding:10px 24px; background:var(--color-primary); color:#fff; border-radius:8px; text-decoration:none; font-weight:600; font-size:0.9rem;">
+            回到首頁
+        </a>
+        <a href="javascript:history.back()" style="padding:10px 24px; background:var(--color-surface); color:var(--color-text); border:1px solid var(--color-border); border-radius:8px; text-decoration:none; font-size:0.9rem;">
+            返回上一頁
+        </a>
+    </div>
+    <p style="margin-top:32px; font-size:0.78rem; color:var(--color-text-muted);">錯誤代碼 404</p>
+</div>
+{% endblock %}

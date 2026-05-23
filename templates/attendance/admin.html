@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+{% block title %}差勤管理{% endblock %}
+{% block content %}
+<div style="max-width:760px; margin:0 auto; padding:16px 16px 60px;">
+
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px; flex-wrap:wrap; gap:10px;">
+        <div>
+            <a href="/admin" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回後台</a>
+            <h2 style="margin:6px 0 2px;">📋 差勤管理</h2>
+        </div>
+        <button onclick="showAddStaff()"
+            style="padding:9px 18px; background:#1d4ed8; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+            ＋ 新增同工
+        </button>
+    </div>
+
+    <!-- 新增同工表單 -->
+    <div id="add-staff-form" style="display:none; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:20px; margin-bottom:24px;">
+        <p style="font-weight:bold; margin:0 0 14px;">新增同工資料</p>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
+            <div style="flex:2; min-width:160px;">
+                <label style="font-size:0.8rem; color:#555; display:block; margin-bottom:4px;">系統帳號（姓名搜尋）</label>
+                <input id="s-search" type="text" placeholder="輸入姓名搜尋..."
+                    style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;"
+                    oninput="searchStaff(this.value)">
+                <div id="s-results" style="display:none; border:1px solid #ddd; border-radius:7px; background:white; max-height:160px; overflow-y:auto; margin-top:2px;"></div>
+                <input id="s-user-id" type="hidden">
+                <p id="s-selected" style="font-size:0.82rem; color:#1d4ed8; margin:4px 0 0;"></p>
+            </div>
+            <div style="flex:1; min-width:130px;">
+                <label style="font-size:0.8rem; color:#555; display:block; margin-bottom:4px;">入職日期</label>
+                <input id="s-hire" type="date" style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+            </div>
+            <div style="flex:1; min-width:110px;">
+                <label style="font-size:0.8rem; color:#555; display:block; margin-bottom:4px;">計算制</label>
+                <select id="s-cycle" style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem;">
+                    <option value="anniversary">週年制</option>
+                    <option value="calendar">曆年制</option>
+                </select>
+            </div>
+        </div>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px;">
+            <div style="flex:1; min-width:140px;">
+                <label style="font-size:0.8rem; color:#555; display:block; margin-bottom:4px;">初始特休時數（系統上線前剩餘）</label>
+                <input id="s-leave" type="number" value="0" min="0" step="0.5"
+                    style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+            </div>
+            <div style="flex:1; min-width:140px;">
+                <label style="font-size:0.8rem; color:#555; display:block; margin-bottom:4px;">初始補休時數（系統上線前剩餘）</label>
+                <input id="s-comp" type="number" value="0" min="0" step="0.5"
+                    style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
+            </div>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <button onclick="submitAddStaff()"
+                style="padding:8px 20px; background:#1d4ed8; color:white; border:none; border-radius:7px; cursor:pointer; font-weight:bold;">新增</button>
+            <button onclick="document.getElementById('add-staff-form').style.display='none'"
+                style="padding:8px 14px; background:#f5f5f5; color:#666; border:none; border-radius:7px; cursor:pointer;">取消</button>
+        </div>
+    </div>
+
+    <!-- DB 缺失提示 -->
+    {% if not db_ok %}
+    <div style="background:#fef2f2; border:1px solid #fca5a5; border-radius:10px; padding:14px 18px; margin-bottom:20px; color:#991b1b; font-size:0.88rem;">
+        ⚠️ 差勤資料表尚未建立，請前往
+        <a href="/setup-wizard" style="color:#dc2626; font-weight:bold;">部署精靈</a>
+        確認資料庫狀態，或聯繫維運者執行 schema migration。
+    </div>
+    {% endif %}
+
+    <!-- 待審核 -->
+    {% if pending_leaves or pending_ot %}
+    <h3 style="font-size:0.9rem; color:#92400e; background:#fef3c7; padding:8px 14px; border-radius:8px; margin:0 0 14px; display:inline-block;">
+        ⏳ 待審核 {{ pending_leaves|length + pending_ot|length }} 筆
+    </h3>
+    {% endif %}
+
+    {% for r in pending_leaves %}
+    <div style="background:white; border-radius:12px; padding:16px 18px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.07); border-left:4px solid #f59e0b;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+            <div>
+                <span style="font-weight:bold;">{{ r._user.get('real_name') or r._user.get('display_name') or '（未知）' }}</span>
+                <span style="margin-left:8px; background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:10px; font-size:0.78rem;">請假</span>
+                <span style="margin-left:6px; font-size:0.88rem; color:#555;">{{ leave_labels[r.leave_type] }} · {{ r.hours }}小時</span>
+                <p style="margin:4px 0 0; font-size:0.83rem; color:#888;">{{ r.start_date }} ～ {{ r.end_date }}{% if r.reason %} · {{ r.reason }}{% endif %}</p>
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <input id="note-l-{{ r.id }}" type="text" placeholder="備注（選填）"
+                    style="padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.82rem; width:140px;">
+                <button onclick="review('leave','{{ r.id }}','approve')"
+                    style="padding:6px 14px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:bold;">核准</button>
+                <button onclick="review('leave','{{ r.id }}','reject')"
+                    style="padding:6px 12px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">駁回</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% for r in pending_ot %}
+    <div style="background:white; border-radius:12px; padding:16px 18px; margin-bottom:10px; box-shadow:0 1px 3px rgba(0,0,0,0.07); border-left:4px solid #8b5cf6;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
+            <div>
+                <span style="font-weight:bold;">{{ r._user.get('real_name') or r._user.get('display_name') or '（未知）' }}</span>
+                <span style="margin-left:8px; background:#f5f3ff; color:#6d28d9; padding:2px 8px; border-radius:10px; font-size:0.78rem;">加班</span>
+                <span style="margin-left:6px; font-size:0.88rem; color:#555;">{{ r.date }} · {{ r.hours }}小時</span>
+                {% if r.reason %}<p style="margin:4px 0 0; font-size:0.83rem; color:#888;">{{ r.reason }}</p>{% endif %}
+            </div>
+            <div style="display:flex; gap:6px; align-items:center;">
+                <input id="note-ot-{{ r.id }}" type="text" placeholder="備注（選填）"
+                    style="padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.82rem; width:140px;">
+                <button onclick="review('overtime','{{ r.id }}','approve')"
+                    style="padding:6px 14px; background:#16a34a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; font-weight:bold;">核准</button>
+                <button onclick="review('overtime','{{ r.id }}','reject')"
+                    style="padding:6px 12px; background:#ef4444; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">駁回</button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- 同工列表 -->
+    <h3 style="font-size:0.95rem; color:#555; margin:24px 0 12px;">同工列表</h3>
+    {% if profiles %}
+    <div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 1px 4px rgba(0,0,0,0.07);">
+    {% for p in profiles %}
+    <div style="padding:14px 18px; border-bottom:1px solid #f5f5f5; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+        <div>
+            <span style="font-weight:bold;">{{ p._user.get('real_name') or p._user.get('display_name') or '（未知）' }}</span>
+            <span style="font-size:0.82rem; color:#888; margin-left:10px;">入職 {{ p.hire_date }} · {{ '週年制' if p.leave_cycle == 'anniversary' else '曆年制' }}</span>
+        </div>
+        <a href="/admin/attendance/staff/{{ p.user_id }}"
+            style="font-size:0.82rem; color:#3b82f6; text-decoration:none;">查看明細 →</a>
+    </div>
+    {% endfor %}
+    </div>
+    {% else %}
+    <p style="color:#aaa; font-size:0.85rem;">尚未新增任何同工</p>
+    {% endif %}
+</div>
+
+<script>
+let _searchTimer = null;
+function showAddStaff() {
+    document.getElementById('add-staff-form').style.display = 'block';
+}
+function searchStaff(q) {
+    clearTimeout(_searchTimer);
+    const res = document.getElementById('s-results');
+    if (!q.trim()) { res.style.display = 'none'; return; }
+    _searchTimer = setTimeout(async () => {
+        const r = await fetch(`/admin/api/users/search-for-cell?q=${encodeURIComponent(q)}`);
+        const users = await r.json();
+        if (!users.length) {
+            res.innerHTML = '<p style="padding:10px 14px; color:#999; font-size:0.88rem; margin:0;">找不到</p>';
+        } else {
+            res.innerHTML = users.map(u => `
+                <div onclick="selectStaff('${u.id}','${u.name.replace(/'/g,"\\'")}') "
+                    style="padding:9px 14px; cursor:pointer; font-size:0.9rem; border-bottom:1px solid #f0f0f0;"
+                    onmouseover="this.style.background='#f0f9ff'" onmouseout="this.style.background='white'">
+                    ${u.name}
+                </div>`).join('');
+        }
+        res.style.display = 'block';
+    }, 280);
+}
+function selectStaff(id, name) {
+    document.getElementById('s-user-id').value = id;
+    document.getElementById('s-search').value = name;
+    document.getElementById('s-selected').textContent = '✓ 已選：' + name;
+    document.getElementById('s-results').style.display = 'none';
+}
+async function submitAddStaff() {
+    const userId = document.getElementById('s-user-id').value;
+    const hire   = document.getElementById('s-hire').value;
+    if (!userId || !hire) { showToast('請選擇帳號並填入職日期', 'error'); return; }
+    const r = await fetch('/admin/attendance/staff/new', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+            user_id: userId,
+            hire_date: hire,
+            leave_cycle: document.getElementById('s-cycle').value,
+            initial_leave_hours: parseFloat(document.getElementById('s-leave').value) || 0,
+            initial_comp_hours:  parseFloat(document.getElementById('s-comp').value) || 0,
+        })
+    });
+    const d = await r.json();
+    if (d.success) { showToast('✅ 新增成功', 'success'); setTimeout(() => location.reload(), 800); }
+    else showToast('❌ ' + (d.error || '新增失敗'), 'error');
+}
+async function review(type, id, action) {
+    const noteEl = document.getElementById(`note-${type === 'leave' ? 'l' : 'ot'}-${id}`);
+    const r = await fetch(`/admin/attendance/review/${type}/${id}`, {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action, note: noteEl ? noteEl.value.trim() : '' })
+    });
+    const d = await r.json();
+    if (d.success) {
+        showToast(action === 'approve' ? '✅ 已核准' : '已駁回', 'success');
+        setTimeout(() => location.reload(), 600);
+    } else showToast('❌ ' + (d.error || '操作失敗'), 'error');
+}
+</script>
+{% endblock %}

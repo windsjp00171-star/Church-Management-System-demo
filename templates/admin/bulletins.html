@@ -109,7 +109,7 @@ function deleteBulletin(id, btn) {
     if (!confirm('確定刪除這份週報？')) return;
     fetch(`/admin/bulletins/${id}/delete`, { method: 'POST' })
         .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else alert(d.error || '刪除失敗'); });
+        .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
 }
 </script>
 

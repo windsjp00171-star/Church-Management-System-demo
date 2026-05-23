@@ -13,7 +13,7 @@ def _get_card_names() -> dict:
         return _card_names_cache['data']
     try:
         from db import supabase as _sb
-        rows = _sb.table('portal_cards').select('key,name').execute().data or []
+        rows = _sb.table('portal_card_settings').select('key,name').not_.is_('name', 'null').execute().data or []
         names = {r['key']: r['name'] for r in rows}
         _card_names_cache['data'] = names
         _card_names_cache['ts'] = now
@@ -29,6 +29,18 @@ from routes.notifications import notifications_bp
 
 
 def create_app():
+    Config._validate()
+
+    if Config.SENTRY_DSN:
+        import sentry_sdk
+        from sentry_sdk.integrations.flask import FlaskIntegration
+        sentry_sdk.init(
+            dsn=Config.SENTRY_DSN,
+            integrations=[FlaskIntegration()],
+            traces_sample_rate=0.1,
+            send_default_pii=False,
+        )
+
     app = Flask(__name__)
     app.config.from_object(Config)
 
@@ -78,6 +90,26 @@ def create_app():
     # ── 整合模組：小組回報（cell_reporter）───────────────────
     from routes.cell_report import cell_report_bp
     app.register_blueprint(cell_report_bp)
+
+    # ── 同工首頁 ──────────────────────────────────────────────
+    from routes.staff import staff_bp
+    app.register_blueprint(staff_bp)
+
+    # ── 部署精靈 ──────────────────────────────────────────────
+    from routes.setup_wizard import setup_wizard_bp
+    app.register_blueprint(setup_wizard_bp)
+
+    # ── 更新日誌 ──────────────────────────────────────────────
+    from routes.changelog import changelog_bp
+    app.register_blueprint(changelog_bp)
+
+    # ── 差勤系統 ──────────────────────────────────────────────
+    from routes.attendance import attendance_bp
+    app.register_blueprint(attendance_bp)
+
+    # ── 資料匯出 / 匯入 ────────────────────────────────────────
+    from routes.data_transfer import data_transfer_bp
+    app.register_blueprint(data_transfer_bp)
 
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
@@ -173,6 +205,17 @@ def create_app():
             return str(s)[:16].replace('T', ' ')
 
     app.jinja_env.filters['taipei_time'] = _taipei_time
+
+    # ── 錯誤頁面 ──────────────────────────────────────────────
+    @app.errorhandler(404)
+    def not_found(e):
+        from flask import render_template as _rt
+        return _rt('errors/404.html'), 404
+
+    @app.errorhandler(500)
+    def server_error(e):
+        from flask import render_template as _rt
+        return _rt('errors/500.html'), 500
 
     # ── PWA manifest ─────────────────────────────────────────
     @app.route('/manifest.json')

@@ -180,7 +180,7 @@ function hideAddForm() { document.getElementById('add-form').style.display = 'no
 function submitAdd() {
     const title = document.getElementById('new-title').value.trim();
     const url = document.getElementById('new-url').value.trim();
-    if (!title || !url) { alert('請填寫標題和網址'); return; }
+    if (!title || !url) { showToast('請填寫標題和網址', 'warning'); return; }
     fetch('/admin/portal-links/new', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -194,7 +194,7 @@ function submitAdd() {
         })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '新增失敗');
+        else showToast(d.error || '新增失敗', 'error');
     });
 }
 
@@ -209,7 +209,7 @@ function cancelEdit(id) {
 function saveEdit(id) {
     const title = document.getElementById('e-title-' + id).value.trim();
     const url = document.getElementById('e-url-' + id).value.trim();
-    if (!title || !url) { alert('請填寫標題和網址'); return; }
+    if (!title || !url) { showToast('請填寫標題和網址', 'warning'); return; }
     fetch(`/admin/portal-links/${id}/edit`, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
@@ -224,14 +224,14 @@ function saveEdit(id) {
         })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 function deleteLink(id, name) {
     if (!confirm(`確定刪除「${name}」？`)) return;
     fetch(`/admin/portal-links/${id}/delete`, { method: 'POST' })
         .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else alert(d.error || '刪除失敗'); });
+        .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
 }
 </script>
 {% endblock %}

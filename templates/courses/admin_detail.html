@@ -204,7 +204,7 @@ function addSession() {
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '新增失敗');
+        else showToast(d.error || '新增失敗', 'error');
     });
 }
 
@@ -231,7 +231,7 @@ function saveSession(courseId, sessionId) {
         body: JSON.stringify({ session_number: num, title: title || null, scheduled_at: start || null, end_time: end || null })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 
@@ -312,7 +312,7 @@ function wlAdd(userId) {
         body: JSON.stringify({ user_id: userId })
     }).then(r => r.json()).then(d => {
         if (d.success) loadWhitelist();
-        else alert(d.error || '加入失敗');
+        else showToast(d.error || '加入失敗', 'error');
     });
 }
 
@@ -321,7 +321,7 @@ function wlRemove(userId, btn) {
     fetch(`/admin/api/whitelist/course/${WL_COURSE_ID}/${userId}/remove`, { method: 'POST' })
         .then(r => r.json()).then(d => {
             if (d.success) loadWhitelist();
-            else { alert(d.error || '移除失敗'); btn.disabled = false; }
+            else { showToast(d.error || '移除失敗', 'error'); btn.disabled = false; }
         });
 }
 

@@ -6,7 +6,7 @@
     <div>
         <a href="/admin/courses" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回課程管理</a>
         <h2 style="margin-top:6px;">🗂️ 學程管理</h2>
-        <p style="color:#888; font-size:0.85rem; margin-top:4px;">定義教會五大學程，課程掛上所屬學程，完訓後自動發放學程認證。</p>
+        <p style="color:#888; font-size:0.85rem; margin-top:4px;">定義教會的門訓學程類別，課程掛上所屬學程，完訓後自動發放認證。</p>
     </div>
     <button onclick="showAddForm()"
         style="padding:9px 20px; background:#06C755; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
@@ -124,7 +124,7 @@ function submitAdd() {
         })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '新增失敗');
+        else showToast(d.error || '新增失敗', 'error');
     });
 }
 function startEdit(id) {
@@ -150,7 +150,7 @@ function saveEdit(id) {
         })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 function deleteCategory(id, name) {
@@ -159,7 +159,7 @@ function deleteCategory(id, name) {
         .then(r => r.json())
         .then(d => {
             if (d.success) location.reload();
-            else alert(d.error || '刪除失敗');
+            else showToast(d.error || '刪除失敗', 'error');
         });
 }
 // Enter 送出

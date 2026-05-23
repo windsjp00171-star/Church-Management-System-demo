@@ -1,5 +1,175 @@
 {% extends 'base.html' %}
 {% block title %}檔案總覽 — 資料交換中心{% endblock %}
+
+{% block extra_css %}
+<style>
+/* ── 基礎變數對齊 ── */
+:root {
+  --f-primary: #06C755;
+  --f-primary-dark: #05a847;
+  --f-danger: #ef4444;
+  --f-warn: #f59e0b;
+  --f-radius: 12px;
+  --f-shadow: 0 1px 4px rgba(0,0,0,.08);
+}
+
+/* ── 頁首 ── */
+.page-header {
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+}
+.breadcrumb { display: flex; align-items: center; gap: 6px; font-size: .9rem; color: #555; }
+.breadcrumb a { color: var(--f-primary); text-decoration: none; font-weight: 600; }
+.header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* ── 按鈕（限定在 main 內，避免覆蓋 navbar）── */
+main .btn-primary {
+  padding: 9px 18px; background: var(--f-primary); color: #fff;
+  border: none; border-radius: 8px; font-size: .9rem; font-weight: 600;
+  cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+  transition: background .15s;
+}
+main .btn-primary:hover { background: var(--f-primary-dark); }
+main .btn-secondary {
+  padding: 8px 16px; background: #f5f5f5; color: #333;
+  border: 1px solid #e0e0e0; border-radius: 8px; font-size: .85rem; font-weight: 600;
+  cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
+}
+main .btn-secondary:hover { background: #eee; }
+main .btn-sm { padding: 5px 10px; border-radius: 6px; font-size: .8rem; font-weight: 600;
+  border: 1px solid #e0e0e0; background: #fafafa; cursor: pointer; white-space: nowrap; }
+main .btn-sm:hover { background: #f0f0f0; }
+main .btn-danger { background: #fff1f2 !important; color: var(--f-danger) !important;
+  border-color: #fecaca !important; }
+main .btn-danger:hover { background: #fee2e2 !important; }
+main .btn-share { background: #eff6ff !important; color: #1d4ed8 !important;
+  border-color: #bfdbfe !important; }
+main .btn-full { width: 100%; justify-content: center; }
+
+/* ── 儲存空間列 ── */
+.storage-bar-wrap { margin-bottom: 20px; }
+.storage-bar-track { height: 8px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+.storage-bar-fill { height: 100%; background: var(--f-primary); border-radius: 99px; transition: width .3s; }
+.storage-bar-fill.storage-warn { background: var(--f-warn); }
+.storage-bar-fill.storage-danger { background: var(--f-danger); }
+.storage-label { font-size: .78rem; color: #888; margin-top: 4px; display: block; }
+
+/* ── 區塊 ── */
+.section { margin-bottom: 24px; }
+.section-title { font-size: 1rem; font-weight: 700; color: #333; margin-bottom: 12px; }
+.files-section-header { display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 8px; margin-bottom: 10px; }
+.search-wrap { display: flex; gap: 6px; }
+.search-input { padding: 8px 12px; border: 1px solid #e0e0e0; border-radius: 8px;
+  font-size: .85rem; outline: none; min-width: 200px; }
+.search-input:focus { border-color: var(--f-primary); }
+
+/* ── 資料夾 ── */
+.folder-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.folder-card-wrap { position: relative; }
+.folder-card { display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 16px 12px; background: #fff; border: 1px solid #e8e8e8;
+  border-radius: var(--f-radius); text-decoration: none; transition: box-shadow .15s, transform .15s; }
+.folder-card:hover { box-shadow: var(--f-shadow); transform: translateY(-2px); }
+.folder-icon { font-size: 2rem; line-height: 1; }
+.folder-name { font-size: .85rem; font-weight: 600; color: #333; text-align: center; word-break: break-all; }
+.folder-meta { font-size: .72rem; color: #aaa; }
+.folder-delete-btn { position: absolute; top: 6px; right: 6px; padding: 2px 6px;
+  font-size: .72rem; border-radius: 4px; }
+
+/* ── 拖放提示 ── */
+.drop-zone-hint { padding: 20px; border: 2px dashed #e0e0e0; border-radius: var(--f-radius);
+  text-align: center; color: #aaa; font-size: .88rem; cursor: pointer; margin-bottom: 14px; }
+.drop-zone-hint:hover { border-color: var(--f-primary); color: var(--f-primary); }
+
+/* ── 檔案列表 ── */
+.file-list { display: flex; flex-direction: column; gap: 8px; }
+.file-item { display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: #fff; border: 1px solid #e8e8e8; border-radius: var(--f-radius);
+  transition: box-shadow .15s; }
+.file-item:hover { box-shadow: var(--f-shadow); }
+.file-thumb-col { width: 44px; flex-shrink: 0; }
+.file-thumb { width: 44px; height: 44px; object-fit: cover; border-radius: 6px; }
+.file-icon { font-size: 1.8rem; line-height: 1; }
+.file-main { flex: 1; min-width: 0; }
+.file-name { font-size: .9rem; font-weight: 600; color: #333;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.file-name.editable-name { cursor: pointer; }
+.file-name.editable-name:hover { color: var(--f-primary); text-decoration: underline; }
+.file-meta { font-size: .75rem; color: #aaa; margin-top: 3px; display: flex; gap: 8px; flex-wrap: wrap; }
+.file-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+/* ── 空狀態 ── */
+.empty-state { padding: 48px 24px; text-align: center; color: #aaa; font-size: .9rem;
+  background: #fff; border-radius: var(--f-radius); border: 1px dashed #e0e0e0; }
+.empty-note { font-size: .82rem; color: #aaa; margin: 4px 0; }
+
+/* ── Modal ── */
+.modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  z-index: 1000; justify-content: center; align-items: flex-end; }
+.modal.open { display: flex; }
+.modal-content { background: #fff; border-radius: 20px 20px 0 0; padding: 24px;
+  width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+  animation: slideUp .25s ease; }
+@media(min-width: 600px) {
+  .modal { align-items: center; }
+  .modal-content { border-radius: 16px; }
+}
+@keyframes slideUp { from { transform: translateY(60px); opacity: 0; } to { transform: none; opacity: 1; } }
+.modal-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; }
+.modal-header h3 { font-size: 1.05rem; font-weight: 700; margin: 0; }
+.modal-header button { background: none; border: none; font-size: 1.2rem; cursor: pointer; color: #888; padding: 2px 6px; }
+
+/* ── 表單 ── */
+.form-group { margin-bottom: 14px; }
+.form-group label { display: block; font-size: .82rem; font-weight: 600; color: #555; margin-bottom: 6px; }
+.form-group input[type=text], .form-group input[type=password], .form-group select {
+  width: 100%; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 8px;
+  font-size: .9rem; outline: none; box-sizing: border-box; }
+.form-group input:focus, .form-group select:focus { border-color: var(--f-primary); }
+.form-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 18px; }
+
+/* ── 使用者選擇器 ── */
+.user-picker { background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px; padding: 10px; }
+.user-list-scroll { max-height: 160px; overflow-y: auto; }
+.user-check-item { display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  font-size: .85rem; cursor: pointer; }
+.user-check-name { flex: 1; }
+.user-check-role { font-size: .75rem; color: #aaa; }
+
+/* ── 有效期選項 ── */
+.expires-options { display: flex; gap: 8px; flex-wrap: wrap; }
+.expires-btn { padding: 6px 14px; border: 1px solid #e0e0e0; border-radius: 20px;
+  cursor: pointer; font-size: .85rem; display: flex; align-items: center; gap: 5px; }
+.expires-btn:has(input:checked) { border-color: var(--f-primary); background: #f0fdf4; color: var(--f-primary); }
+.expires-btn input { display: none; }
+
+/* ── 分享連結 ── */
+.share-link-row { display: flex; gap: 8px; }
+.share-link-input { flex: 1; padding: 8px 10px; border: 1px solid #e0e0e0;
+  border-radius: 8px; font-size: .82rem; background: #fafafa; }
+.share-link-hint { font-size: .78rem; color: #aaa; margin-top: 6px; }
+
+/* ── 進度條 ── */
+.progress-track { height: 6px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+.progress-fill { height: 100%; background: var(--f-primary); border-radius: 99px; width: 0; transition: width .2s; }
+.progress-label { font-size: .78rem; color: #888; margin-top: 4px; display: block; }
+
+/* ── 批次上傳 ── */
+.batch-file-list { max-height: 180px; overflow-y: auto; margin-bottom: 12px; }
+.batch-overall-progress { margin-bottom: 14px; }
+
+/* ── 拖放覆蓋層 ── */
+.drop-overlay { position: fixed; inset: 0; background: rgba(6,199,85,.18);
+  display: flex; align-items: center; justify-content: center; z-index: 999;
+  border: 4px dashed var(--f-primary); }
+.drop-overlay-inner { text-align: center; }
+.drop-icon { font-size: 4rem; }
+.drop-text { font-size: 1.3rem; font-weight: 700; color: var(--f-primary-dark); }
+.drop-subtext { font-size: .9rem; color: #555; margin-top: 4px; }
+</style>
+{% endblock extra_css %}
+
 {% block content %}
 <div class="page-header">
   <div class="breadcrumb">
@@ -465,9 +635,23 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 const MAX_FILE_BYTES = 500 * 1024 * 1024;
+
+// ── Modal 開關 ──
+function openModal(id) {
+  var el = document.getElementById(id);
+  if (el) { el.style.display = 'flex'; document.body.style.overflow = 'hidden'; }
+}
+function closeModal(id) {
+  var el = document.getElementById(id);
+  if (el) { el.style.display = 'none'; document.body.style.overflow = ''; }
+}
+// 點 overlay 關閉
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('modal')) closeModal(e.target.id);
+});
 
 // ── 可見範圍切換 ──
 document.getElementById('uploadVisibility')?.addEventListener('change', function() {
@@ -512,7 +696,7 @@ function xhrUpload(url, formData, { progressBarId, progressLabelId, progressWrap
   if (wrap) wrap.style.display = 'block';
   if (btn) { btn.disabled = true; btn.textContent = '上傳中…'; }
 
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+  const csrfToken = (typeof _CSRF_TOKEN !== 'undefined') ? _CSRF_TOKEN : '';
   const xhr = new XMLHttpRequest();
   xhr.upload.addEventListener('progress', (e) => {
     if (!e.lengthComputable) return;
@@ -535,7 +719,7 @@ document.getElementById('uploadForm')?.addEventListener('submit', function(e) {
   e.preventDefault();
   const fileInput = document.getElementById('uploadFileInput');
   if (fileInput.files[0] && fileInput.files[0].size > MAX_FILE_BYTES) {
-    alert(`檔案超過 500 MB 上限（${formatSize(fileInput.files[0].size)}），請選擇較小的檔案`);
+    showToast(`檔案超過 500 MB，請選擇較小的檔案`, 'warning');
     return;
   }
   const form = new FormData(this);
@@ -547,14 +731,14 @@ document.getElementById('uploadForm')?.addEventListener('submit', function(e) {
     onSuccess: (data) => {
       if (data.success) { location.reload(); }
       else {
-        alert(data.error || '上傳失敗');
+        showToast(data.error || '上傳失敗', 'error');
         const btn = document.getElementById('uploadSubmitBtn');
         btn.disabled = false; btn.textContent = '上傳';
         document.getElementById('uploadProgressWrap').style.display = 'none';
       }
     },
     onError: (msg) => {
-      alert(msg);
+      showToast(msg, 'error');
       const btn = document.getElementById('uploadSubmitBtn');
       btn.disabled = false; btn.textContent = '上傳';
       document.getElementById('uploadProgressWrap').style.display = 'none';
@@ -568,7 +752,7 @@ document.getElementById('folderForm')?.addEventListener('submit', async function
   const res = await fetch('/folders/create', { method: 'POST', body: form });
   const data = await res.json();
   if (data.success) { location.reload(); }
-  else { alert(data.error || '建立失敗'); }
+  else { showToast(data.error || '建立失敗', 'error'); }
 });
 
 // ── 搜尋（Enter 提交伺服器搜尋）──
@@ -598,7 +782,7 @@ function startRename(el) {
     const res = await fetch(`/files/${fileId}/rename`, { method: 'POST', body: form });
     const data = await res.json();
     el.textContent = data.success ? newName : oldName;
-    if (!data.success) alert(data.error || '改名失敗');
+    if (!data.success) showToast(data.error || '改名失敗', 'error');
     // 更新搜尋 data-name
     el.closest('.file-item').dataset.name = (data.success ? newName : oldName).toLowerCase();
   }
@@ -661,7 +845,7 @@ if (_isLineBrowser) {
     if (lbl) {
       lbl.removeAttribute('for');
       lbl.onclick = () => {
-        alert('LINE 瀏覽器不支援直接開啟相機。\n請點右上角「⋯」→「用瀏覽器開啟」，再使用拍照功能。');
+        showToast('LINE 瀏覽器不支援直接開啟相機，請用外部瀏覽器', 'warning');
       };
     }
   });
@@ -729,14 +913,14 @@ function uploadPhoto() {
     onSuccess: (data) => {
       if (data.success) { closeModal('photoModal'); location.reload(); }
       else {
-        alert(data.error || '上傳失敗');
+        showToast(data.error || '上傳失敗', 'error');
         const btn = document.getElementById('photoUploadBtn');
         btn.disabled = false; btn.textContent = '↑ 上傳';
         document.getElementById('photoProgressWrap').style.display = 'none';
       }
     },
     onError: (msg) => {
-      alert(msg);
+      showToast(msg, 'error');
       const btn = document.getElementById('photoUploadBtn');
       btn.disabled = false; btn.textContent = '↑ 上傳';
       document.getElementById('photoProgressWrap').style.display = 'none';
@@ -760,7 +944,7 @@ function openBatchModal(files) {
   const oversized = files.filter(f => f.size > MAX_FILE_BYTES);
   if (oversized.length) {
     const names = oversized.map(f => `・${f.name}（${formatSize(f.size)}）`).join('\n');
-    alert(`以下檔案超過 500 MB 上限，已移除：\n${names}`);
+    showToast(`已移除 ${oversized.length} 個超過 500 MB 的檔案`, 'warning');
     files = files.filter(f => f.size <= MAX_FILE_BYTES);
     if (!files.length) return;
   }
@@ -814,7 +998,7 @@ function closeBatchModal() {
 async function startBatchUpload() {
   if (!batchFiles.length || batchUploading) return;
   const folderId = document.getElementById('batchFolderId').value;
-  if (folderId === '') { alert('請先選擇要上傳至哪個資料夾'); return; }
+  if (folderId === '') { showToast('請先選擇要上傳至哪個資料夾', 'warning'); return; }
   batchUploading = true;
   const btn = document.getElementById('batchUploadBtn');
   btn.disabled = true; btn.textContent = '上傳中…';

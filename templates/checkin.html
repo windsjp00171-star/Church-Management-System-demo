@@ -498,9 +498,10 @@ function showError(msg) {
 setTimeout(() => launchParty('{{ session.display_name | default("") | e }}'), 450);
 {% endif %}
 
-// ===== 同工代簽 =====
-{% if is_admin and event %}
+// ===== 同工 / 管理員 代簽 =====
+{% if (is_admin or is_staff) and event %}
 let proxyTimer = null;
+const IS_STAFF_MODE = {{ 'true' if (is_staff and not is_admin) else 'false' }};
 
 function toggleProxy() {
     const box = document.getElementById('proxy-box');
@@ -524,38 +525,42 @@ function proxySearch(q) {
             .then(r => r.json())
             .then(results => {
                 if (!Array.isArray(results) || !results.length) {
-                    el.innerHTML = '<p style="color:#888;font-size:0.9rem;margin:8px 0;">找不到符合的會友</p>';
+                    el.innerHTML = '<p style="color:#888;font-size:1rem;padding:12px 0;text-align:center;">找不到符合的人，請確認姓名</p>';
                     return;
                 }
                 el.innerHTML = results.map(p => `
-                    <div style="display:flex;align-items:center;gap:10px;padding:10px 12px;
-                                background:white;border-radius:10px;margin-bottom:6px;
-                                border:1px solid ${p.checked_in ? '#c8e6c9' : '#e0e0e0'};">
+                    <div style="display:flex;align-items:center;gap:12px;padding:14px 16px;
+                                background:white;border-radius:14px;margin-bottom:8px;
+                                border:2px solid ${p.checked_in ? '#a7f3d0' : '#e5e7eb'};">
                         ${p.picture_url
-                            ? `<img src="${p.picture_url}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
-                            : '<div style="width:36px;height:36px;border-radius:50%;background:#eee;flex-shrink:0;"></div>'}
-                        <div style="flex:1;font-weight:bold;font-size:0.95rem;">${escHtml(p.name)}</div>
+                            ? `<img src="${p.picture_url}" style="width:44px;height:44px;border-radius:50%;object-fit:cover;flex-shrink:0;">`
+                            : `<div style="width:44px;height:44px;border-radius:50%;background:#e5e7eb;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:1.2rem;">👤</div>`}
+                        <div style="flex:1;">
+                          <div style="font-weight:700;font-size:1.05rem;color:#111;">${escHtml(p.name)}</div>
+                          ${p.is_external ? '<div style="font-size:0.78rem;color:#9ca3af;">外部報名</div>' : ''}
+                        </div>
                         ${p.checked_in
-                            ? '<span style="color:#2e7d32;font-size:0.85rem;font-weight:bold;white-space:nowrap;">✅ 已簽到</span>'
+                            ? '<div style="text-align:center;flex-shrink:0;"><div style="font-size:1.5rem;">✅</div><div style="font-size:0.75rem;color:#16a34a;font-weight:600;">已簽到</div></div>'
                             : `<button onclick="doProxy('${p.user_id}', ${p.reg_id ? `'${p.reg_id}'` : 'null'}, this)"
-                                style="padding:7px 14px;background:#06C755;color:white;border:none;
-                                       border-radius:8px;cursor:pointer;font-size:0.85rem;font-weight:bold;white-space:nowrap;">
-                                代為簽到
+                                style="padding:12px 20px;background:#06C755;color:white;border:none;
+                                       border-radius:10px;cursor:pointer;font-size:1rem;font-weight:700;
+                                       flex-shrink:0;min-width:80px;">
+                                簽到
                                </button>`
                         }
                     </div>`).join('');
             })
             .catch(() => {
-                el.innerHTML = '<p style="color:#c62828;font-size:0.9rem;margin:8px 0;">搜尋失敗，請重試</p>';
+                el.innerHTML = '<p style="color:#dc2626;font-size:0.9rem;padding:12px 0;text-align:center;">搜尋失敗，請重試</p>';
             });
     }, 300);
 }
 
 function doProxy(userId, regId, btn) {
     btn.disabled = true;
-    btn.textContent = '簽到中...';
-    // 取出同一列的名字（用於動畫顯示被簽到者）
-    const nameEl = btn.closest('div[style]')?.querySelector('div[style*="font-weight:bold"]');
+    btn.textContent = '處理中...';
+    const row = btn.closest('div[style]');
+    const nameEl = row?.querySelector('div[style*="font-weight:700"]');
     const proxyName = nameEl ? nameEl.textContent.trim() : '';
     fetch(`/checkin/{{ event.id }}/{{ event.checkin_token }}/proxy`, {
         method: 'POST',
@@ -565,18 +570,29 @@ function doProxy(userId, regId, btn) {
     .then(r => r.json())
     .then(d => {
         if (d.success) {
-            btn.outerHTML = '<span style="color:#2e7d32;font-size:0.85rem;font-weight:bold;white-space:nowrap;">✅ 已簽到</span>';
+            btn.closest('div[style]').style.borderColor = '#a7f3d0';
+            btn.outerHTML = '<div style="text-align:center;flex-shrink:0;"><div style="font-size:1.5rem;">✅</div><div style="font-size:0.75rem;color:#16a34a;font-weight:600;">已簽到</div></div>';
             {% if event and event.party_animation %}launchParty(proxyName);{% endif %}
+            // 同工模式：0.8 秒後自動清空搜尋，準備下一位
+            if (IS_STAFF_MODE) {
+                setTimeout(() => {
+                    document.getElementById('proxy-input').value = '';
+                    document.getElementById('proxy-results').innerHTML = '';
+                    document.getElementById('proxy-input').focus();
+                }, 800);
+            }
         } else {
             btn.disabled = false;
-            btn.textContent = '代為簽到';
-            alert(d.error || '簽到失敗');
+            btn.textContent = '簽到';
+            const errEl = document.getElementById('proxy-error');
+            if (errEl) { errEl.textContent = d.error || '簽到失敗，請再試一次'; errEl.style.display = 'block'; setTimeout(() => errEl.style.display='none', 3000); }
         }
     })
     .catch(() => {
         btn.disabled = false;
-        btn.textContent = '代為簽到';
-        alert('網路錯誤，請重試');
+        btn.textContent = '簽到';
+        const errEl = document.getElementById('proxy-error');
+        if (errEl) { errEl.textContent = '網路錯誤，請重試'; errEl.style.display = 'block'; setTimeout(() => errEl.style.display='none', 3000); }
     });
 }
 
@@ -585,11 +601,40 @@ function escHtml(str) {
         .replace(/&/g,'&amp;').replace(/</g,'&lt;')
         .replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
+
+// 同工模式：頁面載入後自動聚焦搜尋框
+{% if is_staff and not is_admin %}
+window.addEventListener('DOMContentLoaded', () => {
+    const inp = document.getElementById('proxy-input');
+    if (inp) inp.focus();
+});
+{% endif %}
 {% endif %}
 </script>
 
-{% if is_admin and event %}
-<!-- 同工代簽區塊 -->
+{% if (is_admin or is_staff) and event %}
+{% if is_staff and not is_admin %}
+<!-- ── 同工門口模式：搜尋框為主介面 ── -->
+<div style="max-width:480px;width:100%;margin-top:0;">
+    <div style="background:#fff;border-radius:20px;padding:24px;box-shadow:0 4px 20px rgba(0,0,0,.1);">
+        <div style="font-size:1rem;font-weight:700;color:#374151;margin-bottom:4px;">📋 {{ event.title }}</div>
+        <div style="font-size:0.85rem;color:#9ca3af;margin-bottom:20px;">門口簽到模式 — 輸入姓名幫人完成簽到</div>
+        <input id="proxy-input" type="text" placeholder="輸入姓名…"
+            oninput="proxySearch(this.value)"
+            autocomplete="off" autocorrect="off" spellcheck="false"
+            style="width:100%;padding:16px 18px;border:2px solid #d1d5db;border-radius:14px;
+                   font-size:1.2rem;outline:none;color:#111;
+                   -webkit-appearance:none;appearance:none;background:white;"
+            onfocus="this.style.borderColor='#06C755'" onblur="this.style.borderColor='#d1d5db'">
+        <div id="proxy-error" style="display:none;color:#dc2626;font-size:0.9rem;margin-top:8px;padding:8px 12px;background:#fef2f2;border-radius:8px;"></div>
+        <div id="proxy-results" style="margin-top:12px;"></div>
+        <div style="margin-top:20px;padding-top:16px;border-top:1px solid #f3f4f6;font-size:0.8rem;color:#9ca3af;text-align:center;">
+            <a href="/staff" style="color:#6b7280;text-decoration:none;">← 回同工首頁</a>
+        </div>
+    </div>
+</div>
+{% else %}
+<!-- ── 管理員：保留原有收合式設計 ── -->
 <div style="max-width:420px;width:100%;margin-top:16px;">
     <button id="proxy-toggle" onclick="toggleProxy()"
         style="width:100%;padding:12px;background:#fff3e0;color:#e65100;
@@ -611,9 +656,11 @@ function escHtml(str) {
                 搜尋
             </button>
         </div>
+        <div id="proxy-error" style="display:none;color:#dc2626;font-size:0.85rem;margin-top:6px;"></div>
         <div id="proxy-results" style="margin-top:10px;"></div>
     </div>
 </div>
+{% endif %}
 {% endif %}
 
 </body>

@@ -250,7 +250,7 @@ async function submitForm() {
         is_active:     document.getElementById('f-active').checked,
     };
     if (!body.youtube_url || !body.display_start || !body.display_end) {
-        alert('請填寫 YouTube 連結與顯示日期區間');
+        showToast('請填寫 YouTube 連結與顯示日期區間', 'warning');
         return;
     }
     const url = id
@@ -264,11 +264,11 @@ async function submitForm() {
         });
         const text = await res.text();
         let d;
-        try { d = JSON.parse(text); } catch { alert('伺服器回應非 JSON：' + text.slice(0, 200)); return; }
+        try { d = JSON.parse(text); } catch { showToast('伺服器錯誤，請再試', 'error'); return; }
         if (d.success) location.reload();
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     } catch (e) {
-        alert('網路錯誤：' + e.message);
+        showToast('網路錯誤，請再試', 'error');
     }
 }
 
@@ -279,7 +279,7 @@ async function deleteItem(id) {
     });
     const d = await res.json();
     if (d.success) location.reload();
-    else alert('刪除失敗');
+    else showToast('刪除失敗', 'error');
 }
 </script>
 

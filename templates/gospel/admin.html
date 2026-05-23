@@ -17,9 +17,14 @@
         <a href="/admin/gospel/cards"
             style="padding:9px 18px; background:#f3e5f5; color:#6a1b9a; border:1px solid #ce93d8;
                    border-radius:8px; text-decoration:none; font-size:0.88rem; font-weight:600;">
-            📝 管理卡片內容
+            📝 管理翻卡內容
         </a>
         {% endif %}
+        <a href="/admin/gospel/form-questions"
+            style="padding:9px 18px; background:#e8f5e9; color:#2e7d32; border:1px solid #a5d6a7;
+                   border-radius:8px; text-decoration:none; font-size:0.88rem; font-weight:600;">
+            📋 自訂表單問題
+        </a>
     </div>
 </div>
 
@@ -77,6 +82,13 @@
             {% if inq.message %}
             <div style="font-size:0.88rem; color:#666; background:#f9f9f9; padding:8px 12px; border-radius:8px; margin-top:8px; line-height:1.6;">
                 💬 {{ inq.message }}
+            </div>
+            {% endif %}
+            {% if inq.extra_answers %}
+            <div style="font-size:0.85rem; color:#555; background:#f0f4ff; border-radius:8px; padding:10px 12px; margin-top:8px; line-height:1.8;">
+                {% for k, v in inq.extra_answers.items() %}
+                <div><strong style="color:#3949ab;">{{ k[:40] }}</strong>：{{ v }}</div>
+                {% endfor %}
             </div>
             {% endif %}
             <div style="font-size:0.75rem; color:#bbb; margin-top:8px;">
@@ -168,7 +180,7 @@ function updateStatus(id, status) {
         body: JSON.stringify({ status })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '更新失敗');
+        else showToast(d.error || '更新失敗', 'error');
     });
 }
 
@@ -178,7 +190,7 @@ function assignLeader(id, assigned_to) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ assigned_to })
     }).then(r => r.json()).then(d => {
-        if (!d.success) alert(d.error || '指派失敗');
+        if (!d.success) showToast(d.error || '指派失敗', 'error');
     });
 }
 
@@ -204,7 +216,7 @@ function saveNotes() {
         body: JSON.stringify({ notes })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '儲存失敗');
+        else showToast(d.error || '儲存失敗', 'error');
     });
 }
 
@@ -213,7 +225,7 @@ function deleteInquiry(id) {
     fetch(`/admin/gospel/${id}/delete`, { method: 'POST' })
         .then(r => r.json()).then(d => {
             if (d.success) document.getElementById('inq-' + id).remove();
-            else alert(d.error || '刪除失敗');
+            else showToast(d.error || '刪除失敗', 'error');
         });
 }
 

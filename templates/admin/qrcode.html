@@ -120,7 +120,7 @@ const qrFull = new QRCode(document.getElementById('qrcode-fullscreen'), {
 // 下載 QR Code 圖片
 function downloadQR() {
     const canvas = document.querySelector('#qrcode canvas');
-    if (!canvas) { alert('QR Code 尚未產生，請稍後再試'); return; }
+    if (!canvas) { showToast('QR Code 尚未產生，請稍後再試', 'error'); return; }
     const link = document.createElement('a');
     link.download = '簽到QRCode_{{ event.title }}.png';
     link.href = canvas.toDataURL('image/png');
@@ -132,7 +132,7 @@ function copyUrl() {
     const input = document.getElementById('checkin-url');
     input.select();
     document.execCommand('copy');
-    alert('連結已複製！');
+    showToast('連結已複製！', 'error');
 }
 
 // 全螢幕投影

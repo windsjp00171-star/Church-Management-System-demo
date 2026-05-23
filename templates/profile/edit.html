@@ -8,7 +8,7 @@
         <a href="/" style="color:#888; font-size:0.9rem; text-decoration:none;">← 返回首頁</a>
     </div>
 
-    <div style="background:white; border-radius:16px; padding:28px; box-shadow:0 2px 16px rgba(0,0,0,0.08);">
+    <div class="card" style="padding:28px;">
 
         <!-- LINE 頭像 + 暱稱（唯讀） -->
         <div style="display:flex; align-items:center; gap:14px; padding-bottom:20px; margin-bottom:20px; border-bottom:1px solid #f0f0f0;">
@@ -21,6 +21,7 @@
             </div>
         </div>
 
+        <!-- 真實姓名 -->
         <div style="margin-bottom:20px;">
             <label style="font-weight:bold; display:block; margin-bottom:6px;">
                 真實姓名 <span style="color:#c62828;">*</span>
@@ -30,14 +31,12 @@
                        font-size:1rem; box-sizing:border-box;">
         </div>
 
+        <!-- 服事團隊標籤（原 groups 表，純服事角色） -->
+        {% if groups %}
         <div style="margin-bottom:28px;">
-            {% set primary_groups = groups | selectattr('is_primary', 'ne', false) | list %}
-            {% set secondary_groups = groups | selectattr('is_primary', 'equalto', false) | list %}
-
-            {% if primary_groups %}
-            <label style="font-weight:bold; display:block; margin-bottom:8px;">所屬服事團隊</label>
-            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
-                {% for g in primary_groups %}
+            <label style="font-weight:bold; display:block; margin-bottom:8px;">服事團隊（選填）</label>
+            <div style="display:flex; flex-wrap:wrap; gap:8px;">
+                {% for g in groups %}
                 {% set selected = user.group_tags and g.name in user.group_tags %}
                 <label style="display:flex; align-items:center; gap:6px; padding:7px 14px;
                               border:1px solid {{ '#06C755' if selected else '#ddd' }}; border-radius:20px;
@@ -51,43 +50,66 @@
                 </label>
                 {% endfor %}
             </div>
-            {% endif %}
-
-            {% if secondary_groups %}
-            <label style="font-weight:600; display:block; margin-bottom:8px; color:#888; font-size:0.88rem;">服事團隊（選填）</label>
-            <div style="display:flex; flex-wrap:wrap; gap:8px;">
-                {% for g in secondary_groups %}
-                {% set selected = user.group_tags and g.name in user.group_tags %}
-                <label style="display:flex; align-items:center; gap:6px; padding:6px 12px;
-                              border:1px solid {{ '#f0a500' if selected else '#ddd' }}; border-radius:20px;
-                              cursor:pointer; font-size:0.85rem; font-weight:{{ 'bold' if selected else 'normal' }};
-                              background:{{ '#fff8e1' if selected else 'white' }};
-                              color:{{ '#e65100' if selected else '#888' }};"
-                    onclick="toggleTag(this, true)">
-                    <input type="checkbox" name="group_tag" value="{{ g.name }}"
-                        {{ 'checked' if selected else '' }} style="display:none;">
-                    {{ g.name }}
-                </label>
-                {% endfor %}
-            </div>
-            {% endif %}
-
-            {% if not groups %}
-            <p style="color:#aaa; font-size:0.85rem;">尚未設定小組，請聯絡管理員</p>
-            {% endif %}
         </div>
+        {% endif %}
 
         <button onclick="saveProfile()"
             style="width:100%; padding:14px; background:#06C755; color:white; border:none;
                    border-radius:10px; font-size:1.05rem; font-weight:bold; cursor:pointer;">
             儲存
         </button>
-        <p id="save-msg" style="text-align:center; color:#06C755; margin-top:12px; display:none;">✅ 已儲存！</p>
+    </div>
+
+    <!-- 牧養小組 -->
+    <div class="card" style="padding:28px; margin-top:16px;">
+        <h3 style="margin:0 0 6px; font-size:1rem;">🏠 我的牧養小組</h3>
+        <p style="color:#888; font-size:0.85rem; margin:0 0 16px;">選擇後需管理員確認，確認後正式加入。</p>
+
+        {% if my_cell_group_id %}
+            {% set my_group = cell_groups | selectattr('id', 'equalto', my_cell_group_id) | first %}
+            {% if my_cell_confirmed %}
+            <div style="display:flex; align-items:center; gap:10px; background:#f0fdf4; padding:14px 16px; border-radius:10px; margin-bottom:16px;">
+                <span style="font-size:1.2rem;">✅</span>
+                <div>
+                    <p style="margin:0; font-weight:bold; color:#166534;">{{ my_group.name if my_group else '（已刪除小組）' }}</p>
+                    <p style="margin:2px 0 0; font-size:0.82rem; color:#16a34a;">已確認加入</p>
+                </div>
+            </div>
+            {% else %}
+            <div style="display:flex; align-items:center; gap:10px; background:#fffbeb; padding:14px 16px; border-radius:10px; margin-bottom:16px; border:1px solid #fde68a;">
+                <span style="font-size:1.2rem;">⏳</span>
+                <div>
+                    <p style="margin:0; font-weight:bold; color:#92400e;">{{ my_group.name if my_group else '（已刪除小組）' }}</p>
+                    <p style="margin:2px 0 0; font-size:0.82rem; color:#b45309;">申請中，等待管理員確認</p>
+                </div>
+            </div>
+            {% endif %}
+            <p style="font-size:0.83rem; color:#aaa; margin:0;">若需更換小組，請聯絡管理員。</p>
+        {% else %}
+            {% if cell_groups %}
+            <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end;">
+                <select id="cell-group-select"
+                    style="flex:1; min-width:180px; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+                    <option value="">— 選擇牧養小組 —</option>
+                    {% for cg in cell_groups %}
+                    <option value="{{ cg.id }}">{{ cg.name }}</option>
+                    {% endfor %}
+                </select>
+                <button onclick="requestCellGroup()"
+                    style="padding:10px 20px; background:#1d4ed8; color:white; border:none; border-radius:8px; font-size:0.95rem; font-weight:bold; cursor:pointer; white-space:nowrap;">
+                    申請加入
+                </button>
+            </div>
+            <p style="font-size:0.82rem; color:#aaa; margin:10px 0 0;">申請後管理員審核確認後正式加入。</p>
+            {% else %}
+            <p style="color:#aaa; font-size:0.85rem;">目前沒有可加入的小組，請聯絡管理員。</p>
+            {% endif %}
+        {% endif %}
     </div>
 
     <!-- 天父日記授權設定 -->
     {% if pastors %}
-    <div style="background:white; border-radius:16px; padding:28px; box-shadow:0 2px 16px rgba(0,0,0,0.08); margin-top:16px;">
+    <div class="card" style="padding:28px; margin-top:16px;">
         <h3 style="margin:0 0 8px; font-size:1rem;">🔐 天父日記查閱授權</h3>
         <p style="color:#888; font-size:0.85rem; margin:0 0 16px;">授權後，對方可查閱你的靈修記錄。</p>
 
@@ -102,7 +124,7 @@
             </select>
             <button type="submit" name="action" value="grant"
                 style="padding:10px 18px; background:#06C755; color:white; border:none; border-radius:8px; font-size:0.9rem; cursor:pointer;"
-                onclick="var sel=this.form.querySelector('select');if(!sel.value){alert('請先選擇對象');return false;}return confirm('確定授權嗎？')">
+                onclick="var sel=this.form.querySelector('select');if(!sel.value){showToast('❌ 請先選擇對象', 'error');return false;}return confirm('確定授權嗎？')">
                 授權
             </button>
         </form>
@@ -126,33 +148,23 @@
             {% endfor %}
         </div>
         {% endif %}
-
-        {% if not pastors %}
-        <p style="color:#aaa; font-size:0.85rem;">目前沒有可授權的牧者或小組長。</p>
-        {% endif %}
     </div>
     {% endif %}
 </div>
 
 <script>
-function toggleTag(el, isSecondary) {
+function toggleTag(el) {
     const cb = el.querySelector('input');
     cb.checked = !cb.checked;
-    if (isSecondary) {
-        el.style.background = cb.checked ? '#fff8e1' : 'white';
-        el.style.borderColor = cb.checked ? '#f0a500' : '#ddd';
-        el.style.color = cb.checked ? '#e65100' : '#888';
-    } else {
-        el.style.background = cb.checked ? '#e8f5e9' : 'white';
-        el.style.borderColor = cb.checked ? '#06C755' : '#ddd';
-        el.style.color = cb.checked ? '#2e7d32' : '#333';
-    }
-    el.style.fontWeight = cb.checked ? 'bold' : 'normal';
+    el.style.background   = cb.checked ? '#e8f5e9' : 'white';
+    el.style.borderColor  = cb.checked ? '#06C755' : '#ddd';
+    el.style.color        = cb.checked ? '#2e7d32' : '#333';
+    el.style.fontWeight   = cb.checked ? 'bold' : 'normal';
 }
 
 function saveProfile() {
     const name = document.getElementById('f-name').value.trim();
-    if (!name) { alert('請填寫真實姓名'); return; }
+    if (!name) { showToast('❌ 請填寫真實姓名', 'error'); return; }
     const group_tags = [...document.querySelectorAll('[name="group_tag"]:checked')].map(c => c.value);
     fetch('/profile', {
         method: 'POST',
@@ -161,11 +173,33 @@ function saveProfile() {
     })
     .then(r => r.json())
     .then(d => {
+        if (d.success) showToast('✅ 個人資料已儲存！', 'success');
+        else showToast('❌ ' + (d.error || '儲存失敗'), 'error');
+    });
+}
+
+function requestCellGroup() {
+    const sel = document.getElementById('cell-group-select');
+    if (!sel || !sel.value) { showToast('❌ 請先選擇小組', 'error'); return; }
+    fetch('/profile', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ action: 'request_cell_group', cell_group_id: sel.value })
+    })
+    .then(r => {
+        if (!r.ok) throw new Error('伺服器錯誤 ' + r.status);
+        return r.json();
+    })
+    .then(d => {
         if (d.success) {
-            const msg = document.getElementById('save-msg');
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 3000);
-        } else alert(d.error || '儲存失敗');
+            showToast('✅ ' + (d.message || '申請已送出'), 'success');
+            setTimeout(() => location.reload(), 1200);
+        } else {
+            showToast('❌ ' + (d.error || '申請失敗'), 'error');
+        }
+    })
+    .catch(err => {
+        showToast('❌ 申請失敗：' + err.message, 'error');
     });
 }
 </script>

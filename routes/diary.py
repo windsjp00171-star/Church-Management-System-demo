@@ -4,8 +4,9 @@
 url_prefix="/diary"（/api/diary/... 路由獨立列出）
 """
 import os
+import io
 import json
-import secrets
+import time
 from datetime import date, datetime, timezone, timedelta
 from calendar import monthrange
 from typing import Any, Dict, List, Optional, Tuple
@@ -45,7 +46,9 @@ _INTRO_CACHE: Dict[str, str] = {}
 # 讀經進度快取
 # =========================
 _PLAN_CACHE: Optional[Dict[str, Dict[str, str]]] = None
-_PLAN_MTIME: Optional[float] = None
+_PLAN_CACHE_TS: float = 0.0   # DB cache 時間戳
+_PLAN_MTIME: Optional[float] = None  # xlsx mtime fallback
+_PLAN_CACHE_TTL = 300  # 5 分鐘
 
 # =========================
 # 時區
@@ -116,8 +119,35 @@ def _is_diary_admin(line_user_id: str) -> bool:
     return line_user_id in admin_ids
 
 
+def _invalidate_plan_cache() -> None:
+    global _PLAN_CACHE, _PLAN_CACHE_TS, _PLAN_MTIME
+    _PLAN_CACHE = None
+    _PLAN_CACHE_TS = 0.0
+    _PLAN_MTIME = None
+
+
 def load_plan_map() -> Dict[str, Dict[str, str]]:
-    global _PLAN_CACHE, _PLAN_MTIME
+    global _PLAN_CACHE, _PLAN_CACHE_TS, _PLAN_MTIME
+    now = time.time()
+
+    # 1. 嘗試從 DB 讀取（有 TTL 快取）
+    if sb:
+        if _PLAN_CACHE is not None and (now - _PLAN_CACHE_TS) < _PLAN_CACHE_TTL:
+            return _PLAN_CACHE
+        try:
+            rows = sb.table('diary_plan').select('date,book,range').execute().data or []
+            if rows:
+                out: Dict[str, Dict[str, str]] = {
+                    str(r['date'])[:10]: {'book': r['book'], 'range': r['range']}
+                    for r in rows
+                }
+                _PLAN_CACHE = out
+                _PLAN_CACHE_TS = now
+                return _PLAN_CACHE
+        except Exception:
+            pass
+
+    # 2. Fallback: 讀 xlsx（DB 是空的時候）
     if not os.path.exists(PLAN_PATH):
         return {}
     mtime = os.path.getmtime(PLAN_PATH)
@@ -126,7 +156,7 @@ def load_plan_map() -> Dict[str, Dict[str, str]]:
     try:
         import pandas as pd
         df = pd.read_excel(PLAN_PATH)
-        out: Dict[str, Dict[str, str]] = {}
+        out = {}
         for _, r in df.iterrows():
             d = str(r['date'])[:10]
             out[d] = {
@@ -265,26 +295,29 @@ def sb_list_pastors() -> List[Dict[str, Any]]:
     # is_pastor=True 的人
     pastor_res = (
         sb.table('users')
-        .select('line_user_id,display_name,picture_url,is_pastor')
+        .select('line_id,display_name,picture_url,is_pastor')
         .eq('is_pastor', True)
         .execute()
     )
-    pastor_ids = {r['line_user_id'] for r in (pastor_res.data or [])}
+    pastor_ids = {r['line_id'] for r in (pastor_res.data or []) if r.get('line_id')}
     # 小組長
     leader_res = sb.table('cell_group_leaders').select('user_id').execute()
     leader_user_ids = [r['user_id'] for r in (leader_res.data or [])]
     if leader_user_ids:
         leader_users = (
             sb.table('users')
-            .select('line_user_id,display_name,picture_url,is_pastor')
+            .select('line_id,display_name,picture_url,is_pastor')
             .in_('id', leader_user_ids)
             .execute()
         )
         for u in (leader_users.data or []):
-            if u['line_user_id'] not in pastor_ids:
-                pastor_ids.add(u['line_user_id'])
+            if u.get('line_id') and u['line_id'] not in pastor_ids:
+                pastor_ids.add(u['line_id'])
                 pastor_res.data.append(u)
-    result = [r for r in (pastor_res.data or []) if r['line_user_id'] in pastor_ids]
+    result = [r for r in (pastor_res.data or []) if r.get('line_id') in pastor_ids]
+    # 統一欄位名稱供 template 使用
+    for r in result:
+        r.setdefault('line_user_id', r.get('line_id', ''))
     result.sort(key=lambda x: x.get('display_name', ''))
     return result
 
@@ -294,12 +327,15 @@ def sb_list_users(limit: int = 500) -> List[Dict[str, Any]]:
         return []
     res = (
         sb.table('users')
-        .select('line_user_id,display_name,picture_url,created_at')
+        .select('line_id,display_name,picture_url,created_at')
         .order('created_at', desc=True)
         .limit(limit)
         .execute()
     )
-    return list(res.data or [])
+    rows = list(res.data or [])
+    for r in rows:
+        r.setdefault('line_user_id', r.get('line_id', ''))
+    return rows
 
 
 def sb_set_pastor_whitelist(line_user_id: str, display_name: str, picture_url: str, active: bool) -> None:
@@ -307,7 +343,7 @@ def sb_set_pastor_whitelist(line_user_id: str, display_name: str, picture_url: s
     if not sb:
         return
     sb.table('users').update({'is_pastor': bool(active)})\
-        .eq('line_user_id', line_user_id)\
+        .eq('line_id', line_user_id)\
         .execute()
 
 
@@ -703,6 +739,28 @@ def pastor_view(owner_uid: str):
     )
 
 
+def _plan_stats(plan_map: Dict) -> Dict:
+    """計算進度統計摘要。"""
+    today = _today_str()
+    if not plan_map:
+        return {'min_date': None, 'max_date': None, 'total': 0,
+                'today_plan': None, 'days_left': None}
+    dates = sorted(plan_map.keys())
+    max_date = dates[-1]
+    today_plan = plan_map.get(today)
+    try:
+        days_left = (_parse_date(max_date) - _today_tw()).days
+    except Exception:
+        days_left = None
+    return {
+        'min_date': dates[0],
+        'max_date': max_date,
+        'total': len(dates),
+        'today_plan': today_plan,
+        'days_left': days_left,
+    }
+
+
 @diary_bp.get('/diary/admin')
 def admin():
     if not _require_login():
@@ -714,60 +772,131 @@ def admin():
         flash('你沒有後台權限', 'error')
         return redirect(url_for('diary.index'))
 
-    users = sb_list_users(limit=500)
-    pastors = sb_list_pastors()
+    plan_map = load_plan_map()
+    stats    = _plan_stats(plan_map)
+
+    # 顯示最近 90 天（今日前後）的條目，方便快速預覽和編輯
+    today = _today_str()
+    today_dt = _today_tw()
+    show_from = (today_dt - timedelta(days=7)).isoformat()
+    show_to   = (today_dt + timedelta(days=90)).isoformat()
+    upcoming  = [
+        {'date': d, 'book': v['book'], 'range': v['range']}
+        for d, v in sorted(plan_map.items())
+        if show_from <= d <= show_to
+    ]
+
+    pastors   = sb_list_pastors()
     pastor_ids = {p['line_user_id']: True for p in pastors}
+    all_users  = sb_list_users(limit=500)
+    # 白名單顯示用：合併 real_name
+    user_map = {u['line_user_id']: u for u in all_users}
 
     return render_template(
         'diary/admin.html',
         display_name=_safe_display_name(user),
-        users=users,
+        stats=stats,
+        upcoming=upcoming,
+        today=today,
+        bible_books=list(BIBLE.keys()),
+        pastors=pastors,
         pastor_ids=pastor_ids,
+        all_users=all_users,
+        user_map=user_map,
     )
 
 
-@diary_bp.post('/diary/admin/update_whitelist')
-def admin_update_whitelist():
+@diary_bp.post('/diary/admin/plan/save')
+def admin_plan_save():
+    """新增或更新單筆進度（KEY IN 用）。"""
+    if not _require_login():
+        return jsonify({'error': '請先登入'}), 401
+    user = _get_user()
+    if not _is_diary_admin(user.get('line_user_id', '')):
+        return jsonify({'error': '無權限'}), 403
+
+    data  = request.get_json() or {}
+    d     = (data.get('date') or '').strip()
+    book  = (data.get('book') or '').strip()
+    rng   = (data.get('range') or '').strip()
+    if not d or not book or not rng:
+        return jsonify({'error': '日期、書卷、章節範圍皆必填'}), 400
+
+    try:
+        sb.table('diary_plan').upsert(
+            {'date': d, 'book': book, 'range': rng, 'updated_at': 'now()'},
+            on_conflict='date'
+        ).execute()
+        _invalidate_plan_cache()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@diary_bp.post('/diary/admin/plan/delete')
+def admin_plan_delete():
+    """刪除單筆進度。"""
+    if not _require_login():
+        return jsonify({'error': '請先登入'}), 401
+    user = _get_user()
+    if not _is_diary_admin(user.get('line_user_id', '')):
+        return jsonify({'error': '無權限'}), 403
+
+    data = request.get_json() or {}
+    d    = (data.get('date') or '').strip()
+    if not d:
+        return jsonify({'error': '缺少日期'}), 400
+    try:
+        sb.table('diary_plan').delete().eq('date', d).execute()
+        _invalidate_plan_cache()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@diary_bp.get('/diary/admin/plan/download')
+def admin_plan_download():
+    """把目前 DB 進度表匯出成 xlsx。"""
+    if not _require_login():
+        return redirect(url_for('auth.login_page'))
+    user = _get_user()
+    if not _is_diary_admin(user.get('line_user_id', '')):
+        return redirect(url_for('diary.index'))
+
+    import pandas as pd
+    plan_map = load_plan_map()
+    rows = [{'date': d, 'book': v['book'], 'range': v['range']}
+            for d, v in sorted(plan_map.items())]
+    df = pd.DataFrame(rows, columns=['date', 'book', 'range'])
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='plan')
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, as_attachment=True,
+                     download_name='diary_plan.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
+
+@diary_bp.get('/diary/admin/plan/template')
+def admin_plan_template():
+    """下載空白範本 xlsx。"""
     if not _require_login():
         return redirect(url_for('auth.login_page'))
 
-    user = _get_user()
-    uid = user.get('line_user_id', '')
-    if not _is_diary_admin(uid):
-        flash('你沒有後台權限', 'error')
-        return redirect(url_for('diary.index'))
-
-    target_uid = (request.form.get('target_uid') or '').strip()
-    action = (request.form.get('action') or '').strip()
-
-    if not target_uid:
-        flash('缺少 target_uid', 'error')
-        return redirect(url_for('diary.admin'))
-
-    if not sb:
-        flash('資料庫連線異常', 'error')
-        return redirect(url_for('diary.admin'))
-
-    prof = (
-        sb.table('users')
-        .select('line_user_id,display_name,picture_url')
-        .eq('line_user_id', target_uid)
-        .limit(1)
-        .execute()
-    )
-    row = (prof.data or [None])[0]
-    if not row:
-        flash('找不到該使用者（可能尚未登入過）', 'error')
-        return redirect(url_for('diary.admin'))
-
-    if action == 'remove':
-        sb_set_pastor_whitelist(row['line_user_id'], row.get('display_name', ''), row.get('picture_url', ''), False)
-        flash('已從白名單移除', 'ok')
-    else:
-        sb_set_pastor_whitelist(row['line_user_id'], row.get('display_name', ''), row.get('picture_url', ''), True)
-        flash('已加入白名單', 'ok')
-
-    return redirect(url_for('diary.admin'))
+    import pandas as pd
+    df = pd.DataFrame([
+        {'date': '2025-01-01', 'book': '創世記', 'range': '1:1-31'},
+        {'date': '2025-01-02', 'book': '創世記', 'range': '2:1-25'},
+    ], columns=['date', 'book', 'range'])
+    buf = io.BytesIO()
+    with pd.ExcelWriter(buf, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='plan')
+    buf.seek(0)
+    from flask import send_file
+    return send_file(buf, as_attachment=True,
+                     download_name='diary_plan_template.xlsx',
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
 
 
 @diary_bp.post('/diary/admin/upload_plan')
@@ -786,35 +915,69 @@ def admin_upload_plan():
         flash('沒有選擇檔案', 'error')
         return redirect(url_for('diary.admin'))
 
-    backup_path = PLAN_PATH + '.bak'
-    old_exists = os.path.exists(PLAN_PATH)
-    if old_exists:
-        import shutil
-        shutil.copy2(PLAN_PATH, backup_path)
-
-    f.save(PLAN_PATH)
-
     try:
         import pandas as pd
-        df_check = pd.read_excel(PLAN_PATH, sheet_name='plan')
+        raw = io.BytesIO(f.read())
+        # 嘗試讀 'plan' 分頁，失敗則讀第一頁
+        try:
+            df = pd.read_excel(raw, sheet_name='plan')
+        except Exception:
+            raw.seek(0)
+            df = pd.read_excel(raw)
+
         required = {'date', 'book', 'range'}
-        missing = required - set(df_check.columns)
+        missing = required - set(df.columns)
         if missing:
             raise ValueError(f'缺少欄位：{", ".join(missing)}')
+
+        rows = []
+        for _, r in df.iterrows():
+            d = str(r['date'])[:10]
+            rows.append({'date': d, 'book': str(r['book']).strip(), 'range': str(r['range']).strip()})
+
+        if not rows:
+            raise ValueError('檔案內沒有資料列')
+
+        # 批次 upsert 進 DB（每次 200 筆）
+        for i in range(0, len(rows), 200):
+            sb.table('diary_plan').upsert(rows[i:i+200], on_conflict='date').execute()
+
+        _invalidate_plan_cache()
+        flash(f'已匯入 {len(rows)} 筆進度到資料庫', 'ok')
     except Exception as e:
-        if old_exists:
-            import shutil
-            shutil.copy2(backup_path, PLAN_PATH)
-        else:
-            os.remove(PLAN_PATH)
-        flash(f'格式錯誤，已還原舊檔：{e}', 'error')
+        flash(f'匯入失敗：{e}', 'error')
+
+    return redirect(url_for('diary.admin'))
+
+
+@diary_bp.post('/diary/admin/update_whitelist')
+def admin_update_whitelist():
+    if not _require_login():
+        return redirect(url_for('auth.login_page'))
+
+    user = _get_user()
+    uid = user.get('line_user_id', '')
+    if not _is_diary_admin(uid):
+        flash('你沒有後台權限', 'error')
+        return redirect(url_for('diary.index'))
+
+    target_uid = (request.form.get('target_uid') or '').strip()
+    action     = (request.form.get('action') or '').strip()
+
+    if not target_uid or not sb:
+        flash('操作失敗', 'error')
         return redirect(url_for('diary.admin'))
 
-    global _PLAN_CACHE, _PLAN_MTIME
-    _PLAN_CACHE = None
-    _PLAN_MTIME = None
+    prof = sb.table('users').select('line_user_id,display_name,picture_url')\
+        .eq('line_user_id', target_uid).limit(1).execute()
+    row = (prof.data or [None])[0]
+    if not row:
+        flash('找不到該使用者', 'error')
+        return redirect(url_for('diary.admin'))
 
-    flash('plan.xlsx 已更新', 'ok')
+    active = (action != 'remove')
+    sb_set_pastor_whitelist(row['line_user_id'], row.get('display_name', ''), row.get('picture_url', ''), active)
+    flash('已更新白名單', 'ok')
     return redirect(url_for('diary.admin'))
 
 

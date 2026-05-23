@@ -79,7 +79,7 @@ new QRCode(document.getElementById('qrcode-fullscreen'), {
 
 function downloadQR() {
     const canvas = document.querySelector('#qrcode canvas');
-    if (!canvas) { alert('QR Code 尚未產生'); return; }
+    if (!canvas) { showToast('QR Code 尚未產生', 'error'); return; }
     const link = document.createElement('a');
     link.download = '簽到QR_{{ course.title }}_第{{ sess.session_number }}堂.png';
     link.href = canvas.toDataURL('image/png');

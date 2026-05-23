@@ -4,12 +4,13 @@
 url_prefix="/cell-report"
 """
 import json
+import time
 import datetime
 from typing import Any, Dict, List, Optional
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    session, flash, jsonify
+    session, flash, jsonify, abort
 )
 
 from db import supabase
@@ -18,6 +19,93 @@ from routes.decorators import (
 )
 
 cell_report_bp = Blueprint('cell_report', __name__)
+
+# ── 聚會設定（快取）──────────────────────────────────────────
+MEETING_DEFAULTS: Dict[str, Dict] = {
+    'adult_sunday':    {'label': '成人主日', 'emoji': '⛪', 'weekday': 6, 'service_count': 2},
+    'children_sunday': {'label': '兒童主日', 'emoji': '🧒', 'weekday': 6, 'service_count': 1},
+    'prayer':          {'label': '禱告會',   'emoji': '🙏', 'weekday': 2, 'service_count': 1},
+    'morning_prayer':  {'label': '晨禱',     'emoji': '🌅', 'weekday': 4, 'service_count': 1},
+}
+_MEETING_CFG_CACHE: Optional[Dict] = None
+_MEETING_CFG_TS: float = 0.0
+_MEETING_CFG_TTL = 300
+
+
+def _get_meeting_settings() -> Dict[str, Dict]:
+    global _MEETING_CFG_CACHE, _MEETING_CFG_TS
+    now = time.time()
+    if _MEETING_CFG_CACHE is not None and now - _MEETING_CFG_TS < _MEETING_CFG_TTL:
+        return _MEETING_CFG_CACHE
+    result = {}
+    # Built-in meetings
+    for key, defaults in MEETING_DEFAULTS.items():
+        cfg = dict(defaults)
+        try:
+            res = supabase.table('settings').select('value').eq('key', f'meeting.{key}').execute()
+            if res.data:
+                cfg.update(json.loads(res.data[0]['value']))
+        except Exception:
+            pass
+        result[key] = cfg
+    # Custom meetings (keys stored as meeting.custom_*)
+    try:
+        res = supabase.table('settings').select('key,value').like('key', 'meeting.custom_%').execute()
+        for row in (res.data or []):
+            raw_key = row['key']          # e.g. "meeting.custom_1234"
+            meeting_key = raw_key[len('meeting.'):]  # e.g. "custom_1234"
+            try:
+                cfg = json.loads(row['value'])
+                cfg['_custom'] = True
+                result[meeting_key] = cfg
+            except Exception:
+                pass
+    except Exception:
+        pass
+    _MEETING_CFG_CACHE = result
+    _MEETING_CFG_TS = now
+    return result
+
+
+def _invalidate_meeting_cache():
+    global _MEETING_CFG_CACHE
+    _MEETING_CFG_CACHE = None
+
+
+def _get_custom_meetings_data(mcfg: Dict, base_date=None) -> List[Dict]:
+    """Build display data for custom meetings for the dashboard."""
+    if base_date is None:
+        base_date = datetime.date.today()
+    result = []
+    for key, cfg in mcfg.items():
+        if not key.startswith('custom_'):
+            continue
+        date_obj = _get_last_weekday_date(cfg.get('weekday', 6), base_date)
+        date_str = date_obj.isoformat()
+        count = 0
+        try:
+            res = supabase.table('custom_meeting_reports').select('attendance_count')\
+                .eq('date', date_str).eq('meeting_key', key).execute()
+            if res.data:
+                count = res.data[0].get('attendance_count', 0) or 0
+        except Exception:
+            pass
+        result.append({
+            'key': key,
+            'label': cfg.get('label', '聚會'),
+            'emoji': cfg.get('emoji', '✨'),
+            'date': date_obj,
+            'count': count,
+        })
+    return result
+
+
+def _get_last_weekday_date(weekday: int, ref_date=None) -> datetime.date:
+    """回傳最近一次指定星期幾的日期（0=週一…6=週日）。"""
+    if ref_date is None:
+        ref_date = datetime.date.today()
+    days_since = (ref_date.weekday() - weekday) % 7
+    return ref_date - datetime.timedelta(days=days_since)
 
 
 
@@ -114,13 +202,27 @@ def _get_or_create_report(group_id, week_date_str: str) -> Dict:
     )
     if res.data:
         return res.data[0]
-    ins = supabase.table('cell_reports').insert({
-        'group_id': group_id,
-        'week_date': week_date_str,
-        'is_complete': False,
-        'no_meeting': False,
-    }).execute()
-    return ins.data[0] if ins.data else {}
+    try:
+        ins = supabase.table('cell_reports').insert({
+            'group_id': group_id,
+            'week_date': week_date_str,
+            'is_complete': False,
+            'no_meeting': False,
+        }).execute()
+        if ins.data:
+            return ins.data[0]
+    except Exception:
+        pass
+    # Re-select in case of concurrent insert or insert returned no data
+    res2 = (
+        supabase.table('cell_reports')
+        .select('*')
+        .eq('group_id', group_id)
+        .eq('week_date', week_date_str)
+        .limit(1)
+        .execute()
+    )
+    return (res2.data or [{}])[0]
 
 
 def _get_attendance_map(group_id, report_id) -> Dict[str, Dict]:
@@ -156,8 +258,8 @@ def _has_group_access(group_id) -> bool:
 # 路由
 # =========================
 
-@login_required
 @cell_report_bp.get('/cell-report/portal')
+@login_required
 def portal():
     user_id = session.get('user_id')
 
@@ -177,7 +279,25 @@ def portal():
             if g and g.get('is_active'):
                 groups.append(g)
 
-    return render_template('cell_report/portal.html', groups=groups)
+    today = datetime.date.today()
+    report_status = {}
+    for g in groups:
+        week_date = _get_last_meeting_date_for_group(g, today)
+        res = (
+            supabase.table('cell_reports')
+            .select('is_complete,no_meeting,week_date')
+            .eq('group_id', g['id'])
+            .eq('week_date', week_date.isoformat())
+            .limit(1)
+            .execute()
+        )
+        row = (res.data or [None])[0]
+        if row and (row.get('is_complete') or row.get('no_meeting')):
+            report_status[str(g['id'])] = {'done': True, 'week_date': week_date}
+        else:
+            report_status[str(g['id'])] = {'done': False, 'week_date': week_date}
+
+    return render_template('cell_report/portal.html', groups=groups, report_status=report_status)
 
 
 @login_required
@@ -231,7 +351,12 @@ def section1(group_id):
             update_data['no_meeting_reason'] = ''
             update_data['is_complete'] = False
 
-        supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
+        try:
+            supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
+        except Exception as e:
+            print(f"[section1 POST error] {e}")
+            flash(f'儲存失敗，請稍後再試。（{e}）', 'error')
+            return redirect(url_for('cell_report.section1', group_id=group_id))
 
         return redirect(url_for('cell_report.section2', group_id=group_id,
                                 week_date=selected_date.isoformat()))
@@ -268,6 +393,9 @@ def section2(group_id):
         return redirect(url_for('cell_report.section1', group_id=group_id))
 
     report = _get_or_create_report(group_id, week_date_obj.isoformat())
+    if not report.get('id'):
+        flash('無法建立回報單，請重新整理後再試。', 'error')
+        return redirect(url_for('cell_report.section1', group_id=group_id))
     members = _get_members(group_id)
     attendance_map = _get_attendance_map(group_id, report['id'])
 
@@ -322,6 +450,8 @@ def ajax_save_attendance(group_id):
         return jsonify({'success': False, 'error': '日期格式錯誤'}), 400
 
     report = _get_or_create_report(group_id, week_date_str)
+    if not report.get('id'):
+        return jsonify({'success': False, 'error': '無法建立回報單'}), 500
 
     res = (
         supabase.table('cell_attendance')
@@ -358,16 +488,45 @@ def add_member_ajax(group_id):
     if not name:
         return jsonify({'success': False, 'error': '姓名不可空白'}), 400
 
-    res = supabase.table('cell_members').insert({
+    # 可選：同時連結系統帳號 user_id
+    user_id = (data.get('user_id') or '').strip() or None
+
+    insert_payload = {
         'group_id': group_id,
         'name': name,
         'is_active': True,
-    }).execute()
+    }
+    if user_id:
+        insert_payload['user_id'] = user_id
+
+    res = supabase.table('cell_members').insert(insert_payload).execute()
 
     if res.data:
         member = res.data[0]
         return jsonify({'success': True, 'member_id': member['id'], 'name': member['name']})
     return jsonify({'success': False, 'error': '新增失敗'}), 500
+
+
+@login_required
+@cell_report_bp.post('/cell-report/<group_id>/ajax/link-member/<member_id>')
+def link_member_ajax(group_id, member_id):
+    """連結（或解除連結）小組成員與系統帳號
+    JSON body: { user_id: "uuid" | null }
+    """
+    if not _has_group_access(group_id):
+        return jsonify({'success': False, 'error': '沒有權限'}), 403
+
+    try:
+        data = json.loads(request.data.decode('utf-8'))
+    except Exception:
+        return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+
+    user_id = data.get('user_id') or None  # null 表示解除連結
+
+    supabase.table('cell_members').update({'user_id': user_id})\
+        .eq('id', member_id).eq('group_id', group_id).execute()
+
+    return jsonify({'success': True, 'user_id': user_id})
 
 
 @login_required
@@ -405,6 +564,16 @@ def step3(group_id):
     report = _get_or_create_report(group_id, week_date.isoformat())
     this_week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
 
+    def _parse_newcomers(rpt):
+        raw = rpt.get('newcomer_raw') if rpt else None
+        if not raw:
+            return []
+        try:
+            parsed = json.loads(raw)
+            return parsed if isinstance(parsed, list) else []
+        except Exception:
+            return []
+
     if request.method == 'POST':
         required_fields = ['spiritual_status', 'family_status', 'work_status', 'health_status']
         error = None
@@ -420,6 +589,7 @@ def step3(group_id):
                                    group=group, report=report,
                                    week_date=week_date,
                                    is_backfill=week_date != this_week_date,
+                                   newcomers=_parse_newcomers(report),
                                    error=error)
 
         newcomers_json = request.form.get('newcomers_json', '[]')
@@ -443,7 +613,23 @@ def step3(group_id):
             'is_complete': True,
         }
 
-        supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
+        if not report.get('id'):
+            return render_template('cell_report/step3.html',
+                                   group=group, report=report,
+                                   week_date=week_date,
+                                   is_backfill=week_date != this_week_date,
+                                   newcomers=_parse_newcomers(report),
+                                   error='無法取得回報紀錄，請重新整理後再試。')
+        try:
+            supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
+        except Exception as e:
+            print(f"[step3 POST error] {e}")
+            return render_template('cell_report/step3.html',
+                                   group=group, report=report,
+                                   week_date=week_date,
+                                   is_backfill=week_date != this_week_date,
+                                   newcomers=_parse_newcomers(report),
+                                   error=f'儲存失敗，請稍後再試。（{e}）')
 
         return redirect(url_for('cell_report.done', group_id=group_id,
                                 week_date=week_date.isoformat()))
@@ -451,11 +637,12 @@ def step3(group_id):
     return render_template('cell_report/step3.html',
                            group=group, report=report,
                            week_date=week_date,
-                           is_backfill=week_date != this_week_date)
+                           is_backfill=week_date != this_week_date,
+                           newcomers=_parse_newcomers(report))
 
 
-@login_required
 @cell_report_bp.get('/cell-report/<group_id>/done')
+@login_required
 def done(group_id):
     group = _get_group(group_id)
     if not group:
@@ -476,6 +663,79 @@ def done(group_id):
                            is_backfill=week_date != this_week_date)
 
 
+@cell_report_bp.get('/cell-report/<group_id>/view-report')
+@login_required
+def view_report(group_id):
+    """Read-only report detail for pastors / staff / admins."""
+    if not (session.get('is_pastor') or session.get('is_admin')):
+        return _no_permission()
+
+    group = _get_group(group_id)
+    if not group:
+        flash('找不到小組', 'error')
+        return redirect(url_for('cell_report.pastor_dashboard'))
+
+    week_date_str = request.args.get('week_date', '')
+    try:
+        week_date = datetime.date.fromisoformat(week_date_str)
+    except Exception:
+        week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
+
+    res = (
+        supabase.table('cell_reports')
+        .select('*')
+        .eq('group_id', group_id)
+        .eq('week_date', week_date.isoformat())
+        .execute()
+    )
+    report = (res.data or [None])[0]
+
+    members = _get_members(group_id)
+    attendance_map = {}
+    if report:
+        attendance_map = _get_attendance_map(group_id, report['id'])
+
+    display_rows = []
+    for m in members:
+        att = attendance_map.get(str(m['id'])) or {}
+        display_rows.append({
+            'name': m['name'],
+            'cell': _status_to_label(att.get('cell_status', '')),
+            'sunday': _status_to_label(att.get('sunday_status', '')),
+            'rpg': _status_to_label(att.get('rpg_status', '')),
+        })
+
+    # Newcomers
+    newcomers = []
+    if report and report.get('newcomer_raw'):
+        try:
+            parsed = json.loads(report['newcomer_raw'])
+            newcomers = parsed if isinstance(parsed, list) else []
+        except Exception:
+            pass
+
+    prev_week = week_date - datetime.timedelta(days=7)
+    next_week = week_date + datetime.timedelta(days=7)
+    this_week = _get_last_meeting_date_for_group(group, datetime.date.today())
+
+    back_url = url_for('cell_report.pastor_dashboard', week=week_date.isoformat()) \
+        if session.get('is_pastor') \
+        else url_for('cell_report.staff_dashboard', week=week_date.isoformat())
+    if session.get('is_admin') and not session.get('is_pastor') and not session.get('is_staff'):
+        back_url = url_for('cell_report.pastor_dashboard', week=week_date.isoformat())
+
+    return render_template('cell_report/view_report.html',
+                           group=group,
+                           report=report,
+                           week_date=week_date,
+                           display_rows=display_rows,
+                           newcomers=newcomers,
+                           prev_week=prev_week,
+                           next_week=next_week,
+                           is_current_week=week_date == this_week,
+                           back_url=back_url)
+
+
 @pastor_required
 @cell_report_bp.get('/cell-report/pastor-dashboard')
 def pastor_dashboard():
@@ -488,52 +748,63 @@ def pastor_dashboard():
     else:
         base_date = datetime.date.today()
 
-    sunday = _get_last_sunday(base_date)
-    week_end = sunday
-    week_start = sunday - datetime.timedelta(days=6)
+    mcfg = _get_meeting_settings()
+    anchor_weekday = mcfg['adult_sunday']['weekday']
+    anchor = _get_last_weekday_date(anchor_weekday, base_date)
+    week_end = anchor
+    week_start = anchor - datetime.timedelta(days=6)
     prev_week = week_end - datetime.timedelta(days=7)
     next_week = week_end + datetime.timedelta(days=7)
 
-    adult_report = _get_sunday_report(sunday.isoformat())
-    children_report = _get_children_report(sunday.isoformat())
-    prayer_rep = _get_prayer_report(_get_last_wednesday(sunday).isoformat())
-    morning_rep = _get_morning_prayer_report(_get_last_friday(sunday).isoformat())
+    children_date = _get_last_weekday_date(mcfg['children_sunday']['weekday'], base_date)
+    prayer_date   = _get_last_weekday_date(mcfg['prayer']['weekday'], base_date)
+    morning_date  = _get_last_weekday_date(mcfg['morning_prayer']['weekday'], base_date)
 
-    adult_first = (adult_report or {}).get('first_service_count', 0) or 0
+    adult_report    = _get_sunday_report(anchor.isoformat())
+    children_report = _get_children_report(children_date.isoformat())
+    prayer_rep      = _get_prayer_report(prayer_date.isoformat())
+    morning_rep     = _get_morning_prayer_report(morning_date.isoformat())
+
+    adult_first  = (adult_report or {}).get('first_service_count', 0) or 0
     adult_second = (adult_report or {}).get('second_service_count', 0) or 0
-    adult_count = adult_first + adult_second
-    children_count = (children_report or {}).get('attendance_count', 0) or 0
-    prayer_count = (prayer_rep or {}).get('attendance_count', 0) or 0
+    adult_count  = adult_first + adult_second
+    children_count       = (children_report or {}).get('attendance_count', 0) or 0
+    prayer_count         = (prayer_rep or {}).get('attendance_count', 0) or 0
     morning_prayer_count = (morning_rep or {}).get('attendance_count', 0) or 0
 
-    groups = _get_active_groups()
-    group_data = _build_group_data(groups, sunday)
+    # Custom meetings
+    custom_meetings = _get_custom_meetings_data(mcfg, base_date)
 
-    today_sunday = _get_last_sunday(datetime.date.today())
+    groups = _get_active_groups()
+    group_data = _build_group_data(groups, anchor)
+
+    today_anchor = _get_last_weekday_date(anchor_weekday, datetime.date.today())
 
     return render_template('cell_report/dashboard.html',
-                           sunday_date=sunday,
-                           prayer_date=_get_last_wednesday(sunday),
-                           morning_prayer_date=_get_last_friday(sunday),
+                           sunday_date=anchor,
+                           prayer_date=prayer_date,
+                           morning_prayer_date=morning_date,
                            adult=adult_count,
                            adult_first=adult_first,
                            adult_second=adult_second,
                            children=children_count,
                            prayer=prayer_count,
                            morning_prayer=morning_prayer_count,
+                           custom_meetings=custom_meetings,
                            groups=group_data,
                            prev_week=prev_week,
                            next_week=next_week,
                            week_start=week_start,
                            week_end=week_end,
-                           is_current_week=sunday == today_sunday,
-                           dashboard_title='牧者週報總覽',
+                           is_current_week=anchor == today_anchor,
+                           dashboard_title='牧者查閱',
                            is_pastor=True,
-                           is_staff=False)
+                           is_staff=False,
+                           meeting_cfg=mcfg)
 
 
-@staff_required
 @cell_report_bp.get('/cell-report/staff-dashboard')
+@staff_required
 def staff_dashboard():
     week_str = request.args.get('week')
     if week_str:
@@ -544,79 +815,102 @@ def staff_dashboard():
     else:
         base_date = datetime.date.today()
 
-    sunday = _get_last_sunday(base_date)
-    week_end = sunday
-    week_start = sunday - datetime.timedelta(days=6)
+    mcfg = _get_meeting_settings()
+    anchor_weekday = mcfg['adult_sunday']['weekday']
+    anchor = _get_last_weekday_date(anchor_weekday, base_date)
+    week_end = anchor
+    week_start = anchor - datetime.timedelta(days=6)
     prev_week = week_end - datetime.timedelta(days=7)
     next_week = week_end + datetime.timedelta(days=7)
 
-    adult_report = _get_sunday_report(sunday.isoformat())
-    children_report = _get_children_report(sunday.isoformat())
-    prayer_rep = _get_prayer_report(_get_last_wednesday(sunday).isoformat())
-    morning_rep = _get_morning_prayer_report(_get_last_friday(sunday).isoformat())
+    children_date = _get_last_weekday_date(mcfg['children_sunday']['weekday'], base_date)
+    prayer_date   = _get_last_weekday_date(mcfg['prayer']['weekday'], base_date)
+    morning_date  = _get_last_weekday_date(mcfg['morning_prayer']['weekday'], base_date)
 
-    adult_first = (adult_report or {}).get('first_service_count', 0) or 0
+    adult_report    = _get_sunday_report(anchor.isoformat())
+    children_report = _get_children_report(children_date.isoformat())
+    prayer_rep      = _get_prayer_report(prayer_date.isoformat())
+    morning_rep     = _get_morning_prayer_report(morning_date.isoformat())
+
+    adult_first  = (adult_report or {}).get('first_service_count', 0) or 0
     adult_second = (adult_report or {}).get('second_service_count', 0) or 0
-    adult_count = adult_first + adult_second
-    children_count = (children_report or {}).get('attendance_count', 0) or 0
-    prayer_count = (prayer_rep or {}).get('attendance_count', 0) or 0
+    adult_count  = adult_first + adult_second
+    children_count       = (children_report or {}).get('attendance_count', 0) or 0
+    prayer_count         = (prayer_rep or {}).get('attendance_count', 0) or 0
     morning_prayer_count = (morning_rep or {}).get('attendance_count', 0) or 0
 
-    groups = _get_active_groups()
-    group_data = _build_group_data(groups, sunday)
+    custom_meetings = _get_custom_meetings_data(mcfg, base_date)
 
-    today_sunday = _get_last_sunday(datetime.date.today())
+    groups = _get_active_groups()
+    group_data = _build_group_data(groups, anchor)
+
+    today_anchor = _get_last_weekday_date(anchor_weekday, datetime.date.today())
 
     return render_template('cell_report/dashboard.html',
-                           sunday_date=sunday,
-                           prayer_date=_get_last_wednesday(sunday),
-                           morning_prayer_date=_get_last_friday(sunday),
+                           sunday_date=anchor,
+                           prayer_date=prayer_date,
+                           morning_prayer_date=morning_date,
                            adult=adult_count,
                            adult_first=adult_first,
                            adult_second=adult_second,
                            children=children_count,
                            prayer=prayer_count,
                            morning_prayer=morning_prayer_count,
+                           custom_meetings=custom_meetings,
                            groups=group_data,
                            prev_week=prev_week,
                            next_week=next_week,
                            week_start=week_start,
                            week_end=week_end,
-                           is_current_week=sunday == today_sunday,
-                           dashboard_title='同工管理中心',
+                           is_current_week=anchor == today_anchor,
+                           dashboard_title='同工查閱',
                            is_pastor=False,
-                           is_staff=True)
+                           is_staff=True,
+                           meeting_cfg=mcfg)
 
 
 @cell_report_bp.route('/cell-report/sunday', methods=['GET', 'POST'])
 def sunday():
-    """主日報告（公開，無需登入）"""
-    date_obj = _get_last_sunday()
+    cfg = _get_meeting_settings()['adult_sunday']
+    date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
+    service_count = cfg.get('service_count', 2)
 
     if request.method == 'POST':
         try:
             data = json.loads(request.data.decode('utf-8'))
             first = int(data.get('first_service_count', 0))
-            second = int(data.get('second_service_count', 0))
+            second = int(data.get('second_service_count', 0)) if service_count >= 2 else 0
         except Exception:
             first = second = 0
 
-        report = _get_or_create_sunday_report(date_str)
-        supabase.table('sunday_reports').update({
-            'first_service_count': first,
-            'second_service_count': second,
-        }).eq('id', report['id']).execute()
-        return jsonify({'success': True})
+        try:
+            report = _get_or_create_sunday_report(date_str)
+            from datetime import timezone
+            supabase.table('sunday_reports').update({
+                'first_service_count': first,
+                'second_service_count': second,
+                'submitted_by': session.get('user_id'),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+            }).eq('id', report['id']).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            print(f"[sunday POST error] {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_sunday_report(date_str)
-    return render_template('cell_report/sunday_form.html', report=report or {}, date=date_obj)
+    submitter_name = _get_submitter_name(report)
+    return render_template('cell_report/sunday_form.html',
+                           report=report or {}, date=date_obj,
+                           service_count=service_count,
+                           label=cfg.get('label', '成人主日'),
+                           submitter_name=submitter_name)
 
 
 @cell_report_bp.route('/cell-report/children', methods=['GET', 'POST'])
 def children():
-    """兒童主日報告（公開，無需登入）"""
-    date_obj = _get_last_sunday()
+    cfg = _get_meeting_settings()['children_sunday']
+    date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
@@ -626,18 +920,31 @@ def children():
         except Exception:
             count = 0
 
-        report = _get_or_create_children_report(date_str)
-        supabase.table('children_sunday_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
-        return jsonify({'success': True})
+        try:
+            from datetime import timezone
+            report = _get_or_create_children_report(date_str)
+            supabase.table('children_sunday_reports').update({
+                'attendance_count': count,
+                'submitted_by': session.get('user_id'),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+            }).eq('id', report['id']).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            print(f"[children POST error] {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_children_report(date_str)
-    return render_template('cell_report/children_sunday_form.html', report=report or {}, date=date_obj)
+    submitter_name = _get_submitter_name(report)
+    return render_template('cell_report/children_sunday_form.html',
+                           report=report or {}, date=date_obj,
+                           label=cfg.get('label', '兒童主日'),
+                           submitter_name=submitter_name)
 
 
 @cell_report_bp.route('/cell-report/prayer', methods=['GET', 'POST'])
 def prayer():
-    """禱告會報告（公開，無需登入）"""
-    date_obj = _get_last_wednesday()
+    cfg = _get_meeting_settings()['prayer']
+    date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
@@ -647,18 +954,31 @@ def prayer():
         except Exception:
             count = 0
 
-        report = _get_or_create_prayer_report(date_str)
-        supabase.table('prayer_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
-        return jsonify({'success': True})
+        try:
+            from datetime import timezone
+            report = _get_or_create_prayer_report(date_str)
+            supabase.table('prayer_reports').update({
+                'attendance_count': count,
+                'submitted_by': session.get('user_id'),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+            }).eq('id', report['id']).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            print(f"[prayer POST error] {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_prayer_report(date_str)
-    return render_template('cell_report/prayer_form.html', report=report or {}, date=date_obj)
+    submitter_name = _get_submitter_name(report)
+    return render_template('cell_report/prayer_form.html',
+                           report=report or {}, date=date_obj,
+                           label=cfg.get('label', '禱告會'),
+                           submitter_name=submitter_name)
 
 
 @cell_report_bp.route('/cell-report/morning-prayer', methods=['GET', 'POST'])
 def morning_prayer():
-    """晨禱報告（公開，無需登入）"""
-    date_obj = _get_last_friday()
+    cfg = _get_meeting_settings()['morning_prayer']
+    date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
@@ -668,17 +988,169 @@ def morning_prayer():
         except Exception:
             count = 0
 
-        report = _get_or_create_morning_prayer_report(date_str)
-        supabase.table('morning_prayer_reports').update({'attendance_count': count}).eq('id', report['id']).execute()
-        return jsonify({'success': True})
+        try:
+            from datetime import timezone
+            report = _get_or_create_morning_prayer_report(date_str)
+            supabase.table('morning_prayer_reports').update({
+                'attendance_count': count,
+                'submitted_by': session.get('user_id'),
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+            }).eq('id', report['id']).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            print(f"[morning_prayer POST error] {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_morning_prayer_report(date_str)
-    return render_template('cell_report/morning_prayer_form.html', report=report or {}, date=date_obj)
+    submitter_name = _get_submitter_name(report)
+    return render_template('cell_report/morning_prayer_form.html',
+                           report=report or {}, date=date_obj,
+                           label=cfg.get('label', '晨禱'),
+                           submitter_name=submitter_name)
+
+
+# ── 聚會設定後台 ─────────────────────────────────────────────
+@cell_report_bp.route('/cell-report/admin/meeting-settings', methods=['GET', 'POST'])
+@login_required
+def admin_meeting_settings():
+    if not (session.get('is_admin') or session.get('is_pastor')):
+        abort(403)
+
+    WEEKDAY_NAMES = ['週一', '週二', '週三', '週四', '週五', '週六', '週日']
+
+    if request.method == 'POST':
+        # Built-in meetings
+        keys = ['adult_sunday', 'children_sunday', 'prayer', 'morning_prayer']
+        for key in keys:
+            weekday = int(request.form.get(f'{key}_weekday', 6))
+            service_count = int(request.form.get(f'{key}_service_count', 1))
+            label = (request.form.get(f'{key}_label') or MEETING_DEFAULTS[key]['label']).strip()
+            emoji = (request.form.get(f'{key}_emoji') or MEETING_DEFAULTS[key]['emoji']).strip()
+            payload = json.dumps({
+                'weekday': weekday,
+                'service_count': service_count,
+                'label': label,
+                'emoji': emoji,
+            }, ensure_ascii=False)
+            supabase.table('settings').upsert({'key': f'meeting.{key}', 'value': payload}).execute()
+
+        # Custom meetings: submitted as custom_keys[] (list of active keys)
+        active_custom_keys = set(request.form.getlist('custom_keys[]'))
+
+        # Delete removed custom meetings from settings
+        try:
+            existing = supabase.table('settings').select('key').like('key', 'meeting.custom_%').execute()
+            for row in (existing.data or []):
+                meeting_key = row['key'][len('meeting.'):]  # e.g. "custom_1234"
+                if meeting_key not in active_custom_keys:
+                    supabase.table('settings').delete().eq('key', row['key']).execute()
+        except Exception:
+            pass
+
+        # Upsert active custom meetings
+        for meeting_key in active_custom_keys:
+            if not meeting_key.startswith('custom_'):
+                continue
+            weekday = int(request.form.get(f'{meeting_key}_weekday', 6))
+            label = (request.form.get(f'{meeting_key}_label') or '').strip()
+            emoji = (request.form.get(f'{meeting_key}_emoji') or '✨').strip()
+            if not label:
+                continue
+            payload = json.dumps({
+                'weekday': weekday,
+                'label': label,
+                'emoji': emoji,
+                'service_count': 1,
+                '_custom': True,
+            }, ensure_ascii=False)
+            supabase.table('settings').upsert({'key': f'meeting.{meeting_key}', 'value': payload}).execute()
+
+        _invalidate_meeting_cache()
+        flash('聚會設定已儲存', 'success')
+        return redirect(url_for('cell_report.admin_meeting_settings'))
+
+    settings = _get_meeting_settings()
+    return render_template('cell_report/admin_meeting_settings.html',
+                           settings=settings,
+                           weekday_names=WEEKDAY_NAMES,
+                           defaults=MEETING_DEFAULTS)
+
+
+@cell_report_bp.route('/cell-report/custom-meeting/<meeting_key>', methods=['GET', 'POST'])
+@login_required
+def custom_meeting(meeting_key):
+    if not meeting_key.startswith('custom_'):
+        abort(404)
+    mcfg = _get_meeting_settings()
+    if meeting_key not in mcfg:
+        abort(404)
+    cfg = mcfg[meeting_key]
+    date_obj = _get_last_weekday_date(cfg.get('weekday', 6))
+    date_str = date_obj.isoformat()
+
+    if request.method == 'POST':
+        try:
+            data = json.loads(request.data.decode('utf-8'))
+            count = int(data.get('attendance_count', 0))
+        except Exception:
+            count = 0
+        try:
+            from datetime import timezone
+            uid = session.get('user_id')
+            now_iso = datetime.now(timezone.utc).isoformat()
+            existing = supabase.table('custom_meeting_reports').select('id')\
+                .eq('date', date_str).eq('meeting_key', meeting_key).execute()
+            if existing.data:
+                supabase.table('custom_meeting_reports').update({
+                    'attendance_count': count,
+                    'submitted_by': uid,
+                    'updated_at': now_iso,
+                }).eq('id', existing.data[0]['id']).execute()
+            else:
+                supabase.table('custom_meeting_reports').insert({
+                    'date': date_str, 'meeting_key': meeting_key,
+                    'attendance_count': count, 'submitted_by': uid,
+                }).execute()
+            return jsonify({'success': True})
+        except Exception as e:
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    try:
+        res = supabase.table('custom_meeting_reports').select('*')\
+            .eq('date', date_str).eq('meeting_key', meeting_key).execute()
+        report = (res.data or [None])[0]
+    except Exception:
+        report = None
+
+    submitter_name = _get_submitter_name(report)
+    return render_template('cell_report/custom_meeting_form.html',
+                           report=report or {}, date=date_obj,
+                           label=cfg.get('label', '聚會'),
+                           emoji=cfg.get('emoji', '✨'),
+                           meeting_key=meeting_key,
+                           submitter_name=submitter_name)
 
 
 # =========================
 # 聚會報告 helper
 # =========================
+
+def _get_submitter_name(report: Optional[Dict]) -> Optional[str]:
+    """從 report 的 submitted_by 查詢用戶名稱"""
+    if not report:
+        return None
+    uid = report.get('submitted_by')
+    if not uid:
+        return None
+    try:
+        res = supabase.table('users').select('real_name, display_name').eq('id', uid).execute()
+        if res.data:
+            u = res.data[0]
+            return u.get('real_name') or u.get('display_name') or '未知'
+    except Exception:
+        pass
+    return None
+
 
 def _get_sunday_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('sunday_reports').select('*').eq('date', date_str).execute()
@@ -704,34 +1176,54 @@ def _get_or_create_sunday_report(date_str: str) -> Dict:
     existing = _get_sunday_report(date_str)
     if existing:
         return existing
-    res = supabase.table('sunday_reports').insert({'date': date_str,
-                                                   'first_service_count': 0,
-                                                   'second_service_count': 0}).execute()
-    return res.data[0] if res.data else {}
+    try:
+        res = supabase.table('sunday_reports').insert(
+            {'date': date_str, 'first_service_count': 0, 'second_service_count': 0}
+        ).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return _get_sunday_report(date_str) or {}
 
 
 def _get_or_create_children_report(date_str: str) -> Dict:
     existing = _get_children_report(date_str)
     if existing:
         return existing
-    res = supabase.table('children_sunday_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
-    return res.data[0] if res.data else {}
+    try:
+        res = supabase.table('children_sunday_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return _get_children_report(date_str) or {}
 
 
 def _get_or_create_prayer_report(date_str: str) -> Dict:
     existing = _get_prayer_report(date_str)
     if existing:
         return existing
-    res = supabase.table('prayer_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
-    return res.data[0] if res.data else {}
+    try:
+        res = supabase.table('prayer_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return _get_prayer_report(date_str) or {}
 
 
 def _get_or_create_morning_prayer_report(date_str: str) -> Dict:
     existing = _get_morning_prayer_report(date_str)
     if existing:
         return existing
-    res = supabase.table('morning_prayer_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
-    return res.data[0] if res.data else {}
+    try:
+        res = supabase.table('morning_prayer_reports').insert({'date': date_str, 'attendance_count': 0}).execute()
+        if res.data:
+            return res.data[0]
+    except Exception:
+        pass
+    return _get_morning_prayer_report(date_str) or {}
 
 
 def _build_group_data(groups: List[Dict], sunday: datetime.date) -> List[Dict]:
@@ -761,6 +1253,8 @@ def _build_group_data(groups: List[Dict], sunday: datetime.date) -> List[Dict]:
         result.append({
             'group': g,
             'meet_date': meet_date,
+            'report_id': report['id'] if report else None,
+            'week_date': meet_date.isoformat(),
             'attend': attend,
             'has_report': has_report,
             'no_meeting': no_meeting,

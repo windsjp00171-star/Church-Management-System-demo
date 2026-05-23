@@ -1,19 +1,10 @@
 from flask import Blueprint, render_template, session, redirect, abort, request, url_for
 from urllib.parse import quote
-from functools import wraps
+from routes.decorators import login_required
 from db import supabase
 
 bulletin_bp = Blueprint('bulletin', __name__)
 
-
-def login_required(f):
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            session['next_url'] = request.url
-            return redirect(url_for('auth.login_page'))
-        return f(*args, **kwargs)
-    return decorated
 
 
 @bulletin_bp.route('/bulletins')

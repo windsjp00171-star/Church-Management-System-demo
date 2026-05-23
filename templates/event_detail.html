@@ -148,10 +148,10 @@
 <div id="add-form-section" style="display:none; margin-bottom:24px;">
     <div class="card pa" style="--d:200ms;">
         <div class="section-label" style="margin-bottom:8px;">新增報名資料</div>
-        <p style="font-size:0.85rem; color:var(--text-3); margin-bottom:20px;">以 <strong>{{ session.display_name }}</strong> 的帳號協助他人報名</p>
+        <p style="font-size:0.85rem; color:var(--text-3); margin-bottom:20px;">以 <strong>{{ session.real_name }}</strong> 的帳號協助他人報名</p>
         <div id="reg-form">
             <div style="margin-bottom:16px; padding:12px 16px; background:var(--surface-2, #f5f5f5); border-radius:var(--radius); color:var(--text-2); font-size:0.9rem; border:1px solid var(--border);">
-                報名身份：<strong>{{ session.display_name }}</strong>（來自您的 LINE 帳號）
+                報名身份：<strong>{{ session.real_name }}</strong>（來自您的 LINE 帳號）
             </div>
             {% for field in fields %}
             <div class="field-wrapper"
@@ -299,14 +299,14 @@
             <img src="{{ session.picture_url }}" style="width:44px; height:44px; border-radius:50%; object-fit:cover; flex-shrink:0;">
             {% endif %}
             <div>
-                <p style="font-weight:700; font-size:1.05rem; margin:0; color:var(--text-1);">{{ user_profile.real_name or session.display_name }}</p>
+                <p style="font-weight:700; font-size:1.05rem; margin:0; color:var(--text-1);">{{ user_profile.real_name or session.real_name }}</p>
                 {% if user_profile.group_tags %}
                 <p style="color:var(--blue); font-size:0.85rem; margin:3px 0 0 0;">{{ user_profile.group_tags | join('、') }}</p>
                 {% endif %}
             </div>
         </div>
         {% if not user_profile.real_name %}
-        <p style="color:var(--orange); font-size:0.82rem; margin-top:8px;">
+        <p class="real-name-warning" style="color:var(--orange); font-size:0.82rem; margin-top:8px; padding:8px 10px; border-radius:6px; border:1px solid transparent;">
             ⚠️ 你尚未填寫真實姓名，<a href="/profile" style="color:var(--orange);">點此完善個人資料</a>
         </p>
         {% endif %}
@@ -324,7 +324,7 @@
     <div class="section-label" style="margin-bottom:20px;">填寫報名資料</div>
     <div id="reg-form">
         <div style="margin-bottom:16px; padding:12px 16px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); color:var(--text-2); font-size:0.9rem;">
-            報名身份：<strong style="color:var(--text-1);">{{ user_profile.real_name or session.display_name }}</strong>
+            報名身份：<strong style="color:var(--text-1);">{{ user_profile.real_name or session.real_name }}</strong>
             {% if user_profile.group_tags %}<span style="color:var(--text-3);">（{{ user_profile.group_tags | join('、') }}）</span>{% endif %}
         </div>
         {% for field in fields %}
@@ -627,6 +627,7 @@ function toggleAddForm() {
 // ===================================================
 // 一鍵報名（quick_reg 模式）
 function quickReg() {
+    const btn = event?.target || document.querySelector('[onclick="quickReg()"]');
     fetch('/event/{{ event.id }}/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -635,8 +636,9 @@ function quickReg() {
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '報名失敗，請稍後再試');
-    });
+        else showError(d.error || '報名失敗，請稍後再試');
+    })
+    .catch(() => showError('網路錯誤，請稍後再試'));
 }
 
 function calcEvTotal() {
@@ -649,6 +651,15 @@ function calcEvTotal() {
 // 送出報名
 // ===================================================
 function submitReg() {
+    // 檢查是否有真實姓名警告
+    const nameWarning = document.querySelector('.real-name-warning');
+    if (nameWarning && nameWarning.offsetParent !== null) {
+        nameWarning.style.border = '2px solid #e53e3e';
+        nameWarning.style.background = '#fff5f5';
+        nameWarning.scrollIntoView({behavior: 'smooth', block: 'center'});
+        return;
+    }
+
     const allWrappers = document.querySelectorAll('.field-wrapper');
     const answers = [];
     let hasError = false;
@@ -678,6 +689,9 @@ function submitReg() {
 
     if (hasError) { showError('請填寫所有必填欄位'); return; }
 
+    const submitBtn = document.querySelector('[onclick="submitReg()"]');
+    if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '送出中…'; }
+
     const mealSelections = [...document.querySelectorAll('.meal-cb-ev:checked')].map(cb => cb.value);
     fetch('/event/{{ event.id }}/register', {
         method: 'POST',
@@ -694,9 +708,13 @@ function submitReg() {
             document.getElementById('success-msg')?.style.setProperty('display', 'block');
         } else {
             showError(data.error || '報名失敗，請稍後再試');
+            if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '確認報名'; }
         }
     })
-    .catch(err => showError(err.message || '未知錯誤'));
+    .catch(err => {
+        showError(err.message || '未知錯誤');
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '確認報名'; }
+    });
 }
 
 // 取消報名（傳入特定報名 ID）
@@ -710,7 +728,7 @@ function cancelReg(regId) {
     .then(res => res.json())
     .then(data => {
         if (data.success) location.reload();
-        else alert(data.error || '取消失敗');
+        else showToast('❌ ' + (data.error || '取消失敗'), 'error');
     });
 }
 
@@ -730,12 +748,12 @@ function joinWaitlist() {
     .then(r => r.json())
     .then(d => {
         if (d.success && d.waitlisted) {
-            alert('已加入候補名單！有名額時系統將自動為您升為正式報名。');
+            showToast('ℹ️ 已加入候補名單！有名額時系統將自動為您升為正式報名。', 'info');
             location.reload();
         } else if (d.success) {
             location.reload();
         } else {
-            alert(d.error || '操作失敗，請稍後再試');
+            showToast('❌ ' + (d.error || '操作失敗，請稍後再試'), 'error');
         }
     });
 }
@@ -750,7 +768,7 @@ function cancelWaitlist() {
     .then(r => r.json())
     .then(d => {
         if (d.success) location.reload();
-        else alert(d.error || '操作失敗');
+        else showToast('❌ ' + (d.error || '操作失敗'), 'error');
     });
 }
 </script>

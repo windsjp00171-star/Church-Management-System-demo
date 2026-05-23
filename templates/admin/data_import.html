@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+{% block title %}資料匯入{% endblock %}
+{% block content %}
+<div class="container" style="max-width:720px; margin:40px auto 80px; padding:0 16px;">
+
+  <a href="{{ url_for('admin.index') }}" style="display:inline-flex; align-items:center; gap:6px;
+     color:#06C755; text-decoration:none; font-size:.9rem; margin-bottom:20px;">← 返回後台</a>
+
+  <h1 style="font-size:1.4rem; font-weight:700; margin:0 0 6px;">📤 資料匯入</h1>
+  <p style="color:#666; font-size:.9rem; margin:0 0 24px;">
+    上傳由本系統匯出的 <code>.zip</code> 檔案，預覽後確認匯入。匯入採用 <strong>Upsert</strong>
+    策略（依 ID 更新既有資料，新增不存在的資料），不會清空現有資料庫。
+  </p>
+
+  <!-- 危險警告 -->
+  <div style="padding:14px 16px; background:#fff1f2; border-left:4px solid #ef4444;
+              border-radius:8px; margin-bottom:24px; font-size:.88rem; color:#7f1d1d;">
+    🚨 <strong>注意</strong>：匯入會以匯出檔中的資料覆蓋相同 ID 的現有記錄。
+    建議在<strong>全新 Supabase 專案</strong>上執行，或先行備份。
+    操作無法自動復原。
+  </div>
+
+  <!-- 步驟一：上傳 -->
+  <div id="step-upload" style="background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08);
+       padding:24px; margin-bottom:20px;">
+    <h2 style="font-size:1rem; font-weight:700; margin:0 0 16px;">步驟 1 — 選擇檔案並預覽</h2>
+
+    <label style="display:block; padding:32px; border:2px dashed #ccc; border-radius:10px;
+                  text-align:center; cursor:pointer; color:#888; font-size:.9rem;"
+           id="drop-zone">
+      <input type="file" id="file-input" accept=".zip" style="display:none;"
+             onchange="handleFile(this.files[0])">
+      <div style="font-size:2rem; margin-bottom:8px;">📁</div>
+      <div>點擊選擇 <code>.zip</code> 檔案</div>
+      <div id="file-name" style="margin-top:8px; font-size:.8rem; color:#06C755;"></div>
+    </label>
+
+    <button id="btn-preview" onclick="doPreview()" disabled
+            style="width:100%; padding:12px; margin-top:14px; background:#e0e0e0; color:#999;
+                   font-size:.95rem; font-weight:700; border:none; border-radius:10px; cursor:not-allowed;">
+      🔍 預覽匯入內容
+    </button>
+  </div>
+
+  <!-- 步驟二：預覽結果 -->
+  <div id="step-preview" style="display:none;">
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08);
+         padding:24px; margin-bottom:20px;">
+      <h2 style="font-size:1rem; font-weight:700; margin:0 0 4px;">步驟 2 — 確認匯入內容</h2>
+      <div id="meta-info" style="font-size:.82rem; color:#888; margin-bottom:16px;"></div>
+
+      <div id="preview-table" style="overflow-x:auto;"></div>
+    </div>
+
+    <!-- 步驟三：確認 -->
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08);
+         padding:24px;">
+      <h2 style="font-size:1rem; font-weight:700; margin:0 0 12px;">步驟 3 — 輸入確認字串並執行</h2>
+      <p style="font-size:.88rem; color:#555; margin-bottom:12px;">
+        請輸入 <strong style="color:#ef4444;">IMPORT</strong> 確認你了解此操作的影響：
+      </p>
+      <input type="text" id="confirm-input" placeholder="輸入 IMPORT"
+             style="width:100%; padding:12px 14px; border:2px solid #ddd; border-radius:8px;
+                    font-size:1rem; box-sizing:border-box; margin-bottom:12px;"
+             oninput="checkConfirm()">
+      <button id="btn-import" disabled onclick="doImport()"
+              style="width:100%; padding:14px; background:#e0e0e0; color:#999; font-size:1rem;
+                     font-weight:700; border:none; border-radius:10px; cursor:not-allowed;">
+        🚀 執行匯入
+      </button>
+    </div>
+  </div>
+
+  <!-- 結果 -->
+  <div id="step-result" style="display:none; margin-top:20px;"></div>
+
+</div>
+
+<script>
+var selectedFile = null;
+
+// 拖放支援
+var dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.style.borderColor='#06C755'; });
+dropZone.addEventListener('dragleave', function() { dropZone.style.borderColor='#ccc'; });
+dropZone.addEventListener('drop', function(e) {
+  e.preventDefault();
+  dropZone.style.borderColor = '#ccc';
+  var files = e.dataTransfer.files;
+  if (files.length > 0) handleFile(files[0]);
+});
+dropZone.addEventListener('click', function() {
+  document.getElementById('file-input').click();
+});
+
+function handleFile(f) {
+  if (!f || !f.name.endsWith('.zip')) {
+    alert('請選擇 .zip 檔案');
+    return;
+  }
+  selectedFile = f;
+  document.getElementById('file-name').textContent = f.name + ' (' + (f.size / 1024).toFixed(1) + ' KB)';
+  var btn = document.getElementById('btn-preview');
+  btn.disabled = false;
+  btn.style.background = '#06C755';
+  btn.style.color = '#fff';
+  btn.style.cursor = 'pointer';
+}
+
+function doPreview() {
+  if (!selectedFile) return;
+  var btn = document.getElementById('btn-preview');
+  btn.disabled = true;
+  btn.textContent = '⏳ 載入中…';
+
+  var fd = new FormData();
+  fd.append('file', selectedFile);
+
+  fetch('{{ url_for("data_transfer.data_import_preview") }}', {
+    method: 'POST',
+    body: fd,
+    headers: { 'X-CSRFToken': '{{ csrf_token() }}' },
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    btn.disabled = false;
+    btn.textContent = '🔍 預覽匯入內容';
+    if (data.error) { alert(data.error); return; }
+    renderPreview(data);
+  })
+  .catch(function(e) {
+    btn.disabled = false;
+    btn.textContent = '🔍 預覽匯入內容';
+    alert('預覽失敗：' + e);
+  });
+}
+
+function renderPreview(data) {
+  var meta = data.meta || {};
+  var tables = data.tables || [];
+  var total = tables.reduce(function(s, t) { return s + (parseInt(t.count) || 0); }, 0);
+
+  document.getElementById('meta-info').innerHTML =
+    '匯出時間：' + (meta.exported_at || '—') +
+    '　｜　版本：' + (meta.version || '—') +
+    '　｜　共 ' + total + ' 筆資料';
+
+  var html = '<table style="width:100%; border-collapse:collapse; font-size:.88rem;">' +
+    '<thead><tr style="background:#f5f5f5;">' +
+    '<th style="padding:8px 12px; text-align:left; color:#666;">資料表</th>' +
+    '<th style="padding:8px 12px; text-align:right; color:#666;">筆數</th>' +
+    '<th style="padding:8px 12px; text-align:left; color:#666;">狀態</th>' +
+    '</tr></thead><tbody>';
+
+  tables.forEach(function(t) {
+    var errStyle = t.error ? 'color:#ef4444;' : 'color:#2e7d32;';
+    var errText = t.error ? '⚠️ ' + t.error : '✓ 正常';
+    html += '<tr style="border-bottom:1px solid #f0f0f0;">' +
+      '<td style="padding:8px 12px; font-family:monospace;">' + t.table + '</td>' +
+      '<td style="padding:8px 12px; text-align:right; font-weight:600;">' + t.count + '</td>' +
+      '<td style="padding:8px 12px; font-size:.82rem; ' + errStyle + '">' + errText + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('preview-table').innerHTML = html;
+  document.getElementById('step-preview').style.display = 'block';
+  document.getElementById('step-preview').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function checkConfirm() {
+  var val = document.getElementById('confirm-input').value.trim();
+  var btn = document.getElementById('btn-import');
+  if (val === 'IMPORT') {
+    btn.disabled = false;
+    btn.style.background = '#ef4444';
+    btn.style.color = '#fff';
+    btn.style.cursor = 'pointer';
+  } else {
+    btn.disabled = true;
+    btn.style.background = '#e0e0e0';
+    btn.style.color = '#999';
+    btn.style.cursor = 'not-allowed';
+  }
+}
+
+function doImport() {
+  if (!selectedFile) return;
+  var confirm_val = document.getElementById('confirm-input').value.trim();
+  if (confirm_val !== 'IMPORT') return;
+
+  var btn = document.getElementById('btn-import');
+  btn.disabled = true;
+  btn.textContent = '⏳ 匯入中，請勿關閉頁面…';
+
+  var fd = new FormData();
+  fd.append('file', selectedFile);
+  fd.append('confirm', 'IMPORT');
+
+  fetch('{{ url_for("data_transfer.data_import_execute") }}', {
+    method: 'POST',
+    body: fd,
+  })
+  .then(function(r) { return r.json(); })
+  .then(function(data) {
+    renderResult(data);
+  })
+  .catch(function(e) {
+    renderResult({ error: '執行失敗：' + e, results: [] });
+  });
+}
+
+function renderResult(data) {
+  var div = document.getElementById('step-result');
+  div.style.display = 'block';
+
+  if (data.error && !(data.results && data.results.length)) {
+    div.innerHTML = '<div style="padding:20px; background:#fff1f2; border-radius:10px; color:#7f1d1d;">' +
+      '❌ 匯入失敗：' + data.error + '</div>';
+    div.scrollIntoView({ behavior: 'smooth' });
+    return;
+  }
+
+  var results = data.results || [];
+  var success = results.filter(function(r) { return !r.error; }).length;
+  var failed = results.filter(function(r) { return r.error; }).length;
+  var totalImported = results.reduce(function(s, r) { return s + (r.imported || 0); }, 0);
+
+  var html = '<div style="background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); padding:24px;">';
+  html += '<h2 style="font-size:1rem; font-weight:700; margin:0 0 4px;">匯入結果</h2>';
+
+  if (failed === 0) {
+    html += '<div style="padding:12px 16px; background:#e8f5e9; border-radius:8px; margin-bottom:16px; color:#2e7d32; font-size:.9rem;">' +
+      '✅ 全部成功！共匯入 ' + totalImported + ' 筆資料（' + success + ' 個資料表）</div>';
+  } else {
+    html += '<div style="padding:12px 16px; background:#fff8e1; border-radius:8px; margin-bottom:16px; color:#78350f; font-size:.9rem;">' +
+      '⚠️ 完成（含錯誤）：' + success + ' 表成功，' + failed + ' 表失敗，共匯入 ' + totalImported + ' 筆</div>';
+  }
+
+  html += '<div style="overflow-x:auto;"><table style="width:100%; border-collapse:collapse; font-size:.85rem;">' +
+    '<thead><tr style="background:#f5f5f5;">' +
+    '<th style="padding:8px 12px; text-align:left; color:#666;">資料表</th>' +
+    '<th style="padding:8px 12px; text-align:right; color:#666;">應匯入</th>' +
+    '<th style="padding:8px 12px; text-align:right; color:#666;">已匯入</th>' +
+    '<th style="padding:8px 12px; text-align:left; color:#666;">結果</th>' +
+    '</tr></thead><tbody>';
+
+  results.forEach(function(r) {
+    var status = r.error
+      ? '<span style="color:#ef4444; font-size:.8rem;">❌ ' + r.error + '</span>'
+      : '<span style="color:#2e7d32; font-size:.8rem;">✓ 成功</span>';
+    html += '<tr style="border-bottom:1px solid #f0f0f0;">' +
+      '<td style="padding:8px 12px; font-family:monospace;">' + r.table + '</td>' +
+      '<td style="padding:8px 12px; text-align:right;">' + (r.total || 0) + '</td>' +
+      '<td style="padding:8px 12px; text-align:right; font-weight:600;">' + (r.imported || 0) + '</td>' +
+      '<td style="padding:8px 12px;">' + status + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table></div>';
+
+  if (data.error) {
+    html += '<div style="margin-top:12px; padding:12px; background:#fff1f2; border-radius:8px; font-size:.85rem; color:#7f1d1d;">' +
+      '部分錯誤：' + data.error + '</div>';
+  }
+
+  html += '</div>';
+  div.innerHTML = html;
+  div.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+{% endblock %}

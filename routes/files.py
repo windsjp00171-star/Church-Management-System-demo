@@ -59,26 +59,38 @@ def login_required(f):
     def decorated(*args, **kwargs):
         if not session.get('user_id'):
             return redirect(url_for('auth.login_page'))
-        if session.get('is_blocked'):
-            session.clear()
-            return render_template('blocked.html')
-        if session.get('role') == 'pending':
-            return render_template('pending.html')
         return f(*args, **kwargs)
     return decorated
 
 
+def _get_role() -> str:
+    """將整合系統的 session 旗標對應成 files 模組使用的 role 字串。"""
+    if session.get('is_admin') or session.get('is_super_admin'):
+        return 'admin'
+    if session.get('is_pastor'):
+        return 'pastor'
+    if session.get('is_staff'):
+        return 'ppt'
+    return 'member'
+
+
 def _get_user_group_ids():
-    """取得當前用戶所屬群組 ID 集合，每個 request 只查一次 DB。"""
+    """取得當前用戶所屬服事分組 ID 集合（從 group_tags 對應 groups 表），每個 request 只查一次 DB。"""
     if not hasattr(g, 'user_group_ids'):
-        user_id = session.get('user_id')
-        res = supabase.table('group_members').select('group_id').eq('user_id', user_id).execute()
-        g.user_group_ids = {r['group_id'] for r in (res.data or [])}
+        group_tags = session.get('group_tags') or []
+        if group_tags:
+            try:
+                res = supabase.table('groups').select('id').in_('name', group_tags).execute()
+                g.user_group_ids = {r['id'] for r in (res.data or [])}
+            except Exception:
+                g.user_group_ids = set()
+        else:
+            g.user_group_ids = set()
     return g.user_group_ids
 
 
 def _can_access_file(file_record):
-    role = session.get('role')
+    role = _get_role()
     user_id = session.get('user_id')
     if role == 'admin':
         return True
@@ -100,7 +112,7 @@ def _can_access_file(file_record):
 
 
 def _can_access_folder(folder_record):
-    role = session.get('role')
+    role = _get_role()
     user_id = session.get('user_id')
     if role == 'admin':
         return True
@@ -146,9 +158,13 @@ def _get_storage_limit():
 @files_bp.route('/files')
 @login_required
 def index():
+    from storage import r2_configured
+    if not r2_configured():
+        return render_template('files/unavailable.html'), 503
+
     folder_id = request.args.get('folder_id')
     q = request.args.get('q', '').strip()
-    role = session.get('role')
+    role = _get_role()
 
     folders_q = supabase.table('folders').select('*')
     if folder_id:
@@ -163,10 +179,10 @@ def index():
     folders = folders_q.order('name').execute().data or []
 
     if q:
-        files_q = supabase.table('files').select('*, users(display_name)').ilike('name', f'%{q}%')
+        files_q = supabase.table('files').select('*').ilike('name', f'%{q}%')
         folders = [f for f in folders if q.lower() in f['name'].lower()]
     else:
-        files_q = supabase.table('files').select('*, users(display_name)')
+        files_q = supabase.table('files').select('*')
         if folder_id:
             files_q = files_q.eq('folder_id', folder_id)
         else:
@@ -174,26 +190,32 @@ def index():
     all_files = files_q.order('created_at', desc=True).execute().data or []
     files = [f for f in all_files if _can_access_file(f)]
 
+    # 批次取上傳者姓名
+    uploader_ids = list({f['uploaded_by'] for f in files if f.get('uploaded_by')})
+    uploader_map = {}
+    if uploader_ids:
+        up_users = supabase.table('users').select('id, display_name')\
+            .in_('id', uploader_ids).execute().data or []
+        uploader_map = {u['id']: u['display_name'] for u in up_users}
+
     # 圖片縮圖 URL（本地簽名，無網路請求）
     for f in files:
         ext = os.path.splitext(f['name'])[1].lower()
         f['thumb_url'] = get_presigned_url(f['file_key'], expires=3600) if ext in IMAGE_EXTS else None
         f['size_label'] = _format_size(f.get('file_size'))
-        f['uploader'] = (f.get('users') or {}).get('display_name', '')
+        f['uploader'] = uploader_map.get(f.get('uploaded_by'), '')
 
     current_folder = None
     if folder_id:
         res = supabase.table('folders').select('*').eq('id', folder_id).execute()
         current_folder = res.data[0] if res.data else None
 
-    all_users = supabase.table('users').select('id, display_name, role') \
-        .not_.eq('role', 'pending') \
-        .eq('is_blocked', False) \
+    all_users = supabase.table('users').select('id, display_name') \
         .neq('id', session['user_id']) \
         .order('display_name').execute().data or []
 
-    all_groups = supabase.table('user_groups').select('id, name') \
-        .order('name').execute().data or []
+    all_groups = supabase.table('groups').select('id, name') \
+        .order('sort_order').execute().data or []
 
     # 儲存空間資訊（僅 admin 使用）
     storage_info = None
@@ -549,7 +571,7 @@ def delete(file_id):
 @files_bp.route('/folders/create', methods=['POST'])
 @login_required
 def create_folder():
-    if session.get('role') not in ALLOWED_ROLES:
+    if _get_role() not in ALLOWED_ROLES:
         abort(403)
     name = request.form.get('name', '').strip()
     parent_id = request.form.get('parent_id') or None

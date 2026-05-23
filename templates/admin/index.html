@@ -93,7 +93,8 @@
 </div>
 
 {% if session.get('is_super_admin') %}
-<div class="section-label">會員管理</div>
+<div class="section-label">會員管理 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
+<p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
     <a href="/admin/users" style="text-decoration:none;">
@@ -106,7 +107,8 @@
 
 </div>
 
-<div class="section-label">系統設定</div>
+<div class="section-label">系統設定 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
+<p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
     <a href="/admin/groups" style="text-decoration:none;">
@@ -143,17 +145,17 @@
 
     <a href="/admin/portal-cards" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🗂</div>
-            <div class="admin-card-name">門戶卡片</div>
-            <div class="admin-card-desc">設定首頁卡片名稱與顯示對象</div>
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🏠</div>
+            <div class="admin-card-name">首頁內容</div>
+            <div class="admin-card-desc">系統功能卡片與快捷連結</div>
         </div>
     </a>
 
-    <a href="/admin/portal-links" style="text-decoration:none;">
+    <a href="/admin/files" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eff6ff; color:#1d6fe5;">🔗</div>
-            <div class="admin-card-name">快捷連結</div>
-            <div class="admin-card-desc">管理首頁自訂連結卡片</div>
+            <div class="admin-card-icon" style="background:#fff7ed; color:#ea580c;">🗄</div>
+            <div class="admin-card-name">資料交換中心</div>
+            <div class="admin-card-desc">儲存空間監控與檔案管理</div>
         </div>
     </a>
 
@@ -178,6 +180,46 @@
             <div class="admin-card-icon" style="background:#fef2f2; color:#ef4444;">📢</div>
             <div class="admin-card-name">公告廣播</div>
             <div class="admin-card-desc">發送站內通知給全體會員</div>
+        </div>
+    </a>
+
+    <a href="/admin/changelogs" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">📋</div>
+            <div class="admin-card-name">更新日誌</div>
+            <div class="admin-card-desc">發布系統更新通知給所有教會</div>
+        </div>
+    </a>
+
+    <a href="/admin/attendance" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f5f3ff; color:#6d28d9;">🗓</div>
+            <div class="admin-card-name">差勤管理</div>
+            <div class="admin-card-desc">同工請假與加班審核</div>
+        </div>
+    </a>
+
+    <a href="{{ url_for('data_transfer.data_export') }}" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">📤</div>
+            <div class="admin-card-name">資料匯出</div>
+            <div class="admin-card-desc">備份或遷移至新教會（ZIP）</div>
+        </div>
+    </a>
+
+    <a href="{{ url_for('data_transfer.data_import') }}" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fef2f2; color:#dc2626;">📥</div>
+            <div class="admin-card-name">資料匯入</div>
+            <div class="admin-card-desc">從 ZIP 還原資料至新系統</div>
+        </div>
+    </a>
+
+    <a href="/setup-wizard" style="text-decoration:none;">
+        <div class="admin-card" style="background:linear-gradient(135deg,#0f2027,#203a43); border-color:rgba(255,255,255,.1);">
+            <div class="admin-card-icon" style="background:rgba(255,255,255,.12); color:white;">🧙</div>
+            <div class="admin-card-name" style="color:white;">部署精靈</div>
+            <div class="admin-card-desc" style="color:rgba(255,255,255,.6);">環境設定與資料表狀態</div>
         </div>
     </a>
 

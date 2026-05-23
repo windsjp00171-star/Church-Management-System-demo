@@ -1,7 +1,7 @@
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
-from routes.decorators import admin_required, super_admin_required
+from routes.decorators import admin_required, super_admin_required, staff_required
 import secrets
 import uuid
 import io
@@ -213,6 +213,10 @@ def church_event_new():
     event_date = (data.get('event_date') or '').strip()
     if not title or not event_date:
         return jsonify({'error': '請填寫標題與日期'}), 400
+    try:
+        remind_days = int(data.get('remind_days') or 3)
+    except (ValueError, TypeError):
+        remind_days = 3
     supabase.table('church_events').insert({
         'title': title,
         'event_date': event_date,
@@ -220,6 +224,7 @@ def church_event_new():
         'description': (data.get('description') or '').strip() or None,
         'color': data.get('color') or '#7b1fa2',
         'created_by': session.get('user_id'),
+        'remind_days': remind_days,
     }).execute()
     return jsonify({'success': True})
 
@@ -232,12 +237,17 @@ def church_event_edit(event_id):
     event_date = (data.get('event_date') or '').strip()
     if not title or not event_date:
         return jsonify({'error': '請填寫標題與日期'}), 400
+    try:
+        remind_days = int(data.get('remind_days') or 3)
+    except (ValueError, TypeError):
+        remind_days = 3
     supabase.table('church_events').update({
         'title': title,
         'event_date': event_date,
         'end_date': data.get('end_date') or None,
         'description': (data.get('description') or '').strip() or None,
         'color': data.get('color') or '#7b1fa2',
+        'remind_days': remind_days,
     }).eq('id', event_id).execute()
     return jsonify({'success': True})
 
@@ -265,11 +275,11 @@ def users():
 @admin_bp.route('/api/users/search')
 @admin_required
 def search_users():
-    """搜尋使用者 API（會員管理頁用，超管限定）
+    """搜尋使用者 API（會員管理頁用）
     ?q=       關鍵字（LINE 暱稱或真實姓名）
     ?type=    member | visitor | all（預設 all）
     """
-    if not session.get('is_super_admin'):
+    if not session.get('is_admin'):
         return jsonify({'error': '無權限'}), 403
 
     keyword     = request.args.get('q', '').strip()
@@ -437,38 +447,23 @@ def list_groups():
 @admin_bp.route('/api/groups', methods=['POST'])
 @admin_required
 def add_group():
-    """新增小組（僅超級管理員）"""
+    """新增服事角色標籤（僅超級管理員）"""
     if not session.get('is_super_admin'):
-        return jsonify({'error': '只有超級管理員可新增小組'}), 403
+        return jsonify({'error': '只有超級管理員可新增標籤'}), 403
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     if not name:
-        return jsonify({'error': '小組名稱不能為空'}), 400
-    is_primary = data.get('is_primary', True)
+        return jsonify({'error': '標籤名稱不能為空'}), 400
     try:
         # 取目前最大排序值
         existing = supabase.table('groups').select('sort_order').order('sort_order', desc=True).limit(1).execute()
         next_order = (existing.data[0]['sort_order'] + 1) if existing.data else 1
         result = supabase.table('groups').insert({
-            'name': name, 'sort_order': next_order, 'is_primary': is_primary
+            'name': name, 'sort_order': next_order, 'is_primary': False
         }).execute()
         return jsonify({'success': True, 'group': result.data[0]})
     except Exception as e:
-        return jsonify({'error': '小組名稱已存在或發生錯誤'}), 400
-
-
-@admin_bp.route('/api/groups/<group_id>/toggle-primary', methods=['POST'])
-@admin_required
-def toggle_group_primary(group_id):
-    """切換主/副標籤（僅超級管理員）"""
-    if not session.get('is_super_admin'):
-        return jsonify({'error': '只有超級管理員可修改'}), 403
-    current = supabase.table('groups').select('is_primary').eq('id', group_id).execute()
-    if not current.data:
-        return jsonify({'error': '找不到此小組'}), 404
-    new_val = not current.data[0].get('is_primary', True)
-    supabase.table('groups').update({'is_primary': new_val}).eq('id', group_id).execute()
-    return jsonify({'success': True, 'is_primary': new_val})
+        return jsonify({'error': '標籤名稱已存在或發生錯誤'}), 400
 
 
 @admin_bp.route('/api/groups/<group_id>/delete', methods=['POST'])
@@ -628,12 +623,66 @@ def toggle_cell_group_active(group_id):
     return jsonify({'success': True, 'is_active': new_val})
 
 
+@admin_bp.route('/api/cell-groups/<group_id>/members')
+@admin_required
+def list_cell_group_members(group_id):
+    """取得小組的活躍成員清單（含 user_id 連結狀態與確認狀態）"""
+    members = supabase.table('cell_members')\
+        .select('id, name, user_id, is_confirmed')\
+        .eq('group_id', group_id)\
+        .eq('is_active', True)\
+        .order('id').execute().data or []
+    return jsonify(members)
+
+
+@admin_bp.route('/api/cell-groups/<group_id>/members/<member_id>/confirm', methods=['POST'])
+@admin_required
+def confirm_cell_member(group_id, member_id):
+    """確認（核准）自選小組申請"""
+    supabase.table('cell_members').update({'is_confirmed': True})\
+        .eq('id', member_id).eq('group_id', group_id).execute()
+    return jsonify({'success': True})
+
+
+@admin_bp.route('/api/cell-groups/<group_id>/members/<member_id>/reject', methods=['POST'])
+@admin_required
+def reject_cell_member(group_id, member_id):
+    """拒絕（軟刪除）自選小組申請"""
+    supabase.table('cell_members').update({'is_active': False})\
+        .eq('id', member_id).eq('group_id', group_id).execute()
+    return jsonify({'success': True})
+
+
 @admin_bp.route('/api/users/members')
 @admin_required
 def list_members_simple():
     """供小組長選人用的簡易會員清單"""
     result = supabase.table('users').select('id, real_name, display_name').order('real_name').execute()
     return jsonify(result.data or [])
+
+
+@admin_bp.route('/api/users/search-for-cell')
+@admin_required
+def search_users_for_cell():
+    """搜尋使用者供連結牧養小組成員帳號用
+    ?q=  關鍵字（真實姓名或 LINE 暱稱），回傳 [{id, name}] 最多 20 筆
+    """
+    q = request.args.get('q', '').strip()
+    if not q:
+        return jsonify([])
+    by_real = supabase.table('users').select('id, real_name, display_name')\
+        .ilike('real_name', f'%{q}%').limit(20).execute().data or []
+    by_line = supabase.table('users').select('id, real_name, display_name')\
+        .ilike('display_name', f'%{q}%').limit(20).execute().data or []
+    seen, merged = set(), []
+    for u in by_real + by_line:
+        if u['id'] not in seen:
+            seen.add(u['id'])
+            merged.append({
+                'id': u['id'],
+                'name': u.get('real_name') or u.get('display_name') or '—',
+            })
+    return jsonify(merged[:20])
 
 
 @admin_bp.route('/api/users/<user_id>/toggle-pastor', methods=['POST'])
@@ -920,7 +969,7 @@ def event_clone(event_id):
 
 
 @admin_bp.route('/events/<event_id>/checkin-live')
-@admin_required
+@staff_required
 def checkin_live(event_id):
     """即時簽到狀況頁面"""
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
@@ -942,7 +991,7 @@ def checkin_display(event_id):
 
 
 @admin_bp.route('/events/<event_id>/checkin-live/data')
-@admin_required
+@staff_required
 def checkin_live_data(event_id):
     """即時簽到狀況 JSON API（前端輪詢用）"""
     # 撈所有已報名（registered + walk_in）紀錄
@@ -1165,7 +1214,7 @@ def event_delete(event_id):
 # =====================
 
 @admin_bp.route('/events/<event_id>/registrations')
-@admin_required
+@staff_required
 def registrations(event_id):
     """查看活動報名名單"""
     # 撈活動資料
@@ -1225,7 +1274,8 @@ def registrations(event_id):
         user_map=user_map,
         fields=fields,
         answer_map=answer_map,
-        name_override_map=name_override_map
+        name_override_map=name_override_map,
+        is_admin=session.get('is_admin', False) or session.get('is_super_admin', False),
     )
 
 
@@ -1246,7 +1296,7 @@ def event_reg_qrcode(event_id):
 
 
 @admin_bp.route('/events/<event_id>/qrcode')
-@admin_required
+@staff_required
 def event_qrcode(event_id):
     """顯示活動的電子簽到 QR Code"""
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
@@ -1263,7 +1313,7 @@ def event_qrcode(event_id):
 
 
 @admin_bp.route('/events/<event_id>/registrations/<reg_id>/checkin', methods=['POST'])
-@admin_required
+@staff_required
 def toggle_checkin(event_id, reg_id):
     """切換報到狀態"""
     result = supabase.table('registrations')\
@@ -1293,7 +1343,7 @@ def toggle_checkin(event_id, reg_id):
 # =====================
 
 @admin_bp.route('/events/<event_id>/checkin-live/search')
-@admin_required
+@staff_required
 def checkin_search(event_id):
     """從全部會員搜尋（供同工代簽，含純簽到活動）"""
     q = request.args.get('q', '').strip()
@@ -1343,7 +1393,7 @@ def checkin_search(event_id):
 
 
 @admin_bp.route('/events/<event_id>/proxy-checkin', methods=['POST'])
-@admin_required
+@staff_required
 def proxy_checkin(event_id):
     """同工代替會友簽到（含無報名紀錄的純簽到情境）"""
     body = request.get_json() or {}
@@ -1705,7 +1755,10 @@ def admin_verses():
     from routes.event import VERSE_THEMES
     import time
     verses = supabase.table('daily_verses').select('*').order('sort_order').execute().data or []
-    custom_themes = supabase.table('verse_custom_themes').select('*').order('sort_order').execute().data or []
+    try:
+        custom_themes = supabase.table('verse_custom_themes').select('*').order('sort_order').execute().data or []
+    except Exception:
+        custom_themes = []
     return render_template('admin/admin_verses.html', verses=verses,
                            themes=VERSE_THEMES,
                            custom_themes=custom_themes,
@@ -1884,6 +1937,19 @@ def admin_portal_link_edit(link_id):
 @admin_required
 def admin_portal_link_delete(link_id):
     supabase.table('portal_links').delete().eq('id', link_id).execute()
+    return jsonify({'success': True})
+
+
+@admin_bp.route('/portal-links/reorder', methods=['POST'])
+@admin_required
+def reorder_portal_links():
+    data = request.get_json() or {}
+    order = data.get('order', [])
+    for item in order:
+        link_id = item.get('id')
+        sort_order = item.get('sort_order')
+        if link_id and sort_order is not None:
+            supabase.table('portal_links').update({'sort_order': sort_order}).eq('id', link_id).execute()
     return jsonify({'success': True})
 
 
@@ -2091,8 +2157,8 @@ _PORTAL_CARDS_DEFAULT = [
     {'key': 'my_history',   'name': '電子簽到',  'emoji': '🗂️', 'subtitle': '我的活動出席紀錄',       'url': '/my-history',                   'visible_to': 'member',      'is_active': True, 'sort_order': 70},
     {'key': 'courses',      'name': '門訓學程',  'emoji': '📚', 'subtitle': '報名及追蹤進度',         'url': '/courses',                      'visible_to': 'member',      'is_active': True, 'sort_order': 80},
     {'key': 'cell_report',  'name': '小組回報',  'emoji': '👥', 'subtitle': '填寫本週小組聚會回報',   'url': '/cell-report/portal',           'visible_to': 'cell_leader', 'is_active': True, 'sort_order': 90},
-    {'key': 'pastor_report','name': '牧者週報',  'emoji': '📊', 'subtitle': '查看各小組回報與統計',   'url': '/cell-report/pastor-dashboard', 'visible_to': 'pastor',      'is_active': True, 'sort_order': 100},
-    {'key': 'staff_report', 'name': '同工週報',  'emoji': '📋', 'subtitle': '各區小組回報總覽',       'url': '/cell-report/staff-dashboard',  'visible_to': 'staff',       'is_active': True, 'sort_order': 110},
+    {'key': 'pastor_report','name': '牧者查閱',  'emoji': '📊', 'subtitle': '查看各小組回報與統計',   'url': '/cell-report/pastor-dashboard', 'visible_to': 'pastor',      'is_active': True, 'sort_order': 100},
+    {'key': 'staff_report', 'name': '同工查閱',  'emoji': '📋', 'subtitle': '各區小組回報總覽',       'url': '/cell-report/staff-dashboard',  'visible_to': 'staff',       'is_active': True, 'sort_order': 110},
     {'key': 'pastor_diary', 'name': '查閱日記',  'emoji': '🔍', 'subtitle': '已授權的會友日記',       'url': '/diary/pastor',                 'visible_to': 'pastor',      'is_active': True, 'sort_order': 120},
     {'key': 'files',        'name': '檔案管理',  'emoji': '📁', 'subtitle': '教會資料夾與檔案',       'url': '/files',                        'visible_to': 'admin',       'is_active': True, 'sort_order': 130},
     {'key': 'admin',        'name': '後台管理',  'emoji': '⚙️', 'subtitle': '使用者、活動、系統設定', 'url': '/admin',                        'visible_to': 'admin',       'is_active': True, 'sort_order': 140},
@@ -2132,8 +2198,8 @@ INSERT INTO portal_cards (key, name, emoji, subtitle, url, visible_to, sort_orde
   ('my_history', '電子簽到', '🗂️', '我的活動出席紀錄', '/my-history', 'member', 70),
   ('courses', '門訓學程', '📚', '報名及追蹤進度', '/courses', 'member', 80),
   ('cell_report', '小組回報', '👥', '填寫本週小組聚會回報', '/cell-report/portal', 'cell_leader', 90),
-  ('pastor_report', '牧者週報', '📊', '查看各小組回報與統計', '/cell-report/pastor-dashboard', 'pastor', 100),
-  ('staff_report', '同工週報', '📋', '各區小組回報總覽', '/cell-report/staff-dashboard', 'staff', 110),
+  ('pastor_report', '牧者查閱', '📊', '查看各小組回報與統計', '/cell-report/pastor-dashboard', 'pastor', 100),
+  ('staff_report', '同工查閱', '📋', '各區小組回報總覽', '/cell-report/staff-dashboard', 'staff', 110),
   ('pastor_diary', '查閱日記', '🔍', '已授權的會友日記', '/diary/pastor', 'pastor', 120),
   ('files', '檔案管理', '📁', '教會資料夾與檔案', '/files', 'admin', 130),
   ('admin', '後台管理', '⚙️', '使用者、活動、系統設定', '/admin', 'admin', 140)
@@ -2159,11 +2225,13 @@ def portal_cards_page():
     if not session.get('is_super_admin'):
         return redirect(url_for('admin.index'))
     cards, from_db = _load_portal_cards_from_db()
+    links = supabase.table('portal_links').select('*').order('sort_order').execute().data or []
     return render_template('admin/portal_cards.html',
                            cards=cards,
                            from_db=from_db,
                            setup_sql=PORTAL_CARDS_SETUP_SQL,
-                           visible_to_options=PORTAL_CARDS_VISIBLE_TO_OPTIONS)
+                           visible_to_options=PORTAL_CARDS_VISIBLE_TO_OPTIONS,
+                           links=links)
 
 
 @admin_bp.route('/api/portal-cards/<key>', methods=['POST'])
@@ -2200,3 +2268,86 @@ def reorder_portal_cards():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+# ══════════════════════════════════════════
+# 資料交換中心後台
+# ══════════════════════════════════════════
+
+@admin_bp.route('/files')
+@admin_required
+def files_admin():
+    """資料交換中心管理後台"""
+    import settings_store
+
+    # 總用量
+    all_files = supabase.table('files').select('id, name, file_size, owner_id, created_at, visibility').execute().data or []
+    total_used = sum(f.get('file_size') or 0 for f in all_files)
+    max_bytes = settings_store.get_max_storage_bytes()
+    max_gb = int(settings_store.get('max_storage_gb') or 10)
+
+    # 每位用戶用量
+    user_usage = {}
+    for f in all_files:
+        oid = f.get('owner_id') or 'unknown'
+        user_usage[oid] = user_usage.get(oid, 0) + (f.get('file_size') or 0)
+
+    # 取得用戶名稱
+    user_ids = [uid for uid in user_usage if uid != 'unknown']
+    user_map = {}
+    if user_ids:
+        urows = supabase.table('users').select('id, real_name, display_name').in_('id', user_ids).execute().data or []
+        for u in urows:
+            user_map[u['id']] = u.get('real_name') or u.get('display_name') or '未知'
+
+    user_stats = sorted([
+        {'id': uid, 'name': user_map.get(uid, uid[:8] + '…'), 'bytes': sz}
+        for uid, sz in user_usage.items()
+    ], key=lambda x: x['bytes'], reverse=True)
+
+    # 最近上傳（20筆）
+    recent_files = sorted(all_files, key=lambda f: f.get('created_at') or '', reverse=True)[:20]
+    for f in recent_files:
+        oid = f.get('owner_id', '')
+        f['owner_name'] = user_map.get(oid, '未知')
+
+    return render_template('admin/files_admin.html',
+                           total_used=total_used,
+                           max_bytes=max_bytes,
+                           max_gb=max_gb,
+                           user_stats=user_stats,
+                           recent_files=recent_files,
+                           file_count=len(all_files))
+
+
+@admin_bp.route('/api/files/set-limit', methods=['POST'])
+@admin_required
+def files_set_limit():
+    """設定全域儲存上限"""
+    data = request.get_json(silent=True) or {}
+    try:
+        gb = int(data.get('max_gb') or 10)
+        if gb < 1 or gb > 1000:
+            return jsonify({'error': 'GB 需介於 1～1000'}), 400
+    except (ValueError, TypeError):
+        return jsonify({'error': '請輸入有效數字'}), 400
+    import settings_store
+    settings_store.set('max_storage_gb', gb)
+    return jsonify({'success': True, 'max_gb': gb})
+
+
+@admin_bp.route('/api/files/<file_id>/delete', methods=['POST'])
+@admin_required
+def files_admin_delete(file_id):
+    """管理員強制刪除任意檔案"""
+    from storage import delete_file as r2_delete
+    row = supabase.table('files').select('file_key, name').eq('id', file_id).execute().data
+    if not row:
+        return jsonify({'error': '檔案不存在'}), 404
+    file_key = row[0]['file_key']
+    try:
+        r2_delete(file_key)
+    except Exception:
+        pass
+    supabase.table('files').delete().eq('id', file_id).execute()
+    return jsonify({'success': True})

@@ -298,6 +298,83 @@ def portal():
         except Exception:
             pass
 
+    # ── 角色判斷：牧者、小組長、待辦週報 ──
+    # 每次載入 portal 時從 DB 刷新 is_pastor / is_staff / is_super_admin，
+    # 避免管理員設定後要重新登入才生效的問題。
+    is_pastor = session.get('is_pastor', False)
+    if uid:
+        try:
+            role_row = supabase.table('users')\
+                .select('is_pastor, is_staff, is_super_admin')\
+                .eq('id', uid).single().execute()
+            if role_row.data:
+                is_pastor = bool(role_row.data.get('is_pastor', False))
+                session['is_pastor']      = is_pastor
+                session['is_staff']       = bool(role_row.data.get('is_staff', False))
+                session['is_super_admin'] = bool(role_row.data.get('is_super_admin', False))
+        except Exception:
+            pass
+    is_group_leader = False
+    pending_report = False
+    leader_groups = []
+
+    if uid:
+        try:
+            leader_result = supabase.table('cell_group_leaders')\
+                .select('group_id, cell_groups(id, name, weekly_gather_day)')\
+                .eq('user_id', uid).execute()
+            if leader_result.data:
+                is_group_leader = True
+                leader_groups = leader_result.data
+                # 依各組實際聚會日計算本週日期，再精確查詢
+                today_date = date.today()
+                weekday_map = {'一': 0, '二': 1, '三': 2, '四': 3, '五': 4, '六': 5, '日': 6}
+
+                def _meeting_date(group_data, ref):
+                    day_str = (group_data.get('weekly_gather_day') or '').strip()
+                    target = None
+                    for ch, w in weekday_map.items():
+                        if ch in day_str:
+                            target = w
+                            break
+                    if target is None:
+                        target = 6  # 預設週日
+                    return ref - timedelta(days=(ref.weekday() - target) % 7)
+
+                for lg in leader_groups:
+                    gid = lg['group_id']
+                    group_data = lg.get('cell_groups') or {}
+                    week_date = _meeting_date(group_data, today_date)
+                    report_check = supabase.table('cell_reports')\
+                        .select('id, is_complete, no_meeting')\
+                        .eq('group_id', gid)\
+                        .eq('week_date', week_date.isoformat())\
+                        .execute()
+                    row = report_check.data[0] if report_check.data else None
+                    if not row or not (row.get('is_complete') or row.get('no_meeting')):
+                        pending_report = True
+                        break
+        except Exception:
+            pass
+
+    # ── 聚會人數（牧者/同工/管理員在首頁顯示）──
+    attendance_summary = None
+    if is_pastor or is_staff or session.get('is_admin'):
+        try:
+            def _latest(table, *cols):
+                fields = ','.join(cols)
+                r = supabase.table(table).select(fields)\
+                    .order('date', desc=True).limit(1).execute()
+                return r.data[0] if r.data else None
+            attendance_summary = {
+                'sunday':   _latest('sunday_reports',          'date','first_service_count','second_service_count'),
+                'children': _latest('children_sunday_reports', 'date','attendance_count'),
+                'prayer':   _latest('prayer_reports',          'date','attendance_count'),
+                'morning':  _latest('morning_prayer_reports',  'date','attendance_count'),
+            }
+        except Exception:
+            pass
+
     # ── Hero 主題（與今日經文同步）──
     today_tw = datetime.now(timezone(timedelta(hours=8))).date().isoformat()
     try:
@@ -309,6 +386,26 @@ def portal():
     except Exception:
         _hero_custom = []
     hero_theme = _pick_theme(uid or 'guest', today_tw, _hero_custom)
+
+    # 未讀 changelog
+    from routes.changelog import get_unread_changelog
+    try:
+        user_row = supabase.table('users').select('last_seen_changelog_at')\
+            .eq('id', uid).execute().data
+        last_seen = user_row[0].get('last_seen_changelog_at') if user_row else None
+    except Exception:
+        last_seen = None
+    unread_changelog = get_unread_changelog(last_seen) if uid else None
+
+    # 是否為全職同工（有 staff_profiles 記錄）
+    is_fulltime_staff = False
+    if uid:
+        try:
+            sp = supabase.table('staff_profiles').select('id')\
+                .eq('user_id', uid).eq('is_active', True).limit(1).execute().data
+            is_fulltime_staff = bool(sp)
+        except Exception:
+            pass
 
     return render_template('portal.html',
         open_events=open_events,
@@ -324,6 +421,13 @@ def portal():
         portal_cards_config=portal_cards_config,
         hero_theme=hero_theme,
         today_tw=today_tw,
+        is_pastor=is_pastor,
+        is_group_leader=is_group_leader,
+        pending_report=pending_report,
+        leader_groups=leader_groups,
+        attendance_summary=attendance_summary,
+        unread_changelog=unread_changelog,
+        is_fulltime_staff=is_fulltime_staff,
     )
 
 
@@ -332,6 +436,13 @@ def portal():
 def manual():
     """使用手冊"""
     return render_template('manual.html')
+
+
+@event_bp.route('/product-spec')
+def product_spec():
+    """產品說明書（公開可讀）"""
+    from config import Config
+    return render_template('product_spec.html', church_name=Config.CHURCH_NAME)
 
 
 @event_bp.route('/my-history')
@@ -349,35 +460,44 @@ def my_history():
         .execute().data or []
 
     # 撈完訓認證（主要顯示來源）
-    certifications = supabase.table('course_certifications')\
-        .select('*, course_categories(id, name)')\
-        .eq('user_id', uid)\
-        .order('certified_at', desc=True)\
-        .execute().data or []
+    try:
+        certifications = supabase.table('course_certifications')\
+            .select('*, course_categories(id, name)')\
+            .eq('user_id', uid)\
+            .order('certified_at', desc=True)\
+            .execute().data or []
+    except Exception:
+        certifications = []
 
     # 撈進行中的報名（enrolled / absent 狀態，不含已完訓）
-    enrollments = supabase.table('course_enrollments')\
-        .select('*, courses(id, title, period, total_sessions)')\
-        .eq('user_id', uid)\
-        .in_('status', ['enrolled', 'absent'])\
-        .order('created_at', desc=True)\
-        .execute().data or []
+    try:
+        enrollments = supabase.table('course_enrollments')\
+            .select('*, courses(id, title, period, total_sessions)')\
+            .eq('user_id', uid)\
+            .in_('status', ['enrolled', 'absent'])\
+            .order('created_at', desc=True)\
+            .execute().data or []
+    except Exception:
+        enrollments = []
 
     # 每個進行中學程的出席堂次數
     for e in enrollments:
         course_id = e.get('courses', {}).get('id') if e.get('courses') else None
         if course_id:
-            sessions_result = supabase.table('course_sessions')\
-                .select('id').eq('course_id', course_id).execute().data or []
-            session_ids = [s['id'] for s in sessions_result]
-            if session_ids:
-                att = supabase.table('session_attendance')\
-                    .select('id', count='exact')\
-                    .eq('user_id', uid)\
-                    .in_('session_id', session_ids)\
-                    .execute()
-                e['attended_count'] = att.count or 0
-            else:
+            try:
+                sessions_result = supabase.table('course_sessions')\
+                    .select('id').eq('course_id', course_id).execute().data or []
+                session_ids = [s['id'] for s in sessions_result]
+                if session_ids:
+                    att = supabase.table('session_attendance')\
+                        .select('id', count='exact')\
+                        .eq('user_id', uid)\
+                        .in_('session_id', session_ids)\
+                        .execute()
+                    e['attended_count'] = att.count or 0
+                else:
+                    e['attended_count'] = 0
+            except Exception:
                 e['attended_count'] = 0
         else:
             e['attended_count'] = 0
@@ -714,6 +834,14 @@ def event_detail(event_id):
 @login_required
 def event_register(event_id):
     """報名活動"""
+    try:
+     return _do_event_register(event_id)
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': '系統錯誤，請稍後再試'}), 500
+
+def _do_event_register(event_id):
     # 再次確認活動存在且開放
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
     if not event_result.data:
@@ -931,6 +1059,14 @@ def event_external_form(event_id):
 @event_bp.route('/event/<event_id>/external-register', methods=['POST'])
 def event_external_register(event_id):
     """外部人士報名（無需 LINE 登入）"""
+    try:
+     return _do_external_register(event_id)
+    except Exception as e:
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'error': '系統錯誤，請稍後再試'}), 500
+
+def _do_external_register(event_id):
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
     if not event_result.data:
         return jsonify({'error': '找不到此活動'}), 404

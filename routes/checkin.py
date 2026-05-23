@@ -123,6 +123,7 @@ def checkin_page(event_id, token):
                 already_checked_in=False,
                 auto_checked_in=True,
                 is_admin=session.get('is_admin', False),
+                is_staff=session.get('is_staff', False),
                 can_checkin=True, no_register_error=None, error=None)
 
         return render_template('checkin.html',
@@ -130,6 +131,7 @@ def checkin_page(event_id, token):
             already_checked_in=already_checked_in,
             auto_checked_in=False,
             is_admin=session.get('is_admin', False),
+            is_staff=session.get('is_staff', False),
             can_checkin=True, no_register_error=None, error=None)
 
     # ── 只有一筆 registered ──
@@ -148,6 +150,7 @@ def checkin_page(event_id, token):
                 already_checked_in=False,
                 auto_checked_in=True,
                 is_admin=session.get('is_admin', False),
+                is_staff=session.get('is_staff', False),
                 can_checkin=True, no_register_error=None, error=None)
 
         return render_template('checkin.html',
@@ -155,6 +158,7 @@ def checkin_page(event_id, token):
             already_checked_in=already_checked_in,
             auto_checked_in=False,
             is_admin=session.get('is_admin', False),
+            is_staff=session.get('is_staff', False),
             can_checkin=True, no_register_error=None, error=None)
 
     # ── 多筆 registered：撈每筆的答案，讓使用者選擇要簽哪一筆 ──
@@ -203,6 +207,7 @@ def checkin_page(event_id, token):
         answer_map=answer_map,
         name_map=name_map,
         is_admin=session.get('is_admin', False),
+        is_staff=session.get('is_staff', False),
         error=None)
 
 
@@ -304,7 +309,7 @@ def checkin_proxy_search(event_id, token):
     """同工在簽到頁搜尋會友（代簽用）"""
     if not session.get('user_id'):
         return jsonify({'error': '請先登入'}), 401
-    if not session.get('is_admin'):
+    if not (session.get('is_admin') or session.get('is_staff') or session.get('is_pastor')):
         return jsonify({'error': '無權限'}), 403
 
     # 驗證 token
@@ -374,7 +379,7 @@ def checkin_proxy(event_id, token):
     """同工在簽到頁代替會友簽到"""
     if not session.get('user_id'):
         return jsonify({'error': '請先登入'}), 401
-    if not session.get('is_admin'):
+    if not (session.get('is_admin') or session.get('is_staff') or session.get('is_pastor')):
         return jsonify({'error': '無權限'}), 403
 
     # 驗證 token，同時撈完整活動資料供後續使用

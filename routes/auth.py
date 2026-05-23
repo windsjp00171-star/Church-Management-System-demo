@@ -152,7 +152,7 @@ def callback():
     _populate_session(user)
 
     if not user.get('real_name'):
-        return redirect(url_for('profile.setup'))
+        return redirect(url_for('profile.onboarding'))
 
     return redirect(_consume_next_url(url_for('event.portal')))
 
@@ -210,7 +210,7 @@ def liff_login():
     if not user.get('real_name'):
         if next_url:
             session['next_url'] = next_url
-        return jsonify({'redirect': url_for('profile.setup')})
+        return jsonify({'redirect': url_for('profile.onboarding')})
 
     # 從 POST data 讀 next_url（手機 LIFF 跳轉後 cookie 可能消失，以 URL 參數為主）
     # fallback 到 session（OAuth 桌機流程）

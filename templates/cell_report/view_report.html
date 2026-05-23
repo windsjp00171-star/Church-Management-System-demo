@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% block title %}{{ group.name }} 小組回報單{% endblock %}
+{% block content %}
+<div class="container" style="max-width:720px; margin:40px auto 60px; padding:0 16px;">
+
+  <!-- 返回按鈕 -->
+  <a href="{{ back_url }}" style="display:inline-flex; align-items:center; gap:6px; color:#06C755;
+     text-decoration:none; font-size:.9rem; margin-bottom:20px;">
+    ← 返回總覽
+  </a>
+
+  <!-- 標題列 -->
+  <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; margin-bottom:4px;">
+    <h1 style="font-size:1.4rem; font-weight:700; margin:0;">{{ group.name }}</h1>
+    <span style="font-size:.85rem; color:#888;">小組回報單（唯讀）</span>
+  </div>
+
+  <!-- 週次導航 -->
+  <div style="display:flex; align-items:center; gap:16px; margin-bottom:24px; flex-wrap:wrap;">
+    <a href="{{ url_for('cell_report.view_report', group_id=group.id, week_date=prev_week.isoformat()) }}"
+       style="color:#06C755; text-decoration:none; font-size:1.2rem;">←</a>
+    <span style="font-weight:600;">{{ week_date.strftime('%Y 年 %m 月 %d 日') }}（聚會日）</span>
+    {% if not is_current_week %}
+      <a href="{{ url_for('cell_report.view_report', group_id=group.id, week_date=next_week.isoformat()) }}"
+         style="color:#06C755; text-decoration:none; font-size:1.2rem;">→</a>
+    {% endif %}
+  </div>
+
+  {% if not report %}
+    <!-- 尚未回報 -->
+    <div style="padding:40px 24px; background:#fff; border-radius:12px;
+                box-shadow:0 1px 4px rgba(0,0,0,.07); text-align:center; color:#aaa;">
+      <div style="font-size:2.5rem; margin-bottom:12px;">📋</div>
+      <div style="font-size:1rem; font-weight:600; color:#888; margin-bottom:6px;">本週尚未回報</div>
+      <div style="font-size:.85rem;">小組長還未提交這週的回報單。</div>
+    </div>
+
+  {% elif report.no_meeting %}
+    <!-- 無聚會 -->
+    <div style="padding:24px; background:#f0f4ff; border-radius:12px;
+                box-shadow:0 1px 4px rgba(0,0,0,.07); margin-bottom:20px;">
+      <div style="font-size:1.1rem; font-weight:700; color:#3949ab; margin-bottom:6px;">本週無聚會</div>
+      {% if report.no_meeting_reason %}
+        <div style="font-size:.9rem; color:#555;">原因：{{ report.no_meeting_reason }}</div>
+      {% endif %}
+    </div>
+
+  {% else %}
+    <!-- 出席人數摘要 -->
+    <div style="padding:20px 24px; background:#e8f5e9; border-radius:12px;
+                box-shadow:0 1px 4px rgba(0,0,0,.07); margin-bottom:20px;
+                display:flex; align-items:center; gap:16px; flex-wrap:wrap;">
+      <div style="font-size:2.2rem; font-weight:800; color:#2e7d32;">
+        {{ report.attendance_count or 0 }}
+      </div>
+      <div style="font-size:.9rem; color:#555;">
+        <div style="font-weight:600;">本週出席人數</div>
+        <div style="color:#888; margin-top:2px;">✓ 回報已完成</div>
+      </div>
+    </div>
+
+    <!-- 出席記錄表 -->
+    {% if display_rows %}
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07);
+                overflow:hidden; margin-bottom:20px;">
+      <div style="padding:14px 18px; border-bottom:1px solid #f0f0f0;
+                  font-size:.9rem; font-weight:700; color:#333;">出席記錄</div>
+      <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:.88rem;">
+          <thead>
+            <tr style="background:#fafafa;">
+              <th style="padding:10px 16px; text-align:left; color:#666; font-weight:600; border-bottom:1px solid #eee;">姓名</th>
+              <th style="padding:10px 12px; text-align:center; color:#666; font-weight:600; border-bottom:1px solid #eee;">小組</th>
+              <th style="padding:10px 12px; text-align:center; color:#666; font-weight:600; border-bottom:1px solid #eee;">主日</th>
+              <th style="padding:10px 12px; text-align:center; color:#666; font-weight:600; border-bottom:1px solid #eee;">RPG</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in display_rows %}
+            <tr style="border-bottom:1px solid #f5f5f5;">
+              <td style="padding:10px 16px; font-weight:500; color:#333;">{{ row.name }}</td>
+              <td style="padding:10px 12px; text-align:center;">
+                <span style="padding:3px 8px; border-radius:12px; font-size:.8rem;
+                  {% if row.cell == '出席' %}background:#e8f5e9; color:#2e7d32;
+                  {% elif row.cell == '遲到' %}background:#fff8e1; color:#f57f17;
+                  {% elif row.cell == '請假' %}background:#f3e5f5; color:#7b1fa2;
+                  {% elif row.cell == '未請假未出席' %}background:#ffebee; color:#c62828;
+                  {% else %}background:#f5f5f5; color:#999;{% endif %}">
+                  {{ row.cell }}
+                </span>
+              </td>
+              <td style="padding:10px 12px; text-align:center;">
+                <span style="padding:3px 8px; border-radius:12px; font-size:.8rem;
+                  {% if row.sunday == '出席' %}background:#e8f5e9; color:#2e7d32;
+                  {% elif row.sunday == '遲到' %}background:#fff8e1; color:#f57f17;
+                  {% elif row.sunday == '請假' %}background:#f3e5f5; color:#7b1fa2;
+                  {% elif row.sunday == '未請假未出席' %}background:#ffebee; color:#c62828;
+                  {% else %}background:#f5f5f5; color:#999;{% endif %}">
+                  {{ row.sunday }}
+                </span>
+              </td>
+              <td style="padding:10px 12px; text-align:center;">
+                <span style="padding:3px 8px; border-radius:12px; font-size:.8rem;
+                  {% if row.rpg == '出席' %}background:#e8f5e9; color:#2e7d32;
+                  {% elif row.rpg == '遲到' %}background:#fff8e1; color:#f57f17;
+                  {% elif row.rpg == '請假' %}background:#f3e5f5; color:#7b1fa2;
+                  {% elif row.rpg == '未請假未出席' %}background:#ffebee; color:#c62828;
+                  {% else %}background:#f5f5f5; color:#999;{% endif %}">
+                  {{ row.rpg }}
+                </span>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- 小組長牧養回報 -->
+    {% if report.is_complete %}
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:20px 24px; margin-bottom:20px;">
+      <div style="font-size:.9rem; font-weight:700; color:#333; margin-bottom:14px;">小組長牧養回報</div>
+
+      <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:12px; margin-bottom:14px;">
+        {% for label, status_field, note_field in [
+            ('靈命狀況', 'spiritual_status', 'spiritual_note'),
+            ('家庭狀況', 'family_status', 'family_note'),
+            ('工作狀況', 'work_status', 'work_note'),
+            ('健康狀況', 'health_status', 'health_note'),
+        ] %}
+        <div style="padding:12px 14px; background:#fafafa; border-radius:8px;">
+          <div style="font-size:.78rem; color:#888; margin-bottom:4px;">{{ label }}</div>
+          <div style="font-size:.9rem; font-weight:600; color:#333;">
+            {% set sv = report.get(status_field, '') %}
+            {% if sv == 'good' %}😊 良好
+            {% elif sv == 'normal' %}😐 普通
+            {% elif sv == 'concern' %}😟 需關懷
+            {% elif sv == 'urgent' %}🆘 緊急
+            {% else %}{{ sv or '—' }}{% endif %}
+          </div>
+          {% set nv = report.get(note_field, '') %}
+          {% if nv %}
+          <div style="font-size:.82rem; color:#666; margin-top:4px;">{{ nv }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+
+      {% if report.group_status %}
+      <div style="padding:12px 14px; background:#fafafa; border-radius:8px; margin-bottom:12px;">
+        <div style="font-size:.78rem; color:#888; margin-bottom:4px;">小組整體狀況</div>
+        <div style="font-size:.9rem; color:#333; white-space:pre-wrap;">{{ report.group_status }}</div>
+      </div>
+      {% endif %}
+
+      {% if report.coworker_suggestion %}
+      <div style="padding:12px 14px; background:#fff8e1; border-radius:8px;">
+        <div style="font-size:.78rem; color:#888; margin-bottom:4px;">給同工的建議</div>
+        <div style="font-size:.9rem; color:#333; white-space:pre-wrap;">{{ report.coworker_suggestion }}</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- 新朋友 -->
+    {% if newcomers %}
+    <div style="background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.07); padding:20px 24px;">
+      <div style="font-size:.9rem; font-weight:700; color:#333; margin-bottom:12px;">本週新朋友（{{ newcomers|length }} 位）</div>
+      {% for nc in newcomers %}
+      <div style="padding:10px 14px; background:#f0fdf4; border-radius:8px; margin-bottom:8px; font-size:.88rem;">
+        <span style="font-weight:600; color:#16a34a;">{{ nc.name or '未填姓名' }}</span>
+        {% if nc.phone %}<span style="color:#888; margin-left:12px;">📞 {{ nc.phone }}</span>{% endif %}
+        {% if nc.note %}<div style="color:#555; margin-top:4px;">{{ nc.note }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+  {% endif %}
+
+</div>
+{% endblock %}

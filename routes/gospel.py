@@ -1,9 +1,7 @@
 # 福音探索系統路由
 from flask import Blueprint, render_template, request, session, jsonify
-from config import Config
-from supabase import create_client
+from db import supabase
 
-supabase = create_client(Config.SUPABASE_URL, Config.SUPABASE_KEY)
 gospel_bp = Blueprint('gospel', __name__)
 
 STATUS_LABELS = {
@@ -21,7 +19,13 @@ def index():
             .order('sort_order').execute().data or []
     except Exception:
         cards = []
-    return render_template('gospel/index.html', cards=cards)
+    try:
+        form_questions = supabase.table('gospel_form_questions')\
+            .select('*').eq('is_active', True)\
+            .order('sort_order').execute().data or []
+    except Exception:
+        form_questions = []
+    return render_template('gospel/index.html', cards=cards, form_questions=form_questions)
 
 
 # ── 送出詢問表單（不需登入）────────────────────────────────
@@ -35,11 +39,14 @@ def inquiry():
     if not name or not contact:
         return jsonify({'success': False, 'error': '請填寫姓名與聯絡方式'})
 
+    extra = data.get('extra_answers') or {}
+
     try:
         supabase.table('gospel_inquiries').insert({
             'name': name,
             'contact': contact,
             'message': message or None,
+            'extra_answers': extra if extra else None,
             'status': 'pending',
         }).execute()
 
@@ -185,3 +192,56 @@ def admin_card_update(card_id):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
+
+
+# ── 後台：自訂表單問題管理 ────────────────────────────────
+@gospel_bp.route('/admin/gospel/form-questions')
+def admin_form_questions():
+    if not session.get('is_admin'):
+        return render_template('admin/forbidden.html'), 403
+    try:
+        questions = supabase.table('gospel_form_questions')\
+            .select('*').order('sort_order').execute().data or []
+    except Exception as e:
+        print(f'[gospel] form_questions error: {e}')
+        questions = []
+    return render_template('gospel/admin_form_questions.html', questions=questions)
+
+
+@gospel_bp.route('/admin/gospel/form-questions/save', methods=['POST'])
+def admin_form_questions_save():
+    if not session.get('is_admin'):
+        return jsonify({'error': '無權限'}), 403
+    data = request.get_json() or {}
+    action = data.get('action')
+
+    if action == 'create':
+        supabase.table('gospel_form_questions').insert({
+            'label':       data.get('label', '').strip(),
+            'placeholder': data.get('placeholder', '').strip(),
+            'is_textarea': bool(data.get('is_textarea', False)),
+            'is_required': bool(data.get('is_required', False)),
+            'sort_order':  int(data.get('sort_order', 0)),
+            'is_active':   True,
+        }).execute()
+        return jsonify({'success': True})
+
+    if action == 'update':
+        qid = data.get('id')
+        if not qid:
+            return jsonify({'error': '缺少 id'}), 400
+        update = {}
+        for f in ('label', 'placeholder', 'is_textarea', 'is_required', 'sort_order', 'is_active'):
+            if f in data:
+                update[f] = data[f]
+        supabase.table('gospel_form_questions').update(update).eq('id', qid).execute()
+        return jsonify({'success': True})
+
+    if action == 'delete':
+        qid = data.get('id')
+        if not qid:
+            return jsonify({'error': '缺少 id'}), 400
+        supabase.table('gospel_form_questions').delete().eq('id', qid).execute()
+        return jsonify({'success': True})
+
+    return jsonify({'error': '未知 action'}), 400

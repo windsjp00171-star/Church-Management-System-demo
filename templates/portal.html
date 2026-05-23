@@ -2,6 +2,69 @@
 {% block title %}{{ church_name }}{% endblock %}
 {% block content %}
 
+{% if unread_changelog %}
+<div id="changelog-banner" style="background:linear-gradient(90deg,#1d4ed8,#3b82f6); color:white;
+     padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+     animation:slideDown .4s ease;">
+    <span style="font-size:1.1rem;">🆕</span>
+    <div style="flex:1; min-width:0;">
+        {% if unread_changelog.version %}
+        <span style="font-size:0.75rem; background:rgba(255,255,255,0.2); border-radius:10px; padding:1px 8px; margin-right:6px;">{{ unread_changelog.version }}</span>
+        {% endif %}
+        <strong>{{ unread_changelog.title }}</strong>
+        <span style="font-size:0.83rem; opacity:0.85; margin-left:8px;">{{ unread_changelog.published_at }}</span>
+    </div>
+    <div style="display:flex; gap:8px; flex-shrink:0;">
+        <button onclick="showChangelog()"
+            style="padding:5px 14px; background:rgba(255,255,255,0.2); color:white; border:1px solid rgba(255,255,255,0.4);
+                   border-radius:6px; cursor:pointer; font-size:0.85rem;">
+            查看詳情
+        </button>
+        <button onclick="dismissChangelog()"
+            style="padding:5px 14px; background:rgba(255,255,255,0.15); color:white; border:none;
+                   border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
+            知道了 ✕
+        </button>
+    </div>
+</div>
+
+<!-- Changelog 詳情 Modal -->
+<div id="changelog-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; border-radius:16px; padding:28px; width:100%; max-width:480px; max-height:80vh; overflow-y:auto;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
+            <div>
+                {% if unread_changelog.version %}
+                <span style="font-size:0.8rem; background:#eff6ff; color:#1d4ed8; border-radius:10px; padding:2px 9px; font-weight:600;">{{ unread_changelog.version }}</span>
+                {% endif %}
+                <h3 style="margin:6px 0 0; font-size:1.05rem;">{{ unread_changelog.title }}</h3>
+                <p style="color:#9ca3af; font-size:0.8rem; margin:2px 0 0;">{{ unread_changelog.published_at }}</p>
+            </div>
+            <button onclick="document.getElementById('changelog-modal').style.display='none'"
+                style="background:none; border:none; font-size:1.3rem; cursor:pointer; color:#9ca3af; line-height:1; padding:0 0 0 12px;">✕</button>
+        </div>
+        <div style="font-size:0.92rem; color:#374151; white-space:pre-wrap; line-height:1.7; margin-bottom:20px;">{{ unread_changelog.content }}</div>
+        <button onclick="dismissChangelog()"
+            style="width:100%; padding:12px; background:#3b82f6; color:white; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer;">
+            知道了！
+        </button>
+    </div>
+</div>
+
+<style>
+@keyframes slideDown { from { opacity:0; transform:translateY(-20px); } to { opacity:1; transform:translateY(0); } }
+</style>
+<script>
+function showChangelog() {
+    document.getElementById('changelog-modal').style.display = 'flex';
+}
+function dismissChangelog() {
+    document.getElementById('changelog-banner').style.display = 'none';
+    document.getElementById('changelog-modal').style.display = 'none';
+    fetch('/api/changelogs/mark-seen', { method: 'POST' });
+}
+</script>
+{% endif %}
+
 {% set user_name = session.real_name or session.display_name or '家人' %}
 {% set is_visitor = session.get('member_type', 'member') == 'visitor' %}
 {# 動態卡片名稱：優先用 card_names（context processor），fallback 用 portal_cards_config #}
@@ -330,6 +393,17 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 }
 </style>
 
+{# ════ 未完成設定提示橫幅 ════ #}
+{% if not session.real_name %}
+<div style="background:#FFF9C4;border:1px solid #F6D860;border-radius:12px;padding:14px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;">
+  <span style="font-size:1.2rem;flex-shrink:0;">👋</span>
+  <div>
+    <p style="font-weight:600;color:#856404;margin:0;font-size:.9rem;">尚未完成個人資料</p>
+    <p style="color:#a07820;font-size:.78rem;margin:2px 0 0;">完善資料後可使用全部功能 — <a href="/onboarding" style="color:#856404;font-weight:700;">立即設定</a></p>
+  </div>
+</div>
+{% endif %}
+
 {# ════ HERO ════ #}
 <div class="portal-hero">
     <div class="hero-glow"></div>
@@ -353,10 +427,135 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <div class="hero-fade"></div>
 </div>
 
-{# ════ 我的近期活動 ════ #}
+{# ════ 管理員橫幅 ════ #}
+{% if is_admin or is_super_admin %}
+<a href="/admin" class="pa" style="--d:30ms; display:flex; align-items:center; gap:14px; background:linear-gradient(135deg,#1e1e2e,#2d1b69); border-radius:16px; padding:16px 20px; margin-bottom:16px; text-decoration:none;">
+  <span style="font-size:1.5rem; flex-shrink:0;">⚙️</span>
+  <div style="flex:1; min-width:0;">
+    <p style="font-weight:700; color:white; font-size:.95rem; margin:0; line-height:1.3;">後台管理</p>
+    <p style="color:rgba(255,255,255,.55); font-size:.75rem; margin:2px 0 0;">使用者、活動、系統設定</p>
+  </div>
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+</a>
+{% endif %}
+
+{# ════ 角色任務小工具 ════ #}
+{% if is_group_leader or is_pastor or is_staff or is_admin %}
+<div class="role-widget card pa" style="--d:40ms; padding: 24px; margin-bottom: 32px;">
+  <p class="section-label-sm" style="margin: 0 0 16px;">本週待辦</p>
+
+  {% if is_group_leader %}
+  <div style="margin-bottom: 12px;">
+    {% if pending_report %}
+    <a href="/cell-report/portal" class="callout callout-neutral" style="text-decoration: none;">
+      <span style="font-size: 1.25rem;">📋</span>
+      <div>
+        <p style="font-weight: 600; color: #4A5568; font-size: 0.9rem; margin: 0;">本週小組回報單還沒填喔</p>
+        <p style="color: #A0AEC0; font-size: 0.78rem; margin: 2px 0 0;">有空的時候記得填一下 ☺</p>
+      </div>
+      <span style="margin-left: auto; color: #CBD5E0;">›</span>
+    </a>
+    {% else %}
+    <div class="callout callout-success">
+      <span style="font-size: 1.25rem;">✅</span>
+      <p style="font-weight: 600; color: #276749; font-size: 0.9rem; margin: 0;">本週小組回報單已完成</p>
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if is_staff or is_pastor or is_admin %}
+  {# ── 聚會人數總覽 ── #}
+  {% set as = attendance_summary %}
+  <p class="section-label-sm" style="margin: 0 0 10px; font-size:.68rem;">聚會人數總覽</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+
+    {# 成人主日 #}
+    <a href="/cell-report/sunday" style="display:flex;flex-direction:column;background:#F0FFF4;border:1px solid #9AE6B4;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
+      <span style="font-size:1rem;margin-bottom:4px;">⛪ <span style="font-size:.72rem;font-weight:600;color:#276749;">成人主日</span></span>
+      {% if as and as.sunday %}
+        {% set sc = (as.sunday.first_service_count or 0) + (as.sunday.second_service_count or 0) %}
+        <span style="font-size:2.4rem;font-weight:800;color:#276749;line-height:1;">{{ sc }}</span>
+        {% if (as.sunday.first_service_count or 0) > 0 and (as.sunday.second_service_count or 0) > 0 %}
+        <span style="font-size:.68rem;color:#276749;opacity:.7;margin-top:2px;">一：{{ as.sunday.first_service_count }}　二：{{ as.sunday.second_service_count }}</span>
+        {% endif %}
+        <span style="font-size:.65rem;color:#276749;opacity:.6;margin-top:2px;">{{ as.sunday.date }}</span>
+      {% else %}
+        <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
+        <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
+      {% endif %}
+      <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#9AE6B4;">填報 ›</span>
+    </a>
+
+    {# 兒童主日 #}
+    <a href="/cell-report/children" style="display:flex;flex-direction:column;background:#EBF8FF;border:1px solid #90CDF4;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
+      <span style="font-size:1rem;margin-bottom:4px;">🧒 <span style="font-size:.72rem;font-weight:600;color:#2C5282;">兒童主日</span></span>
+      {% if as and as.children %}
+        <span style="font-size:2.4rem;font-weight:800;color:#2C5282;line-height:1;">{{ as.children.attendance_count }}</span>
+        <span style="font-size:.65rem;color:#2C5282;opacity:.6;margin-top:4px;">{{ as.children.date }}</span>
+      {% else %}
+        <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
+        <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
+      {% endif %}
+      <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#90CDF4;">填報 ›</span>
+    </a>
+
+    {# 禱告會 #}
+    <a href="/cell-report/prayer" style="display:flex;flex-direction:column;background:#FAF5FF;border:1px solid #D6BCFA;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
+      <span style="font-size:1rem;margin-bottom:4px;">🙏 <span style="font-size:.72rem;font-weight:600;color:#553C9A;">禱告會</span></span>
+      {% if as and as.prayer %}
+        <span style="font-size:2.4rem;font-weight:800;color:#553C9A;line-height:1;">{{ as.prayer.attendance_count }}</span>
+        <span style="font-size:.65rem;color:#553C9A;opacity:.6;margin-top:4px;">{{ as.prayer.date }}</span>
+      {% else %}
+        <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
+        <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
+      {% endif %}
+      <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#D6BCFA;">填報 ›</span>
+    </a>
+
+    {# 晨禱 #}
+    <a href="/cell-report/morning-prayer" style="display:flex;flex-direction:column;background:#FFFAF0;border:1px solid #FBBF24;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
+      <span style="font-size:1rem;margin-bottom:4px;">🌅 <span style="font-size:.72rem;font-weight:600;color:#92400E;">晨禱</span></span>
+      {% if as and as.morning %}
+        <span style="font-size:2.4rem;font-weight:800;color:#92400E;line-height:1;">{{ as.morning.attendance_count }}</span>
+        <span style="font-size:.65rem;color:#92400E;opacity:.6;margin-top:4px;">{{ as.morning.date }}</span>
+      {% else %}
+        <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
+        <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
+      {% endif %}
+      <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#FBBF24;">填報 ›</span>
+    </a>
+
+  </div>
+  <div style="border-top: 1px solid #E2E8F0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+    {% if is_pastor %}
+    <a href="/cell-report/pastor-dashboard" style="display:flex;align-items:center;gap:10px;background:#FFF7ED;border:1px solid #FBBF24;border-radius:10px;padding:12px 14px;text-decoration:none;">
+      <span style="font-size:1.2rem;">📊</span>
+      <p style="font-weight:600;color:#92400E;font-size:.9rem;margin:0;">牧者查閱</p>
+      <span style="margin-left:auto;color:#D97706;">›</span>
+    </a>
+    {% endif %}
+    {% if is_staff and not is_pastor %}
+    <a href="/cell-report/staff-dashboard" style="display:flex;align-items:center;gap:10px;background:#EBF8FF;border:1px solid #90CDF4;border-radius:10px;padding:12px 14px;text-decoration:none;">
+      <span style="font-size:1.2rem;">📋</span>
+      <p style="font-weight:600;color:#2C5282;font-size:.9rem;margin:0;">同工查閱</p>
+      <span style="margin-left:auto;color:#3B82F6;">›</span>
+    </a>
+    {% endif %}
+  </div>
+  {% endif %}
+
+</div>
+{% endif %}
+
+{# ════════════════════════════════════════════
+   任務層 — 我的近期活動 + 開放報名
+════════════════════════════════════════════ #}
+
+{# ── 我的近期活動 ── #}
 {% if my_upcoming %}
-<div class="pa" style="--d:60ms; margin-bottom:16px;">
-    <div class="section-label" style="margin-bottom:10px;">我的近期活動</div>
+<div class="pa" style="--d:60ms; margin-bottom:28px;">
+    <div class="section-label" style="margin-bottom:12px;">我的近期活動</div>
     <div style="display:flex;flex-direction:column;gap:8px;">
         {% for e in my_upcoming %}
         <a href="/event/{{ e.id }}" class="upcoming-strip">
@@ -375,100 +574,154 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 </div>
 {% endif %}
 
-{# ════ 現正開放報名 ════ #}
+{# ── 現正開放報名（任務層主體） ── #}
 {% if open_events or open_courses %}
-{% set base_d = 80 %}
-<div class="pa" style="--d:{{ base_d + 60 }}ms; margin-bottom:28px;">
-    <div class="section-label" style="margin-bottom:12px;">現正開放報名</div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
+<div class="pa" style="--d:100ms; margin-bottom:44px;">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:16px;">
+        <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#22c55e;box-shadow:0 0 0 3px rgba(34,197,94,.2);flex-shrink:0;"></span>
+        <span style="font-size:.78rem;font-weight:700;color:#16a34a;letter-spacing:.04em;text-transform:uppercase;">開放報名中</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+
+        {# 開放活動 #}
         {% for e in open_events %}
-        <a href="/event/{{ e.id }}" class="reg-card" style="--stripe:var(--green);">
-            <div class="reg-card-icon" style="--icon-bg:var(--green-bg);--icon-color:#16a34a;">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
-            </div>
-            <div class="reg-card-body">
-                <div class="reg-card-title">{{ e.title }}</div>
-                <div class="reg-card-meta">
-                    {% if e.event_start %}<span>{{ e.event_start[:10] }}</span>{% endif %}
-                    {% if e.location %}<span>{{ e.location }}</span>{% endif %}
+        <a href="/event/{{ e.id }}" style="display:block;text-decoration:none;
+            background:white;border-radius:16px;padding:16px 18px;
+            border:1.5px solid rgba(34,197,94,.25);
+            box-shadow:0 2px 16px rgba(34,197,94,.1);
+            position:relative;overflow:hidden;
+            transition:transform .15s,box-shadow .15s;">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#22c55e;border-radius:4px 0 0 4px;"></div>
+            <div style="padding-left:4px;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
+                    <div style="font-weight:700;font-size:.98rem;color:#1a202c;line-height:1.3;">{{ e.title }}</div>
+                    <span style="flex-shrink:0;background:#22c55e;color:white;font-size:.73rem;font-weight:700;
+                        padding:4px 12px;border-radius:100px;white-space:nowrap;">立即報名</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:.78rem;color:#718096;">
+                    {% if e.event_start %}
+                    <span style="display:flex;align-items:center;gap:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                        {{ e.event_start[:10] }}
+                    </span>
+                    {% endif %}
+                    {% if e.location %}
+                    <span style="display:flex;align-items:center;gap:4px;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                        {{ e.location }}
+                    </span>
+                    {% endif %}
+                    {% if e.reg_end %}
+                    <span style="display:flex;align-items:center;gap:4px;color:#e05c2a;font-weight:600;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        截止 {{ e.reg_end[:10] }}
+                    </span>
+                    {% endif %}
                 </div>
             </div>
-            <span class="badge badge-green" style="flex-shrink:0;">報名 →</span>
         </a>
         {% endfor %}
+
+        {# 開放課程 #}
         {% for c in open_courses %}
-        <a href="/courses/{{ c.id }}" class="reg-card" style="--stripe:var(--blue);">
-            <div class="reg-card-icon" style="--icon-bg:var(--blue-bg);--icon-color:var(--blue);">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-            </div>
-            <div class="reg-card-body">
-                <div class="reg-card-title">{{ c.title }}</div>
-                <div class="reg-card-meta">
+        <a href="/courses/{{ c.id }}" style="display:block;text-decoration:none;
+            background:white;border-radius:16px;padding:16px 18px;
+            border:1.5px solid rgba(59,130,246,.25);
+            box-shadow:0 2px 16px rgba(59,130,246,.1);
+            position:relative;overflow:hidden;
+            transition:transform .15s,box-shadow .15s;">
+            <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#3b82f6;border-radius:4px 0 0 4px;"></div>
+            <div style="padding-left:4px;">
+                <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
+                    <div style="font-weight:700;font-size:.98rem;color:#1a202c;line-height:1.3;">{{ c.title }}</div>
+                    <span style="flex-shrink:0;background:#3b82f6;color:white;font-size:.73rem;font-weight:700;
+                        padding:4px 12px;border-radius:100px;white-space:nowrap;">立即報名</span>
+                </div>
+                <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:.78rem;color:#718096;">
                     {% if c.period %}<span>{{ c.period }}</span>{% endif %}
                     {% if c.total_sessions %}<span>共 {{ c.total_sessions }} 堂</span>{% endif %}
-                    {% if c.reg_deadline %}<span style="color:var(--orange);">報名至 {{ c.reg_deadline[:10] }}</span>{% endif %}
+                    {% if c.reg_deadline %}
+                    <span style="display:flex;align-items:center;gap:4px;color:#e05c2a;font-weight:600;">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                        截止 {{ c.reg_deadline[:10] }}
+                    </span>
+                    {% endif %}
                 </div>
             </div>
-            <span class="badge badge-blue" style="flex-shrink:0;">報名 →</span>
         </a>
         {% endfor %}
+
     </div>
 </div>
 {% endif %}
 
-{# ════ 本週小組討論 ════ #}
-{% if group_discussion %}
-{% set gd = group_discussion %}
-<div class="pa gd-card" style="--d:200ms; margin-bottom:28px;">
-    <div class="gd-card-head">
-        <div class="gd-card-icon">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
-                 stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-            </svg>
-        </div>
-        <div class="gd-card-title">{{ gd.title or '本週小組討論' }}</div>
-        <span style="font-size:.72rem;background:rgba(96,165,250,.2);color:#93c5fd;padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;">本週</span>
-    </div>
-    {% if gd.video_id %}
-    <div class="gd-video-wrap">
-        <iframe src="https://www.youtube.com/embed/{{ gd.video_id }}?rel=0"
-            title="{{ gd.title }}"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-            allowfullscreen></iframe>
-    </div>
-    {% endif %}
-    {% if gd.questions %}
-    <div style="position:relative;z-index:1;">
-        <div class="gd-questions-label">討論問題</div>
-        {% for q in gd.questions %}
-        <div class="gd-question">
-            <div class="gd-q-num">{{ loop.index }}</div>
-            <div class="gd-q-text">{{ q }}</div>
-        </div>
-        {% endfor %}
-    </div>
-    {% endif %}
-</div>
-{% endif %}
 
+{# ════════════════════════════════════════════
+   互動層 — 靈修空間（天父日記、經文卡、代禱麥田）
+════════════════════════════════════════════ #}
+{% if session.user_id or session.line_id %}
+<div class="pa" style="--d:160ms; margin-bottom:44px;">
+    <p class="section-label-sm" style="margin:0 0 16px;">靈修空間</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
 
-{# ════ 功能磚 Grid ════ #}
-{% set base_d = 80 %}
-<div style="margin-bottom:28px;">
-    <div class="pa" style="--d:{{ base_d }}ms; display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
-        <div class="section-label" style="margin:0;">功能</div>
-        {% if is_super_admin %}
-        <button id="edit-mode-btn" onclick="toggleEditMode()" class="btn btn-outline btn-sm"
-            style="font-size:.75rem;padding:4px 10px;display:flex;align-items:center;gap:5px;">
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>
-            編輯首頁
-        </button>
+        {# 天父日記 #}
+        {% if card_settings.get('diary', true) or is_super_admin %}
+        <div class="fi-wrap{% if not card_settings.get('diary', true) %} fi-hidden{% endif %}" data-key="diary" data-type="fixed">
+        <a href="/diary" class="engage-card" style="background:linear-gradient(135deg,rgba(102,126,234,.13),rgba(118,75,162,.13));">
+            <span class="engage-card-icon">📖</span>
+            <p class="engage-card-title">{{ cn('diary', '天父日記') }}</p>
+            <p class="engage-card-sub">{{ cs('diary', '今天的靈修寫了嗎？') }}</p>
+        </a>
+        <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
         {% endif %}
+
+        {# 抽經文卡 #}
+        <a id="verse-engagement-cta" href="/verse" class="engage-card" style="background:linear-gradient(135deg,rgba(233,30,99,.1),rgba(74,20,140,.12));">
+            <span class="engage-card-icon">✨</span>
+            <p class="engage-card-title">抽經文卡</p>
+            <p class="engage-card-sub">今日經文祝福</p>
+        </a>
+
+        {# 代禱麥田 #}
+        {% if card_settings.get('prayer', true) or is_super_admin %}
+        <div class="fi-wrap{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed">
+        <a href="/prayer" class="engage-card" style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(180,83,9,.1));">
+            <span class="engage-card-icon">🙏</span>
+            <p class="engage-card-title">{{ cn('prayer', '代禱牆') }}</p>
+            <p class="engage-card-sub">{{ cs('prayer', '代禱牆') }}</p>
+        </a>
+        <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
+        </div>
+        {% endif %}
+
+        {# 福音探索（若存在） #}
+        {% if card_settings.get('gospel', true) %}
+        <a href="/gospel" class="engage-card" style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.1));">
+            <span class="engage-card-icon">🕊</span>
+            <p class="engage-card-title">{{ cn('gospel', '福音探索') }}</p>
+            <p class="engage-card-sub">{{ cs('gospel', '認識信仰的起點') }}</p>
+        </a>
+        {% endif %}
+
+    </div>
+</div>
+{% endif %}
+
+
+{# ════════════════════════════════════════════
+   功能磚 Grid（行事曆、門訓學程、快捷連結、角色功能）
+════════════════════════════════════════════ #}
+{% set base_d = 200 %}
+<div style="margin-bottom:36px;">
+    <div class="pa" style="--d:{{ base_d }}ms; display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+        <button onclick="toggleFgGrid()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:0;">
+            <div class="section-label" style="margin:0;">更多功能</div>
+            <svg id="fg-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .25s;"><path d="M6 9l6 6 6-6"/></svg>
+        </button>
     </div>
 
-    <div class="fg-grid" id="feature-list">
+    <div class="fg-grid" id="feature-list" style="display:none;">
 
         {# 活動報名 #}
         {% if card_settings.get('events', true) or is_super_admin %}
@@ -513,39 +766,16 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
         {% endif %}
 
-        {# 代禱牆 #}
-        {% if card_settings.get('prayer', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed" style="--d:{{ base_d + 270 }}ms">
-            <a href="/prayer" class="fg-tile fg-prayer">
-                <div class="fg-icon">
-                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="22" height="22">
-                        <path d="M12 22 C12 22 12 14 12 10" stroke="white" stroke-width="1.6" stroke-linecap="round"/>
-                        <path d="M12 10 C10 8 7 7 5 8 C7 9 10 11 12 13Z" fill="white" opacity="0.85"/>
-                        <ellipse cx="11" cy="6" rx="2.5" ry="4" fill="white" transform="rotate(-15 11 6)"/>
-                        <ellipse cx="13" cy="5.5" rx="2.5" ry="4" fill="white" opacity="0.8" transform="rotate(15 13 5.5)"/>
-                        <ellipse cx="12" cy="4" rx="2" ry="3.5" fill="white" transform="rotate(0 12 4)"/>
-                        <line x1="10" y1="7" x2="7" y2="2" stroke="rgba(255,255,255,0.6)" stroke-width="0.9" stroke-linecap="round"/>
-                        <line x1="14" y1="7" x2="17" y2="2" stroke="rgba(255,255,255,0.6)" stroke-width="0.9" stroke-linecap="round"/>
-                        <line x1="12" y1="3" x2="12" y2="-1" stroke="rgba(255,255,255,0.6)" stroke-width="0.9" stroke-linecap="round"/>
-                    </svg>
+        {# 電子簽到記錄 #}
+        {% if session.user_id or session.line_id %}
+        {% if card_settings.get('my_history', true) or is_super_admin %}
+        <div class="fi-wrap ti{% if not card_settings.get('my_history', true) %} fi-hidden{% endif %}" data-key="my_history" data-type="fixed" style="--d:{{ base_d + 270 }}ms">
+            <a href="/my-history" class="fg-tile" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);">
+                <div class="fg-icon" style="background:#e0f2fe;color:#0369a1;">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
                 </div>
-                <div class="fg-name">{{ cn('prayer', '代禱牆') }}</div>
-                <div class="fg-sub">{{ cs('prayer', '分享需求，互相代禱') }}</div>
-            </a>
-            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
-        </div>
-        {% endif %}
-
-        {# 週報 #}
-        {% if latest_bulletin %}
-        {% if card_settings.get('bulletin', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('bulletin', true) %} fi-hidden{% endif %}" data-key="bulletin" data-type="fixed" style="--d:{{ base_d + 340 }}ms">
-            <a href="/bulletins/{{ latest_bulletin.id }}" class="fg-tile fg-bulletin">
-                <div class="fg-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></svg>
-                </div>
-                <div class="fg-name">{{ cn('bulletin', '本週週報') }}</div>
-                <div class="fg-sub">{{ latest_bulletin.bulletin_date }}</div>
+                <div class="fg-name" style="color:#0c4a6e;">{{ cn('my_history', '電子簽到') }}</div>
+                <div class="fg-sub">{{ cs('my_history', '我的活動出席紀錄') }}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -553,7 +783,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {# 快捷連結 #}
-        {% set link_d = base_d + 410 %}
+        {% set link_d = base_d + 340 %}
         {% for link in portal_links %}
         {% if is_super_admin or ((not link.is_staff_only or is_staff) and (not link.member_only or not is_visitor) and link.get('is_active', true)) %}
         <div class="fi-wrap ti{% if not link.get('is_active', true) %} fi-hidden{% endif %}" data-key="{{ link.id }}" data-type="link" style="--d:{{ link_d }}ms">
@@ -569,43 +799,20 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
         {% endfor %}
 
-        {# ── 已登入會員功能 ── #}
-        {% if session.user_id or session.line_id %}
-
-        {# 天父日記 #}
-        {% if card_settings.get('diary', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('diary', true) %} fi-hidden{% endif %}" data-key="diary" data-type="fixed" style="--d:{{ base_d + 480 }}ms">
-            <a href="/diary" class="fg-tile" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);">
-                <div class="fg-icon" style="background:#ede9fe;color:#7c3aed;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
-                </div>
-                <div class="fg-name" style="color:#5b21b6;">{{ cn('diary', '天父日記') }}</div>
-                <div class="fg-sub">{{ cs('diary', '記錄每日與神的對話') }}</div>
-            </a>
-            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
-        </div>
-        {% endif %}
-
-        {# 電子簽到記錄 #}
-        {% if card_settings.get('my_history', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('my_history', true) %} fi-hidden{% endif %}" data-key="my_history" data-type="fixed" style="--d:{{ base_d + 550 }}ms">
-            <a href="/my-history" class="fg-tile" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);">
-                <div class="fg-icon" style="background:#e0f2fe;color:#0369a1;">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
-                </div>
-                <div class="fg-name" style="color:#0c4a6e;">{{ cn('my_history', '電子簽到') }}</div>
-                <div class="fg-sub">{{ cs('my_history', '我的活動出席紀錄') }}</div>
-            </a>
-            <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
-        </div>
-        {% endif %}
-
-        {% endif %}{# end 已登入 #}
-
         {# ── 小組長功能 ── #}
         {% if session.cell_group_ids or is_super_admin %}
+        {% if is_fulltime_staff %}
+        <div class="fi-wrap ti" style="--d:{{ base_d + 460 }}ms">
+            <a href="/attendance" class="fg-tile" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);">
+                <div class="fg-icon" style="background:#ede9fe;color:#6d28d9;">🗓</div>
+                <div class="fg-name" style="color:#4c1d95;">我的差勤</div>
+                <div class="fg-sub">特休、補休、加班登錄</div>
+            </a>
+        </div>
+        {% endif %}
+
         {% if card_settings.get('cell_report', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('cell_report', true) %} fi-hidden{% endif %}" data-key="cell_report" data-type="fixed" style="--d:{{ base_d + 620 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('cell_report', true) %} fi-hidden{% endif %}" data-key="cell_report" data-type="fixed" style="--d:{{ base_d + 480 }}ms">
             <a href="/cell-report/portal" class="fg-tile" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
                 <div class="fg-icon" style="background:#dcfce7;color:#16a34a;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
@@ -621,12 +828,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {# ── 牧者功能 ── #}
         {% if session.is_pastor or is_super_admin %}
         {% if card_settings.get('pastor_report', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('pastor_report', true) %} fi-hidden{% endif %}" data-key="pastor_report" data-type="fixed" style="--d:{{ base_d + 690 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('pastor_report', true) %} fi-hidden{% endif %}" data-key="pastor_report" data-type="fixed" style="--d:{{ base_d + 550 }}ms">
             <a href="/cell-report/pastor-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);">
                 <div class="fg-icon" style="background:#fed7aa;color:#c2410c;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                 </div>
-                <div class="fg-name" style="color:#7c2d12;">{{ cn('pastor_report', '牧者週報') }}</div>
+                <div class="fg-name" style="color:#7c2d12;">{{ cn('pastor_report', '牧者查閱') }}</div>
                 <div class="fg-sub">{{ cs('pastor_report', '查看各小組回報與統計') }}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
@@ -634,7 +841,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {% if card_settings.get('pastor_diary', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('pastor_diary', true) %} fi-hidden{% endif %}" data-key="pastor_diary" data-type="fixed" style="--d:{{ base_d + 760 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('pastor_diary', true) %} fi-hidden{% endif %}" data-key="pastor_diary" data-type="fixed" style="--d:{{ base_d + 620 }}ms">
             <a href="/diary/pastor" class="fg-tile" style="background:linear-gradient(135deg,#fdf4ff,#f3e8ff);">
                 <div class="fg-icon" style="background:#f3e8ff;color:#9333ea;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
@@ -648,14 +855,22 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {# ── 同工功能 ── #}
-        {% if is_staff or is_super_admin %}
+        {% if (is_staff and not session.is_pastor) or is_super_admin %}
+        {# 同工首頁卡片 #}
+        <div class="fi-wrap ti" style="--d:{{ base_d + 685 }}ms">
+            <a href="/staff" class="fg-tile" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);">
+                <div class="fg-icon" style="background:#a7f3d0;color:#065f46;">🙋</div>
+                <div class="fg-name" style="color:#064e3b;">同工服務</div>
+                <div class="fg-sub">門口簽到、活動名單</div>
+            </a>
+        </div>
         {% if card_settings.get('staff_report', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('staff_report', true) %} fi-hidden{% endif %}" data-key="staff_report" data-type="fixed" style="--d:{{ base_d + 830 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('staff_report', true) %} fi-hidden{% endif %}" data-key="staff_report" data-type="fixed" style="--d:{{ base_d + 690 }}ms">
             <a href="/cell-report/staff-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#eff6ff,#dbeafe);">
                 <div class="fg-icon" style="background:#dbeafe;color:#1d4ed8;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </div>
-                <div class="fg-name" style="color:#1e3a8a;">{{ cn('staff_report', '同工週報') }}</div>
+                <div class="fg-name" style="color:#1e3a8a;">{{ cn('staff_report', '同工查閱') }}</div>
                 <div class="fg-sub">{{ cs('staff_report', '各區小組回報總覽') }}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
@@ -666,7 +881,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {# ── 管理員功能 ── #}
         {% if session.is_admin %}
         {% if card_settings.get('files', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('files', true) %} fi-hidden{% endif %}" data-key="files" data-type="fixed" style="--d:{{ base_d + 900 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('files', true) %} fi-hidden{% endif %}" data-key="files" data-type="fixed" style="--d:{{ base_d + 760 }}ms">
             <a href="/files" class="fg-tile" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);">
                 <div class="fg-icon" style="background:#fef3c7;color:#d97706;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
@@ -678,8 +893,16 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         </div>
         {% endif %}
 
+        <div class="fi-wrap ti" style="--d:{{ base_d + 760 }}ms">
+            <a href="/setup-wizard" class="fg-tile" style="background:linear-gradient(135deg,#0f2027,#203a43,#2c5364);border-color:rgba(255,255,255,.1);">
+                <div class="fg-icon" style="background:rgba(255,255,255,.12);color:white;">🧙</div>
+                <div class="fg-name" style="color:white;">部署精靈</div>
+                <div class="fg-sub" style="color:rgba(255,255,255,.55);">環境設定與部署狀態</div>
+            </a>
+        </div>
+
         {% if card_settings.get('admin', true) or is_super_admin %}
-        <div class="fi-wrap ti{% if not card_settings.get('admin', true) %} fi-hidden{% endif %}" data-key="admin" data-type="fixed" style="--d:{{ base_d + 970 }}ms">
+        <div class="fi-wrap ti{% if not card_settings.get('admin', true) %} fi-hidden{% endif %}" data-key="admin" data-type="fixed" style="--d:{{ base_d + 830 }}ms">
             <a href="/admin" class="fg-tile" style="background:linear-gradient(135deg,#1e1e2e,#16213e);border-color:rgba(255,255,255,.1);">
                 <div class="fg-icon" style="background:rgba(255,255,255,.12);color:white;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
@@ -692,15 +915,52 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
         {% endif %}
 
+
     </div>
 </div>
 
-{# ════ 底部 ════ #}
-<div class="pa" style="--d:{{ base_d + 360 }}ms; text-align:center; padding-bottom:8px;">
-    <a href="/manual" style="color:var(--text-4);font-size:.8rem;text-decoration:none;display:inline-flex;align-items:center;gap:5px;">
-        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-        系統使用手冊
-    </a>
+
+{# ════════════════════════════════════════════
+   資訊層 — 本週資訊（週報 + 公告，低視覺重量）
+════════════════════════════════════════════ #}
+<div class="pa" style="--d:{{ base_d + 860 }}ms; margin-bottom:20px;">
+    <p class="section-label-sm" style="margin:0 0 10px; color:#CBD5E0;">本週資訊</p>
+    <div style="border-top:1px solid #EDF2F7;">
+
+        {# 本週週報 #}
+        {% if latest_bulletin %}
+        <a href="/bulletins/{{ latest_bulletin.id }}" class="info-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></svg>
+            <span class="info-row-label">本週週報</span>
+            <span class="info-row-value">{{ latest_bulletin.bulletin_date }}</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+        {% endif %}
+
+        {# 行事曆 #}
+        {% if not is_visitor %}
+        <a href="/calendar" class="info-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+            <span class="info-row-label">教會行事曆</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+        {% endif %}
+
+        {# 所有活動入口 #}
+        <a href="/events" class="info-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
+            <span class="info-row-label">所有活動日程</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+
+        {# 使用手冊 #}
+        <a href="/manual" class="info-row">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#A0AEC0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+            <span class="info-row-label">系統使用手冊</span>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#CBD5E0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
+        </a>
+
+    </div>
 </div>
 
 {# 抽卡閃光層（獨立於 modal 之外，蓋在最上層）#}
@@ -808,21 +1068,53 @@ const PORTAL_CSRF   = '{{ csrf_token() }}';
         }).catch(() => {});
 })();
 
-/* ── 超管編輯模式 ── */
-let editMode = false;
-function toggleEditMode() {
-    editMode = !editMode;
-    document.body.classList.toggle('edit-mode', editMode);
-    const btn = document.getElementById('edit-mode-btn');
-    if (btn) {
-        btn.innerHTML = editMode
-            ? '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg> 完成'
-            : '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg> 編輯首頁';
-        btn.style.background   = editMode ? 'var(--green)' : '';
-        btn.style.color        = editMode ? 'white' : '';
-        btn.style.borderColor  = editMode ? 'var(--green)' : '';
-    }
+function toggleFgGrid() {
+    const grid = document.getElementById('feature-list');
+    const chevron = document.getElementById('fg-chevron');
+    const open = grid.style.display === 'none';
+    grid.style.display = open ? 'grid' : 'none';
+    chevron.style.transform = open ? 'rotate(180deg)' : '';
 }
+
+/* ── 互動層「抽經文卡」點擊 → 開啟 modal ── */
+(function() {
+    const engCta = document.getElementById('verse-engagement-cta');
+    if (!engCta) return;
+    engCta.addEventListener('click', function(e) {
+        e.preventDefault();
+        if (_verseOpen) return;
+        _verseOpen = true;
+        if (!_verseCache) _loadVerseData();
+        const modal = document.getElementById('verse-modal');
+        const sheet = document.getElementById('vm-sheet');
+        const bd    = document.getElementById('vm-backdrop');
+        const vH    = window.innerHeight;
+        modal.style.display    = 'flex';
+        bd.style.transition    = 'background .35s, backdrop-filter .35s, -webkit-backdrop-filter .35s';
+        bd.style.background    = 'rgba(0,0,0,.85)';
+        bd.style.backdropFilter = 'blur(22px)';
+        bd.style.webkitBackdropFilter = 'blur(22px)';
+        setTimeout(() => {
+            sheet.style.transition = 'none';
+            sheet.style.transform  = `translate(0, -${vH * 0.68}px) scale(0.92) rotate(-2deg)`;
+            sheet.style.opacity    = '0';
+            requestAnimationFrame(() => requestAnimationFrame(() => {
+                sheet.style.transition = 'transform .58s cubic-bezier(0.175,0.885,0.32,1.28), opacity .3s';
+                sheet.style.transform  = 'translate(0,0) scale(1) rotate(0deg)';
+                sheet.style.opacity    = '1';
+            }));
+            setTimeout(() => {
+                sheet.style.transition = 'transform .18s cubic-bezier(0.34,1.56,0.64,1)';
+                sheet.style.transform  = 'translate(0,0) scale(1.04) rotate(0deg)';
+                setTimeout(() => {
+                    sheet.style.transition = 'transform .14s ease-out';
+                    sheet.style.transform  = 'translate(0,0) scale(1) rotate(0deg)';
+                }, 160);
+                if (navigator.vibrate) navigator.vibrate([12, 60, 22]);
+            }, 560);
+        }, 80);
+    });
+})();
 
 /* ════ 經文卡浮框 ════ */
 let _verseCache = null;
@@ -1082,7 +1374,7 @@ async function downloadVerseCard() {
         }
     } catch(err) {
         console.error('html2canvas error:', err);
-        alert('儲存失敗，請截圖儲存\n(' + (err && err.message ? err.message : err) + ')');
+        showToast('儲存失敗，請截圖儲存', 'error');
     }
     btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>存到手機';
     btn.disabled = false;
@@ -1134,7 +1426,7 @@ async function shareVerseCard() {
     } catch (err) {
         if (err.name !== 'AbortError') {
             console.error('share error:', err);
-            alert('分享失敗，請使用「存到手機」再自行分享');
+            showToast('分享失敗，請使用「存到手機」再自行分享', 'error');
         }
     } finally {
         btn.textContent = '📤 分享'; btn.disabled = false;
@@ -1157,9 +1449,14 @@ async function toggleCard(btn) {
         });
         const d = await r.json();
         if (d.success) wrap.classList.toggle('fi-hidden', !newVisible);
-        else alert(d.error || '切換失敗');
-    } catch(e) { alert('網路錯誤：' + e.message); }
+        else showToast(d.error || '切換失敗', 'error');
+    } catch(e) { showToast('網路錯誤，請再試', 'error'); }
 }
+</script>
+
+<script>
+// 進入首頁時靜默觸發行事曆與繳費提醒檢查
+fetch('/api/notifications/check-reminders', { method: 'POST' }).catch(function(){});
 </script>
 
 {% endblock %}

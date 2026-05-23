@@ -98,6 +98,10 @@
   {% endif %}
 </section>
 
+<style>
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+</style>
+
 <script>
 // 自動載入段落背景
 (async function() {
@@ -110,18 +114,29 @@
   } catch(e) { /* 靜默失敗，保留原始文字 */ }
 })();
 
-async function loadGuide() {
+async function fetchGuide() {
   const btn = document.getElementById("guide-btn");
   const loading = document.getElementById("guide-loading");
   const box = document.getElementById("guide-box");
 
   btn.disabled = true;
   btn.textContent = "生成中…";
+
+  // 顯示載入骨架
   loading.style.display = "block";
+  loading.innerHTML = `
+    <div class="skeleton-line" style="height: 16px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; margin-bottom: 8px;"></div>
+    <div class="skeleton-line" style="height: 16px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; margin-bottom: 8px; width: 85%;"></div>
+    <div class="skeleton-line" style="height: 16px; background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; margin-bottom: 8px; width: 90%;"></div>
+  `;
   box.style.display = "none";
 
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
   try {
-    const res = await fetch("/api/diary/guide?d={{ entry_date }}");
+    const res = await fetch("/api/diary/guide?d={{ entry_date }}", { signal: controller.signal });
+    clearTimeout(timeoutId);
     let data;
     try { data = await res.json(); }
     catch { throw new Error("伺服器回應異常（" + res.status + "）"); }
@@ -139,12 +154,21 @@ async function loadGuide() {
       btn.textContent = "✦ 反思引導";
     }
   } catch(e) {
+    clearTimeout(timeoutId);
     loading.style.display = "none";
-    box.innerHTML = `<div class="muted">發生錯誤，請稍後再試。（${e.message}）</div>`;
+    if (e.name === 'AbortError') {
+      box.innerHTML = `<div class="muted">無法連線到 AI 助手，請稍後再試。</div><button onclick="fetchGuide()" style="margin-top:8px; padding:6px 14px; background:#b8956a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">重試</button>`;
+    } else {
+      box.innerHTML = `<div class="muted">發生錯誤，請稍後再試。（${e.message}）</div><button onclick="fetchGuide()" style="margin-top:8px; padding:6px 14px; background:#b8956a; color:white; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">重試</button>`;
+    }
     box.style.display = "block";
     btn.textContent = "✦ 反思引導";
   }
   btn.disabled = false;
+}
+
+function loadGuide() {
+  fetchGuide();
 }
 </script>
 
@@ -174,6 +198,14 @@ async function loadGuide() {
     </textarea>
 
     <script>
+      function showManualCopy(text) {
+        const overlay = document.createElement('div');
+        overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = `<div style="background:white;padding:20px;border-radius:8px;width:90%;max-width:400px;"><p style="margin-bottom:12px;">請手動選取並複製以下內容：</p><textarea style="width:100%;height:120px;padding:8px;border:1px solid #CBD5E0;border-radius:4px;" readonly>${text}</textarea><button onclick="this.closest('div').parentElement.remove()" style="margin-top:12px;padding:8px 16px;background:#4A5568;color:white;border:none;border-radius:4px;cursor:pointer;">關閉</button></div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('textarea').select();
+      }
+
       async function copyDiary() {
         const payloadEl = document.getElementById("copyPayload");
         const text = (payloadEl.value || payloadEl.textContent || "").trim();
@@ -190,11 +222,13 @@ async function loadGuide() {
 
         try {
           if (navigator.clipboard && window.isSecureContext) {
-            await navigator.clipboard.writeText(text);
+            const copyPromise = navigator.clipboard.writeText(text);
+            const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
+            await Promise.race([copyPromise, timeoutPromise]);
+            showOk();
           } else {
             throw new Error("no clipboard api");
           }
-          showOk();
         } catch(e) {
           // Fallback: 使 textarea 暫時可見並選取，再 execCommand
           const orig = { position: payloadEl.style.position, left: payloadEl.style.left,
@@ -212,7 +246,7 @@ async function loadGuide() {
           payloadEl.style.left = orig.left || "-9999px";
           payloadEl.style.top = orig.top || "-9999px";
           payloadEl.style.opacity = orig.opacity || "";
-          if (ok) showOk();
+          if (ok) { showOk(); } else { showManualCopy(text); }
         }
       }
     </script>

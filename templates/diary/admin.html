@@ -1,53 +1,291 @@
 {% extends "base.html" %}
+{% block title %}天父日記後台{% endblock %}
 {% block content %}
 
-<section class="diary-card">
-  <h2>上傳讀經進度（plan.xlsx）</h2>
-  <p class="muted">會直接覆蓋根目錄的 plan.xlsx。欄位必須是：date / book / range</p>
+<div class="page-header">
+  <div class="page-header-left">
+    <a href="/diary" class="breadcrumb">← 返回日記</a>
+    <div class="page-title">📖 天父日記後台</div>
+  </div>
+</div>
 
-  <form method="post" action="{{ url_for('diary.admin_upload_plan') }}" enctype="multipart/form-data" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-    <input type="file" name="plan_file" accept=".xlsx" required>
-    <button type="submit" class="primary-btn">上傳並覆蓋</button>
-  </form>
-</section>
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in messages %}
+<div class="callout {{ 'callout-success' if cat == 'ok' else 'callout-error' }}" style="margin-bottom:14px;">
+  {{ '✅' if cat == 'ok' else '❌' }} {{ msg }}
+</div>
+{% endfor %}
+{% endwith %}
 
-<section class="diary-card">
-  <h2>白名單管理（牧者 / 小組長）</h2>
-  <p class="muted">從「已登入過{{ app_name }}」的使用者清單中勾選。白名單預設為空。</p>
-
-  {% if users and users|length > 0 %}
-    <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px;">
-      {% for u in users %}
-        <div style="display:flex; align-items:center; justify-content:space-between; gap:10px; border-top:1px solid rgba(0,0,0,0.06); padding-top:10px;">
-          <div style="display:flex; align-items:center; gap:10px;">
-            {% if u.picture_url %}
-              <img src="{{ u.picture_url }}" alt="" style="width:36px; height:36px; border-radius:50%;">
-            {% endif %}
-            <div>
-              <div style="font-weight:600;">{{ u.display_name or "（未命名）" }}</div>
-              <div class="muted" style="font-size:12px;">{{ u.line_user_id }}</div>
-            </div>
-          </div>
-
-          <div>
-            {% if pastor_ids.get(u.line_user_id) %}
-              <form method="post" action="{{ url_for('diary.admin_update_whitelist') }}">
-                <input type="hidden" name="target_uid" value="{{ u.line_user_id }}">
-                <button class="secondary-btn" type="submit" name="action" value="remove">移除白名單</button>
-              </form>
-            {% else %}
-              <form method="post" action="{{ url_for('diary.admin_update_whitelist') }}">
-                <input type="hidden" name="target_uid" value="{{ u.line_user_id }}">
-                <button class="primary-btn" type="submit" name="action" value="add">加入白名單</button>
-              </form>
-            {% endif %}
-          </div>
-        </div>
-      {% endfor %}
+<!-- ── 進度狀態卡 ─────────────────────────────── -->
+<div class="card" style="margin-bottom:20px; padding:20px 24px;">
+  <div style="font-size:.78rem; font-weight:700; color:var(--text-4); text-transform:uppercase; letter-spacing:.05em; margin-bottom:12px;">讀經進度狀況</div>
+  {% if stats.total %}
+  <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:14px;">
+    <div>
+      <div style="font-size:.75rem; color:var(--text-4); margin-bottom:3px;">今日進度</div>
+      {% if stats.today_plan %}
+      <div style="font-weight:700; color:var(--text-1);">{{ stats.today_plan.book }} {{ stats.today_plan.range }}</div>
+      {% else %}
+      <div style="color:#aaa;">今日無進度</div>
+      {% endif %}
     </div>
+    <div>
+      <div style="font-size:.75rem; color:var(--text-4); margin-bottom:3px;">涵蓋範圍</div>
+      <div style="font-weight:700; font-size:.88rem;">{{ stats.min_date }} ～ {{ stats.max_date }}</div>
+    </div>
+    <div>
+      <div style="font-size:.75rem; color:var(--text-4); margin-bottom:3px;">共幾筆</div>
+      <div style="font-weight:700;">{{ stats.total }} 天</div>
+    </div>
+    <div>
+      <div style="font-size:.75rem; color:var(--text-4); margin-bottom:3px;">距進度到期</div>
+      {% if stats.days_left is not none %}
+        {% if stats.days_left < 0 %}
+        <div style="font-weight:700; color:#c62828;">⚠️ 已過期 {{ -stats.days_left }} 天</div>
+        {% elif stats.days_left <= 14 %}
+        <div style="font-weight:700; color:#e65100;">⚠️ 還剩 {{ stats.days_left }} 天</div>
+        {% else %}
+        <div style="font-weight:700; color:#2e7d32;">還剩 {{ stats.days_left }} 天</div>
+        {% endif %}
+      {% else %}
+      <div style="color:#aaa;">—</div>
+      {% endif %}
+    </div>
+  </div>
   {% else %}
-    <p class="muted">目前 users 表沒有資料（代表還沒有人登入過）。</p>
+  <div style="color:#aaa; font-size:.9rem;">尚未設定任何進度，請上傳 Excel 或手動新增。</div>
   {% endif %}
-</section>
+</div>
 
+<!-- ── 標籤 ─────────────────────────────── -->
+<div style="display:flex; border-bottom:2px solid var(--border); margin-bottom:20px; gap:0;">
+  <button id="tab-upload-btn" onclick="switchTab('upload')"
+    style="padding:10px 20px; border:none; background:none; cursor:pointer; font-size:.9rem; font-weight:700;
+           color:var(--text-1); border-bottom:3px solid var(--green); margin-bottom:-2px;">
+    📤 上傳 Excel
+  </button>
+  <button id="tab-keyin-btn" onclick="switchTab('keyin')"
+    style="padding:10px 20px; border:none; background:none; cursor:pointer; font-size:.9rem; font-weight:600;
+           color:var(--text-3); border-bottom:3px solid transparent; margin-bottom:-2px;">
+    ✏️ 手動填寫
+  </button>
+  <button id="tab-whitelist-btn" onclick="switchTab('whitelist')"
+    style="padding:10px 20px; border:none; background:none; cursor:pointer; font-size:.9rem; font-weight:600;
+           color:var(--text-3); border-bottom:3px solid transparent; margin-bottom:-2px;">
+    👤 白名單
+  </button>
+</div>
+
+<!-- ══ 上傳 Excel ══ -->
+<div id="tab-upload">
+  <div class="card" style="padding:22px 24px; margin-bottom:16px;">
+    <p style="font-size:.85rem; color:var(--text-3); margin-bottom:16px; line-height:1.7;">
+      Excel 必須有三欄：<code>date</code>（YYYY-MM-DD）、<code>book</code>（書卷名，如「約翰福音」）、<code>range</code>（如 <code>1:1-20</code>）。
+      Sheet 名稱不限，上傳後自動匯入資料庫，<strong>不影響已填寫的日記</strong>。
+    </p>
+    <form method="post" action="/diary/admin/upload_plan" enctype="multipart/form-data">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="file" name="plan_file" accept=".xlsx" required
+          style="flex:1; min-width:200px; padding:8px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:.88rem;">
+        <button type="submit" class="btn btn-primary">📤 上傳並匯入</button>
+      </div>
+    </form>
+  </div>
+
+  <div style="display:flex; gap:10px; flex-wrap:wrap;">
+    <a href="/diary/admin/plan/download" class="btn btn-outline btn-sm">⬇ 下載目前進度表</a>
+    <a href="/diary/admin/plan/template" class="btn btn-outline btn-sm">⬇ 下載空白範本</a>
+  </div>
+</div>
+
+<!-- ══ 手動填寫 ══ -->
+<div id="tab-keyin" style="display:none;">
+
+  <!-- 新增表單 -->
+  <div class="card" style="padding:20px 24px; margin-bottom:20px;">
+    <div style="font-size:.78rem; font-weight:700; color:var(--text-4); margin-bottom:14px; text-transform:uppercase;">新增 / 修改單筆</div>
+    <div style="display:flex; gap:10px; align-items:flex-end; flex-wrap:wrap;">
+      <div>
+        <label style="font-size:.78rem; color:var(--text-4); display:block; margin-bottom:4px;">日期</label>
+        <input type="date" id="new-date" value="{{ today }}"
+          style="padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:.92rem; font-family:inherit;">
+      </div>
+      <div style="flex:1; min-width:120px;">
+        <label style="font-size:.78rem; color:var(--text-4); display:block; margin-bottom:4px;">書卷</label>
+        <input type="text" id="new-book" list="bible-books-list" placeholder="如：約翰福音"
+          style="width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:.92rem; font-family:inherit; box-sizing:border-box;">
+        <datalist id="bible-books-list">
+          {% for b in bible_books %}<option value="{{ b }}">{% endfor %}
+        </datalist>
+      </div>
+      <div style="flex:1; min-width:120px;">
+        <label style="font-size:.78rem; color:var(--text-4); display:block; margin-bottom:4px;">章節範圍</label>
+        <input type="text" id="new-range" placeholder="如：1:1-20"
+          style="width:100%; padding:9px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:.92rem; font-family:inherit; box-sizing:border-box;">
+      </div>
+      <button onclick="saveEntry()" class="btn btn-primary" style="flex-shrink:0;">儲存</button>
+    </div>
+    <div id="save-msg" style="font-size:.82rem; margin-top:8px; min-height:18px;"></div>
+  </div>
+
+  <!-- 進度條目表格 -->
+  <div class="card" style="padding:0; overflow:hidden;">
+    <div style="padding:14px 20px; border-bottom:1px solid var(--border); display:flex; justify-content:space-between; align-items:center;">
+      <span style="font-size:.85rem; font-weight:700;">近期進度條目（前後 90 天，共 {{ upcoming|length }} 筆）</span>
+    </div>
+    {% if upcoming %}
+    <div style="overflow-x:auto;">
+    <table style="width:100%; border-collapse:collapse; font-size:.88rem;">
+      <thead>
+        <tr style="background:var(--bg); border-bottom:1px solid var(--border);">
+          <th style="padding:10px 16px; text-align:left; font-weight:700; color:var(--text-3); width:120px;">日期</th>
+          <th style="padding:10px 16px; text-align:left; font-weight:700; color:var(--text-3);">書卷</th>
+          <th style="padding:10px 16px; text-align:left; font-weight:700; color:var(--text-3);">章節範圍</th>
+          <th style="padding:10px 16px; text-align:right; font-weight:700; color:var(--text-3); width:120px;">操作</th>
+        </tr>
+      </thead>
+      <tbody id="plan-tbody">
+      {% for row in upcoming %}
+      <tr id="row-{{ row.date }}"
+          style="border-bottom:1px solid var(--border); {{ 'background:#f0fdf4;' if row.date == today else '' }}">
+        <td style="padding:10px 16px; font-weight:{{ '700' if row.date == today else '400' }}; color:{{ '#16a34a' if row.date == today else 'inherit' }};">
+          {{ row.date }}{% if row.date == today %} <span style="font-size:.72rem; background:#16a34a; color:white; padding:1px 6px; border-radius:8px;">今天</span>{% endif %}
+        </td>
+        <td style="padding:10px 16px;">
+          <span class="row-book">{{ row.book }}</span>
+        </td>
+        <td style="padding:10px 16px;">
+          <span class="row-range">{{ row.range }}</span>
+        </td>
+        <td style="padding:10px 16px; text-align:right; white-space:nowrap;">
+          <button onclick="editRow('{{ row.date }}','{{ row.book }}','{{ row.range }}')"
+            style="padding:4px 10px; background:var(--green-bg); color:#16a34a; border:none; border-radius:6px; cursor:pointer; font-size:.78rem; font-weight:600; margin-right:4px;">
+            編輯
+          </button>
+          <button onclick="deleteRow('{{ row.date }}')"
+            style="padding:4px 10px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:.78rem; font-weight:600;">
+            刪除
+          </button>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <div style="padding:40px; text-align:center; color:#aaa;">此範圍內尚無進度</div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ══ 白名單 ══ -->
+<div id="tab-whitelist" style="display:none;">
+  <div class="callout" style="margin-bottom:16px; font-size:.85rem;">
+    💡 設定「牧者」後，該使用者可在天父日記中查看被授權者的日記。也可在
+    <a href="/admin/users" style="color:var(--green);">後台 → 使用者管理</a> 統一設定角色。
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:10px;">
+  {% for u in all_users %}
+  {% set is_pastor = pastor_ids.get(u.line_user_id, False) %}
+  {% set rname = u.get('real_name', '') or u.get('display_name', '') or '（未命名）' %}
+  <div style="background:white; border-radius:12px; padding:14px 18px; display:flex; align-items:center;
+              gap:12px; box-shadow:0 2px 8px rgba(0,0,0,0.05); flex-wrap:wrap;">
+    {% if u.picture_url %}
+    <img src="{{ u.picture_url }}" alt="" style="width:40px; height:40px; border-radius:50%; flex-shrink:0;">
+    {% endif %}
+    <div style="flex:1; min-width:0;">
+      <div style="font-weight:700; font-size:.92rem;">{{ rname }}</div>
+      <div style="font-size:.75rem; color:var(--text-4); margin-top:1px;">LINE：{{ u.display_name or '—' }}</div>
+    </div>
+    {% if is_pastor %}
+    <span style="background:#e8f5e9; color:#2e7d32; font-size:.78rem; padding:3px 10px; border-radius:12px; font-weight:600;">✅ 牧者</span>
+    <form method="post" action="/diary/admin/update_whitelist" style="margin:0;">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="target_uid" value="{{ u.line_user_id }}">
+      <button class="btn btn-sm" style="background:#ffebee; color:#c62828; border:none;" type="submit" name="action" value="remove">移除牧者</button>
+    </form>
+    {% else %}
+    <form method="post" action="/diary/admin/update_whitelist" style="margin:0;">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="target_uid" value="{{ u.line_user_id }}">
+      <button class="btn btn-sm btn-outline" type="submit" name="action" value="add">設為牧者</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <div style="text-align:center; padding:40px; color:#aaa;">還沒有使用者登入過</div>
+  {% endfor %}
+  </div>
+</div>
+
+<script>
+const _CSRF = "{{ csrf_token() }}";
+
+function switchTab(name) {
+  ['upload','keyin','whitelist'].forEach(t => {
+    document.getElementById('tab-' + t).style.display = t === name ? 'block' : 'none';
+    const btn = document.getElementById('tab-' + t + '-btn');
+    const active = t === name;
+    btn.style.color      = active ? 'var(--text-1)' : 'var(--text-3)';
+    btn.style.fontWeight = active ? '700' : '600';
+    btn.style.borderBottomColor = active ? 'var(--green)' : 'transparent';
+  });
+}
+
+function saveEntry() {
+  const d = document.getElementById('new-date').value;
+  const book  = document.getElementById('new-book').value.trim();
+  const range = document.getElementById('new-range').value.trim();
+  const msg   = document.getElementById('save-msg');
+  if (!d || !book || !range) {
+    msg.style.color = '#c62828'; msg.textContent = '請填寫所有欄位'; return;
+  }
+  fetch('/diary/admin/plan/save', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRF-Token':_CSRF},
+    body: JSON.stringify({date:d, book, range})
+  }).then(r=>r.json()).then(data => {
+    if (data.success) {
+      msg.style.color = '#2e7d32'; msg.textContent = '✅ 已儲存';
+      updateRow(d, book, range);
+      setTimeout(() => msg.textContent='', 2500);
+    } else {
+      msg.style.color = '#c62828'; msg.textContent = '❌ ' + (data.error||'儲存失敗');
+    }
+  });
+}
+
+function editRow(d, book, range) {
+  document.getElementById('new-date').value  = d;
+  document.getElementById('new-book').value  = book;
+  document.getElementById('new-range').value = range;
+  switchTab('keyin');
+  document.getElementById('new-book').focus();
+}
+
+function deleteRow(d) {
+  if (!confirm(`確定刪除 ${d} 的進度？`)) return;
+  fetch('/diary/admin/plan/delete', {
+    method:'POST',
+    headers:{'Content-Type':'application/json','X-CSRF-Token':_CSRF},
+    body: JSON.stringify({date:d})
+  }).then(r=>r.json()).then(data => {
+    if (data.success) {
+      const row = document.getElementById('row-' + d);
+      if (row) row.remove();
+    } else { showToast(data.error||'刪除失敗', 'error'); }
+  });
+}
+
+function updateRow(d, book, range) {
+  let row = document.getElementById('row-' + d);
+  if (row) {
+    row.querySelector('.row-book').textContent  = book;
+    row.querySelector('.row-range').textContent = range;
+  }
+}
+</script>
 {% endblock %}

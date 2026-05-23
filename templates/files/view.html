@@ -128,13 +128,13 @@ async function copyLink() {
 
 async function setPassword() {
   const pw = document.getElementById('newPasswordInput').value.trim();
-  if (!pw) { alert('請輸入密碼'); return; }
+  if (!pw) { showToast('請輸入密碼', 'warning'); document.getElementById('newPasswordInput').focus(); return; }
   const form = new FormData();
   form.append('new_password', pw);
   const res = await fetch('{{ url_for("files.set_password", file_id=file.id) }}', { method: 'POST', body: form });
   const data = await res.json();
   if (data.success) { location.reload(); }
-  else { alert(data.error || '設定失敗'); }
+  else { showToast(data.error || '設定失敗', 'error'); }
 }
 
 async function removePassword() {
@@ -142,7 +142,7 @@ async function removePassword() {
   const res = await fetch('{{ url_for("files.remove_password", file_id=file.id) }}', { method: 'POST' });
   const data = await res.json();
   if (data.success) { location.reload(); }
-  else { alert(data.error || '移除失敗'); }
+  else { showToast(data.error || '移除失敗', 'error'); }
 }
 </script>
 {% endblock %}

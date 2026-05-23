@@ -2,7 +2,16 @@
 {% block title %}{{ dashboard_title }}{% endblock %}
 {% block content %}
 <div class="container" style="max-width:800px; margin:40px auto; padding:0 16px;">
-  <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:4px;">{{ dashboard_title }}</h1>
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:4px; flex-wrap:wrap; gap:8px;">
+    <h1 style="font-size:1.4rem; font-weight:700; margin:0;">{{ dashboard_title }}</h1>
+    {% if session.get('is_admin') or session.get('is_pastor') %}
+    <a href="{{ url_for('cell_report.admin_meeting_settings') }}"
+       style="padding:6px 14px; background:#f0f4ff; color:#3949ab; border:1px solid #c5cae9;
+              border-radius:8px; text-decoration:none; font-size:.8rem; font-weight:600;">
+      ⚙️ 聚會設定
+    </a>
+    {% endif %}
+  </div>
 
   <!-- 週次導航 -->
   <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
@@ -22,22 +31,40 @@
   <!-- 聚會統計卡片 -->
   <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:12px; margin-bottom:28px;">
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
-      <div style="font-size:1.8rem; font-weight:700; color:#06C755;">{{ adult }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">成人主日（{{ sunday_date.strftime('%m/%d') }}）</div>
+      <div style="font-size:2.4rem; font-weight:800; color:#06C755;">{{ adult }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+        {{ meeting_cfg.adult_sunday.label if meeting_cfg else '成人主日' }}（{{ sunday_date.strftime('%m/%d') }}）
+      </div>
+      {% if (meeting_cfg.adult_sunday.service_count if meeting_cfg else 2) >= 2 %}
       <div style="font-size:0.8rem; color:#999;">一：{{ adult_first }}  二：{{ adult_second }}</div>
+      {% endif %}
     </div>
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
-      <div style="font-size:1.8rem; font-weight:700; color:#4a90d9;">{{ children }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">兒童主日</div>
+      <div style="font-size:2.4rem; font-weight:800; color:#4a90d9;">{{ children }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+        {{ meeting_cfg.children_sunday.label if meeting_cfg else '兒童主日' }}
+      </div>
     </div>
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
-      <div style="font-size:1.8rem; font-weight:700; color:#9c6de8;">{{ prayer }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">禱告會（{{ prayer_date.strftime('%m/%d') }}）</div>
+      <div style="font-size:2.4rem; font-weight:800; color:#9c6de8;">{{ prayer }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+        {{ meeting_cfg.prayer.label if meeting_cfg else '禱告會' }}（{{ prayer_date.strftime('%m/%d') }}）
+      </div>
     </div>
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
-      <div style="font-size:1.8rem; font-weight:700; color:#e8a83e;">{{ morning_prayer }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">晨禱（{{ morning_prayer_date.strftime('%m/%d') }}）</div>
+      <div style="font-size:2.4rem; font-weight:800; color:#e8a83e;">{{ morning_prayer }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+        {{ meeting_cfg.morning_prayer.label if meeting_cfg else '晨禱' }}（{{ morning_prayer_date.strftime('%m/%d') }}）
+      </div>
     </div>
+    {% for cm in (custom_meetings or []) %}
+    <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
+      <div style="font-size:2.4rem; font-weight:800; color:#555;">{{ cm.count }}</div>
+      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+        {{ cm.emoji }} {{ cm.label }}（{{ cm.date.strftime('%m/%d') }}）
+      </div>
+    </div>
+    {% endfor %}
   </div>
 
   <!-- 小組回報列表 -->
@@ -64,6 +91,13 @@
             未回報
           </span>
         {% endif %}
+        {% if is_pastor and item.has_report %}
+          <a href="{{ url_for('cell_report.view_report', group_id=item.group.id, week_date=item.week_date) }}"
+             style="padding:4px 12px; background:#06C755; color:#fff; border-radius:20px;
+                    font-size:0.82rem; text-decoration:none; white-space:nowrap;">
+            小組回報單
+          </a>
+        {% endif %}
       </div>
     </div>
     {% endfor %}
@@ -89,6 +123,12 @@
          style="padding:10px 16px; background:#e8a83e; color:#fff; border-radius:8px; text-decoration:none;">
         晨禱
       </a>
+      {% for cm in (custom_meetings or []) %}
+      <a href="{{ url_for('cell_report.custom_meeting', meeting_key=cm.key) }}"
+         style="padding:10px 16px; background:#607d8b; color:#fff; border-radius:8px; text-decoration:none;">
+        {{ cm.emoji }} {{ cm.label }}
+      </a>
+      {% endfor %}
     </div>
   </div>
 </div>

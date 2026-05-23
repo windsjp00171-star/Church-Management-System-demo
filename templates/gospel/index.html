@@ -283,8 +283,20 @@
         </label>
         <input class="form-input" id="inq-contact" type="text" placeholder="方便聯絡你的方式">
 
-        <label class="form-label">你想問什麼？<span style="font-weight:400; color:#aaa;">（選填）</span></label>
-        <textarea class="form-input" id="inq-message" placeholder="有任何好奇的，都可以說說..."></textarea>
+        {% for fq in form_questions %}
+        <label class="form-label">
+            {{ fq.label }}{% if fq.is_required %} <span style="color:#c47800;">*</span>{% else %} <span style="font-weight:400;color:#aaa;">（選填）</span>{% endif %}
+        </label>
+        {% if fq.is_textarea %}
+        <textarea class="form-input" id="fq-{{ fq.id }}"
+            data-fq-label="{{ fq.label }}" data-fq-required="{{ 'true' if fq.is_required else 'false' }}"
+            placeholder="{{ fq.placeholder or '' }}"></textarea>
+        {% else %}
+        <input class="form-input" type="text" id="fq-{{ fq.id }}"
+            data-fq-label="{{ fq.label }}" data-fq-required="{{ 'true' if fq.is_required else 'false' }}"
+            placeholder="{{ fq.placeholder or '' }}">
+        {% endif %}
+        {% endfor %}
 
         <button class="form-submit" id="inq-btn" onclick="submitInquiry()">
             送出，我想認識更多 ✉️
@@ -305,7 +317,6 @@
 function submitInquiry() {
     const name    = document.getElementById('inq-name').value.trim();
     const contact = document.getElementById('inq-contact').value.trim();
-    const message = document.getElementById('inq-message').value.trim();
     const btn     = document.getElementById('inq-btn');
     const result  = document.getElementById('inq-result');
 
@@ -318,20 +329,35 @@ function submitInquiry() {
         return;
     }
 
+    // 收集自訂問題答案
+    const extra_answers = {};
+    let missingRequired = false;
+    document.querySelectorAll('[data-fq-label]').forEach(el => {
+        const label = el.dataset.fqLabel;
+        const val   = el.value.trim();
+        if (el.dataset.fqRequired === 'true' && !val) { missingRequired = true; }
+        if (val) extra_answers[label] = val;
+    });
+    if (missingRequired) {
+        result.textContent = '請填寫所有必填問題 🙏';
+        result.className = 'form-result error';
+        return;
+    }
+
     btn.disabled = true;
     btn.textContent = '送出中...';
 
     fetch('/gospel/inquiry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, contact, message })
+        body: JSON.stringify({ name, contact, extra_answers })
     }).then(r => r.json()).then(d => {
         if (d.success) {
             result.textContent = '✅ 已收到！我們會盡快與你聯繫，感謝你願意探索 🌱';
             result.className = 'form-result success';
             document.getElementById('inq-name').value = '';
             document.getElementById('inq-contact').value = '';
-            document.getElementById('inq-message').value = '';
+            document.querySelectorAll('[data-fq-label]').forEach(el => el.value = '');
             btn.textContent = '已送出 ✓';
         } else {
             result.textContent = '❌ ' + (d.error || '送出失敗，請再試一次');

@@ -511,7 +511,7 @@ async function shareCard() {
     } catch (err) {
         if (err.name !== 'AbortError') {
             console.error('share error:', err);
-            alert('分享失敗，請使用「存到手機」再自行分享');
+            showToast('分享失敗，請使用「存到手機」再自行分享', 'error');
         }
     } finally {
         btn.innerHTML = origHtml;
@@ -519,8 +519,18 @@ async function shareCard() {
     }
 }
 
+function showManualCopy(text) {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.5);z-index:9999;display:flex;align-items:center;justify-content:center;';
+    overlay.innerHTML = `<div style="background:white;padding:20px;border-radius:8px;width:90%;max-width:400px;"><p style="margin-bottom:12px;">請手動選取並複製以下內容：</p><textarea style="width:100%;height:120px;padding:8px;border:1px solid #CBD5E0;border-radius:4px;" readonly>${text}</textarea><button onclick="this.closest('div').parentElement.remove()" style="margin-top:12px;padding:8px 16px;background:#4A5568;color:white;border:none;border-radius:4px;cursor:pointer;">關閉</button></div>`;
+    document.body.appendChild(overlay);
+    overlay.querySelector('textarea').select();
+}
+
 function copyShareLink() {
-    navigator.clipboard.writeText(PAGE_URL).then(() => {
+    const copyPromise = navigator.clipboard.writeText(PAGE_URL);
+    const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000));
+    Promise.race([copyPromise, timeoutPromise]).then(() => {
         const btn = document.getElementById('copy-link-btn');
         btn.textContent = '已複製！';
         btn.style.background = '#2d7a3a';
@@ -528,6 +538,8 @@ function copyShareLink() {
             btn.textContent = '複製連結';
             btn.style.background = '#065fd4';
         }, 2000);
+    }).catch(() => {
+        showManualCopy(PAGE_URL);
     });
 }
 
@@ -583,7 +595,7 @@ function saveCard() {
         }
     }).catch(function(err) {
         console.error('html2canvas error:', err);
-        alert('儲存失敗，請截圖儲存\n（' + (err && err.message ? err.message : String(err)) + '）');
+        showToast('儲存失敗，請截圖儲存', 'error');
         btn.textContent = '存到手機';
         btn.disabled = false;
     });
