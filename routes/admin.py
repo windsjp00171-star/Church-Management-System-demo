@@ -1940,6 +1940,19 @@ def admin_portal_link_delete(link_id):
     return jsonify({'success': True})
 
 
+@admin_bp.route('/portal-links/reorder', methods=['POST'])
+@admin_required
+def reorder_portal_links():
+    data = request.get_json() or {}
+    order = data.get('order', [])
+    for item in order:
+        link_id = item.get('id')
+        sort_order = item.get('sort_order')
+        if link_id and sort_order is not None:
+            supabase.table('portal_links').update({'sort_order': sort_order}).eq('id', link_id).execute()
+    return jsonify({'success': True})
+
+
 # ══════════════════════════════════════════
 # API：小組 is_staff 切換
 # ══════════════════════════════════════════
@@ -2212,11 +2225,13 @@ def portal_cards_page():
     if not session.get('is_super_admin'):
         return redirect(url_for('admin.index'))
     cards, from_db = _load_portal_cards_from_db()
+    links = supabase.table('portal_links').select('*').order('sort_order').execute().data or []
     return render_template('admin/portal_cards.html',
                            cards=cards,
                            from_db=from_db,
                            setup_sql=PORTAL_CARDS_SETUP_SQL,
-                           visible_to_options=PORTAL_CARDS_VISIBLE_TO_OPTIONS)
+                           visible_to_options=PORTAL_CARDS_VISIBLE_TO_OPTIONS,
+                           links=links)
 
 
 @admin_bp.route('/api/portal-cards/<key>', methods=['POST'])
