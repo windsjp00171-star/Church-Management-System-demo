@@ -150,7 +150,11 @@ def edit():
         session['real_name'] = real_name
         return jsonify({'success': True})
 
-    user = supabase.table('users').select('*').eq('id', uid).execute().data[0]
+    user = supabase.table('users').select('*').eq('id', uid).execute().data
+    if not user:
+        flash('找不到使用者資料', 'error')
+        return redirect(url_for('event.portal'))
+    user = user[0]
     groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
 
     # 撈牧養小組清單
@@ -162,11 +166,16 @@ def edit():
     my_cell_group_id = my_cell[0]['group_id'] if my_cell else None
     my_cell_confirmed = my_cell[0]['is_confirmed'] if my_cell else None
 
-    # 天父日記授權資料
-    from routes.diary import sb_list_pastors, sb_get_owner_grants
-    pastors = sb_list_pastors()
-    granted_ids = sb_get_owner_grants(session.get('line_id', ''))
-    granted_map = {pid: True for pid in granted_ids}
+    # 天父日記授權資料（若 schema 不符合或功能未啟用則靜默忽略）
+    pastors = []
+    granted_map = {}
+    try:
+        from routes.diary import sb_list_pastors, sb_get_owner_grants
+        pastors = sb_list_pastors()
+        granted_ids = sb_get_owner_grants(session.get('line_id', ''))
+        granted_map = {pid: True for pid in granted_ids}
+    except Exception:
+        pass
 
     return render_template('profile/edit.html',
         user=user, groups=groups,
