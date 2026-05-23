@@ -22,29 +22,29 @@
 .breadcrumb a { color: var(--f-primary); text-decoration: none; font-weight: 600; }
 .header-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 
-/* ── 按鈕 ── */
-.btn-primary {
+/* ── 按鈕（限定在 main 內，避免覆蓋 navbar）── */
+main .btn-primary {
   padding: 9px 18px; background: var(--f-primary); color: #fff;
   border: none; border-radius: 8px; font-size: .9rem; font-weight: 600;
   cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
   transition: background .15s;
 }
-.btn-primary:hover { background: var(--f-primary-dark); }
-.btn-secondary {
+main .btn-primary:hover { background: var(--f-primary-dark); }
+main .btn-secondary {
   padding: 8px 16px; background: #f5f5f5; color: #333;
   border: 1px solid #e0e0e0; border-radius: 8px; font-size: .85rem; font-weight: 600;
   cursor: pointer; text-decoration: none; display: inline-flex; align-items: center; gap: 5px;
 }
-.btn-secondary:hover { background: #eee; }
-.btn-sm { padding: 5px 10px; border-radius: 6px; font-size: .8rem; font-weight: 600;
+main .btn-secondary:hover { background: #eee; }
+main .btn-sm { padding: 5px 10px; border-radius: 6px; font-size: .8rem; font-weight: 600;
   border: 1px solid #e0e0e0; background: #fafafa; cursor: pointer; white-space: nowrap; }
-.btn-sm:hover { background: #f0f0f0; }
-.btn-danger { background: #fff1f2 !important; color: var(--f-danger) !important;
+main .btn-sm:hover { background: #f0f0f0; }
+main .btn-danger { background: #fff1f2 !important; color: var(--f-danger) !important;
   border-color: #fecaca !important; }
-.btn-danger:hover { background: #fee2e2 !important; }
-.btn-share { background: #eff6ff !important; color: #1d4ed8 !important;
+main .btn-danger:hover { background: #fee2e2 !important; }
+main .btn-share { background: #eff6ff !important; color: #1d4ed8 !important;
   border-color: #bfdbfe !important; }
-.btn-full { width: 100%; justify-content: center; }
+main .btn-full { width: 100%; justify-content: center; }
 
 /* ── 儲存空間列 ── */
 .storage-bar-wrap { margin-bottom: 20px; }
@@ -635,7 +635,7 @@
 </div>
 {% endblock %}
 
-{% block scripts %}
+{% block extra_js %}
 <script>
 const MAX_FILE_BYTES = 500 * 1024 * 1024;
 
@@ -696,7 +696,7 @@ function xhrUpload(url, formData, { progressBarId, progressLabelId, progressWrap
   if (wrap) wrap.style.display = 'block';
   if (btn) { btn.disabled = true; btn.textContent = '上傳中…'; }
 
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content;
+  const csrfToken = (typeof _CSRF_TOKEN !== 'undefined') ? _CSRF_TOKEN : '';
   const xhr = new XMLHttpRequest();
   xhr.upload.addEventListener('progress', (e) => {
     if (!e.lengthComputable) return;
