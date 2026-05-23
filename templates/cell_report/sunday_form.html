@@ -1,9 +1,16 @@
 {% extends "base.html" %}
 {% block title %}{{ label or '成人主日' }}報告{% endblock %}
 {% block content %}
+{% set existing = (report.get('first_service_count',0) or 0) + (report.get('second_service_count',0) or 0) %}
 <div class="container" style="max-width:480px; margin:60px auto; padding:0 16px;">
   <h1 style="font-size:1.4rem; font-weight:700; margin-bottom:4px;">{{ label or '成人主日' }}報告</h1>
-  <p style="color:#888; margin-bottom:24px;">{{ date.strftime('%Y/%m/%d') }}（{{ ['一','二','三','四','五','六','日'][date.weekday()] }}）</p>
+  <p style="color:#888; margin-bottom:16px;">{{ date.strftime('%Y/%m/%d') }}（{{ ['一','二','三','四','五','六','日'][date.weekday()] }}）</p>
+
+  {% if existing > 0 %}
+  <div style="background:#fffbeb;border:1px solid #f59e0b;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:.88rem;color:#92400e;">
+    ⚠ 本週已填報 <strong>{{ existing }} 人</strong>，再次送出將覆蓋現有資料。
+  </div>
+  {% endif %}
 
   <div style="background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,.08);">
     <div style="display:flex; flex-direction:column; gap:16px;">
@@ -32,27 +39,30 @@
       </div>
       {% endif %}
 
-      <button onclick="submitReport()"
+      <button id="submit-btn" onclick="submitReport()"
               style="padding:14px; background:#06C755; color:#fff; border:none;
                      border-radius:10px; font-size:1rem; font-weight:700; cursor:pointer;">
         送出
       </button>
-      <div id="result" style="text-align:center; color:#2e7d32; display:none;">✓ 已儲存</div>
+      <div id="result" style="text-align:center; display:none;">
+        <div style="color:#2e7d32; font-size:1rem; margin-bottom:12px;">✓ 已儲存</div>
+        <a href="/" style="display:inline-block; padding:10px 28px; background:#f0f4f8; color:#333;
+                           border-radius:8px; font-weight:600; text-decoration:none;">← 回首頁</a>
+      </div>
     </div>
   </div>
 </div>
 
 <script>
 const SERVICE_COUNT = {{ service_count or 2 }};
+const EXISTING = {{ existing }};
 const first = document.getElementById('first');
 const second = document.getElementById('second');
 const totalEl = document.getElementById('total');
 
 function updateTotal() {
   if (!totalEl) return;
-  const f = parseInt(first.value) || 0;
-  const s = second ? (parseInt(second.value) || 0) : 0;
-  totalEl.textContent = f + s;
+  totalEl.textContent = (parseInt(first.value) || 0) + (second ? (parseInt(second.value) || 0) : 0);
 }
 if (first) first.oninput = updateTotal;
 if (second) second.oninput = updateTotal;
@@ -60,17 +70,26 @@ if (second) second.oninput = updateTotal;
 async function submitReport() {
   const f = parseInt(first.value) || 0;
   const s = second ? (parseInt(second.value) || 0) : 0;
+  if (EXISTING > 0 && !confirm(`本週已填報 ${EXISTING} 人，確定要覆蓋嗎？`)) return;
+  const btn = document.getElementById('submit-btn');
+  btn.disabled = true; btn.textContent = '送出中…';
   const body = SERVICE_COUNT >= 2
     ? { first_service_count: f, second_service_count: s }
     : { first_service_count: f, second_service_count: 0 };
-  const res = await fetch(window.location.href, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(body)
-  });
-  if ((await res.json()).success) {
-    document.getElementById('result').style.display = 'block';
-    setTimeout(() => document.getElementById('result').style.display = 'none', 3000);
+  try {
+    const res = await fetch(window.location.href, {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+    });
+    if ((await res.json()).success) {
+      btn.style.display = 'none';
+      document.getElementById('result').style.display = 'block';
+    } else {
+      showToast('儲存失敗，請再試', 'error');
+      btn.disabled = false; btn.textContent = '送出';
+    }
+  } catch(e) {
+    showToast('網路錯誤', 'error');
+    btn.disabled = false; btn.textContent = '送出';
   }
 }
 </script>
