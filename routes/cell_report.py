@@ -31,6 +31,21 @@ _MEETING_CFG_CACHE: Optional[Dict] = None
 _MEETING_CFG_TS: float = 0.0
 _MEETING_CFG_TTL = 300
 
+# ── 模組開關設定（快取）──────────────────────────────────────────
+MODULE_DEFAULTS: Dict[str, bool] = {
+    'show_adult_sunday': True,
+    'show_children_sunday': True,
+    'show_prayer': True,
+    'show_morning_prayer': True,
+    'show_self_assessment': True,
+    'show_group_status': True,
+    'show_newcomers': True,
+    'show_coworker_suggestion': True,
+}
+_MODULE_CFG_CACHE: Optional[Dict] = None
+_MODULE_CFG_TS: float = 0.0
+_MODULE_CFG_TTL = 300
+
 
 def _get_meeting_settings() -> Dict[str, Dict]:
     global _MEETING_CFG_CACHE, _MEETING_CFG_TS
@@ -70,6 +85,30 @@ def _get_meeting_settings() -> Dict[str, Dict]:
 def _invalidate_meeting_cache():
     global _MEETING_CFG_CACHE
     _MEETING_CFG_CACHE = None
+
+
+def _get_module_settings() -> Dict[str, bool]:
+    global _MODULE_CFG_CACHE, _MODULE_CFG_TS
+    now = time.time()
+    if _MODULE_CFG_CACHE is not None and now - _MODULE_CFG_TS < _MODULE_CFG_TTL:
+        return _MODULE_CFG_CACHE
+    result = dict(MODULE_DEFAULTS)
+    try:
+        res = supabase.table('settings').select('key,value').like('key', 'module.%').execute()
+        for row in (res.data or []):
+            short_key = row['key'][len('module.'):]
+            if short_key in result:
+                result[short_key] = row['value'] in ('true', '1', 'on')
+    except Exception:
+        pass
+    _MODULE_CFG_CACHE = result
+    _MODULE_CFG_TS = now
+    return result
+
+
+def _invalidate_module_cache():
+    global _MODULE_CFG_CACHE
+    _MODULE_CFG_CACHE = None
 
 
 def _get_custom_meetings_data(mcfg: Dict, base_date=None) -> List[Dict]:
@@ -563,6 +602,7 @@ def step3(group_id):
 
     report = _get_or_create_report(group_id, week_date.isoformat())
     this_week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
+    mcfg = _get_module_settings()
 
     def _parse_newcomers(rpt):
         raw = rpt.get('newcomer_raw') if rpt else None
@@ -575,14 +615,15 @@ def step3(group_id):
             return []
 
     if request.method == 'POST':
-        required_fields = ['spiritual_status', 'family_status', 'work_status', 'health_status']
         error = None
-        for f in required_fields:
-            if not request.form.get(f, '').strip():
-                error = '請完整填寫小組長自評四大面向'
-                break
-        if not error and not request.form.get('group_status', '').strip():
-            error = '請填寫小組整體狀況'
+        if mcfg.get('show_self_assessment', True):
+            for f in ['spiritual_status', 'family_status', 'work_status', 'health_status']:
+                if not request.form.get(f, '').strip():
+                    error = '請完整填寫小組長自評四大面向'
+                    break
+        if not error and mcfg.get('show_group_status', True):
+            if not request.form.get('group_status', '').strip():
+                error = '請填寫小組整體狀況'
 
         if error:
             return render_template('cell_report/step3.html',
@@ -590,6 +631,7 @@ def step3(group_id):
                                    week_date=week_date,
                                    is_backfill=week_date != this_week_date,
                                    newcomers=_parse_newcomers(report),
+                                   module_cfg=mcfg,
                                    error=error)
 
         newcomers_json = request.form.get('newcomers_json', '[]')
@@ -619,6 +661,7 @@ def step3(group_id):
                                    week_date=week_date,
                                    is_backfill=week_date != this_week_date,
                                    newcomers=_parse_newcomers(report),
+                                   module_cfg=mcfg,
                                    error='無法取得回報紀錄，請重新整理後再試。')
         try:
             supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
@@ -629,6 +672,7 @@ def step3(group_id):
                                    week_date=week_date,
                                    is_backfill=week_date != this_week_date,
                                    newcomers=_parse_newcomers(report),
+                                   module_cfg=mcfg,
                                    error=f'儲存失敗，請稍後再試。（{e}）')
 
         return redirect(url_for('cell_report.done', group_id=group_id,
@@ -638,7 +682,8 @@ def step3(group_id):
                            group=group, report=report,
                            week_date=week_date,
                            is_backfill=week_date != this_week_date,
-                           newcomers=_parse_newcomers(report))
+                           newcomers=_parse_newcomers(report),
+                           module_cfg=mcfg)
 
 
 @cell_report_bp.get('/cell-report/<group_id>/done')
@@ -800,7 +845,8 @@ def pastor_dashboard():
                            dashboard_title='牧者查閱',
                            is_pastor=True,
                            is_staff=False,
-                           meeting_cfg=mcfg)
+                           meeting_cfg=mcfg,
+                           module_cfg=_get_module_settings())
 
 
 @cell_report_bp.get('/cell-report/staff-dashboard')
@@ -866,7 +912,8 @@ def staff_dashboard():
                            dashboard_title='同工查閱',
                            is_pastor=False,
                            is_staff=True,
-                           meeting_cfg=mcfg)
+                           meeting_cfg=mcfg,
+                           module_cfg=_get_module_settings())
 
 
 @cell_report_bp.route('/cell-report/sunday', methods=['GET', 'POST'])
@@ -1066,14 +1113,23 @@ def admin_meeting_settings():
             supabase.table('settings').upsert({'key': f'meeting.{meeting_key}', 'value': payload}).execute()
 
         _invalidate_meeting_cache()
-        flash('聚會設定已儲存', 'success')
+
+        # 模組開關
+        for key in MODULE_DEFAULTS:
+            val = 'true' if request.form.get(f'module_{key}') else 'false'
+            supabase.table('settings').upsert({'key': f'module.{key}', 'value': val}).execute()
+        _invalidate_module_cache()
+
+        flash('設定已儲存', 'success')
         return redirect(url_for('cell_report.admin_meeting_settings'))
 
     settings = _get_meeting_settings()
+    module_cfg = _get_module_settings()
     return render_template('cell_report/admin_meeting_settings.html',
                            settings=settings,
                            weekday_names=WEEKDAY_NAMES,
-                           defaults=MEETING_DEFAULTS)
+                           defaults=MEETING_DEFAULTS,
+                           module_cfg=module_cfg)
 
 
 @cell_report_bp.route('/cell-report/custom-meeting/<meeting_key>', methods=['GET', 'POST'])
