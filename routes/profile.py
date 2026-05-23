@@ -150,23 +150,39 @@ def edit():
         session['real_name'] = real_name
         return jsonify({'success': True})
 
-    user = supabase.table('users').select('*').eq('id', uid).execute().data
-    if not user:
+    try:
+        user_rows = supabase.table('users').select('*').eq('id', uid).execute().data
+    except Exception:
+        user_rows = []
+    if not user_rows:
         flash('找不到使用者資料', 'error')
         return redirect(url_for('event.portal'))
-    user = user[0]
-    groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
+    user = user_rows[0]
 
-    # 撈牧養小組清單
-    cell_groups = supabase.table('cell_groups').select('id, name').eq('is_active', True).order('name').execute().data or []
+    try:
+        groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
+    except Exception:
+        try:
+            groups = supabase.table('groups').select('name, is_primary').execute().data or []
+        except Exception:
+            groups = []
 
-    # 使用者目前的小組申請/歸屬狀態
-    my_cell = supabase.table('cell_members').select('id, group_id, is_confirmed')\
-        .eq('user_id', uid).eq('is_active', True).execute().data
-    my_cell_group_id = my_cell[0]['group_id'] if my_cell else None
-    my_cell_confirmed = my_cell[0]['is_confirmed'] if my_cell else None
+    try:
+        cell_groups = supabase.table('cell_groups').select('id, name').eq('is_active', True).order('name').execute().data or []
+    except Exception:
+        cell_groups = []
 
-    # 天父日記授權資料（若 schema 不符合或功能未啟用則靜默忽略）
+    my_cell_group_id = None
+    my_cell_confirmed = None
+    try:
+        my_cell = supabase.table('cell_members').select('id, group_id, is_confirmed')\
+            .eq('user_id', uid).eq('is_active', True).execute().data
+        if my_cell:
+            my_cell_group_id = my_cell[0]['group_id']
+            my_cell_confirmed = my_cell[0]['is_confirmed']
+    except Exception:
+        pass
+
     pastors = []
     granted_map = {}
     try:
