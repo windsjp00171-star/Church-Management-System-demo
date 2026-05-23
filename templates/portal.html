@@ -476,7 +476,10 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
       {% if as and as.sunday %}
         {% set sc = (as.sunday.first_service_count or 0) + (as.sunday.second_service_count or 0) %}
         <span style="font-size:2.4rem;font-weight:800;color:#276749;line-height:1;">{{ sc }}</span>
-        <span style="font-size:.65rem;color:#276749;opacity:.6;margin-top:4px;">{{ as.sunday.date }}</span>
+        {% if (as.sunday.first_service_count or 0) > 0 and (as.sunday.second_service_count or 0) > 0 %}
+        <span style="font-size:.68rem;color:#276749;opacity:.7;margin-top:2px;">一：{{ as.sunday.first_service_count }}　二：{{ as.sunday.second_service_count }}</span>
+        {% endif %}
+        <span style="font-size:.65rem;color:#276749;opacity:.6;margin-top:2px;">{{ as.sunday.date }}</span>
       {% else %}
         <span style="font-size:2rem;font-weight:800;color:#A0AEC0;line-height:1;">—</span>
         <span style="font-size:.65rem;color:#CBD5E0;margin-top:4px;">尚未填報</span>
