@@ -859,7 +859,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {# ── 同工功能 ── #}
-        {% if is_staff or is_super_admin %}
+        {% if (is_staff and not session.is_pastor) or is_super_admin %}
         {# 同工首頁卡片 #}
         <div class="fi-wrap ti" style="--d:{{ base_d + 685 }}ms">
             <a href="/staff" class="fg-tile" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);">
