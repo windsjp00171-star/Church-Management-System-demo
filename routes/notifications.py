@@ -198,6 +198,75 @@ def api_check_reminders():
         )
         created += 1
 
+    # ── 3. 個人行程提醒 ──────────────────────────
+    try:
+        personal_events = supabase.table('personal_events')\
+            .select('id, title, event_date, remind_days')\
+            .eq('user_id', uid).execute().data or []
+        for pe in personal_events:
+            event_date = pe.get('event_date')
+            if not event_date:
+                continue
+            try:
+                ev_dt = datetime.fromisoformat(event_date).replace(tzinfo=TAIPEI_TZ)
+            except Exception:
+                continue
+            days = pe.get('remind_days') or 1
+            delta = (ev_dt - now).total_seconds() / 86400
+            if not (0 <= delta <= days):
+                continue
+            existing = supabase.table('notifications').select('id')\
+                .eq('user_id', uid).eq('ref_type', 'personal_event')\
+                .eq('ref_id', pe['id']).execute().data
+            if existing:
+                continue
+            create_notification(
+                user_id  = uid,
+                title    = f'📅 行程提醒 — {pe["title"]}',
+                body     = f'行程日期：{event_date}',
+                type     = 'calendar_reminder',
+                link     = '/calendar',
+                ref_type = 'personal_event',
+                ref_id   = pe['id'],
+            )
+            created += 1
+    except Exception:
+        pass
+
+    # ── 4. 教會行事曆提醒 ──────────────────────────
+    try:
+        church_events = supabase.table('church_events')\
+            .select('id, title, event_date, remind_days').execute().data or []
+        for ce in church_events:
+            event_date = ce.get('event_date')
+            if not event_date:
+                continue
+            try:
+                ev_dt = datetime.fromisoformat(event_date).replace(tzinfo=TAIPEI_TZ)
+            except Exception:
+                continue
+            days = ce.get('remind_days') or 3
+            delta = (ev_dt - now).total_seconds() / 86400
+            if not (0 <= delta <= days):
+                continue
+            existing = supabase.table('notifications').select('id')\
+                .eq('user_id', uid).eq('ref_type', 'church_event')\
+                .eq('ref_id', ce['id']).execute().data
+            if existing:
+                continue
+            create_notification(
+                user_id  = uid,
+                title    = f'⛪ 教會行事提醒 — {ce["title"]}',
+                body     = f'活動日期：{event_date}',
+                type     = 'calendar_reminder',
+                link     = '/calendar',
+                ref_type = 'church_event',
+                ref_id   = ce['id'],
+            )
+            created += 1
+    except Exception:
+        pass
+
     return jsonify({'success': True, 'created': created})
 
 

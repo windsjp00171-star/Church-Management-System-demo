@@ -813,6 +813,13 @@ GRANT ALL ON overtime_records TO anon, authenticated;
 -- 若資料庫是以舊版 schema.sql 建立，執行以下 ALTER TABLE 補上缺少的欄位。
 -- ============================================================
 
+-- 2026-05 church_events / personal_events 新增 remind_days（提前幾天通知）
+ALTER TABLE church_events
+  ADD COLUMN IF NOT EXISTS remind_days INT NOT NULL DEFAULT 3;
+
+ALTER TABLE personal_events
+  ADD COLUMN IF NOT EXISTS remind_days INT NOT NULL DEFAULT 1;
+
 -- 2026-05 cell_members 新增 user_id（連結系統帳號）與 is_confirmed（待審核旗標）
 ALTER TABLE cell_members
   ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES users(id) ON DELETE SET NULL;

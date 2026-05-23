@@ -189,7 +189,7 @@
             <label class="modal-label">備註（選填）</label>
             <input id="p-desc" type="text" placeholder="地點、提醒等" class="modal-input">
         </div>
-        <div style="margin-bottom:22px;">
+        <div style="margin-bottom:14px;">
             <label class="modal-label">顏色</label>
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 {% for color in ['#e65100','#c62828','#f9a825','#2e7d32','#1565c0','#7b1fa2','#424242'] %}
@@ -198,6 +198,15 @@
                 {% endfor %}
             </div>
             <input type="hidden" id="p-color-val" value="#e65100">
+        </div>
+        <div style="margin-bottom:22px;">
+            <label class="modal-label">🔔 提前提醒</label>
+            <select id="p-remind" class="modal-input">
+                <option value="0">不提醒</option>
+                <option value="1" selected>提前 1 天</option>
+                <option value="3">提前 3 天</option>
+                <option value="7">提前 1 週</option>
+            </select>
         </div>
         <div style="display:flex; gap:10px;">
             <button onclick="submitPersonalForm()" class="btn btn-primary" style="flex:1;">儲存</button>
@@ -224,7 +233,7 @@
             <label class="modal-label">說明（選填）</label>
             <input id="ch-desc" type="text" placeholder="地點、備注等" class="modal-input">
         </div>
-        <div style="margin-bottom:22px;">
+        <div style="margin-bottom:14px;">
             <label class="modal-label">顏色</label>
             <div style="display:flex; gap:10px; flex-wrap:wrap;">
                 {% for color in ['#7b1fa2','#c62828','#e65100','#f9a825','#2e7d32','#1565c0','#424242'] %}
@@ -233,6 +242,16 @@
                 {% endfor %}
             </div>
             <input type="hidden" id="ch-color-val" value="#7b1fa2">
+        </div>
+        <div style="margin-bottom:22px;">
+            <label class="modal-label">🔔 提前提醒全體會友</label>
+            <select id="ch-remind" class="modal-input">
+                <option value="0">不提醒</option>
+                <option value="1">提前 1 天</option>
+                <option value="3" selected>提前 3 天</option>
+                <option value="7">提前 1 週</option>
+                <option value="14">提前 2 週</option>
+            </select>
         </div>
         <div style="display:flex; gap:10px;">
             <button onclick="submitChurchForm()" class="btn btn-sm"
@@ -423,7 +442,8 @@ async function submitPersonalForm() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, event_date: date,
             description: document.getElementById('p-desc').value.trim() || null,
-            color: document.getElementById('p-color-val').value }),
+            color: document.getElementById('p-color-val').value,
+            remind_days: parseInt(document.getElementById('p-remind').value) || 0 }),
     });
     const d = await res.json();
     if (d.success) { closePersonalModal(); loadCalendar(); }
@@ -476,7 +496,8 @@ async function submitChurchForm() {
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
         body: JSON.stringify({ title, event_date: date,
             description: document.getElementById('ch-desc').value.trim() || null,
-            color: document.getElementById('ch-color-val').value }),
+            color: document.getElementById('ch-color-val').value,
+            remind_days: parseInt(document.getElementById('ch-remind').value) || 0 }),
     });
     const d = await res.json();
     if (d.success) { closeChurchModal(); loadCalendar(); }

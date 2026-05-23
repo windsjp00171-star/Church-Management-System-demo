@@ -143,12 +143,17 @@ def personal_event_new():
     event_date = (data.get('event_date') or '').strip()
     if not title or not event_date:
         return jsonify({'success': False, 'error': '標題與日期為必填'})
+    try:
+        remind_days = int(data.get('remind_days') or 1)
+    except (ValueError, TypeError):
+        remind_days = 1
     supabase.table('personal_events').insert({
         'user_id':     session['user_id'],
         'title':       title,
         'event_date':  event_date,
         'description': (data.get('description') or '').strip() or None,
         'color':       data.get('color') or '#e65100',
+        'remind_days': remind_days,
     }).execute()
     return jsonify({'success': True})
 

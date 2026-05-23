@@ -1482,4 +1482,9 @@ async function toggleCard(btn) {
 }
 </script>
 
+<script>
+// 進入首頁時靜默觸發行事曆與繳費提醒檢查
+fetch('/api/notifications/check-reminders', { method: 'POST' }).catch(function(){});
+</script>
+
 {% endblock %}

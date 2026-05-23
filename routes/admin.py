@@ -213,6 +213,10 @@ def church_event_new():
     event_date = (data.get('event_date') or '').strip()
     if not title or not event_date:
         return jsonify({'error': '請填寫標題與日期'}), 400
+    try:
+        remind_days = int(data.get('remind_days') or 3)
+    except (ValueError, TypeError):
+        remind_days = 3
     supabase.table('church_events').insert({
         'title': title,
         'event_date': event_date,
@@ -220,6 +224,7 @@ def church_event_new():
         'description': (data.get('description') or '').strip() or None,
         'color': data.get('color') or '#7b1fa2',
         'created_by': session.get('user_id'),
+        'remind_days': remind_days,
     }).execute()
     return jsonify({'success': True})
 
@@ -232,12 +237,17 @@ def church_event_edit(event_id):
     event_date = (data.get('event_date') or '').strip()
     if not title or not event_date:
         return jsonify({'error': '請填寫標題與日期'}), 400
+    try:
+        remind_days = int(data.get('remind_days') or 3)
+    except (ValueError, TypeError):
+        remind_days = 3
     supabase.table('church_events').update({
         'title': title,
         'event_date': event_date,
         'end_date': data.get('end_date') or None,
         'description': (data.get('description') or '').strip() or None,
         'color': data.get('color') or '#7b1fa2',
+        'remind_days': remind_days,
     }).eq('id', event_id).execute()
     return jsonify({'success': True})
 
