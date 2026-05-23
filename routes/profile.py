@@ -97,31 +97,32 @@ def edit():
                 if not grp:
                     return jsonify({'error': '找不到此小組'}), 404
 
-                # 若已有確認中的申請或已確認的記錄，直接回傳
-                try:
-                    existing = supabase.table('cell_members').select('id, is_confirmed')\
-                        .eq('group_id', group_id).eq('user_id', uid).eq('is_active', True).execute().data
-                except Exception:
-                    existing = supabase.table('cell_members').select('id')\
-                        .eq('group_id', group_id).eq('user_id', uid).eq('is_active', True).execute().data
+                # 取得使用者姓名
+                name = session.get('real_name') or session.get('display_name') or '未命名'
+
+                # 若已有相同姓名＋小組的記錄，直接回傳（不依賴 user_id 欄位）
+                existing = supabase.table('cell_members').select('id, is_confirmed')\
+                    .eq('group_id', group_id).eq('name', name).eq('is_active', True).execute().data
                 if existing:
                     status = '已在此小組' if existing[0].get('is_confirmed', True) else '申請已送出，等待管理員確認'
                     return jsonify({'success': True, 'message': status})
 
-                # 取得使用者姓名
-                name = session.get('real_name') or session.get('display_name') or '未命名'
-
-                # 建立待確認記錄（is_confirmed 欄位可能不存在則省略）
-                insert_payload = {
-                    'group_id': group_id,
-                    'name': name,
-                    'user_id': uid,
-                    'is_active': True,
-                }
-                try:
-                    supabase.table('cell_members').insert({**insert_payload, 'is_confirmed': False}).execute()
-                except Exception:
-                    supabase.table('cell_members').insert(insert_payload).execute()
+                # 建立待確認記錄，依序嘗試最完整到最精簡的欄位組合
+                base_payload = {'group_id': group_id, 'name': name, 'is_active': True}
+                inserted = False
+                for payload in [
+                    {**base_payload, 'user_id': uid, 'is_confirmed': False},
+                    {**base_payload, 'is_confirmed': False},
+                    base_payload,
+                ]:
+                    try:
+                        supabase.table('cell_members').insert(payload).execute()
+                        inserted = True
+                        break
+                    except Exception:
+                        continue
+                if not inserted:
+                    return jsonify({'error': '寫入資料庫失敗，請聯絡管理員'})
 
                 # 通知管理員
                 try:
