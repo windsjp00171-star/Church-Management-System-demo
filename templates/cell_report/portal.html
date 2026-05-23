@@ -62,19 +62,34 @@
 
   <!-- Pastor / Staff links -->
   {% if session.get('is_pastor') %}
-    <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--color-border);">
+    <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--color-border); display:flex; flex-direction:column; gap:10px;">
       <a href="{{ url_for('cell_report.pastor_dashboard') }}"
          class="btn btn-primary"
          style="width:100%; padding:13px; border-radius:12px; font-size:.95rem; display:flex; justify-content:center;">
         牧者查閱
       </a>
+      <a href="{{ url_for('cell_report.admin_meeting_settings') }}"
+         style="width:100%; padding:11px; border-radius:12px; font-size:.9rem; display:flex; justify-content:center; align-items:center; gap:6px;
+                background:var(--color-surface); border:1.5px solid var(--color-border); color:var(--color-text); text-decoration:none; font-weight:600;">
+        ⚙️ 聚會與模組設定
+      </a>
     </div>
   {% elif session.get('is_staff') %}
-    <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--color-border);">
+    <div style="margin-top:32px; padding-top:20px; border-top:1px solid var(--color-border); display:flex; flex-direction:column; gap:10px;">
       <a href="{{ url_for('cell_report.staff_dashboard') }}"
          class="btn btn-accent"
          style="width:100%; padding:13px; border-radius:12px; font-size:.95rem; display:flex; justify-content:center;">
         同工查閱
+      </a>
+    </div>
+  {% endif %}
+
+  {% if session.get('is_admin') and not session.get('is_pastor') %}
+    <div style="margin-top:{% if not session.get('is_staff') %}32px; padding-top:20px; border-top:1px solid var(--color-border);{% else %}0;{% endif %}">
+      <a href="{{ url_for('cell_report.admin_meeting_settings') }}"
+         style="width:100%; padding:11px; border-radius:12px; font-size:.9rem; display:flex; justify-content:center; align-items:center; gap:6px;
+                background:var(--color-surface); border:1.5px solid var(--color-border); color:var(--color-text); text-decoration:none; font-weight:600;">
+        ⚙️ 聚會與模組設定
       </a>
     </div>
   {% endif %}
