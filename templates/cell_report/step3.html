@@ -66,13 +66,14 @@
           </div>
 
           {% set aspects = [
-            ('spiritual_status', '靈命光景', ['平穩得力', '起伏不定', '低沉疲乏']),
-            ('family_status',    '家人關係', ['一起禱告', '相安無事', '有所爭執']),
-            ('work_status',      '工作人際', ['恩典夠用', '忙而混亂', '存在壓力']),
-            ('health_status',    '身體健康', ['有些運動', '還算可以', '生病疼痛']),
+            ('spiritual_status', '靈命光景', ['平穩得力', '起伏不定', '低沉疲乏'], 'spiritual_note'),
+            ('family_status',    '家人關係', ['一起禱告', '相安無事', '有所爭執'], 'family_note'),
+            ('work_status',      '工作人際', ['恩典夠用', '忙而混亂', '存在壓力'], 'work_note'),
+            ('health_status',    '身體健康', ['有些運動', '還算可以', '生病疼痛'], 'health_note'),
           ] %}
 
-          {% for field, label, options in aspects %}
+          {% for field, label, options, note_field in aspects %}
+          {% set is_third_sel = report and report.get(field) == options[2] %}
           <div>
             <p style="font-size:.85rem; font-weight:600; color:#444; margin:0 0 8px;">{{ label }}</p>
             <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:8px;">
@@ -81,7 +82,10 @@
               <label style="cursor:pointer; display:block; margin:0;">
                 <input type="radio" name="{{ field }}" value="{{ opt }}"
                        {% if is_sel %}checked{% endif %}
-                       class="self-radio" style="display:none;">
+                       class="self-radio"
+                       data-note-target="note-{{ field }}"
+                       data-show-note="{{ 'true' if loop.index == 3 else 'false' }}"
+                       style="display:none;">
                 <div style="padding:12px 6px; border-radius:10px;
                             border:2px solid {{ 'var(--color-primary,#06C755)' if is_sel else '#e2e8f0' }};
                             background:{{ '#f0fff4' if is_sel else 'var(--color-surface,#fff)' }};
@@ -92,6 +96,13 @@
                 </div>
               </label>
               {% endfor %}
+            </div>
+            <div id="note-{{ field }}"
+                 style="margin-top:10px; {% if not is_third_sel %}display:none;{% endif %}">
+              <input type="text" name="{{ note_field }}" class="form-control"
+                     value="{{ report[note_field] if report and report.get(note_field) else '' }}"
+                     placeholder="補充說明（選填）"
+                     style="border-radius:10px; padding:10px 13px; font-size:.85rem;">
             </div>
           </div>
           {% if not loop.last %}
@@ -172,6 +183,16 @@ document.querySelectorAll('.self-radio').forEach(radio => {
       box.style.background = sel ? '#f0fff4' : 'var(--color-surface, #fff)';
       box.style.color = sel ? '#065f46' : 'var(--color-text, #555)';
     });
+    // 只有第三個選項才顯示補充說明框
+    const noteId = radio.dataset.noteTarget;
+    if (noteId) {
+      const noteEl = document.getElementById(noteId);
+      if (noteEl) {
+        const show = radio.dataset.showNote === 'true';
+        noteEl.style.display = show ? 'block' : 'none';
+        if (show) noteEl.querySelector('input')?.focus();
+      }
+    }
   });
 });
 
