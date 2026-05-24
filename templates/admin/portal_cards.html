@@ -19,43 +19,87 @@
 </div>
 {% endif %}
 
-<div id="cards-list" style="display:flex;flex-direction:column;gap:12px;margin-bottom:32px;">
+<div id="cards-list" style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:32px;">
 {% for card in cards %}
-<div class="pc-row" data-key="{{ card.key }}">
-    <div class="pc-row-inner">
-        <div class="pc-drag-handle" title="拖拉排序">⠿</div>
-        <div class="pc-emoji-wrap">
-            <span class="pc-emoji">{{ card.emoji or '🔗' }}</span>
-        </div>
-        <div class="pc-body">
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
-                <input class="pc-name-input" type="text" value="{{ card.name }}"
-                    placeholder="卡片名稱"
-                    style="font-size:.95rem;font-weight:700;border:1px solid var(--border);border-radius:8px;
-                           padding:6px 10px;width:140px;color:var(--text-1);background:var(--bg);">
-                <input class="pc-subtitle-input" type="text" value="{{ card.subtitle or '' }}"
-                    placeholder="副標題（選填）"
-                    style="font-size:.82rem;border:1px solid var(--border);border-radius:8px;
-                           padding:6px 10px;flex:1;min-width:160px;color:var(--text-2);background:var(--bg);">
-            </div>
-            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
-                <select class="pc-visible-select"
-                    style="padding:6px 10px;border:1px solid var(--border);border-radius:8px;
-                           font-size:.82rem;background:var(--bg);color:var(--text-2);">
-                    {% for val, label in visible_to_options %}
-                    <option value="{{ val }}" {% if card.visible_to == val %}selected{% endif %}>{{ label }}</option>
-                    {% endfor %}
-                </select>
-                <label class="pc-toggle-wrap" title="{{ '顯示中' if card.is_active else '已隱藏' }}">
-                    <input type="checkbox" class="pc-active-cb" {% if card.is_active %}checked{% endif %} style="display:none;">
-                    <span class="pc-toggle {% if card.is_active %}on{% endif %}"></span>
-                    <span class="pc-toggle-label">{{ '顯示' if card.is_active else '隱藏' }}</span>
-                </label>
-                <button class="pc-save-btn btn btn-sm btn-primary" onclick="saveCard(this)">儲存</button>
-                <span class="pc-save-msg" style="font-size:.8rem;color:var(--green);display:none;">✓ 已儲存</span>
-            </div>
-        </div>
+<div class="pc-row" data-key="{{ card.key }}"
+     style="border-radius:16px; overflow:hidden; box-shadow:var(--shadow-sm); border:1px solid var(--border);
+            {% if not card.is_active %}opacity:.5;{% endif %}">
+
+  <!-- 預覽磚（跟首頁樣式一致） -->
+  <div style="background:var(--surface); padding:16px 14px 12px; position:relative; min-height:100px;">
+    <!-- 拖拉 handle -->
+    <div class="pc-drag-handle" title="拖拉排序"
+         style="position:absolute; top:8px; left:8px; font-size:1rem; color:var(--text-3); cursor:grab; user-select:none; line-height:1;">⠿</div>
+
+    <!-- 隱藏遮罩 -->
+    {% if not card.is_active %}
+    <div style="position:absolute; inset:0; background:rgba(0,0,0,.04); border-radius:16px;
+                display:flex; align-items:center; justify-content:center; z-index:1;">
+      <span style="font-size:.72rem; font-weight:700; background:var(--bg); border:1px solid var(--border);
+                   border-radius:20px; padding:3px 10px; color:var(--text-3);">已隱藏</span>
     </div>
+    {% endif %}
+
+    <div style="display:flex; flex-direction:column; gap:5px; padding-left:16px;">
+      <div style="width:36px; height:36px; border-radius:10px;
+                  background:var(--bg); border:1px solid var(--border);
+                  display:flex; align-items:center; justify-content:center; font-size:1.3rem; margin-bottom:4px;">
+        {{ card.emoji or '🔗' }}
+      </div>
+      <div style="font-size:.88rem; font-weight:700; color:var(--text-1); line-height:1.3;">{{ card.name }}</div>
+      {% if card.subtitle %}
+      <div style="font-size:.72rem; color:var(--text-3); line-height:1.4;">{{ card.subtitle }}</div>
+      {% endif %}
+      <div style="margin-top:4px;">
+        <span style="font-size:.68rem; padding:2px 7px; border-radius:10px; font-weight:600;
+                     background:var(--bg); border:1px solid var(--border); color:var(--text-3);">
+          {{ dict(visible_to_options)[card.visible_to] if card.visible_to else '所有人' }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 編輯列 -->
+  <div style="background:var(--bg); border-top:1px solid var(--border); padding:10px 12px; display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+    <label class="pc-toggle-wrap" title="{{ '顯示中' if card.is_active else '已隱藏' }}" style="display:flex; align-items:center; gap:5px; cursor:pointer; flex-shrink:0;">
+      <input type="checkbox" class="pc-active-cb" {% if card.is_active %}checked{% endif %} style="display:none;">
+      <span class="pc-toggle {% if card.is_active %}on{% endif %}"></span>
+      <span class="pc-toggle-label" style="font-size:.78rem; color:var(--text-3); white-space:nowrap;">{{ '顯示' if card.is_active else '隱藏' }}</span>
+    </label>
+    <button class="pc-edit-toggle btn btn-sm" style="flex-shrink:0; background:var(--surface); font-size:.78rem; padding:5px 10px;" onclick="togglePcEdit(this)">✏️ 編輯</button>
+    <button class="pc-save-btn btn btn-sm btn-primary" onclick="saveCard(this)" style="flex-shrink:0; font-size:.78rem; padding:5px 10px;">儲存</button>
+    <span class="pc-save-msg" style="font-size:.78rem;color:var(--green);display:none;">✓ 已儲存</span>
+  </div>
+
+  <!-- 展開編輯區 -->
+  <div class="pc-edit-area" style="display:none; background:var(--surface); border-top:1px solid var(--border); padding:12px;">
+    <div style="display:flex; flex-direction:column; gap:8px;">
+      <div>
+        <div style="font-size:.75rem; color:var(--text-3); margin-bottom:4px;">卡片名稱</div>
+        <input class="pc-name-input" type="text" value="{{ card.name }}"
+               style="width:100%; font-size:.88rem; font-weight:600; border:1px solid var(--border); border-radius:8px;
+                      padding:7px 10px; color:var(--text-1); background:var(--bg); box-sizing:border-box;">
+      </div>
+      <div>
+        <div style="font-size:.75rem; color:var(--text-3); margin-bottom:4px;">副標題</div>
+        <input class="pc-subtitle-input" type="text" value="{{ card.subtitle or '' }}"
+               placeholder="（選填）"
+               style="width:100%; font-size:.82rem; border:1px solid var(--border); border-radius:8px;
+                      padding:7px 10px; color:var(--text-2); background:var(--bg); box-sizing:border-box;">
+      </div>
+      <div>
+        <div style="font-size:.75rem; color:var(--text-3); margin-bottom:4px;">顯示對象</div>
+        <select class="pc-visible-select"
+                style="width:100%; padding:7px 10px; border:1px solid var(--border); border-radius:8px;
+                       font-size:.82rem; background:var(--bg); color:var(--text-2);">
+          {% for val, label in visible_to_options %}
+          <option value="{{ val }}" {% if card.visible_to == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endfor %}
 </div>
@@ -367,6 +411,14 @@ Sortable.create(document.getElementById('links-list'), {
         }).then(r=>r.json()).then(d=>{ if(!d.success) showToast('排序失敗','error'); });
     }
 });
+
+function togglePcEdit(btn) {
+    const row = btn.closest('.pc-row');
+    const editArea = row.querySelector('.pc-edit-area');
+    const isOpen = editArea.style.display !== 'none';
+    editArea.style.display = isOpen ? 'none' : 'block';
+    btn.textContent = isOpen ? '✏️ 編輯' : '✕ 收起';
+}
 
 async function saveCard(btn) {
     if (!_fromDb) {
