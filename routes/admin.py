@@ -272,6 +272,79 @@ def users():
     return render_template('admin/users.html')
 
 
+@admin_bp.route('/api/users/create', methods=['POST'])
+@admin_required
+def create_manual_user():
+    """手動建立無 LINE 帳號的會員"""
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '無權限'}), 403
+    data = request.get_json() or {}
+    name = (data.get('real_name') or '').strip()
+    if not name:
+        return jsonify({'error': '請輸入姓名'}), 400
+    result = supabase.table('users').insert({
+        'real_name': name,
+        'display_name': name,
+        'member_type': data.get('member_type', 'member'),
+    }).execute()
+    if not result.data:
+        return jsonify({'error': '建立失敗'}), 500
+    return jsonify({'success': True, 'id': result.data[0]['id']})
+
+
+@admin_bp.route('/api/users/<user_id>/merge-line', methods=['POST'])
+@admin_required
+def merge_line_account(user_id):
+    """將 LINE 帳號整合到手動建立的帳號：複製 LINE 資料、移轉關聯紀錄、刪除舊帳號"""
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '無權限'}), 403
+    data = request.get_json() or {}
+    line_user_id = (data.get('line_user_id') or '').strip()
+    if not line_user_id:
+        return jsonify({'error': '請指定 LINE 帳號 ID'}), 400
+
+    # 查目標帳號（手動帳號）
+    target_res = supabase.table('users').select('*').eq('id', user_id).execute()
+    if not target_res.data:
+        return jsonify({'error': '找不到目標帳號'}), 404
+    target = target_res.data[0]
+    if target.get('line_user_id'):
+        return jsonify({'error': '此帳號已綁定 LINE，無需整合'}), 400
+
+    # 查 LINE 帳號
+    line_res = supabase.table('users').select('*').eq('line_user_id', line_user_id).execute()
+    if not line_res.data:
+        return jsonify({'error': '找不到此 LINE 帳號'}), 404
+    line_acct = line_res.data[0]
+    old_id = line_acct['id']
+
+    if old_id == user_id:
+        return jsonify({'error': '不能與自己整合'}), 400
+
+    # 複製 LINE 資訊到手動帳號
+    supabase.table('users').update({
+        'line_user_id': line_user_id,
+        'display_name': line_acct.get('display_name') or target.get('display_name'),
+        'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
+    }).eq('id', user_id).execute()
+
+    # 移轉關聯紀錄
+    tables_to_migrate = [
+        'course_enrollments', 'registrations', 'session_attendance',
+        'notifications', 'prayers', 'prayer_reactions', 'prayer_comments', 'personal_events',
+    ]
+    for tbl in tables_to_migrate:
+        try:
+            supabase.table(tbl).update({'user_id': user_id}).eq('user_id', old_id).execute()
+        except Exception:
+            pass  # 若資料表不存在或欄位不同就跳過
+
+    # 刪除舊 LINE 帳號
+    supabase.table('users').delete().eq('id', old_id).execute()
+
+    return jsonify({'success': True})
+
+
 @admin_bp.route('/api/users/search')
 @admin_required
 def search_users():
@@ -284,7 +357,7 @@ def search_users():
 
     keyword     = request.args.get('q', '').strip()
     member_type = request.args.get('type', 'all').strip()   # member / visitor / all
-    fields = 'id, display_name, picture_url, is_admin, is_super_admin, is_pastor, is_staff, group_tags, real_name, created_at, member_type'
+    fields = 'id, display_name, picture_url, is_admin, is_super_admin, is_pastor, is_staff, group_tags, real_name, created_at, member_type, line_user_id'
 
     def apply_type_filter(query):
         if member_type == 'member':

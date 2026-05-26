@@ -44,6 +44,11 @@
     <button id="sort-group" onclick="setSort('group')"
         style="padding:5px 14px; border-radius:20px; border:1px solid var(--border); cursor:pointer; font-size:0.82rem;
                font-weight:600; background:white; color:var(--text-3);">小組</button>
+    <button onclick="openAddManualModal()"
+        style="padding:5px 18px; border-radius:20px; border:none; cursor:pointer; font-size:0.82rem;
+               font-weight:600; background:#1565c0; color:white; margin-left:auto;">
+        ＋ 新增手動會員
+    </button>
 </div>
 
 <div id="userList"></div>
@@ -236,6 +241,7 @@ function renderUsers(rawUsers) {
                     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                         <span style="font-weight:bold;">${name || '<span style="color:#bbb;">未填寫</span>'}</span>
                         ${isVisitor ? '<span style="font-size:0.72rem; background:#f0f4ff; color:#3949ab; padding:2px 7px; border-radius:10px;">🙋 訪客</span>' : ''}
+                        ${!u.line_user_id ? '<span style="font-size:0.72rem; background:#ffebee; color:#c62828; padding:2px 7px; border-radius:10px;">手動建立</span>' : ''}
                         ${u.is_super_admin ? '<span style="font-size:0.72rem; background:#fff3e0; color:#e65100; padding:2px 7px; border-radius:10px;">超級管理員</span>' : ''}
                     </div>
                     <div style="font-size:0.8rem; color:#aaa; margin-top:2px;">LINE：${u.display_name || '—'} ・ 加入：${joinDate}</div>
@@ -251,6 +257,10 @@ function renderUsers(rawUsers) {
                         style="padding:6px 14px; background:#e3f2fd; color:#1565c0; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
                         編輯資料
                     </button>
+                    ${!u.line_user_id ? `<button onclick="openMergeModal('${u.id}', '${name}')"
+                        style="padding:6px 14px; background:#e8f5e9; color:#2e7d32; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                        🔗 整合 LINE
+                    </button>` : ''}
                     <span id="badge-${u.id}" style="padding:4px 10px; border-radius:20px; font-size:0.8rem; font-weight:bold;
                         background:${u.is_super_admin ? '#fff3e0' : u.is_admin ? '#e8f5e9' : '#f5f5f5'};
                         color:${u.is_super_admin ? '#e65100' : u.is_admin ? '#2e7d32' : '#999'};">
@@ -447,5 +457,130 @@ function toggleStaff(userId, btn) {
             } else { showToast(data.error || '操作失敗', 'error'); }
         });
 }
+
+// ─── 新增手動會員 ───────────────────────────
+function openAddManualModal() {
+    document.getElementById('am-name').value = '';
+    document.getElementById('add-manual-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('am-name').focus(), 100);
+}
+async function submitAddManual() {
+    const name = document.getElementById('am-name').value.trim();
+    const type = document.getElementById('am-type').value;
+    if (!name) { alert('請輸入姓名'); return; }
+    const r = await fetch('/admin/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ real_name: name, member_type: type })
+    });
+    const d = await r.json();
+    if (d.success) {
+        document.getElementById('add-manual-modal').style.display = 'none';
+        showToast('已建立會員：' + name, 'success');
+        loadUsers();
+    } else {
+        alert(d.error || '建立失敗');
+    }
+}
+
+// ─── 整合 LINE ────────────────────────────────
+let _mergeTargetId = '';
+function openMergeModal(userId, userName) {
+    _mergeTargetId = userId;
+    document.getElementById('merge-target-name').textContent = '整合到：' + userName;
+    document.getElementById('merge-search').value = '';
+    document.getElementById('merge-modal').style.display = 'flex';
+    searchLineAccounts('');
+}
+async function searchLineAccounts(q) {
+    const list = document.getElementById('merge-list');
+    list.innerHTML = '<p style="color:#bbb;text-align:center;">搜尋中…</p>';
+    const res = await fetch('/admin/api/users/search?q=' + encodeURIComponent(q) + '&type=all');
+    const users = await res.json();
+    // 只顯示有 line_user_id 的帳號
+    const lineUsers = users.filter(u => u.line_user_id && u.id !== _mergeTargetId);
+    if (!lineUsers.length) {
+        list.innerHTML = '<p style="color:#bbb;text-align:center;">找不到 LINE 帳號</p>';
+        return;
+    }
+    list.innerHTML = lineUsers.map(u => `
+        <div style="display:flex; align-items:center; gap:10px; padding:10px 12px; border:1px solid #eee; border-radius:10px; cursor:pointer;"
+             onclick="confirmMerge('${u.id}', '${(u.real_name||u.display_name||'').replace(/'/g,"\\'")}')">
+            <img src="${u.picture_url||''}" style="width:36px;height:36px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'">
+            <div style="flex:1;">
+                <div style="font-weight:600;font-size:0.9rem;">${u.real_name||u.display_name||'未知'}</div>
+                <div style="font-size:0.78rem;color:#aaa;">LINE：${u.display_name||'—'} ・ 加入：${(u.created_at||'').slice(0,10)}</div>
+            </div>
+            <button style="padding:5px 12px;background:#06C755;color:white;border:none;border-radius:6px;cursor:pointer;font-size:0.82rem;white-space:nowrap;">整合</button>
+        </div>
+    `).join('');
+}
+async function confirmMerge(lineUserId, lineName) {
+    if (!confirm(`確定將「${lineName}」的 LINE 帳號整合進去？整合後 LINE 帳號將被刪除，所有紀錄移轉。`)) return;
+    const r = await fetch(`/admin/api/users/${_mergeTargetId}/merge-line`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ line_user_id: lineUserId })
+    });
+    const d = await r.json();
+    if (d.success) {
+        document.getElementById('merge-modal').style.display = 'none';
+        showToast('整合成功', 'success');
+        loadUsers();
+    } else {
+        alert(d.error || '整合失敗');
+    }
+}
 </script>
+
+<!-- 新增手動會員 Modal -->
+<div id="add-manual-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4);
+     z-index:1000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; border-radius:16px; padding:28px; width:100%; max-width:400px;">
+        <h3 style="margin-bottom:20px;">＋ 新增手動會員</h3>
+        <div style="margin-bottom:14px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">真實姓名 *</label>
+            <input id="am-name" type="text" placeholder="請輸入姓名"
+                style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:20px;">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">身分</label>
+            <select id="am-type" style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
+                <option value="member">🏠 本教會會友</option>
+                <option value="visitor">🙋 訪客 / 外部人員</option>
+            </select>
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button onclick="submitAddManual()"
+                style="flex:1; padding:12px; background:#1565c0; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+                建立
+            </button>
+            <button onclick="document.getElementById('add-manual-modal').style.display='none'"
+                style="flex:1; padding:12px; background:#f5f5f5; color:#555; border:none; border-radius:8px; cursor:pointer;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- 整合 LINE 帳號 Modal -->
+<div id="merge-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4);
+     z-index:1000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; border-radius:16px; padding:28px; width:100%; max-width:480px; max-height:90vh; overflow-y:auto;">
+        <h3 style="margin-bottom:4px;">🔗 整合 LINE 帳號</h3>
+        <p id="merge-target-name" style="color:#666; font-size:0.9rem; margin-bottom:16px;"></p>
+        <input type="text" id="merge-search" placeholder="搜尋 LINE 帳號姓名..." oninput="searchLineAccounts(this.value)"
+            style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; box-sizing:border-box; margin-bottom:12px;">
+        <div id="merge-list" style="display:flex; flex-direction:column; gap:8px; max-height:300px; overflow-y:auto;">
+            <p style="color:#bbb; text-align:center;">載入中…</p>
+        </div>
+        <div style="margin-top:16px; text-align:right;">
+            <button onclick="document.getElementById('merge-modal').style.display='none'"
+                style="padding:10px 24px; background:#f5f5f5; color:#555; border:none; border-radius:8px; cursor:pointer;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
