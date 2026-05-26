@@ -14,12 +14,11 @@
 {% if material_stock_info %}
 {% set stock = material_stock_info.stock %}
 {% set demand = material_stock_info.demand %}
-{% if stock < demand %}
+{% if stock < 0 %}
 <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; gap:10px;">
     <span style="font-size:1.3rem;">⚠️</span>
     <div>
-        <strong>教材庫存不足</strong>：「{{ material_stock_info.name }}」現有 <strong>{{ stock }}</strong> {{ material_stock_info.unit }}，本期需求 <strong>{{ demand }}</strong> {{ material_stock_info.unit }}，
-        差 <strong style="color:#c62828;">{{ demand - stock }}</strong> {{ material_stock_info.unit }}，請盡快補貨。
+        <strong>教材已超賣</strong>：「{{ material_stock_info.name }}」庫存已為負（{{ stock }} {{ material_stock_info.unit }}），請盡快補貨。
         <a href="/admin/materials" style="color:#1565c0; margin-left:8px;">→ 前往教材庫存</a>
     </div>
 </div>
@@ -48,6 +47,9 @@
     {% if course.has_material %}
     <div style="background:#e8f5e9; border-radius:10px; padding:10px 16px; color:#2e7d32; font-size:0.9rem;">
         📦 需教材：<strong>{{ material_count }}</strong> 人
+        {% if confirmed_material_count is defined and confirmed_material_count > 0 %}
+        <span style="font-size:0.78rem; color:#1b5e20; margin-left:6px;">（已確認 {{ confirmed_material_count }} 人）</span>
+        {% endif %}
     </div>
     {% endif %}
     {% if course.meal_options and course.meal_options.enabled %}
@@ -97,6 +99,11 @@
         <input type="text" placeholder="搜尋姓名..." oninput="filterAttend(this.value)"
             style="padding:9px 14px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; width:100%; max-width:280px;">
         {% if enrolled_records %}
+        <a href="/admin/courses/{{ course.id }}/roster/export"
+            style="padding:9px 20px; background:#e8f5e9; color:#2e7d32; border:none; border-radius:8px;
+                   cursor:pointer; font-weight:bold; font-size:0.9rem; white-space:nowrap; text-decoration:none; display:inline-flex; align-items:center;">
+            📥 匯出 Excel
+        </a>
         <button onclick="openNotifyPanel()"
             style="padding:9px 20px; background:#fff3e0; color:#e65100; border:none; border-radius:8px;
                    cursor:pointer; font-weight:bold; font-size:0.9rem; white-space:nowrap;">
@@ -117,15 +124,9 @@
             <tr style="background:#f5f5f5; font-size:0.85rem; color:#666;">
                 <th style="padding:12px 16px; text-align:left;">#</th>
                 <th style="padding:12px 16px; text-align:left;">姓名</th>
+                <th style="padding:12px 8px; text-align:left; white-space:nowrap;">小組</th>
                 <th style="padding:12px 8px; text-align:center; white-space:nowrap;">出席/總堂</th>
-                {% for s in sessions %}
-                <th style="padding:10px 6px; text-align:center; font-size:0.78rem; white-space:nowrap;">
-                    第{{ s.session_number }}堂<br>
-                    <span style="font-weight:normal; color:#bbb;">
-                        {{ s.scheduled_at[:10] if s.scheduled_at else '' }}
-                    </span>
-                </th>
-                {% endfor %}
+                <th style="padding:10px 8px; text-align:center; font-size:0.85rem; white-space:nowrap;">📋 堂次點名</th>
                 {% if course.has_material %}
                 <th style="padding:12px 6px; text-align:center;">教材</th>
                 {% endif %}
@@ -162,21 +163,35 @@
                     {% endif %}
                 </div>
             </td>
+            <td style="padding:10px 8px; text-align:left;">
+                {% set tags = user.group_tags if user.group_tags else [] %}
+                {% set primary_tag = namespace(val='') %}
+                {% for t in tags %}{% if t in primary_group_names %}{% set primary_tag.val = t %}{% endif %}{% endfor %}
+                {% if primary_tag.val %}
+                <span style="font-size:0.78rem; background:#f0f4ff; color:#3949ab; padding:2px 8px; border-radius:10px;">{{ primary_tag.val }}</span>
+                {% else %}
+                <span style="color:#ddd;">—</span>
+                {% endif %}
+            </td>
             <td style="padding:10px 8px; text-align:center; font-weight:bold;
                        color:{% if not passed and course.absence_limit is not none %}#c62828{% else %}#555{% endif %};">
                 {{ attended_count.val }}/{{ sessions|length }}
             </td>
-            {% for s in sessions %}
-            {% set attended = enroll.user_id in att_map.get(s.id, []) %}
-            <td style="padding:10px 6px; text-align:center;">
-                <button onclick="toggleAttendance('{{ course.id }}', '{{ s.id }}', '{{ enroll.user_id }}', this)"
-                    style="width:32px; height:32px; border-radius:50%; border:none; cursor:pointer; font-size:1rem;
-                           background:{{ '#06C755' if attended else '#e0e0e0' }};
-                           color:{{ 'white' if attended else '#999' }};">
-                    {{ '✓' if attended else '·' }}
-                </button>
+            <td style="padding:10px 8px; text-align:center;">
+                <div style="display:flex; flex-wrap:wrap; gap:4px; justify-content:center;">
+                    {% for s in sessions %}
+                    <a href="/admin/courses/{{ course.id }}/sessions/{{ s.id }}/checkin"
+                        style="display:inline-flex; align-items:center; justify-content:center;
+                               width:28px; height:28px; border-radius:50%; font-size:0.75rem; font-weight:700;
+                               text-decoration:none; white-space:nowrap;
+                               background:{{ '#06C755' if enroll.user_id in att_map.get(s.id, []) else '#f0f0f0' }};
+                               color:{{ 'white' if enroll.user_id in att_map.get(s.id, []) else '#aaa' }};"
+                        title="第{{ s.session_number }}堂點名">
+                        {{ s.session_number }}
+                    </a>
+                    {% endfor %}
+                </div>
             </td>
-            {% endfor %}
             {% if course.has_material %}
             <td style="padding:10px 6px; text-align:center;">
                 <button onclick="toggleMaterial('{{ course.id }}', '{{ enroll.id }}', this)"
@@ -209,7 +224,9 @@
             {% if course.has_material or (course.meal_options and course.meal_options.enabled) %}
             <td style="padding:10px 8px; text-align:center;">
                 {% set ps = enroll.payment_status or 'unpaid' %}
-                {% set no_fee = (not course.material_fee or course.material_fee == 0) and not (course.meal_options and course.meal_options.enabled) %}
+                {% set has_material_fee = course.material_fee and course.material_fee > 0 and enroll.needs_material %}
+                {% set has_meal_fee = enroll.meal_total and enroll.meal_total > 0 %}
+                {% set no_fee = not has_material_fee and not has_meal_fee %}
                 {% if no_fee %}
                 <button disabled
                     style="padding:5px 12px; border:none; border-radius:20px; cursor:default; font-size:0.8rem; font-weight:bold; white-space:nowrap; background:#f5f5f5; color:#aaa;">

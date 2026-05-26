@@ -4,6 +4,7 @@ from db import supabase
 import secrets
 import io
 import hmac
+import uuid
 from urllib.parse import quote
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -61,7 +62,7 @@ def guard_courses_admin():
 def _material_auto_out(course_id, enrollment_id):
     """報名且需要教材時，依課程學程自動扣庫存一筆"""
     try:
-        course = supabase.table('courses').select('category_id, name').eq('id', course_id).execute()
+        course = supabase.table('courses').select('category_id').eq('id', course_id).execute()
         if not course.data:
             return
         cat_id = course.data[0].get('category_id')
@@ -87,26 +88,15 @@ def _material_auto_out(course_id, enrollment_id):
 
 
 def _material_auto_return(enrollment_id):
-    """取消報名時，找回對應的自動扣庫存並退回一筆"""
+    """取消報名時，直接刪除對應的預扣記錄（庫存自動還回）"""
     try:
         txn = supabase.table('material_transactions')\
-            .select('id, material_id, course_id')\
+            .select('id')\
             .eq('enrollment_id', enrollment_id).eq('type', 'out')\
-            .eq('notes', '系統自動－報名').limit(1).execute()
-        if not txn.data:
-            return
-        t = txn.data[0]
-        supabase.table('material_transactions').insert({
-            'material_id': t['material_id'],
-            'type': 'in',
-            'quantity': 1,
-            'unit_cost': 0,
-            'total_cost': 0,
-            'course_id': t['course_id'],
-            'enrollment_id': enrollment_id,
-            'notes': '系統自動－取消報名',
-            'transaction_date': datetime.now(TAIPEI_TZ).date().isoformat(),
-        }).execute()
+            .limit(1).execute()
+        if txn.data:
+            supabase.table('material_transactions').delete()\
+                .eq('id', txn.data[0]['id']).execute()
     except Exception:
         pass
 
@@ -518,6 +508,10 @@ def admin_course_roster(course_id):
 
         # 需教材人數（本期）
         material_count = sum(1 for e in enrolled_records if e.get('needs_material'))
+        confirmed_material_count = sum(
+            1 for e in enrolled_records
+            if e.get('needs_material') and e.get('payment_status') in ('paid', 'waived')
+        )
 
         # 堂次
         sessions = supabase.table('course_sessions')\
@@ -546,6 +540,10 @@ def admin_course_roster(course_id):
                 material_stock_info = mat.data[0]
                 material_stock_info['demand'] = material_count
 
+        # 主標籤小組名稱集合（供名單顯示用）
+        groups_raw = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
+        primary_group_names = {g['name'] for g in groups_raw if g.get('is_primary', True)}
+
         return render_template('courses/admin_roster.html',
             course=course,
             enrolled_records=enrolled_records,
@@ -559,7 +557,9 @@ def admin_course_roster(course_id):
             returning_users=returning_users,
             completed_user_ids=completed_user_ids,
             material_count=material_count,
+            confirmed_material_count=confirmed_material_count,
             material_stock_info=material_stock_info,
+            primary_group_names=primary_group_names,
         )
     except Exception:
         return '名單頁載入失敗，請稍後再試', 500
@@ -701,7 +701,15 @@ def admin_roster_update(course_id, enrollment_id):
     data = request.get_json() or {}
     update = {}
     if 'needs_material' in data:
-        update['needs_material'] = bool(data['needs_material'])
+        new_val = bool(data['needs_material'])
+        update['needs_material'] = new_val
+        cur = supabase.table('course_enrollments').select('needs_material')\
+            .eq('id', enrollment_id).execute()
+        old_val = bool(cur.data[0].get('needs_material')) if cur.data else False
+        if new_val and not old_val:
+            _material_auto_out(course_id, enrollment_id)
+        elif not new_val and old_val:
+            _material_auto_return(enrollment_id)
     if 'meal_selections' in data:
         meal_selections = data['meal_selections'] or []
         # 重新計算餐費
@@ -726,14 +734,21 @@ def admin_roster_update(course_id, enrollment_id):
 def admin_roster_payment(course_id, enrollment_id):
     """切換課程學員繳費狀態：unpaid → paid → waived → unpaid"""
     result = supabase.table('course_enrollments')\
-        .select('payment_status').eq('id', enrollment_id).eq('course_id', course_id).execute()
+        .select('payment_status, needs_material').eq('id', enrollment_id).eq('course_id', course_id).execute()
     if not result.data:
         return jsonify({'error': '找不到此報名記錄'}), 404
     current = result.data[0].get('payment_status', 'unpaid')
+    needs_material = result.data[0].get('needs_material', False)
     cycle = {'unpaid': 'paid', 'paid': 'waived', 'waived': 'unpaid'}
     new_status = cycle.get(current, 'paid')
     supabase.table('course_enrollments').update({'payment_status': new_status})\
         .eq('id', enrollment_id).execute()
+    # 同步教材異動備註
+    if needs_material:
+        notes = '確定扣除－繳費' if new_status in ('paid', 'waived') else '預扣－報名'
+        supabase.table('material_transactions')\
+            .update({'notes': notes})\
+            .eq('enrollment_id', enrollment_id).eq('type', 'out').execute()
     return jsonify({'success': True, 'payment_status': new_status})
 
 
@@ -759,6 +774,110 @@ def admin_toggle_complete(course_id, enrollment_id):
     return jsonify({'success': True, 'status': new_status})
 
 
+@courses_bp.route('/admin/courses/<course_id>/roster/export')
+@admin_required
+def admin_roster_export(course_id):
+    """匯出課程名單為 Excel"""
+    course = get_course_or_404(course_id)
+    if not course:
+        return '找不到此學程', 404
+
+    enrolled_raw = supabase.table('course_enrollments')\
+        .select('*').eq('course_id', course_id)\
+        .neq('status', 'dropped')\
+        .order('created_at', desc=True).execute().data or []
+
+    sessions = supabase.table('course_sessions')\
+        .select('*').eq('course_id', course_id).order('session_number').execute().data or []
+
+    all_user_ids = list({e['user_id'] for e in enrolled_raw})
+    user_map = {}
+    if all_user_ids:
+        users = supabase.table('users')\
+            .select('id, real_name, display_name, group_tags, picture_url')\
+            .in_('id', all_user_ids).execute().data or []
+        user_map = {u['id']: u for u in users}
+
+    att_map = get_attendance_map([s['id'] for s in sessions])
+
+    groups_raw = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
+    primary_group_names = {g['name'] for g in groups_raw if g.get('is_primary', True)}
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = '名單'
+
+    header_fill = PatternFill('solid', fgColor='1565C0')
+    header_font = Font(bold=True, color='FFFFFF')
+    headers = ['序號', '小組', '姓名', 'LINE暱稱', '報名時間', '出席堂次', f'出席率（/{ len(sessions) }）', '教材', '付款', '狀態', '完訓日期', '回鍋']
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center')
+
+    # 回鍋判斷：同課程有 completed 紀錄
+    completed_user_ids = {
+        e['user_id'] for e in supabase.table('course_enrollments')
+            .select('user_id').eq('course_id', course_id).eq('status', 'completed').execute().data or []
+    }
+    enrolled_user_ids = {e['user_id'] for e in enrolled_raw if e['status'] == 'enrolled'}
+    returning_users = enrolled_user_ids & completed_user_ids
+
+    for idx, enroll in enumerate(enrolled_raw, 1):
+        u = user_map.get(enroll['user_id'], {})
+        tags = u.get('group_tags') or []
+        if isinstance(tags, str):
+            import json
+            try: tags = json.loads(tags)
+            except: tags = [tags]
+        primary_group = next((t for t in tags if t in primary_group_names), '')
+
+        attended = sum(1 for s in sessions if enroll['user_id'] in att_map.get(s['id'], []))
+        total = len(sessions)
+        rate = f'{attended}/{total} ({int(attended/total*100) if total else 0}%)'
+
+        completed_at = ''
+        if enroll.get('completed_at'):
+            try: completed_at = enroll['completed_at'][:10]
+            except: completed_at = str(enroll['completed_at'])
+
+        is_returning = enroll['user_id'] in returning_users
+
+        ps = enroll.get('payment_status') or 'unpaid'
+        pay_label = {'paid': '已付款', 'waived': '免收費', 'unpaid': '未付款'}.get(ps, ps)
+        status_label = {'enrolled': '在籍', 'completed': '完訓', 'absent': '缺勤', 'dropped': '取消'}.get(enroll.get('status', ''), enroll.get('status', ''))
+
+        ws.append([
+            idx,
+            primary_group,
+            u.get('real_name') or '',
+            u.get('display_name') or '',
+            (enroll.get('created_at') or '')[:10],
+            attended,
+            rate,
+            '✓' if enroll.get('needs_material') else '',
+            pay_label,
+            status_label,
+            completed_at,
+            '✓' if is_returning else '',
+        ])
+
+    for col in ws.columns:
+        max_len = max(len(str(cell.value or '')) for cell in col)
+        ws.column_dimensions[col[0].column_letter].width = min(max_len + 4, 30)
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    safe_title = quote(f'{course["title"]}名單.xlsx')
+    return Response(
+        buf.read(),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': f"attachment; filename*=UTF-8''{safe_title}"}
+    )
+
+
 @courses_bp.route('/admin/courses/<course_id>/sessions/<session_id>/attendance/<user_id>/toggle', methods=['POST'])
 @admin_required
 def admin_toggle_attendance(course_id, session_id, user_id):
@@ -778,6 +897,54 @@ def admin_toggle_attendance(course_id, session_id, user_id):
         }).execute()
         auto_completed = check_and_auto_complete(course_id, user_id)
         return jsonify({'success': True, 'attended': True, 'auto_completed': auto_completed})
+
+
+@courses_bp.route('/admin/courses/<course_id>/sessions/<session_id>/checkin')
+@admin_required
+def admin_session_checkin(course_id, session_id):
+    """手機友善的堂次點名頁"""
+    course = get_course_or_404(course_id)
+    if not course:
+        return '找不到此學程', 404
+
+    sess_res = supabase.table('course_sessions')\
+        .select('*').eq('id', session_id).eq('course_id', course_id).execute()
+    if not sess_res.data:
+        return '找不到此堂次', 404
+    course_session = sess_res.data[0]
+
+    enrolled_raw = supabase.table('course_enrollments')\
+        .select('user_id').eq('course_id', course_id).eq('status', 'enrolled').execute().data or []
+    user_ids = [e['user_id'] for e in enrolled_raw]
+
+    user_map = {}
+    if user_ids:
+        users = supabase.table('users')\
+            .select('id, real_name, display_name, picture_url')\
+            .in_('id', user_ids).execute().data or []
+        user_map = {u['id']: u for u in users}
+
+    att_set = set(att_map2['user_id'] for att_map2 in
+        (supabase.table('session_attendance').select('user_id')
+            .eq('session_id', session_id).execute().data or []))
+
+    students = []
+    for uid in user_ids:
+        u = user_map.get(uid, {})
+        students.append({
+            'user_id': uid,
+            'name': u.get('real_name') or u.get('display_name') or '未知',
+            'picture_url': u.get('picture_url') or '',
+            'attended': uid in att_set,
+        })
+    students.sort(key=lambda x: x['name'])
+
+    return render_template('courses/admin_session_checkin.html',
+        course=course,
+        course_session=course_session,
+        students=students,
+        attended_count=sum(1 for s in students if s['attended']),
+    )
 
 
 # ── 小組門訓總覽 ──────────────────────────────────────────
@@ -1759,6 +1926,14 @@ def admin_materials():
         rows = supabase.table('material_stock').select('*').order('name').execute().data or []
     except Exception:
         rows = []
+    # material_stock VIEW 不含 cover_url，補撈後合併
+    try:
+        cover_rows = supabase.table('materials').select('id, cover_url').execute().data or []
+        cover_map = {r['id']: r.get('cover_url') for r in cover_rows}
+        for r in rows:
+            r['cover_url'] = cover_map.get(r['id'])
+    except Exception:
+        pass
     try:
         categories = supabase.table('course_categories').select('id, name')\
             .eq('is_active', True).order('sort_order').execute().data or []
@@ -1767,6 +1942,32 @@ def admin_materials():
     cat_map = {c['id']: c['name'] for c in categories}
     return render_template('courses/admin_materials.html',
         materials=rows, categories=categories, cat_map=cat_map)
+
+
+ALLOWED_COVER_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+
+@courses_bp.route('/admin/materials/upload-cover', methods=['POST'])
+@admin_required
+def admin_material_upload_cover():
+    """上傳教材封面圖片至 Supabase Storage"""
+    material_id = request.form.get('material_id', '').strip()
+    file = request.files.get('image')
+    if not material_id or not file or not file.filename:
+        return jsonify({'error': '缺少必要欄位'}), 400
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in ALLOWED_COVER_EXTENSIONS:
+        return jsonify({'error': '請上傳 JPG / PNG / WebP 圖片'}), 400
+    filename = f"material-covers/{uuid.uuid4()}.{ext}"
+    file_bytes = file.read()
+    try:
+        supabase.storage.from_('event-posters').upload(
+            filename, file_bytes, {'content-type': file.content_type or 'image/jpeg'}
+        )
+        url = supabase.storage.from_('event-posters').get_public_url(filename)
+        supabase.table('materials').update({'cover_url': url}).eq('id', material_id).execute()
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        return jsonify({'error': f'上傳失敗：{str(e)}'}), 500
 
 
 @courses_bp.route('/admin/materials/new', methods=['POST'])
@@ -1844,6 +2045,9 @@ def admin_material_detail(material_id):
     if not mat.data:
         return redirect('/admin/materials')
     material = mat.data[0]
+    # material_stock VIEW 不含 cover_url，補撈
+    cover_row = supabase.table('materials').select('cover_url').eq('id', material_id).execute()
+    material['cover_url'] = (cover_row.data[0].get('cover_url') if cover_row.data else None)
 
     txns = supabase.table('material_transactions').select('*')\
         .eq('material_id', material_id)\
@@ -1854,8 +2058,22 @@ def admin_material_detail(material_id):
     course_ids = list({t['course_id'] for t in txns if t.get('course_id')})
     course_map = {}
     if course_ids:
-        cs = supabase.table('courses').select('id, name').in_('id', course_ids).execute().data or []
-        course_map = {c['id']: c['name'] for c in cs}
+        cs = supabase.table('courses').select('id, title').in_('id', course_ids).execute().data or []
+        course_map = {c['id']: c['title'] for c in cs}
+
+    # 附上學員姓名（enrollment_id → user name）
+    enrollment_ids = list({t['enrollment_id'] for t in txns if t.get('enrollment_id')})
+    user_name_map = {}
+    if enrollment_ids:
+        enroll_rows = supabase.table('course_enrollments')\
+            .select('id, user_id').in_('id', enrollment_ids).execute().data or []
+        uid_map = {e['id']: e['user_id'] for e in enroll_rows}
+        uids = list(set(uid_map.values()))
+        if uids:
+            urow = supabase.table('users').select('id, real_name, display_name')\
+                .in_('id', uids).execute().data or []
+            u_by_id = {u['id']: u.get('real_name') or u.get('display_name') or '' for u in urow}
+            user_name_map = {eid: u_by_id.get(uid, '') for eid, uid in uid_map.items()}
 
     # 課程清單供銷售下拉
     all_courses = supabase.table('courses').select('id, title')\
@@ -1863,7 +2081,8 @@ def admin_material_detail(material_id):
 
     return render_template('courses/admin_material_detail.html',
         material=material, transactions=txns,
-        course_map=course_map, all_courses=all_courses)
+        course_map=course_map, all_courses=all_courses,
+        user_name_map=user_name_map)
 
 
 @courses_bp.route('/admin/materials/<material_id>/transactions', methods=['POST'])

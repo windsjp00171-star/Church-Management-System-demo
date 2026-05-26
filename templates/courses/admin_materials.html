@@ -74,6 +74,20 @@
 <div style="background:white; border-radius:12px; box-shadow:0 2px 8px rgba(0,0,0,0.06); padding:18px 20px;">
     <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">
 
+        <!-- 封面縮圖 -->
+        <label style="cursor:pointer; flex-shrink:0;" title="點擊上傳封面">
+            <input type="file" accept="image/*" style="display:none;"
+                onchange="uploadCover('{{ m.id }}', this)">
+            {% if m.cover_url %}
+            <img src="{{ m.cover_url }}" style="width:64px; height:88px; object-fit:cover; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.15); display:block;">
+            {% else %}
+            <div style="width:64px; height:88px; border:2px dashed #ddd; border-radius:6px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#ccc; font-size:0.68rem; text-align:center; gap:4px;">
+                <span style="font-size:1.4rem;">📖</span>
+                上傳封面
+            </div>
+            {% endif %}
+        </label>
+
         <!-- 教材資訊 -->
         <div style="flex:2; min-width:160px;">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -191,5 +205,20 @@ function deleteM(id, name, force = false) {
 }
 
 document.getElementById('n-name').addEventListener('keydown', e => { if (e.key === 'Enter') submitAdd(); });
+
+async function uploadCover(materialId, input) {
+    if (!input.files[0]) return;
+    const fd = new FormData();
+    fd.append('material_id', materialId);
+    fd.append('image', input.files[0]);
+    try {
+        const r = await fetch('/admin/materials/upload-cover', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.success) location.reload();
+        else showToast(d.error || '上傳失敗', 'error');
+    } catch(e) {
+        showToast('網路錯誤', 'error');
+    }
+}
 </script>
 {% endblock %}

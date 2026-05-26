@@ -3,13 +3,29 @@
 {% block content %}
 
 <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:24px; flex-wrap:wrap; gap:12px;">
-    <div>
+    <div style="display:flex; align-items:flex-start; gap:16px;">
+        <!-- 封面圖 -->
+        <label style="cursor:pointer; flex-shrink:0; margin-top:20px;" title="{{ '點擊更換封面' if material.cover_url else '點擊上傳封面' }}">
+            <input type="file" id="cover-input" accept="image/*" style="display:none;"
+                onchange="uploadCoverDetail(this)">
+            {% if material.cover_url %}
+            <img src="{{ material.cover_url }}" style="width:80px; height:110px; object-fit:cover; border-radius:8px; box-shadow:0 2px 8px rgba(0,0,0,0.15); display:block;">
+            <div style="font-size:0.68rem; color:#aaa; text-align:center; margin-top:4px;">更換</div>
+            {% else %}
+            <div style="width:80px; height:110px; border:2px dashed #ddd; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; color:#ccc; font-size:0.72rem; gap:6px;">
+                <span style="font-size:1.8rem;">📖</span>
+                上傳封面
+            </div>
+            {% endif %}
+        </label>
+        <div>
         <a href="/admin/materials" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回教材庫存</a>
         <h2 style="margin-top:6px;">📦 {{ material.name }}</h2>
         {% if material.description %}
         <p style="color:#888; font-size:0.85rem; margin-top:2px;">{{ material.description }}</p>
         {% endif %}
         <p style="color:#aaa; font-size:0.82rem; margin-top:2px;">售價 ${{ material.selling_price }} / {{ material.unit }}</p>
+        </div>
     </div>
     <div style="display:flex; gap:8px;">
         <button onclick="openModal('in')"
@@ -88,6 +104,9 @@
             <td style="padding:12px 16px; font-size:0.85rem; color:#666;">
                 {% if t.course_id and course_map.get(t.course_id) %}
                 <span style="color:#1565c0;">{{ course_map[t.course_id] }}</span>
+                {% endif %}
+                {% if t.enrollment_id and user_name_map.get(t.enrollment_id) %}
+                <span style="color:#555;"> · {{ user_name_map[t.enrollment_id] }}</span>
                 {% endif %}
                 {% if t.notes %}<span style="color:#aaa;"> {{ t.notes }}</span>{% endif %}
                 {% if not t.course_id and not t.notes %}—{% endif %}
@@ -207,5 +226,20 @@ function submitTxn() {
 document.getElementById('txn-modal').addEventListener('click', function(e) {
     if (e.target === this) closeModal();
 });
+
+async function uploadCoverDetail(input) {
+    if (!input.files[0]) return;
+    const fd = new FormData();
+    fd.append('material_id', '{{ material.id }}');
+    fd.append('image', input.files[0]);
+    try {
+        const r = await fetch('/admin/materials/upload-cover', { method: 'POST', body: fd });
+        const d = await r.json();
+        if (d.success) location.reload();
+        else showToast(d.error || '上傳失敗', 'error');
+    } catch(e) {
+        showToast('網路錯誤', 'error');
+    }
+}
 </script>
 {% endblock %}
