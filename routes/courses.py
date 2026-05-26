@@ -4,6 +4,7 @@ from db import supabase
 import secrets
 import io
 import hmac
+import uuid
 from urllib.parse import quote
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment
@@ -87,26 +88,15 @@ def _material_auto_out(course_id, enrollment_id):
 
 
 def _material_auto_return(enrollment_id):
-    """取消報名時，找回對應的自動扣庫存並退回一筆"""
+    """取消報名時，直接刪除對應的預扣記錄（庫存自動還回）"""
     try:
         txn = supabase.table('material_transactions')\
-            .select('id, material_id, course_id')\
+            .select('id')\
             .eq('enrollment_id', enrollment_id).eq('type', 'out')\
-            .eq('notes', '系統自動－報名').limit(1).execute()
-        if not txn.data:
-            return
-        t = txn.data[0]
-        supabase.table('material_transactions').insert({
-            'material_id': t['material_id'],
-            'type': 'in',
-            'quantity': 1,
-            'unit_cost': 0,
-            'total_cost': 0,
-            'course_id': t['course_id'],
-            'enrollment_id': enrollment_id,
-            'notes': '系統自動－取消報名',
-            'transaction_date': datetime.now(TAIPEI_TZ).date().isoformat(),
-        }).execute()
+            .limit(1).execute()
+        if txn.data:
+            supabase.table('material_transactions').delete()\
+                .eq('id', txn.data[0]['id']).execute()
     except Exception:
         pass
 
@@ -518,6 +508,10 @@ def admin_course_roster(course_id):
 
         # 需教材人數（本期）
         material_count = sum(1 for e in enrolled_records if e.get('needs_material'))
+        confirmed_material_count = sum(
+            1 for e in enrolled_records
+            if e.get('needs_material') and e.get('payment_status') in ('paid', 'waived')
+        )
 
         # 堂次
         sessions = supabase.table('course_sessions')\
@@ -563,6 +557,7 @@ def admin_course_roster(course_id):
             returning_users=returning_users,
             completed_user_ids=completed_user_ids,
             material_count=material_count,
+            confirmed_material_count=confirmed_material_count,
             material_stock_info=material_stock_info,
             primary_group_names=primary_group_names,
         )
@@ -739,14 +734,21 @@ def admin_roster_update(course_id, enrollment_id):
 def admin_roster_payment(course_id, enrollment_id):
     """切換課程學員繳費狀態：unpaid → paid → waived → unpaid"""
     result = supabase.table('course_enrollments')\
-        .select('payment_status').eq('id', enrollment_id).eq('course_id', course_id).execute()
+        .select('payment_status, needs_material').eq('id', enrollment_id).eq('course_id', course_id).execute()
     if not result.data:
         return jsonify({'error': '找不到此報名記錄'}), 404
     current = result.data[0].get('payment_status', 'unpaid')
+    needs_material = result.data[0].get('needs_material', False)
     cycle = {'unpaid': 'paid', 'paid': 'waived', 'waived': 'unpaid'}
     new_status = cycle.get(current, 'paid')
     supabase.table('course_enrollments').update({'payment_status': new_status})\
         .eq('id', enrollment_id).execute()
+    # 同步教材異動備註
+    if needs_material:
+        notes = '確定扣除－繳費' if new_status in ('paid', 'waived') else '預扣－報名'
+        supabase.table('material_transactions')\
+            .update({'notes': notes})\
+            .eq('enrollment_id', enrollment_id).eq('type', 'out').execute()
     return jsonify({'success': True, 'payment_status': new_status})
 
 

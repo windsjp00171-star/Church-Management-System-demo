@@ -48,6 +48,9 @@
     {% if course.has_material %}
     <div style="background:#e8f5e9; border-radius:10px; padding:10px 16px; color:#2e7d32; font-size:0.9rem;">
         📦 需教材：<strong>{{ material_count }}</strong> 人
+        {% if confirmed_material_count is defined and confirmed_material_count > 0 %}
+        <span style="font-size:0.78rem; color:#1b5e20; margin-left:6px;">（已確認 {{ confirmed_material_count }} 人）</span>
+        {% endif %}
     </div>
     {% endif %}
     {% if course.meal_options and course.meal_options.enabled %}
