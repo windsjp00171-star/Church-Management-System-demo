@@ -1936,6 +1936,32 @@ def admin_materials():
         materials=rows, categories=categories, cat_map=cat_map)
 
 
+ALLOWED_COVER_EXTENSIONS = {'jpg', 'jpeg', 'png', 'webp'}
+
+@courses_bp.route('/admin/materials/upload-cover', methods=['POST'])
+@admin_required
+def admin_material_upload_cover():
+    """上傳教材封面圖片至 Supabase Storage"""
+    material_id = request.form.get('material_id', '').strip()
+    file = request.files.get('image')
+    if not material_id or not file or not file.filename:
+        return jsonify({'error': '缺少必要欄位'}), 400
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in ALLOWED_COVER_EXTENSIONS:
+        return jsonify({'error': '請上傳 JPG / PNG / WebP 圖片'}), 400
+    filename = f"material-covers/{uuid.uuid4()}.{ext}"
+    file_bytes = file.read()
+    try:
+        supabase.storage.from_('event-posters').upload(
+            filename, file_bytes, {'content-type': file.content_type or 'image/jpeg'}
+        )
+        url = supabase.storage.from_('event-posters').get_public_url(filename)
+        supabase.table('materials').update({'cover_url': url}).eq('id', material_id).execute()
+        return jsonify({'success': True, 'url': url})
+    except Exception as e:
+        return jsonify({'error': f'上傳失敗：{str(e)}'}), 500
+
+
 @courses_bp.route('/admin/materials/new', methods=['POST'])
 @admin_required
 def admin_material_new():
@@ -2024,13 +2050,28 @@ def admin_material_detail(material_id):
         cs = supabase.table('courses').select('id, title').in_('id', course_ids).execute().data or []
         course_map = {c['id']: c['title'] for c in cs}
 
+    # 附上學員姓名（enrollment_id → user name）
+    enrollment_ids = list({t['enrollment_id'] for t in txns if t.get('enrollment_id')})
+    user_name_map = {}
+    if enrollment_ids:
+        enroll_rows = supabase.table('course_enrollments')\
+            .select('id, user_id').in_('id', enrollment_ids).execute().data or []
+        uid_map = {e['id']: e['user_id'] for e in enroll_rows}
+        uids = list(set(uid_map.values()))
+        if uids:
+            urow = supabase.table('users').select('id, real_name, display_name')\
+                .in_('id', uids).execute().data or []
+            u_by_id = {u['id']: u.get('real_name') or u.get('display_name') or '' for u in urow}
+            user_name_map = {eid: u_by_id.get(uid, '') for eid, uid in uid_map.items()}
+
     # 課程清單供銷售下拉
     all_courses = supabase.table('courses').select('id, title')\
         .eq('is_open', True).order('title').execute().data or []
 
     return render_template('courses/admin_material_detail.html',
         material=material, transactions=txns,
-        course_map=course_map, all_courses=all_courses)
+        course_map=course_map, all_courses=all_courses,
+        user_name_map=user_name_map)
 
 
 @courses_bp.route('/admin/materials/<material_id>/transactions', methods=['POST'])
