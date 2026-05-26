@@ -8,6 +8,11 @@
         <h2 style="margin-top:6px;">🎓 學程認證管理</h2>
         <p style="color:#888; font-size:0.85rem; margin-top:2px;">此頁面供行政人員手動補登或修正認證記錄。正常情況下系統在學員完訓時會自動發放認證。</p>
     </div>
+    <button onclick="openAddCatModal()"
+        style="padding:9px 20px; background:#2e7d32; color:white; border:none; border-radius:8px;
+               cursor:pointer; font-weight:bold; font-size:0.9rem; white-space:nowrap; flex-shrink:0;">
+        ＋ 新增學程類別
+    </button>
 </div>
 
 <!-- 說明提示 -->
@@ -467,5 +472,71 @@ function submitSave() {
     })
     .catch(() => { btn.disabled = false; btn.textContent = '✅ 確認儲存'; showToast('連線失敗', 'error'); });
 }
+
+
+// ── 新增學程類別 ──────────────────────────────
+function openAddCatModal() {
+    document.getElementById('nc-name').value = '';
+    document.getElementById('nc-desc').value = '';
+    document.getElementById('add-cat-modal').style.display = 'flex';
+    setTimeout(() => document.getElementById('nc-name').focus(), 80);
+}
+async function submitAddCat() {
+    const name = document.getElementById('nc-name').value.trim();
+    if (!name) { document.getElementById('nc-name').focus(); return; }
+    const desc = document.getElementById('nc-desc').value.trim();
+    const btn = document.getElementById('nc-submit');
+    btn.disabled = true;
+    try {
+        const r = await fetch('/admin/course-categories/new', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, description: desc || null, sort_order: 0 })
+        });
+        const d = await r.json();
+        if (d.success) {
+            document.getElementById('add-cat-modal').style.display = 'none';
+            showToast('學程類別「' + name + '」已建立', 'success');
+            setTimeout(() => location.reload(), 700);
+        } else {
+            showToast(d.error || '建立失敗', 'error');
+        }
+    } catch(e) { showToast('網路錯誤', 'error'); }
+    btn.disabled = false;
+}
 </script>
+
+<!-- 新增學程類別 Modal -->
+<div id="add-cat-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4);
+     z-index:1000; align-items:center; justify-content:center; padding:16px;">
+    <div style="background:white; border-radius:16px; padding:28px; width:100%; max-width:400px;">
+        <h3 style="margin:0 0 20px;">＋ 新增學程類別</h3>
+        <div style="margin-bottom:14px;">
+            <label style="font-size:0.82rem; font-weight:bold; display:block; margin-bottom:5px;">類別名稱 *</label>
+            <input id="nc-name" type="text" placeholder="例：全人更新營、門徒訓練"
+                onkeydown="if(event.key==='Enter') submitAddCat()"
+                style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px;
+                       font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div style="margin-bottom:22px;">
+            <label style="font-size:0.82rem; font-weight:bold; display:block; margin-bottom:5px;">說明（選填）</label>
+            <input id="nc-desc" type="text" placeholder="課程簡介…"
+                style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:8px;
+                       font-size:0.95rem; box-sizing:border-box;">
+        </div>
+        <div style="display:flex; gap:10px;">
+            <button id="nc-submit" onclick="submitAddCat()"
+                style="flex:1; padding:12px; background:#2e7d32; color:white; border:none;
+                       border-radius:8px; cursor:pointer; font-weight:bold;">
+                建立
+            </button>
+            <button onclick="document.getElementById('add-cat-modal').style.display='none'"
+                style="flex:1; padding:12px; background:#f5f5f5; color:#555;
+                       border:none; border-radius:8px; cursor:pointer;">
+                取消
+            </button>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
