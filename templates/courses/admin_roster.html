@@ -14,12 +14,11 @@
 {% if material_stock_info %}
 {% set stock = material_stock_info.stock %}
 {% set demand = material_stock_info.demand %}
-{% if stock < demand %}
+{% if stock < 0 %}
 <div style="background:#fff3cd; border:1px solid #ffc107; border-radius:10px; padding:12px 16px; margin-bottom:14px; display:flex; align-items:center; gap:10px;">
     <span style="font-size:1.3rem;">⚠️</span>
     <div>
-        <strong>教材庫存不足</strong>：「{{ material_stock_info.name }}」現有 <strong>{{ stock }}</strong> {{ material_stock_info.unit }}，本期需求 <strong>{{ demand }}</strong> {{ material_stock_info.unit }}，
-        差 <strong style="color:#c62828;">{{ demand - stock }}</strong> {{ material_stock_info.unit }}，請盡快補貨。
+        <strong>教材已超賣</strong>：「{{ material_stock_info.name }}」庫存已為負（{{ stock }} {{ material_stock_info.unit }}），請盡快補貨。
         <a href="/admin/materials" style="color:#1565c0; margin-left:8px;">→ 前往教材庫存</a>
     </div>
 </div>

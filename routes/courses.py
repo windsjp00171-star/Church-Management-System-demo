@@ -1926,6 +1926,14 @@ def admin_materials():
         rows = supabase.table('material_stock').select('*').order('name').execute().data or []
     except Exception:
         rows = []
+    # material_stock VIEW 不含 cover_url，補撈後合併
+    try:
+        cover_rows = supabase.table('materials').select('id, cover_url').execute().data or []
+        cover_map = {r['id']: r.get('cover_url') for r in cover_rows}
+        for r in rows:
+            r['cover_url'] = cover_map.get(r['id'])
+    except Exception:
+        pass
     try:
         categories = supabase.table('course_categories').select('id, name')\
             .eq('is_active', True).order('sort_order').execute().data or []
@@ -2037,6 +2045,9 @@ def admin_material_detail(material_id):
     if not mat.data:
         return redirect('/admin/materials')
     material = mat.data[0]
+    # material_stock VIEW 不含 cover_url，補撈
+    cover_row = supabase.table('materials').select('cover_url').eq('id', material_id).execute()
+    material['cover_url'] = (cover_row.data[0].get('cover_url') if cover_row.data else None)
 
     txns = supabase.table('material_transactions').select('*')\
         .eq('material_id', material_id)\
