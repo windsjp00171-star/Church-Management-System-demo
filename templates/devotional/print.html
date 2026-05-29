@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="utf-8">
+<title>簽收條 — 《{{ order.scripture }}》禱讀本</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+       color: #1a1a1a; background: white; padding: 24px; }
+h1 { font-size: 1.3rem; font-weight: 800; text-align: center; margin-bottom: 4px; }
+.sub { text-align: center; font-size: .85rem; color: #555; margin-bottom: 6px; }
+.meta { text-align: center; font-size: .8rem; color: #888; margin-bottom: 20px; }
+table { width: 100%; border-collapse: collapse; }
+th {
+  background: #312e81; color: white; padding: 8px 12px;
+  font-size: .8rem; text-align: left; font-weight: 700;
+}
+td { padding: 9px 12px; border-bottom: 1px solid #e5e7eb; font-size: .9rem; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+.row-zero td { color: #c0c0c0; }
+.qty-cell { font-weight: 700; text-align: center; }
+.sign-cell { min-width: 80px; }
+tfoot td { font-weight: 700; background: #f0f1ff; }
+.footer { margin-top: 28px; font-size: .78rem; color: #aaa; text-align: center; }
+@media print {
+  body { padding: 12px; }
+  button { display: none !important; }
+}
+</style>
+</head>
+<body>
+<h1>《{{ order.scripture }}》禱讀本 簽收條</h1>
+{% if order.author %}<p class="sub">{{ order.author }}</p>{% endif %}
+<p class="meta">
+  {% if order.price > 0 %}每本 ${{ order.price }} · {% endif %}
+  截止日：{{ order.deadline }} · 列印：<script>document.write(new Date().toLocaleDateString('zh-TW'))</script>
+</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>小組</th>
+      <th style="text-align:center;">本數</th>
+      {% if order.price > 0 %}<th style="text-align:center;">金額</th>{% endif %}
+      <th>備註</th>
+      <th class="sign-cell">簽收</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for gname in primary_names %}
+    {% set reg = regs.get(gname) %}
+    <tr {% if not reg or reg.quantity == 0 %}class="row-zero"{% endif %}>
+      <td>{{ gname }}</td>
+      <td class="qty-cell">{{ reg.quantity if reg else 0 }}</td>
+      {% if order.price > 0 %}
+      <td style="text-align:center;">
+        {% if reg and reg.quantity %}${{ reg.quantity * order.price }}{% else %}—{% endif %}
+      </td>
+      {% endif %}
+      <td style="font-size:.82rem; color:#6b7280;">{{ reg.notes if reg and reg.notes else '' }}</td>
+      <td class="sign-cell" style="font-size:.8rem; color:{{ '#15803d' if reg and reg.is_delivered else '#d1d5db' }};">
+        {% if reg and reg.is_delivered %}✓ 已簽收{% else %}_____________{% endif %}
+      </td>
+    </tr>
+    {% endfor %}
+  </tbody>
+  <tfoot>
+    <tr>
+      <td>合計</td>
+      <td class="qty-cell">{{ total_qty }}</td>
+      {% if order.price > 0 %}<td style="text-align:center;">${{ total_qty * order.price }}</td>{% endif %}
+      <td colspan="2"></td>
+    </tr>
+  </tfoot>
+</table>
+
+<p class="footer">此列表由系統自動產生</p>
+
+<script>
+setTimeout(() => window.print(), 400);
+</script>
+</body>
+</html>
