@@ -217,7 +217,7 @@ def api_check_reminders():
                 continue
             existing = supabase.table('notifications').select('id')\
                 .eq('user_id', uid).eq('ref_type', 'personal_event')\
-                .eq('ref_id', pe['id']).execute().data
+                .eq('ref_id', pe['id']).eq('is_read', False).execute().data
             if existing:
                 continue
             create_notification(
@@ -251,7 +251,7 @@ def api_check_reminders():
                 continue
             existing = supabase.table('notifications').select('id')\
                 .eq('user_id', uid).eq('ref_type', 'church_event')\
-                .eq('ref_id', ce['id']).execute().data
+                .eq('ref_id', ce['id']).eq('is_read', False).execute().data
             if existing:
                 continue
             create_notification(
