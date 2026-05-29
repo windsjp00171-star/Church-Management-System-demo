@@ -361,16 +361,31 @@ def portal():
     attendance_summary = None
     if is_pastor or is_staff or session.get('is_admin'):
         try:
-            def _latest(table, *cols):
+            from routes.cell_report import _get_meeting_settings, _get_last_weekday_date
+            mcfg = _get_meeting_settings()
+            today = date.today()
+
+            def _last_weekday_date(wd):
+                days = (today.weekday() - wd) % 7
+                return (today - timedelta(days=days)).isoformat()
+
+            def _by_date(table, date_str, *cols):
                 fields = ','.join(cols)
-                r = supabase.table(table).select(fields)\
-                    .order('date', desc=True).limit(1).execute()
-                return r.data[0] if r.data else None
+                r = supabase.table(table).select(fields).eq('date', date_str).execute()
+                row = r.data[0] if r.data else {}
+                row.setdefault('date', date_str)
+                return row
+
+            sunday_date   = _last_weekday_date(mcfg['adult_sunday']['weekday'])
+            children_date = _last_weekday_date(mcfg['children_sunday']['weekday'])
+            prayer_date   = _last_weekday_date(mcfg['prayer']['weekday'])
+            morning_date  = _last_weekday_date(mcfg['morning_prayer']['weekday'])
+
             attendance_summary = {
-                'sunday':   _latest('sunday_reports',          'date','first_service_count','second_service_count'),
-                'children': _latest('children_sunday_reports', 'date','attendance_count'),
-                'prayer':   _latest('prayer_reports',          'date','attendance_count'),
-                'morning':  _latest('morning_prayer_reports',  'date','attendance_count'),
+                'sunday':   _by_date('sunday_reports',          sunday_date,   'date','first_service_count','second_service_count'),
+                'children': _by_date('children_sunday_reports', children_date, 'date','attendance_count'),
+                'prayer':   _by_date('prayer_reports',          prayer_date,   'date','attendance_count'),
+                'morning':  _by_date('morning_prayer_reports',  morning_date,  'date','attendance_count'),
             }
         except Exception:
             pass
