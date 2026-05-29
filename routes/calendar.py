@@ -169,3 +169,38 @@ def personal_event_delete(item_id):
         return jsonify({'success': False, 'error': '找不到或無權限'})
     supabase.table('personal_events').delete().eq('id', item_id).execute()
     return jsonify({'success': True})
+
+
+@calendar_bp.route('/calendar/personal/<item_id>/edit', methods=['POST'])
+@login_required
+def personal_event_edit(item_id):
+    result = supabase.table('personal_events')\
+        .select('id').eq('id', item_id).eq('user_id', session['user_id'])\
+        .execute()
+    if not result.data:
+        return jsonify({'success': False, 'error': '找不到或無權限'})
+    data = request.get_json() or {}
+    title = (data.get('title') or '').strip()
+    event_date = (data.get('event_date') or '').strip()
+    if not title or not event_date:
+        return jsonify({'success': False, 'error': '標題與日期為必填'})
+    try:
+        remind_days = int(data.get('remind_days') or 1)
+    except (ValueError, TypeError):
+        remind_days = 1
+    supabase.table('personal_events').update({
+        'title':       title,
+        'event_date':  event_date,
+        'description': (data.get('description') or '').strip() or None,
+        'color':       data.get('color') or '#e65100',
+        'remind_days': remind_days,
+    }).eq('id', item_id).execute()
+    # 刪除舊的提醒通知，讓修改後的日期可以重新觸發提醒
+    try:
+        supabase.table('notifications').delete()\
+            .eq('user_id', session['user_id'])\
+            .eq('ref_type', 'personal_event')\
+            .eq('ref_id', item_id).execute()
+    except Exception:
+        pass
+    return jsonify({'success': True})

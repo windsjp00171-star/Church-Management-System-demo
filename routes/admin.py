@@ -217,7 +217,7 @@ def church_event_new():
         remind_days = int(data.get('remind_days') or 3)
     except (ValueError, TypeError):
         remind_days = 3
-    supabase.table('church_events').insert({
+    result = supabase.table('church_events').insert({
         'title': title,
         'event_date': event_date,
         'end_date': data.get('end_date') or None,
@@ -226,6 +226,19 @@ def church_event_new():
         'created_by': session.get('user_id'),
         'remind_days': remind_days,
     }).execute()
+    if data.get('notify_all') and result.data:
+        new_id = result.data[0]['id']
+        all_users = supabase.table('users').select('id').eq('member_type', 'member').execute().data or []
+        from routes.notifications import batch_notify
+        batch_notify(
+            user_ids=[u['id'] for u in all_users],
+            title=f'⛪ 教會行事 — {title}',
+            body=f'活動日期：{event_date}',
+            type='announcement',
+            link='/calendar',
+            ref_type='church_event',
+            ref_id=new_id,
+        )
     return jsonify({'success': True})
 
 

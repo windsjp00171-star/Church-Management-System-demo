@@ -176,7 +176,7 @@
 <div id="personal-modal" onclick="if(event.target===this)closePersonalModal()"
     style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:1000; align-items:center; justify-content:center;">
     <div style="background:white; border-radius:16px; padding:28px; width:100%; max-width:400px; margin:16px; box-shadow:0 8px 32px rgba(0,0,0,0.15);">
-        <h3 style="margin:0 0 20px; font-size:1rem; font-weight:700; color:var(--text-1);">新增個人行程</h3>
+        <h3 id="personal-modal-title" style="margin:0 0 20px; font-size:1rem; font-weight:700; color:var(--text-1);">新增個人行程</h3>
         <div style="margin-bottom:14px;">
             <label class="modal-label">標題 *</label>
             <input id="p-title" type="text" placeholder="例：家訪、禱告會" class="modal-input">
@@ -214,6 +214,7 @@
         </div>
     </div>
 </div>
+<input type="hidden" id="p-edit-id" value="">
 
 {% if is_admin %}
 <!-- ══ 教會行事 Modal（管理員專用）══ -->
@@ -243,7 +244,7 @@
             </div>
             <input type="hidden" id="ch-color-val" value="#7b1fa2">
         </div>
-        <div style="margin-bottom:22px;">
+        <div style="margin-bottom:14px;">
             <label class="modal-label">🔔 提前提醒全體會友</label>
             <select id="ch-remind" class="modal-input">
                 <option value="0">不提醒</option>
@@ -252,6 +253,12 @@
                 <option value="7">提前 1 週</option>
                 <option value="14">提前 2 週</option>
             </select>
+        </div>
+        <div id="ch-notify-wrap" style="margin-bottom:22px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="ch-notify-all" style="width:16px; height:16px; accent-color:#7b1fa2;">
+                <span style="font-size:0.9rem; color:var(--text-2);">📢 立即廣播通知全體會友</span>
+            </label>
         </div>
         <div style="display:flex; gap:10px;">
             <button onclick="submitChurchForm()" class="btn btn-sm"
@@ -369,12 +376,14 @@ function showDetail(dateStr, items) {
             ? `<a href="${item.link}" style="font-weight:bold; font-size:0.95rem; color:#333; text-decoration:none;">${item.title}</a>`
             : `<span style="font-weight:bold; font-size:0.95rem;">${item.title}</span>`;
 
-        // 個人行程：本人可刪除
+        // 個人行程：本人可編輯/刪除
         const personalBtns = isPersonal ? `
-            <button onclick="deletePersonal('${item.id}',event)"
-                style="margin-top:8px; padding:4px 12px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">
-                刪除
-            </button>` : '';
+            <div style="display:flex; gap:6px; margin-top:8px;">
+                <button onclick="openEditPersonal('${item.id}','${(item.title||'').replace(/'/g,"\\'")}','${item.date}','${(item.description||'').replace(/'/g,"\\'")}','${item.color||'#e65100'}',event)"
+                    style="padding:4px 12px; background:#fff3e0; color:#e65100; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">編輯</button>
+                <button onclick="deletePersonal('${item.id}',event)"
+                    style="padding:4px 12px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">刪除</button>
+            </div>` : '';
 
         // 教會行事：管理員可編輯/刪除
         const churchBtns = (IS_ADMIN && isChurch) ? `
@@ -423,10 +432,23 @@ function openAddPersonal(dateStr) {
         const t = new Date(), pad = n => String(n).padStart(2,'0');
         dateStr = `${t.getFullYear()}-${pad(t.getMonth()+1)}-${pad(t.getDate())}`;
     }
+    document.getElementById('p-edit-id').value = '';
+    document.getElementById('personal-modal-title').textContent = '新增個人行程';
     document.getElementById('p-date').value  = dateStr;
     document.getElementById('p-title').value = '';
     document.getElementById('p-desc').value  = '';
+    document.getElementById('p-remind').value = '1';
     setPColor('#e65100');
+    document.getElementById('personal-modal').style.display = 'flex';
+}
+function openEditPersonal(id, title, date, desc, color, ev) {
+    ev && ev.stopPropagation();
+    document.getElementById('p-edit-id').value = id;
+    document.getElementById('personal-modal-title').textContent = '編輯個人行程';
+    document.getElementById('p-title').value = title;
+    document.getElementById('p-date').value  = date;
+    document.getElementById('p-desc').value  = desc;
+    setPColor(color || '#e65100');
     document.getElementById('personal-modal').style.display = 'flex';
 }
 function closePersonalModal() { document.getElementById('personal-modal').style.display = 'none'; }
@@ -435,10 +457,12 @@ function setPColor(val) {
     document.getElementById('p-color-val').value = val;
 }
 async function submitPersonalForm() {
-    const title = document.getElementById('p-title').value.trim();
-    const date  = document.getElementById('p-date').value;
+    const title  = document.getElementById('p-title').value.trim();
+    const date   = document.getElementById('p-date').value;
+    const editId = document.getElementById('p-edit-id').value;
     if (!title || !date) { showToast('❌ 請填寫標題與日期', 'error'); return; }
-    const res = await fetch('/calendar/personal/new', {
+    const url = editId ? `/calendar/personal/${editId}/edit` : '/calendar/personal/new';
+    const res = await fetch(url, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title, event_date: date,
             description: document.getElementById('p-desc').value.trim() || null,
@@ -466,6 +490,8 @@ function openAddChurch(dateStr) {
     document.getElementById('ch-title').value = '';
     document.getElementById('ch-date').value  = dateStr || '';
     document.getElementById('ch-desc').value  = '';
+    document.getElementById('ch-notify-all').checked = false;
+    document.getElementById('ch-notify-wrap').style.display = 'block';
     setChColor('#7b1fa2');
     document.getElementById('church-modal').style.display = 'flex';
 }
@@ -476,6 +502,7 @@ function openEditChurch(id, title, date, desc, color, ev) {
     document.getElementById('ch-title').value = title;
     document.getElementById('ch-date').value  = date;
     document.getElementById('ch-desc').value  = desc;
+    document.getElementById('ch-notify-wrap').style.display = 'none';
     setChColor(color);
     document.getElementById('church-modal').style.display = 'flex';
 }
@@ -491,13 +518,15 @@ async function submitChurchForm() {
     const url = _editChurchId
         ? `/admin/calendar/church/${_editChurchId}/edit`
         : '/admin/calendar/church/new';
+    const notifyAll = !_editChurchId && document.getElementById('ch-notify-all').checked;
     const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': CSRF },
         body: JSON.stringify({ title, event_date: date,
             description: document.getElementById('ch-desc').value.trim() || null,
             color: document.getElementById('ch-color-val').value,
-            remind_days: parseInt(document.getElementById('ch-remind').value) || 0 }),
+            remind_days: parseInt(document.getElementById('ch-remind').value) || 0,
+            notify_all: notifyAll }),
     });
     const d = await res.json();
     if (d.success) { closeChurchModal(); loadCalendar(); }
