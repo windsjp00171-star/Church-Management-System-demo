@@ -86,6 +86,31 @@
   </div>
   <form id="del-form" method="POST" action="{{ url_for('devotional.admin_devotional_delete', order_id=order.id) }}" style="display:none;"></form>
 
+  {# 封面圖片 #}
+  <div style="display:flex; align-items:flex-start; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
+    <div id="cover-wrap" style="flex-shrink:0;">
+      {% if order.cover_url %}
+      <img id="cover-img" src="{{ order.cover_url }}" alt="封面"
+           style="width:80px; height:110px; object-fit:cover; border-radius:8px; border:1px solid #e5e7eb;">
+      {% else %}
+      <div id="cover-img" style="width:80px; height:110px; border-radius:8px; border:2px dashed #d1d5db;
+           display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:.75rem; text-align:center;">
+        無封面
+      </div>
+      {% endif %}
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px; justify-content:center;">
+      <label style="font-size:.78rem; font-weight:600; color:#6b7280;">封面圖片</label>
+      <input type="file" id="cover-file-input" accept="image/*" style="display:none;"
+             onchange="uploadCover(this)">
+      <button class="btn-primary" style="font-size:.78rem; padding:6px 14px; background:#6366f1;"
+              onclick="document.getElementById('cover-file-input').click()">
+        📷 {{ '更換封面' if order.cover_url else '上傳封面' }}
+      </button>
+      <div id="cover-upload-status" style="font-size:.75rem; color:#6b7280; min-height:16px;"></div>
+    </div>
+  </div>
+
   {# 統計卡 #}
   <div class="stats-grid">
     <div class="stat-card">
@@ -302,6 +327,41 @@ async function openLogs(groupName) {
       </div>
     </div>
   `).join('');
+}
+
+async function uploadCover(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const status = document.getElementById('cover-upload-status');
+  status.textContent = '上傳中…';
+  const fd = new FormData();
+  fd.append('cover', file);
+  try {
+    const res = await fetch(`/admin/devotional/${ORDER_ID}/upload-cover`, { method:'POST', body:fd });
+    const data = await res.json();
+    if (data.ok) {
+      status.textContent = '✓ 已更新封面';
+      const img = document.getElementById('cover-img');
+      if (img.tagName === 'IMG') {
+        img.src = data.url + '?t=' + Date.now();
+      } else {
+        const newImg = document.createElement('img');
+        newImg.id = 'cover-img';
+        newImg.src = data.url;
+        newImg.alt = '封面';
+        newImg.style.cssText = 'width:80px;height:110px;object-fit:cover;border-radius:8px;border:1px solid #e5e7eb;';
+        img.replaceWith(newImg);
+      }
+      showToast('✓ 封面已更新');
+    } else {
+      status.textContent = '❌ ' + (data.msg || '上傳失敗');
+      showToast('⚠ ' + (data.msg || '上傳失敗'), true);
+    }
+  } catch(e) {
+    status.textContent = '❌ 網路錯誤';
+    showToast('⚠ 網路錯誤', true);
+  }
+  input.value = '';
 }
 
 function showToast(msg, isErr) {
