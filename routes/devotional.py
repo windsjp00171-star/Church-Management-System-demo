@@ -2,6 +2,8 @@ from flask import Blueprint, render_template, session, redirect, url_for, reques
 from db import supabase
 from routes.decorators import login_required, admin_required
 import datetime
+import uuid as _uuid
+import os
 
 devotional_bp = Blueprint('devotional', __name__)
 
@@ -266,6 +268,41 @@ def admin_devotional_deliver(reg_id):
     new_val = not reg.data[0]['is_delivered']
     supabase.table('devotional_registrations').update({'is_delivered': new_val}).eq('id', reg_id).execute()
     return jsonify({'ok': True, 'is_delivered': new_val})
+
+
+@devotional_bp.post('/admin/devotional/<order_id>/upload-cover')
+@admin_required
+def admin_devotional_upload_cover(order_id):
+    """上傳封面圖片到 Supabase Storage（bucket: event-posters）"""
+    order = supabase.table('devotional_orders').select('id').eq('id', order_id).execute()
+    if not order.data:
+        return jsonify({'ok': False, 'msg': '找不到訂購'}), 404
+
+    f = request.files.get('cover')
+    if not f or not f.filename:
+        return jsonify({'ok': False, 'msg': '請選擇圖片'}), 400
+
+    ext = os.path.splitext(f.filename)[1].lower()
+    if ext not in ('.jpg', '.jpeg', '.png', '.webp', '.gif'):
+        return jsonify({'ok': False, 'msg': '僅支援 jpg/png/webp/gif'}), 400
+
+    filename = f'devotional-covers/{_uuid.uuid4()}{ext}'
+    content_type_map = {
+        '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg',
+        '.png': 'image/png', '.webp': 'image/webp', '.gif': 'image/gif',
+    }
+    content_type = content_type_map.get(ext, 'image/jpeg')
+
+    try:
+        file_bytes = f.read()
+        supabase.storage.from_('event-posters').upload(
+            filename, file_bytes, {'content-type': content_type}
+        )
+        url = supabase.storage.from_('event-posters').get_public_url(filename)
+        supabase.table('devotional_orders').update({'cover_url': url}).eq('id', order_id).execute()
+        return jsonify({'ok': True, 'url': url})
+    except Exception as e:
+        return jsonify({'ok': False, 'msg': str(e)}), 500
 
 
 @devotional_bp.post('/admin/devotional/registrations/<reg_id>/delete')
