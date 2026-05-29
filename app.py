@@ -111,6 +111,10 @@ def create_app():
     from routes.data_transfer import data_transfer_bp
     app.register_blueprint(data_transfer_bp)
 
+    # ── 禱讀本訂購 ─────────────────────────────────────────────
+    from routes.devotional import devotional_bp
+    app.register_blueprint(devotional_bp)
+
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',

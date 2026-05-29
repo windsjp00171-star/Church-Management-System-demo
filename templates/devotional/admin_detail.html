@@ -1,0 +1,316 @@
+{% extends "base.html" %}
+{% block title %}《{{ order.scripture }}》訂購管理{% endblock %}
+{% block extra_css %}
+<style>
+.dv-admin-wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 80px; }
+.page-hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+.page-hd h1 { font-size:1.2rem; font-weight:800; margin:0; }
+.stats-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:12px; margin-bottom:24px; }
+.stat-card {
+  background:white; border:1px solid #e0e7ff; border-radius:12px;
+  padding:14px 16px; text-align:center;
+}
+.stat-val { font-size:1.8rem; font-weight:800; color:#4338ca; line-height:1; }
+.stat-lbl { font-size:.72rem; color:#9ca3af; margin-top:4px; }
+.dv-table { width:100%; border-collapse:collapse; background:white;
+            border-radius:12px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+.dv-table th { background:#f0f1ff; color:#4338ca; font-size:.78rem; font-weight:700;
+               padding:10px 14px; text-align:left; letter-spacing:.04em; }
+.dv-table td { padding:11px 14px; font-size:.88rem; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+.dv-table tr:last-child td { border-bottom:none; }
+.row-empty td { color:#d1d5db; }
+.btn-sm {
+  padding:4px 12px; border-radius:6px; font-size:.78rem; font-weight:600;
+  cursor:pointer; border:none; text-decoration:none; display:inline-block;
+}
+.btn-deliver   { background:#dcfce7; color:#15803d; }
+.btn-undeliver { background:#fef9c3; color:#92400e; }
+.btn-log       { background:#e0e7ff; color:#4338ca; }
+.btn-del       { background:#fee2e2; color:#b91c1c; }
+.btn-edit      { background:#f3f4f6; color:#374151; }
+.btn-primary   { padding:9px 18px; background:#4338ca; color:white; border:none;
+                 border-radius:8px; font-size:.88rem; font-weight:700; cursor:pointer; text-decoration:none; }
+.btn-primary:hover { background:#3730a3; }
+.btn-danger    { padding:8px 16px; background:#fee2e2; color:#b91c1c; border:none;
+                 border-radius:8px; font-size:.88rem; font-weight:600; cursor:pointer; }
+.btn-danger:hover { background:#fecaca; }
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200;
+            align-items:center; justify-content:center; }
+.modal-bg.open { display:flex; }
+.modal-box { background:white; border-radius:16px; padding:28px 24px; width:100%;
+             max-width:420px; margin:16px; max-height:80vh; overflow-y:auto; }
+.modal-box h2 { font-size:1.05rem; font-weight:700; margin:0 0 18px; }
+.mf-row { margin-bottom:14px; }
+.mf-row label { display:block; font-size:.82rem; font-weight:600; color:#374151; margin-bottom:5px; }
+.mf-row select, .mf-row input, .mf-row textarea {
+  width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px;
+  font-size:.92rem; box-sizing:border-box; background:white;
+}
+.mf-row input:focus, .mf-row select:focus, .mf-row textarea:focus {
+  outline:none; border-color:#6366f1; box-shadow:0 0 0 2px rgba(99,102,241,.12);
+}
+.modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:8px; }
+.btn-cancel { padding:9px 16px; background:#f3f4f6; color:#374151; border:none; border-radius:8px; cursor:pointer; font-size:.9rem; }
+.log-item { padding:10px 0; border-bottom:1px solid #f0f0f0; }
+.log-item:last-child { border-bottom:none; }
+.qty-row { display:flex; align-items:center; gap:10px; }
+.qty-btn { width:34px; height:34px; border:1.5px solid #d1d5db; border-radius:7px;
+           background:white; font-size:1.1rem; cursor:pointer; display:flex;
+           align-items:center; justify-content:center; flex-shrink:0; }
+.qty-btn:hover { border-color:#6366f1; color:#6366f1; }
+#edit-qty { width:60px; text-align:center; font-weight:700; }
+.toast {
+  position:fixed; bottom:80px; left:50%; transform:translateX(-50%) translateY(20px);
+  background:#1e1b4b; color:white; padding:10px 20px; border-radius:24px;
+  font-size:.88rem; opacity:0; transition:all .3s; pointer-events:none; z-index:999;
+}
+.toast.show { opacity:1; transform:translateX(-50%) translateY(0); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="dv-admin-wrap">
+  <div class="page-hd">
+    <div>
+      <a href="{{ url_for('devotional.admin_devotional_list') }}"
+         style="color:#6366f1; text-decoration:none; font-size:.82rem;">← 返回列表</a>
+      <h1 style="margin-top:6px;">📖 《{{ order.scripture }}》{% if order.author %} — {{ order.author }}{% endif %}</h1>
+      <div style="font-size:.82rem; color:#9ca3af; margin-top:2px;">截止：{{ order.deadline }}{% if order.price %} · 每本 ${{ order.price }}{% endif %}</div>
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="{{ url_for('devotional.admin_devotional_print', order_id=order.id) }}"
+         target="_blank" class="btn-primary" style="background:#059669;">🖨 列印簽收條</a>
+      <button class="btn-danger"
+        onclick="if(confirm('確定刪除《{{ order.scripture }}》及所有登記？'))
+                   document.getElementById('del-form').submit()">🗑 刪除訂購</button>
+    </div>
+  </div>
+  <form id="del-form" method="POST" action="{{ url_for('devotional.admin_devotional_delete', order_id=order.id) }}" style="display:none;"></form>
+
+  {# 統計卡 #}
+  <div class="stats-grid">
+    <div class="stat-card">
+      <div class="stat-val">{{ registered_count }}</div>
+      <div class="stat-lbl">已登記小組</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{{ total_qty }}</div>
+      <div class="stat-lbl">合計本數</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{% if order.price > 0 %}${{ total_amount }}{% else %}—{% endif %}</div>
+      <div class="stat-lbl">合計金額</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{{ delivered_count }}</div>
+      <div class="stat-lbl">已簽收</div>
+    </div>
+  </div>
+
+  {# 小組表格 #}
+  <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+    <div style="font-size:.85rem; font-weight:700; color:#374151;">各小組登記狀況</div>
+    <button class="btn-primary" style="font-size:.82rem; padding:7px 14px;"
+            onclick="openEditModal(null, null, null)">＋ 鍵入小組數量</button>
+  </div>
+  <table class="dv-table">
+    <thead>
+      <tr>
+        <th>小組</th>
+        <th style="text-align:right;">本數</th>
+        <th>備註</th>
+        <th>簽收</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for gname in primary_names %}
+      {% set reg = regs.get(gname) %}
+      <tr {% if not reg %}class="row-empty"{% endif %}>
+        <td style="font-weight:{{ '600' if reg else '400' }};">{{ gname }}</td>
+        <td style="text-align:right; font-weight:700; color:{{ '#4338ca' if reg else '#d1d5db' }};">
+          {{ reg.quantity if reg else 0 }}
+        </td>
+        <td style="font-size:.82rem; color:#6b7280;">{{ reg.notes if reg and reg.notes else '' }}</td>
+        <td>
+          {% if reg %}
+            {% if reg.is_delivered %}
+            <span style="background:#dcfce7; color:#15803d; padding:2px 10px; border-radius:20px; font-size:.72rem; font-weight:700;">✓ 已簽收</span>
+            {% else %}
+            <span style="background:#f3f4f6; color:#9ca3af; padding:2px 10px; border-radius:20px; font-size:.72rem;">待簽收</span>
+            {% endif %}
+          {% endif %}
+        </td>
+        <td style="white-space:nowrap; display:flex; gap:6px; flex-wrap:wrap; padding:8px 14px;">
+          {% if reg %}
+          <button class="btn-sm btn-edit"
+                  onclick="openEditModal('{{ gname }}', {{ reg.quantity }}, '{{ (reg.notes or '')|replace("'", "\\'") }}')">編輯</button>
+          <button class="btn-sm {{ 'btn-undeliver' if reg.is_delivered else 'btn-deliver' }}"
+                  onclick="toggleDeliver('{{ reg.id }}', this)">
+            {{ '取消簽收' if reg.is_delivered else '簽收' }}
+          </button>
+          <button class="btn-sm btn-log" onclick="openLogs('{{ gname }}')">記錄</button>
+          <button class="btn-sm btn-del" onclick="deleteReg('{{ reg.id }}')">刪除</button>
+          {% else %}
+          <button class="btn-sm btn-edit" onclick="openEditModal('{{ gname }}', 0, '')">鍵入</button>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+{# 編輯 Modal #}
+<div class="modal-bg" id="edit-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <h2 id="edit-title">鍵入小組數量</h2>
+    <div class="mf-row">
+      <label>小組</label>
+      <select id="edit-group">
+        <option value="">— 選擇小組 —</option>
+        {% for gname in primary_names %}
+        <option value="{{ gname }}">{{ gname }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div class="mf-row">
+      <label>訂購數量</label>
+      <div class="qty-row">
+        <button type="button" class="qty-btn" onclick="changeQty(-1)">−</button>
+        <input type="number" id="edit-qty" value="1" min="0" max="99">
+        <button type="button" class="qty-btn" onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+    <div class="mf-row">
+      <label>備註（選填）</label>
+      <textarea id="edit-notes" rows="2" placeholder="例：需要大字版"></textarea>
+    </div>
+    <div class="modal-footer">
+      <button type="button" class="btn-cancel" onclick="document.getElementById('edit-modal').classList.remove('open')">取消</button>
+      <button type="button" class="btn-primary" onclick="submitEdit()">儲存</button>
+    </div>
+  </div>
+</div>
+
+{# 修改記錄 Modal #}
+<div class="modal-bg" id="log-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <h2>修改記錄 — <span id="log-group-name"></span></h2>
+    <div id="log-content" style="font-size:.88rem; color:#374151;">載入中…</div>
+    <div style="text-align:right; margin-top:16px;">
+      <button class="btn-cancel" onclick="document.getElementById('log-modal').classList.remove('open')">關閉</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+{% block extra_js %}
+<script>
+const ORDER_ID = '{{ order.id }}';
+
+function changeQty(delta) {
+  const inp = document.getElementById('edit-qty');
+  let val = parseInt(inp.value) + delta;
+  if (val < 0) val = 0; if (val > 99) val = 99;
+  inp.value = val;
+}
+
+function openEditModal(group, qty, notes) {
+  const sel = document.getElementById('edit-group');
+  const qInp = document.getElementById('edit-qty');
+  const nInp = document.getElementById('edit-notes');
+  const title = document.getElementById('edit-title');
+
+  if (group) {
+    sel.value = group;
+    sel.disabled = true;
+    title.textContent = '編輯：' + group;
+  } else {
+    sel.value = '';
+    sel.disabled = false;
+    title.textContent = '鍵入小組數量';
+  }
+  qInp.value = qty !== null ? qty : 1;
+  nInp.value = notes || '';
+  document.getElementById('edit-modal').classList.add('open');
+}
+
+async function submitEdit() {
+  const group = document.getElementById('edit-group').value;
+  const qty   = document.getElementById('edit-qty').value;
+  const notes = document.getElementById('edit-notes').value;
+  if (!group) { showToast('請選擇小組', true); return; }
+
+  const fd = new FormData();
+  fd.append('group_name', group);
+  fd.append('quantity', qty);
+  fd.append('notes', notes);
+
+  const res = await fetch(`/admin/devotional/${ORDER_ID}/register`, { method:'POST', body:fd });
+  const data = await res.json();
+  if (data.ok) {
+    showToast('✓ 已儲存');
+    document.getElementById('edit-modal').classList.remove('open');
+    document.getElementById('edit-group').disabled = false;
+    setTimeout(() => location.reload(), 800);
+  } else {
+    showToast('⚠ ' + (data.msg || '儲存失敗'), true);
+  }
+}
+
+async function toggleDeliver(regId, btn) {
+  const res = await fetch(`/admin/devotional/registrations/${regId}/deliver`, { method:'POST' });
+  const data = await res.json();
+  if (data.ok) {
+    showToast(data.is_delivered ? '✓ 已標記簽收' : '已取消簽收');
+    setTimeout(() => location.reload(), 700);
+  }
+}
+
+async function deleteReg(regId) {
+  if (!confirm('確定刪除此小組的登記？')) return;
+  const res = await fetch(`/admin/devotional/registrations/${regId}/delete`, { method:'POST' });
+  const data = await res.json();
+  if (data.ok) {
+    showToast('已刪除');
+    setTimeout(() => location.reload(), 700);
+  }
+}
+
+async function openLogs(groupName) {
+  document.getElementById('log-group-name').textContent = groupName;
+  document.getElementById('log-content').textContent = '載入中…';
+  document.getElementById('log-modal').classList.add('open');
+
+  const res = await fetch(`/admin/devotional/${ORDER_ID}/logs`);
+  const logs = await res.json();
+  const filtered = logs.filter(l => l.group_name === groupName);
+
+  if (!filtered.length) {
+    document.getElementById('log-content').innerHTML = '<p style="color:#9ca3af;">尚無記錄</p>';
+    return;
+  }
+
+  document.getElementById('log-content').innerHTML = filtered.map(l => `
+    <div class="log-item">
+      <div><strong>${l.quantity} 本</strong>
+        ${l.notes ? `<span style="color:#6b7280; font-size:.82rem;"> · ${l.notes}</span>` : ''}
+      </div>
+      <div style="font-size:.78rem; color:#9ca3af; margin-top:3px;">
+        ${l.changed_at} · ${l.changed_by}
+      </div>
+    </div>
+  `).join('');
+}
+
+function showToast(msg, isErr) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.style.background = isErr ? '#991b1b' : '#1e1b4b';
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2600);
+}
+</script>
+{% endblock %}
+{% endblock %}

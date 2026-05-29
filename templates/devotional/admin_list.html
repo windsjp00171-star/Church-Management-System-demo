@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}禱讀本管理{% endblock %}
+{% block extra_css %}
+<style>
+.dv-admin-wrap { max-width: 820px; margin: 0 auto; padding: 24px 16px 80px; }
+.page-hd { display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+.page-hd h1 { font-size:1.3rem; font-weight:800; margin:0; }
+.btn-primary {
+  padding: 9px 18px; background: #4338ca; color: white; border: none;
+  border-radius: 8px; font-size: .9rem; font-weight: 700; cursor: pointer; text-decoration: none;
+}
+.btn-primary:hover { background: #3730a3; }
+.dv-table { width:100%; border-collapse:collapse; background:white;
+            border-radius:12px; overflow:hidden; box-shadow:0 1px 6px rgba(0,0,0,.06); }
+.dv-table th { background:#f0f1ff; color:#4338ca; font-size:.78rem; font-weight:700;
+               padding:10px 14px; text-align:left; letter-spacing:.04em; }
+.dv-table td { padding:12px 14px; font-size:.9rem; border-bottom:1px solid #f3f4f6; vertical-align:middle; }
+.dv-table tr:last-child td { border-bottom:none; }
+.dv-table tr:hover td { background:#f8f8ff; }
+.badge-open   { background:#dcfce7; color:#15803d; padding:2px 10px; border-radius:20px; font-size:.72rem; font-weight:700; }
+.badge-closed { background:#f3f4f6; color:#9ca3af; padding:2px 10px; border-radius:20px; font-size:.72rem; font-weight:700; }
+.modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200;
+            align-items:center; justify-content:center; }
+.modal-bg.open { display:flex; }
+.modal-box { background:white; border-radius:16px; padding:28px 24px; width:100%; max-width:420px; margin:16px; }
+.modal-box h2 { font-size:1.1rem; font-weight:700; margin:0 0 20px; }
+.mf-row { margin-bottom:14px; }
+.mf-row label { display:block; font-size:.82rem; font-weight:600; color:#374151; margin-bottom:5px; }
+.mf-row input { width:100%; padding:9px 12px; border:1px solid #d1d5db; border-radius:8px;
+                font-size:.95rem; box-sizing:border-box; }
+.mf-row input:focus { outline:none; border-color:#6366f1; box-shadow:0 0 0 2px rgba(99,102,241,.12); }
+.modal-footer { display:flex; gap:10px; justify-content:flex-end; margin-top:8px; }
+.btn-cancel { padding:9px 16px; background:#f3f4f6; color:#374151; border:none; border-radius:8px; cursor:pointer; font-size:.9rem; }
+.empty-state { text-align:center; color:#9ca3af; padding:60px 16px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="dv-admin-wrap">
+  <div class="page-hd">
+    <h1>📖 禱讀本管理</h1>
+    <button class="btn-primary" onclick="document.getElementById('new-modal').classList.add('open')">＋ 新增訂購</button>
+  </div>
+
+  {% with msgs = get_flashed_messages(with_categories=true) %}
+  {% for cat, msg in msgs %}
+  <div style="background:{{ '#dcfce7' if cat=='success' else '#fee2e2' }};
+              color:{{ '#15803d' if cat=='success' else '#991b1b' }};
+              padding:10px 14px; border-radius:8px; margin-bottom:16px; font-size:.9rem;">
+    {{ msg }}
+  </div>
+  {% endfor %}
+  {% endwith %}
+
+  {% if orders %}
+  <table class="dv-table">
+    <thead>
+      <tr>
+        <th>經卷／作者</th>
+        <th>定價</th>
+        <th>截止日</th>
+        <th>狀態</th>
+        <th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in orders %}
+      <tr>
+        <td>
+          <strong>《{{ o.scripture }}》</strong>
+          {% if o.author %}<span style="color:#9ca3af; font-size:.82rem;"> — {{ o.author }}</span>{% endif %}
+        </td>
+        <td>{% if o.price > 0 %}${{ o.price }}{% else %}—{% endif %}</td>
+        <td>{{ o.deadline }}</td>
+        <td>
+          <span class="{{ 'badge-open' if o.deadline >= today else 'badge-closed' }}">
+            {{ '登記中' if o.deadline >= today else '已截止' }}
+          </span>
+        </td>
+        <td style="white-space:nowrap;">
+          <a href="{{ url_for('devotional.admin_devotional_detail', order_id=o.id) }}"
+             style="padding:5px 12px; background:#e0e7ff; color:#4338ca; border-radius:6px;
+                    text-decoration:none; font-size:.82rem; font-weight:600;">管理</a>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state">
+    <div style="font-size:2.5rem; margin-bottom:12px;">📚</div>
+    <p>尚無訂購記錄，點右上角新增</p>
+  </div>
+  {% endif %}
+</div>
+
+{# 新增訂購 Modal #}
+<div class="modal-bg" id="new-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <h2>＋ 新增禱讀本訂購</h2>
+    <form method="POST" action="{{ url_for('devotional.admin_devotional_new') }}">
+      <div class="mf-row">
+        <label>經卷名稱 <span style="color:#ef4444;">*</span></label>
+        <input type="text" name="scripture" placeholder="例：箴言" required>
+      </div>
+      <div class="mf-row">
+        <label>作者（選填）</label>
+        <input type="text" name="author" placeholder="例：唐慕華">
+      </div>
+      <div class="mf-row">
+        <label>每本定價（元）</label>
+        <input type="number" name="price" value="0" min="0">
+      </div>
+      <div class="mf-row">
+        <label>登記截止日 <span style="color:#ef4444;">*</span></label>
+        <input type="date" name="deadline" required>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn-cancel" onclick="document.getElementById('new-modal').classList.remove('open')">取消</button>
+        <button type="submit" class="btn-primary">建立</button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

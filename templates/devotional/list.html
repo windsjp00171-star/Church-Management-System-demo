@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}禱讀本訂購{% endblock %}
+{% block extra_css %}
+<style>
+.dv-wrap { max-width: 640px; margin: 0 auto; padding: 24px 16px 80px; }
+.dv-hero {
+  background: linear-gradient(135deg, #312e81 0%, #4338ca 60%, #6366f1 100%);
+  color: white; border-radius: 16px; padding: 28px 24px;
+  margin-bottom: 24px; position: relative; overflow: hidden;
+}
+.dv-hero::after {
+  content: '📖'; position: absolute; right: 20px; top: 50%;
+  transform: translateY(-50%); font-size: 4rem; opacity: .12;
+}
+.dv-hero h1 { font-size: 1.4rem; font-weight: 800; margin: 0 0 4px; }
+.dv-hero p  { font-size: .88rem; opacity: .85; margin: 0; }
+.dv-card {
+  background: white; border: 1px solid #e0e7ff;
+  border-radius: 14px; padding: 18px 20px;
+  margin-bottom: 14px; text-decoration: none; color: inherit;
+  display: block; transition: box-shadow .15s, transform .15s;
+}
+.dv-card:hover { box-shadow: 0 4px 16px rgba(99,102,241,.15); transform: translateY(-1px); }
+.dv-card-title { font-size: 1.05rem; font-weight: 700; color: #1e1b4b; margin-bottom: 4px; }
+.dv-card-meta  { font-size: .8rem; color: #6b7280; display: flex; gap: 12px; flex-wrap: wrap; }
+.dv-badge {
+  display: inline-block; padding: 2px 10px; border-radius: 20px;
+  font-size: .72rem; font-weight: 700; margin-left: 8px;
+}
+.badge-open   { background: #dcfce7; color: #15803d; }
+.badge-closed { background: #f3f4f6; color: #9ca3af; }
+.empty-state { text-align: center; padding: 60px 16px; color: #9ca3af; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="dv-wrap">
+  <div class="dv-hero">
+    <h1>📖 禱讀本訂購</h1>
+    <p>以小組為單位登記，行政統整後代訂</p>
+  </div>
+
+  {% if orders %}
+  {% for o in orders %}
+  {% set is_open = o.deadline >= today %}
+  <a href="{{ url_for('devotional.devotional_detail', order_id=o.id) }}" class="dv-card">
+    <div class="dv-card-title">
+      《{{ o.scripture }}》
+      {% if o.author %}<span style="font-weight:400; color:#6b7280;">— {{ o.author }}</span>{% endif %}
+      <span class="dv-badge {{ 'badge-open' if is_open else 'badge-closed' }}">
+        {{ '登記中' if is_open else '已截止' }}
+      </span>
+    </div>
+    <div class="dv-card-meta">
+      {% if o.price > 0 %}<span>💰 每本 ${{ o.price }}</span>{% endif %}
+      <span>📅 截止：{{ o.deadline }}</span>
+    </div>
+  </a>
+  {% endfor %}
+  {% else %}
+  <div class="empty-state">
+    <div style="font-size:2.5rem; margin-bottom:12px;">📚</div>
+    <p>目前沒有開放中的訂購</p>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

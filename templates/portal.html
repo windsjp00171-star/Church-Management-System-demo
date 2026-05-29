@@ -232,6 +232,10 @@ function dismissChangelog() {
 .fg-bulletin .fg-icon { background: #fff7ed; color: #d97706; }
 .fg-verse    .fg-icon { background: linear-gradient(135deg,#4a148c,#e91e63); color: white; }
 .fg-link     .fg-icon { background: #f3f4f6; font-size: 1.25rem; line-height: 1; }
+.fg-devotional { background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 60%, #c7d2fe 100%); border: 1px solid rgba(99,102,241,0.2); }
+.fg-devotional .fg-icon { background: linear-gradient(135deg, #4338ca, #6366f1); color: white; box-shadow: 0 3px 10px rgba(99,102,241,0.35); }
+.fg-devotional .fg-name { color: #312e81; }
+.fg-devotional .fg-sub  { color: #4338ca; font-weight: 500; }
 
 /* 超管 edit mode */
 .fi-toggle-btn {
@@ -773,6 +777,19 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
         {% endif %}
+        {% endif %}
+
+        {# 禱讀本訂購 #}
+        {% if not is_visitor %}
+        <div class="fi-wrap ti" data-key="devotional" data-type="fixed" style="--d:{{ base_d + 260 }}ms">
+            <a href="/devotional" class="fg-tile fg-devotional">
+                <div class="fg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                </div>
+                <div class="fg-name">禱讀本訂購</div>
+                <div class="fg-sub">小組登記購買數量</div>
+            </a>
+        </div>
         {% endif %}
 
         {# 電子簽到記錄 #}
