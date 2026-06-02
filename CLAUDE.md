@@ -143,6 +143,11 @@ ANTHROPIC_API_KEY=
 # 管理員 LINE User IDs（逗號分隔）
 ADMIN_LINE_USER_IDS=
 
+# Demo 洽詢系統（正式教會部署版設為 false 或移除）
+DEMO_MODE=          # true → 顯示底部洽詢橫幅
+CONTACT_EMAIL=      # 管理員/開發者信箱（顯示於洽詢 Modal）
+CONTACT_LINE=       # LINE 連結（可選）
+
 # 錯誤監控（可選）
 SENTRY_DSN=
 
@@ -160,3 +165,31 @@ python app.py      # debug=True, port 5000
 ## 部署
 
 平台：Render，自動從 `Procfile` 讀取 gunicorn 指令。
+
+## 多教會部署架構與開發者權限原則
+
+本系統設計為可重複部署給不同教會，每個教會有獨立的 Render 服務與 Supabase project。
+
+### 角色分層
+
+| 角色 | 能做什麼 | 不能做什麼 |
+|------|---------|-----------|
+| 教會超管（牧師/行政）| 系統設定、會員管理、封鎖用戶、查看全部資料 | — |
+| 教會管理員 | 活動、報名、後台一般操作 | 超管功能 |
+| **開發者（系統維護方）** | 程式碼更新、Render log 查看、DB schema 變更 | **不接觸教會用戶資料** |
+
+### 開發者維護原則
+
+1. **程式碼層維護**：push 程式碼到 GitHub → Render 自動重新部署，無需登入系統。
+2. **不持有教會 Supabase 存取權**：各教會自行建立 Supabase project，填入自己的 `SUPABASE_URL` / `SUPABASE_KEY`。開發者提供 SQL migration 腳本，由教會管理員在 Supabase 後台執行。
+3. **不在正式部署版擁有 app 層超管帳號**：Demo 版開發者可以是超管，正式部署版的超管帳號應移交給教會主責行政。
+4. **schema 變更流程**：開發者提交 migration SQL → 通知教會管理員在 Supabase > SQL Editor 執行 → 再部署新版程式碼。
+5. **DEMO_MODE 旗標**：Demo 示範站設 `DEMO_MODE=true`，正式教會部署設為 `false` 或移除，關閉洽詢橫幅。
+
+### 各教會獨立環境清單
+
+每次為新教會部署時，需準備：
+- Render 新服務（或新環境）+ 各自的環境變數
+- 獨立的 Supabase project（不共用）
+- 獨立的 LINE Login Channel（`LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET`）
+- 獨立的 Cloudflare R2 bucket（若需要檔案分享功能）
