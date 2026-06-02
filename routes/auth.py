@@ -149,6 +149,9 @@ def callback():
         }).execute()
         user = result.data[0]
 
+    if user.get('is_blocked'):
+        return render_template('auth/blocked.html'), 403
+
     _populate_session(user)
 
     if not user.get('real_name'):
@@ -199,6 +202,9 @@ def liff_login():
             'picture_url': picture_url,
         }).execute()
         user = result.data[0]
+
+    if user.get('is_blocked'):
+        return jsonify({'error': '帳號已被停用，請聯繫教會行政同工'}), 403
 
     _populate_session(user)
 

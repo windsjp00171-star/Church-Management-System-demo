@@ -293,6 +293,13 @@ function renderUsers(rawUsers) {
                                color:${u.is_staff ? '#7b1fa2' : '#aaa'};">
                         ${u.is_staff ? '取消同工' : '設為同工'}
                     </button>
+                    <button id="block-btn-${u.id}" onclick="toggleBlock('${u.id}', this)"
+                        style="padding:6px 14px; border-radius:6px; border:1.5px solid; cursor:pointer; font-size:0.85rem;
+                               background:${u.is_blocked ? '#ffebee' : 'white'};
+                               border-color:${u.is_blocked ? '#c62828' : '#ddd'};
+                               color:${u.is_blocked ? '#c62828' : '#bbb'};">
+                        ${u.is_blocked ? '🚫 已封鎖' : '封鎖'}
+                    </button>
                 </div>
             </div>
         </div>`;
@@ -455,6 +462,23 @@ function toggleStaff(userId, btn) {
                 btn.style.borderColor = isStaff ? '#7b1fa2' : '#ddd';
                 btn.style.color = isStaff ? '#7b1fa2' : '#aaa';
             } else { showToast(data.error || '操作失敗', 'error'); }
+        });
+}
+
+function toggleBlock(userId, btn) {
+    if (!confirm('確定要封鎖 / 解封此用戶嗎？封鎖後該用戶將無法登入。')) return;
+    btn.disabled = true; btn.textContent = '處理中...';
+    fetch(`/admin/api/users/${userId}/toggle-block`, { method: 'POST', headers: {'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''} })
+        .then(r => r.json()).then(data => {
+            if (data.success) {
+                const blocked = data.is_blocked;
+                btn.textContent = blocked ? '🚫 已封鎖' : '封鎖';
+                btn.style.background = blocked ? '#ffebee' : 'white';
+                btn.style.borderColor = blocked ? '#c62828' : '#ddd';
+                btn.style.color = blocked ? '#c62828' : '#bbb';
+                showToast(blocked ? `已封鎖 ${data.display_name}` : `已解封 ${data.display_name}`, blocked ? 'error' : 'success');
+            } else { showToast(data.error || '操作失敗', 'error'); }
+            btn.disabled = false;
         });
 }
 
