@@ -215,6 +215,77 @@ def edit():
     )
 
 
+import json as _json
+
+
+@profile_bp.route('/profile/homepage', methods=['GET', 'POST'])
+def homepage_settings():
+    if not session.get('user_id'):
+        return redirect(url_for('auth.login_page'))
+    from db import supabase
+    import settings_store
+    uid = session['user_id']
+
+    if request.method == 'POST':
+        data = request.get_json(silent=True) or {}
+        action = data.get('action', 'cards')
+        if action == 'sections':
+            # Save section-level show/hide preferences
+            config = {'hidden': data.get('hidden', [])}
+            settings_store.set(f'portal_sections_user_{uid}', _json.dumps(config))
+        else:
+            # Save portal card order + hidden (default action)
+            config = {'order': data.get('order', []), 'hidden': data.get('hidden', [])}
+            settings_store.set(f'portal_user_{uid}', _json.dumps(config))
+        return jsonify({'success': True})
+
+    # 6 sections the user can toggle
+    SECTIONS = [
+        {'key': 'hero',           'label': 'Hero 橫幅',      'emoji': '🖼️'},
+        {'key': 'todo_widget',    'label': '本週待辦',         'emoji': '📋'},
+        {'key': 'upcoming_events','label': '我的近期活動',     'emoji': '📅'},
+        {'key': 'diary_widget',   'label': '靈修空間',         'emoji': '📖'},
+        {'key': 'portal_cards',   'label': '更多功能（功能磚）','emoji': '🔲'},
+        {'key': 'weekly_info',    'label': '本週資訊',         'emoji': '📰'},
+    ]
+
+    # Load all active portal cards
+    try:
+        cards = supabase.table('portal_cards').select('key,name,emoji,subtitle,visible_to,is_active')\
+            .eq('is_active', True).order('sort_order').execute().data or []
+    except Exception:
+        cards = []
+
+    # Load user card config (order + hidden cards)
+    raw = settings_store.get(f'portal_user_{uid}')
+    config = _json.loads(raw) if raw else {}
+    hidden_keys = config.get('hidden', [])
+    order = config.get('order', [])
+
+    # Sort cards by user order
+    if order:
+        order_map = {k: i for i, k in enumerate(order)}
+        cards.sort(key=lambda c: order_map.get(c['key'], 999))
+
+    # Load user section config
+    raw_sec = settings_store.get(f'portal_sections_user_{uid}')
+    sec_config = _json.loads(raw_sec) if raw_sec else {}
+    hidden_sections = sec_config.get('hidden', [])
+
+    return render_template('profile/homepage_settings.html',
+        cards=cards, hidden_keys=hidden_keys,
+        sections=SECTIONS, hidden_sections=hidden_sections)
+
+
+@profile_bp.route('/profile/homepage/reset', methods=['POST'])
+def homepage_settings_reset():
+    if not session.get('user_id'):
+        return jsonify({'success': False}), 401
+    import settings_store
+    settings_store.set(f'portal_user_{session["user_id"]}', '')
+    return jsonify({'success': True})
+
+
 @profile_bp.route('/admin/api/users/<user_id>/profile', methods=['POST'])
 @login_required
 def admin_edit_profile(user_id):

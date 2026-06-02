@@ -409,6 +409,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% endif %}
 
 {# ════ HERO ════ #}
+{% if 'hero' not in hidden_sections %}
 <div class="portal-hero">
     <div class="hero-glow"></div>
     <div id="hero-ptcl"></div>
@@ -430,6 +431,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     </div>
     <div class="hero-fade"></div>
 </div>
+{% endif %}
 
 {# ════ 管理員橫幅 ════ #}
 {% if is_admin or is_super_admin %}
@@ -443,7 +445,17 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 </a>
 {% endif %}
 
+{# ════ 自訂首頁小連結 ════ #}
+{% if session.user_id %}
+<div class="pa" style="--d:35ms; text-align:right; margin-bottom:8px;">
+    <a href="/profile/homepage" style="font-size:0.78rem; color:#aaa; text-decoration:none; display:inline-flex; align-items:center; gap:4px;">
+        <span>🏠</span> 自訂首頁排列
+    </a>
+</div>
+{% endif %}
+
 {# ════ 角色任務小工具 ════ #}
+{% if 'todo_widget' not in hidden_sections %}
 {% if is_group_leader or is_pastor or is_staff or is_admin %}
 <div class="role-widget card pa" style="--d:40ms; padding: 24px; margin-bottom: 32px;">
   <p class="section-label-sm" style="margin: 0 0 16px;">本週待辦</p>
@@ -560,12 +572,14 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
 </div>
 {% endif %}
+{% endif %}
 
 {# ════════════════════════════════════════════
    任務層 — 我的近期活動 + 開放報名
 ════════════════════════════════════════════ #}
 
 {# ── 我的近期活動 ── #}
+{% if 'upcoming_events' not in hidden_sections %}
 {% if my_upcoming %}
 <div class="pa" style="--d:60ms; margin-bottom:28px;">
     <div class="section-label" style="margin-bottom:12px;">我的近期活動</div>
@@ -585,6 +599,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endfor %}
     </div>
 </div>
+{% endif %}
 {% endif %}
 
 {# ── 現正開放報名（任務層主體） ── #}
@@ -672,6 +687,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {# ════════════════════════════════════════════
    互動層 — 靈修空間（天父日記、經文卡、代禱麥田）
 ════════════════════════════════════════════ #}
+{% if 'diary_widget' not in hidden_sections %}
 {% if session.user_id or session.line_id %}
 <div class="pa" style="--d:160ms; margin-bottom:44px;">
     <p class="section-label-sm" style="margin:0 0 16px;">靈修空間</p>
@@ -720,11 +736,13 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     </div>
 </div>
 {% endif %}
+{% endif %}
 
 
 {# ════════════════════════════════════════════
    功能磚 Grid（行事曆、門訓學程、快捷連結、角色功能）
 ════════════════════════════════════════════ #}
+{% if 'portal_cards' not in hidden_sections %}
 {% set base_d = 200 %}
 <div style="margin-bottom:36px;">
     <div class="pa" style="--d:{{ base_d }}ms; display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
@@ -944,11 +962,14 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
     </div>
 </div>
+{% endif %}
 
 
 {# ════════════════════════════════════════════
    資訊層 — 本週資訊（週報 + 公告，低視覺重量）
 ════════════════════════════════════════════ #}
+{% if 'weekly_info' not in hidden_sections %}
+{% set base_d = base_d if base_d is defined else 200 %}
 <div class="pa" style="--d:{{ base_d + 860 }}ms; margin-bottom:20px;">
     <p class="section-label-sm" style="margin:0 0 10px; color:#CBD5E0;">本週資訊</p>
     <div style="border-top:1px solid #EDF2F7;">
@@ -988,6 +1009,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
     </div>
 </div>
+{% endif %}
 
 {# 抽卡閃光層（獨立於 modal 之外，蓋在最上層）#}
 

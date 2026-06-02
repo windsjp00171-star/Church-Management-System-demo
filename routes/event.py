@@ -275,12 +275,81 @@ def portal():
     except Exception:
         pass
 
+    # ── 使用者 / 小組首頁個人化設定 ──
+    import json as _json
+    import settings_store as _ss
+    _user_hidden = []
+    _user_order  = []
+    _group_pinned = []
+    _group_hidden = []
+    # Section-level show/hide (separate from portal card visibility)
+    _user_hidden_sections = []
+    _group_hidden_sections = []
+    if uid:
+        # 個人設定（卡片排序 + 隱藏）
+        _raw_user = _ss.get(f'portal_user_{uid}')
+        if _raw_user:
+            try:
+                _ucfg = _json.loads(_raw_user)
+                _user_hidden = _ucfg.get('hidden', [])
+                _user_order  = _ucfg.get('order', [])
+            except Exception:
+                pass
+        # 個人首頁區塊設定
+        _raw_user_sec = _ss.get(f'portal_sections_user_{uid}')
+        if _raw_user_sec:
+            try:
+                _usec = _json.loads(_raw_user_sec)
+                _user_hidden_sections = _usec.get('hidden', [])
+            except Exception:
+                pass
+        # 小組預設（取第一個有設定的小組）
+        _user_group_tags = session.get('group_tags') or []
+        for _gtag in _user_group_tags:
+            _raw_grp = _ss.get(f'portal_group_{_gtag}')
+            if _raw_grp:
+                try:
+                    _gcfg = _json.loads(_raw_grp)
+                    _group_pinned = _gcfg.get('pinned', [])
+                    _group_hidden = _gcfg.get('hidden', [])
+                    break
+                except Exception:
+                    pass
+            # 小組區塊預設
+            _raw_grp_sec = _ss.get(f'portal_sections_group_{_gtag}')
+            if _raw_grp_sec:
+                try:
+                    _gsec = _json.loads(_raw_grp_sec)
+                    _group_hidden_sections = _gsec.get('hidden', [])
+                    break
+                except Exception:
+                    pass
+
+    # 套用排序：個人 order > 小組 pinned > 預設
+    if portal_cards_config and (_user_order or _group_pinned):
+        _pc_list = list(portal_cards_config.values())
+        if _user_order:
+            _om = {k: i for i, k in enumerate(_user_order)}
+            _pc_list.sort(key=lambda c: _om.get(c['key'], 999))
+        elif _group_pinned:
+            _pc_list.sort(key=lambda c: (0 if c['key'] in _group_pinned else 1, c.get('sort_order', 999)))
+        portal_cards_config = {c['key']: c for c in _pc_list}
+
+    # 合併隱藏清單（個人優先，若個人有設定則忽略小組隱藏）
+    _effective_hidden = _user_hidden if _user_hidden else _group_hidden
+
+    # 計算頁面區塊隱藏清單（個人設定優先；若個人無設定則用小組預設）
+    hidden_sections = set(
+        _user_hidden_sections if _user_hidden_sections else _group_hidden_sections
+    )
+
     # 舊版相容：card_settings 決定卡片顯示開關
     card_settings = {'events': True, 'courses': True, 'verse': True,
                      'prayer': True, 'bulletin': True}
     if portal_cards_config:
         for key, card in portal_cards_config.items():
-            card_settings[key] = card.get('is_active', True)
+            base_active = card.get('is_active', True)
+            card_settings[key] = base_active and (key not in _effective_hidden)
     else:
         try:
             rows = supabase.table('portal_card_settings').select('*').execute().data or []
@@ -443,6 +512,7 @@ def portal():
         attendance_summary=attendance_summary,
         unread_changelog=unread_changelog,
         is_fulltime_staff=is_fulltime_staff,
+        hidden_sections=hidden_sections,
     )
 
 

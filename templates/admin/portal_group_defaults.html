@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}小組首頁預設{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+    <h2>👥 小組首頁預設設定</h2>
+    <a href="/admin/portal-cards" style="color:#666; text-decoration:none;">← 返回卡片管理</a>
+</div>
+
+<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:10px 14px; margin-bottom:20px; font-size:0.82rem; color:#2e7d32; line-height:1.7;">
+    ℹ️ 設定後，屬於該小組的成員在沒有個人客製化設定時，會依照這裡的設定決定首頁各區塊是否顯示。
+</div>
+
+{% if not group_tags %}
+<div style="background:white; border-radius:10px; padding:32px; text-align:center; color:#aaa; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="font-size:2rem; margin-bottom:8px;">👤</div>
+    <p>目前尚無小組標籤。請先在「會員管理」為會友設定小組標籤。</p>
+</div>
+{% else %}
+
+{% for tag in group_tags %}
+{% set cfg = group_configs.get(tag, {}) %}
+<div style="background:white; border-radius:10px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:16px;">
+    <h3 style="margin-bottom:14px; font-size:0.95rem; color:#333;">🏷️ {{ tag }}</h3>
+    <form method="POST" action="/admin/portal-cards/group-defaults">
+        <input type="hidden" name="group_tag" value="{{ tag }}">
+        <div style="overflow-x:auto;">
+            <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+                <thead>
+                    <tr style="background:#f5f5f5;">
+                        <th style="padding:8px 12px; text-align:left; font-weight:bold; color:#555;">首頁區塊</th>
+                        <th style="padding:8px 12px; text-align:center; color:#555;">隱藏 🚫</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for sec in sections %}
+                    <tr style="border-bottom:1px solid #f0f0f0;">
+                        <td style="padding:8px 12px;">{{ sec.emoji }} {{ sec.label }}</td>
+                        <td style="padding:8px 12px; text-align:center;">
+                            <input type="checkbox" name="hidden_sections" value="{{ sec.key }}"
+                                {{ 'checked' if sec.key in (cfg.hidden or []) }}
+                                style="width:16px; height:16px; accent-color:#e53935;">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div style="margin-top:14px;">
+            <button type="submit"
+                style="padding:9px 22px; background:#06C755; color:white; border:none; border-radius:8px; font-size:0.88rem; font-weight:bold; cursor:pointer;">
+                儲存 {{ tag }} 預設
+            </button>
+        </div>
+    </form>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

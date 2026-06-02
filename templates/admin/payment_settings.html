@@ -19,6 +19,55 @@
         選擇你的教會已有帳號的金流服務，填入對方提供的 API 金鑰即可。
     </p>
 
+    <!-- 申請教學（折疊） -->
+    <details style="background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0; margin-bottom:24px; overflow:hidden;">
+        <summary style="padding:14px 18px; font-weight:bold; font-size:0.9rem; cursor:pointer; color:#334155; list-style:none; display:flex; align-items:center; gap:8px;">
+            <span>❓ 怎麼申請金流帳號？點此展開教學</span>
+        </summary>
+        <div style="padding:4px 18px 18px; border-top:1px solid #e2e8f0;">
+
+            <!-- ECPay -->
+            <div style="margin-top:16px;">
+                <div style="font-weight:bold; font-size:0.9rem; color:#16a34a; margin-bottom:8px;">🟢 綠界科技 ECPay（推薦台灣教會）</div>
+                <ol style="font-size:0.83rem; color:#555; line-height:2; margin:0; padding-left:20px;">
+                    <li>前往 <strong>ecpay.com.tw</strong> → 右上角「立即申請」→ 選「一般特店」</li>
+                    <li>填寫教會基本資料（統編 / 負責人）→ 等審核（約 1–3 個工作天）</li>
+                    <li>審核通過後，登入綠界後台 → <strong>系統開發管理 → 介接參數設定</strong></li>
+                    <li>複製「特店編號 (MerchantID)」、「HashKey」、「HashIV」填入下方</li>
+                    <li>先選「測試環境」試跑，確認付款流程無誤後再切換「正式環境」</li>
+                </ol>
+                <div style="background:#f0fdf4; border:1px solid #bbf7d0; border-radius:6px; padding:10px 12px; margin-top:8px; font-size:0.8rem; color:#166534; line-height:1.7;">
+                    💡 測試用特店編號：<strong>2000132</strong>，HashKey：<strong>5294y06JbISpM5x9</strong>，HashIV：<strong>v77hoKGq4kWxNNIS</strong>（不會真實扣款）
+                </div>
+            </div>
+
+            <!-- LINE Pay -->
+            <div style="margin-top:20px;">
+                <div style="font-weight:bold; font-size:0.9rem; color:#06B359; margin-bottom:8px;">💚 LINE Pay</div>
+                <ol style="font-size:0.83rem; color:#555; line-height:2; margin:0; padding-left:20px;">
+                    <li>前往 <strong>pay.line.me/tw → 商家申請</strong> → 填寫商業登記資料</li>
+                    <li>審核通過後進入 LINE Pay 商家後台</li>
+                    <li>左側選單 → <strong>管理付款連結 → 連結資訊</strong></li>
+                    <li>複製「Channel ID」與「Channel Secret Key」填入下方</li>
+                    <li>先選「Sandbox 沙盒模式」測試，確認後切換正式環境</li>
+                </ol>
+                <div style="background:#f0fff4; border:1px solid #a7f3d0; border-radius:6px; padding:10px 12px; margin-top:8px; font-size:0.8rem; color:#065f46; line-height:1.7;">
+                    💡 申請 LINE Pay 需要公司統編或商業登記，個人教會可考慮優先使用綠界。
+                </div>
+            </div>
+
+            <!-- Manual -->
+            <div style="margin-top:20px;">
+                <div style="font-weight:bold; font-size:0.9rem; color:#92400e; margin-bottom:6px;">📝 手動繳費說明（最簡單）</div>
+                <p style="font-size:0.83rem; color:#555; line-height:1.8; margin:0;">
+                    不需申請任何帳號。選「手動繳費說明」後，在文字框填入教會的匯款帳號或其他繳費方式，
+                    會友點「前往繳費」時只會看到這段說明文字。<br>
+                    適合暫時沒有金流帳號、或只想先提供匯款資訊的情況。
+                </p>
+            </div>
+        </div>
+    </details>
+
     <form method="POST" action="/admin/settings/payment">
 
         <!-- 選擇金流服務 -->

@@ -131,7 +131,7 @@
         {% endfor %}
     </div>
     {% endif %}
-    {% if event.fee and event.fee > 0 and payment_gateway != 'none' %}
+    {% if event.fee and event.fee > 0 and event.get('payment_enabled') and payment_gateway != 'none' %}
     <div style="margin-top:10px; padding:12px 14px; background:{% if reg.payment_status == 'paid' %}#e8f5e9{% elif reg.payment_status == 'waived' %}#f3f3f3{% else %}#fff8e1{% endif %}; border-radius:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
         <div style="font-size:0.875rem; font-weight:600; color:{% if reg.payment_status == 'paid' %}#2e7d32{% elif reg.payment_status == 'waived' %}#888{% else %}#e65100{% endif %};">
             {% if reg.payment_status == 'paid' %}✅ 已繳費

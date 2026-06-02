@@ -874,6 +874,7 @@ def event_new():
             'checkin_token': secrets.token_urlsafe(16) if checkin_enabled else None,
             'allow_multiple': data.get('allow_multiple', False),
             'allow_external_reg': data.get('allow_external_reg', False),
+            'payment_enabled': data.get('payment_enabled', False),
             'party_animation': data.get('party_animation', False),
             'poster_url': data.get('poster_url') or None,
             'whitelist_enabled': data.get('whitelist_enabled', False),
@@ -952,6 +953,7 @@ def event_edit(event_id):
             'checkin_token': existing_token,
             'allow_multiple': data.get('allow_multiple', False),
             'allow_external_reg': data.get('allow_external_reg', False),
+            'payment_enabled': data.get('payment_enabled', False),
             'party_animation': data.get('party_animation', False),
             'poster_url': data.get('poster_url') or None,
             'whitelist_enabled': data.get('whitelist_enabled', False),
@@ -2354,6 +2356,52 @@ def reorder_portal_cards():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/portal-cards/group-defaults', methods=['GET', 'POST'])
+@admin_required
+def portal_group_defaults():
+    """小組首頁預設區塊顯示設定"""
+    import settings_store as ss, json as _json
+
+    # 6 major sections that can be toggled per group
+    SECTIONS = [
+        {'key': 'hero',           'label': 'Hero 橫幅',      'emoji': '🖼️'},
+        {'key': 'todo_widget',    'label': '本週待辦',         'emoji': '📋'},
+        {'key': 'upcoming_events','label': '我的近期活動',     'emoji': '📅'},
+        {'key': 'diary_widget',   'label': '靈修空間',         'emoji': '📖'},
+        {'key': 'portal_cards',   'label': '更多功能（功能磚）','emoji': '🔲'},
+        {'key': 'weekly_info',    'label': '本週資訊',         'emoji': '📰'},
+    ]
+
+    # Load available group tags from users table
+    try:
+        users_data = supabase.table('users').select('group_tags').execute().data or []
+        all_tags = set()
+        for u in users_data:
+            for t in (u.get('group_tags') or []):
+                if t:
+                    all_tags.add(t)
+        group_tags = sorted(all_tags)
+    except Exception:
+        group_tags = []
+
+    if request.method == 'POST':
+        tag = request.form.get('group_tag', '').strip()
+        hidden = request.form.getlist('hidden_sections')
+        if tag:
+            config = {'hidden': hidden}
+            ss.set(f'portal_sections_group_{tag}', _json.dumps(config))
+        return redirect(url_for('admin.portal_group_defaults'))
+
+    # Load existing group section configs
+    group_configs = {}
+    for tag in group_tags:
+        raw = ss.get(f'portal_sections_group_{tag}')
+        group_configs[tag] = _json.loads(raw) if raw else {'hidden': []}
+
+    return render_template('admin/portal_group_defaults.html',
+        group_tags=group_tags, sections=SECTIONS, group_configs=group_configs)
 
 
 @admin_bp.route('/settings/payment', methods=['GET', 'POST'])
