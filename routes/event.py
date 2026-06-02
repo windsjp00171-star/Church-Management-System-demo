@@ -824,6 +824,12 @@ def event_detail(event_id):
             .eq('id', uid).execute()
         user_profile = profile_result.data[0] if profile_result.data else {}
 
+        # 金流設定（供付款按鈕顯示）
+        import settings_store
+        payment_gateway = settings_store.get('payment_gateway') or 'none'
+        payment_fee_handling = settings_store.get('payment_fee_handling') or 'church'
+        payment_surcharge_rate = float(settings_store.get('payment_surcharge_rate') or 0)
+
         return render_template('event_detail.html',
             event=event,
             fields=fields,
@@ -839,6 +845,9 @@ def event_detail(event_id):
             my_waitlist_pos=my_waitlist_pos,
             my_waitlist_reg_id=my_waitlist_reg_id,
             waitlist_open=waitlist_open,
+            payment_gateway=payment_gateway,
+            payment_fee_handling=payment_fee_handling,
+            payment_surcharge_rate=payment_surcharge_rate,
         )
     except Exception as e:
         import traceback

@@ -296,68 +296,113 @@
 
     <!-- 電子簽到設定 -->
     <h3 style="margin:28px 0 8px; color:#333;">📱 電子簽到</h3>
-    <p style="color:#666; font-size:0.9rem; margin-bottom:12px;">
-        開啟後會產生專屬 QR Code，活動當天讓出席者掃碼簽到。
+    <p style="color:#666; font-size:0.9rem; margin-bottom:14px;">
+        選一個適合的情境，系統自動幫你設好。
     </p>
-    <!-- 快速提示 -->
-    <div style="background:#e8f4fd; border-left:3px solid #1565c0; border-radius:0 8px 8px 0; padding:10px 14px; margin-bottom:14px; font-size:0.82rem; color:#1a3a5c; line-height:1.8;">
-        💡 <strong>核心同工會 / 掃碼即到場</strong>：勾選「開啟」→ 選「全開放」→ 再勾選「⚡ 掃碼即自動簽到」，會友掃碼後直接完成，不需點確認。
+
+    <!-- 隱藏的實際輸入，由 JS 維護 -->
+    <div style="display:none;">
+        <input type="checkbox" id="checkin_enabled"
+            {{ 'checked' if event and event.checkin_enabled }}>
+        <input type="radio" name="checkin_mode" value="registered_only"
+            {{ 'checked' if not event or not event.checkin_mode or event.checkin_mode == 'registered_only' }}>
+        <input type="radio" name="checkin_mode" value="open"
+            {{ 'checked' if event and event.checkin_mode == 'open' }}>
+        <input type="checkbox" id="allow_open_checkin"
+            {{ 'checked' if event and event.allow_open_checkin }}>
     </div>
-    <div style="background:#f9f9f9; border-radius:10px; padding:16px 20px; border:1px solid #eee;">
-        <label style="display:flex; align-items:center; gap:10px; cursor:pointer; font-weight:bold;">
-            <input type="checkbox" id="checkin_enabled"
-                onchange="toggleCheckinMode(this)"
-                {{ 'checked' if event and event.checkin_enabled }}
-                style="width:18px; height:18px;">
-            開啟電子簽到 QR Code
-        </label>
-        <div id="checkin_mode_section"
-             style="margin-top:14px; padding-top:14px; border-top:1px solid #e0e0e0;
-                    {{ '' if event and event.checkin_enabled else 'display:none;' }}">
-            <p style="font-size:0.85rem; color:#555; margin-bottom:10px;">簽到對象：</p>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
-                <input type="radio" name="checkin_mode" value="registered_only"
-                    {{ 'checked' if not event or not event.checkin_mode or event.checkin_mode == 'registered_only' }}
-                    style="width:16px; height:16px;">
-                <span><strong>僅限已報名者</strong> <span style="color:#888; font-size:0.85rem;">（只有事先報名的弟兄姊妹能簽到）</span></span>
-            </label>
-            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                <input type="radio" name="checkin_mode" value="open"
-                    {{ 'checked' if event and event.checkin_mode == 'open' }}
-                    onchange="toggleOpenCheckin(this)"
-                    style="width:16px; height:16px;">
-                <span><strong>全開放</strong> <span style="color:#888; font-size:0.85rem;">（任何人掃碼都可簽到，未報名者自動建立到場紀錄）</span></span>
-            </label>
-            <!-- 掃碼即自動簽到子選項 -->
-            <div id="allow_open_checkin_section"
-                 style="margin-left:24px; margin-top:10px; padding:10px 14px; background:#fff8e1; border-radius:8px; border:1px solid #ffe082;
-                        {{ '' if event and event.checkin_mode == 'open' else 'display:none;' }}">
-                <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                    <input type="checkbox" id="allow_open_checkin"
-                        {{ 'checked' if event and event.allow_open_checkin }}
-                        style="width:16px; height:16px;">
-                    <span style="font-size:0.88rem; color:#5d4037; font-weight:bold;">⚡ 掃碼即自動簽到（不需點確認）</span>
-                </label>
-                <p style="font-size:0.8rem; color:#8d6e63; margin:6px 0 0 24px;">
-                    適合核心同工會等場合，掃碼後直接完成簽到，並自動帶入小組資訊。
-                </p>
-            </div>
+
+    <!-- Preset Cards -->
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:14px;">
+
+        <div class="checkin-preset" data-preset="off"
+             onclick="selectCheckinPreset('off')"
+             style="border:2px solid #e0e0e0; border-radius:10px; padding:14px 16px; cursor:pointer; background:white; transition:all 0.15s;">
+            <div style="font-size:1.4rem; margin-bottom:5px;">🚫</div>
+            <div style="font-weight:bold; font-size:0.88rem; color:#555;">不開啟簽到</div>
+            <div style="font-size:0.76rem; color:#aaa; margin-top:3px; line-height:1.5;">純報名活動，不需要 QR 簽到</div>
         </div>
 
-        <!-- 🎉 Party 動畫開關 -->
-        <div id="party_animation_section"
-             style="margin-top:12px; padding:10px 14px; background:#fdf4ff; border-radius:8px; border:1px solid #e9d5ff;
-                    {{ '' if event and event.checkin_enabled else 'display:none;' }}">
+        <div class="checkin-preset" data-preset="normal"
+             onclick="selectCheckinPreset('normal')"
+             style="border:2px solid #e0e0e0; border-radius:10px; padding:14px 16px; cursor:pointer; background:white; transition:all 0.15s;">
+            <div style="font-size:1.4rem; margin-bottom:5px;">✅</div>
+            <div style="font-weight:bold; font-size:0.88rem; color:#333;">一般活動（最常用）</div>
+            <div style="font-size:0.76rem; color:#888; margin-top:3px; line-height:1.5;">僅限報名者，掃碼即完成</div>
+        </div>
+
+        <div class="checkin-preset" data-preset="open"
+             onclick="selectCheckinPreset('open')"
+             style="border:2px solid #e0e0e0; border-radius:10px; padding:14px 16px; cursor:pointer; background:white; transition:all 0.15s;">
+            <div style="font-size:1.4rem; margin-bottom:5px;">🎪</div>
+            <div style="font-weight:bold; font-size:0.88rem; color:#333;">開放型聚會</div>
+            <div style="font-size:0.76rem; color:#888; margin-top:3px; line-height:1.5;">任何人掃碼都可到場，掃碼即完成</div>
+        </div>
+
+        <div class="checkin-preset" data-preset="confirm"
+             onclick="selectCheckinPreset('confirm')"
+             style="border:2px solid #e0e0e0; border-radius:10px; padding:14px 16px; cursor:pointer; background:white; transition:all 0.15s;">
+            <div style="font-size:1.4rem; margin-bottom:5px;">🔐</div>
+            <div style="font-weight:bold; font-size:0.88rem; color:#333;">需確認入場</div>
+            <div style="font-size:0.76rem; color:#888; margin-top:3px; line-height:1.5;">僅限報名者，掃後需點確認</div>
+        </div>
+
+        <div class="checkin-preset" data-preset="custom"
+             onclick="selectCheckinPreset('custom')"
+             style="border:2px solid #e0e0e0; border-radius:10px; padding:14px 16px; cursor:pointer; background:white; transition:all 0.15s; grid-column:1/-1; display:flex; align-items:center; gap:14px;">
+            <div style="font-size:1.4rem;">⚙️</div>
+            <div>
+                <div style="font-weight:bold; font-size:0.88rem; color:#555;">自訂設定</div>
+                <div style="font-size:0.76rem; color:#aaa; margin-top:2px;">手動調整所有簽到選項</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 自訂模式詳細選項 -->
+    <div id="checkin_custom_section" style="display:none; background:#f9f9f9; border-radius:10px; padding:16px 20px; border:1px solid #eee; margin-bottom:12px;">
+        <p style="font-size:0.85rem; color:#555; font-weight:bold; margin-bottom:10px;">簽到對象：</p>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer; margin-bottom:8px;">
+            <input type="radio" name="checkin_mode_custom" value="registered_only"
+                onchange="syncCustomMode(this)"
+                {{ 'checked' if not event or not event.checkin_mode or event.checkin_mode == 'registered_only' }}
+                style="width:16px; height:16px;">
+            <span><strong>僅限已報名者</strong> <span style="color:#888; font-size:0.85rem;">（只有事先報名的弟兄姊妹能簽到）</span></span>
+        </label>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="radio" name="checkin_mode_custom" value="open"
+                onchange="syncCustomMode(this)"
+                {{ 'checked' if event and event.checkin_mode == 'open' }}
+                style="width:16px; height:16px;">
+            <span><strong>全開放</strong> <span style="color:#888; font-size:0.85rem;">（任何人掃碼都可簽到，未報名者自動建立到場紀錄）</span></span>
+        </label>
+        <div id="allow_open_checkin_section_custom"
+             style="margin-left:24px; margin-top:10px; padding:10px 14px; background:#fff8e1; border-radius:8px; border:1px solid #ffe082;
+                    {{ '' if event and event.checkin_mode == 'open' else 'display:none;' }}">
             <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
-                <input type="checkbox" id="party_animation"
-                    {{ 'checked' if event and event.get('party_animation') }}
+                <input type="checkbox" id="allow_open_checkin_custom"
+                    {{ 'checked' if event and event.allow_open_checkin }}
+                    onchange="syncAllowOpen(this)"
                     style="width:16px; height:16px;">
-                <span style="font-size:0.88rem; color:#6b21a8; font-weight:bold;">🎉 簽到成功後播放派對動畫</span>
+                <span style="font-size:0.88rem; color:#5d4037; font-weight:bold;">⚡ 掃碼即自動簽到（不需點確認）</span>
             </label>
-            <p style="font-size:0.8rem; color:#9333ea; margin:5px 0 0 24px;">
-                彩帶爆炸 + 氣球浮升顯示到場者名字，適合特別活動或聚會。
+            <p style="font-size:0.8rem; color:#8d6e63; margin:6px 0 0 24px;">
+                適合核心同工會等場合，掃碼後直接完成簽到。
             </p>
         </div>
+    </div>
+
+    <!-- 派對動畫（非 off 模式才顯示） -->
+    <div id="party_animation_section"
+         style="{{ 'display:none;' if not event or not event.checkin_enabled else '' }} padding:10px 14px; background:#fdf4ff; border-radius:8px; border:1px solid #e9d5ff;">
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+            <input type="checkbox" id="party_animation"
+                {{ 'checked' if event and event.get('party_animation') }}
+                style="width:16px; height:16px;">
+            <span style="font-size:0.88rem; color:#6b21a8; font-weight:bold;">🎉 簽到成功後播放派對動畫</span>
+        </label>
+        <p style="font-size:0.8rem; color:#9333ea; margin:5px 0 0 24px;">
+            彩帶爆炸 + 氣球浮升，適合特別活動或聚會。
+        </p>
     </div>
 
     <!-- 送出 -->
@@ -724,26 +769,78 @@ function toggleWaitlistDeadline(checkbox) {
     document.getElementById('waitlist_deadline_section').style.display = checkbox.checked ? 'block' : 'none';
 }
 
-function toggleCheckinMode(checkbox) {
-    document.getElementById('checkin_mode_section').style.display = checkbox.checked ? 'block' : 'none';
-    document.getElementById('party_animation_section').style.display = checkbox.checked ? 'block' : 'none';
-    // 未開啟簽到時隱藏子選項
-    if (!checkbox.checked) {
-        document.getElementById('allow_open_checkin_section').style.display = 'none';
+// ==========================================
+// 電子簽到 preset selector
+// ==========================================
+function selectCheckinPreset(preset) {
+    document.querySelectorAll('.checkin-preset').forEach(card => {
+        const sel = card.dataset.preset === preset;
+        card.style.borderColor = sel ? '#06C755' : '#e0e0e0';
+        card.style.background = sel ? '#f0fff4' : 'white';
+    });
+
+    const enabledEl = document.getElementById('checkin_enabled');
+    const registeredEl = document.querySelector('input[name="checkin_mode"][value="registered_only"]');
+    const openEl = document.querySelector('input[name="checkin_mode"][value="open"]');
+    const autoEl = document.getElementById('allow_open_checkin');
+    const customSection = document.getElementById('checkin_custom_section');
+    const partySection = document.getElementById('party_animation_section');
+
+    if (preset === 'off') {
+        enabledEl.checked = false;
+        customSection.style.display = 'none';
+        partySection.style.display = 'none';
+    } else {
+        enabledEl.checked = true;
+        partySection.style.display = 'block';
+        if (preset === 'normal') {
+            registeredEl.checked = true;
+            autoEl.checked = true;
+            customSection.style.display = 'none';
+        } else if (preset === 'open') {
+            openEl.checked = true;
+            autoEl.checked = true;
+            customSection.style.display = 'none';
+        } else if (preset === 'confirm') {
+            registeredEl.checked = true;
+            autoEl.checked = false;
+            customSection.style.display = 'none';
+        } else if (preset === 'custom') {
+            customSection.style.display = 'block';
+            // sync custom radios to match hidden inputs
+            const currentMode = document.querySelector('input[name="checkin_mode"]:checked')?.value || 'registered_only';
+            document.querySelector(`input[name="checkin_mode_custom"][value="${currentMode}"]`).checked = true;
+            document.getElementById('allow_open_checkin_custom').checked = autoEl.checked;
+            document.getElementById('allow_open_checkin_section_custom').style.display =
+                currentMode === 'open' ? 'block' : 'none';
+        }
     }
 }
 
-function toggleOpenCheckin(radio) {
-    // 切換「全開放」radio 時顯示/隱藏自動簽到子選項
-    const section = document.getElementById('allow_open_checkin_section');
-    if (section) section.style.display = radio.value === 'open' ? 'block' : 'none';
+function syncCustomMode(radio) {
+    // sync custom radio → hidden radio
+    document.querySelector(`input[name="checkin_mode"][value="${radio.value}"]`).checked = true;
+    document.getElementById('allow_open_checkin_section_custom').style.display =
+        radio.value === 'open' ? 'block' : 'none';
 }
 
-// 頁面載入後：若已選全開放，確保子選項可見；若選僅限報名，也要綁定 onchange
+function syncAllowOpen(checkbox) {
+    document.getElementById('allow_open_checkin').checked = checkbox.checked;
+}
+
+function detectAndSelectPreset() {
+    const enabled = document.getElementById('checkin_enabled').checked;
+    if (!enabled) { selectCheckinPreset('off'); return; }
+    const mode = document.querySelector('input[name="checkin_mode"]:checked')?.value || 'registered_only';
+    const auto = document.getElementById('allow_open_checkin').checked;
+    if (mode === 'open') selectCheckinPreset('open');
+    else if (auto) selectCheckinPreset('normal');
+    else selectCheckinPreset('confirm');
+}
+
+// 頁面載入後：偵測現有設定並選取對應 preset
 document.addEventListener('DOMContentLoaded', () => {
-    document.querySelectorAll('input[name="checkin_mode"]').forEach(r => {
-        r.addEventListener('change', () => toggleOpenCheckin(r));
-    });
+    detectAndSelectPreset();
 });
 
 // ==========================================

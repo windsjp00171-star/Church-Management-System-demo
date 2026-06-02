@@ -131,10 +131,32 @@
         {% endfor %}
     </div>
     {% endif %}
+    {% if event.fee and event.fee > 0 and payment_gateway != 'none' %}
+    <div style="margin-top:10px; padding:12px 14px; background:{% if reg.payment_status == 'paid' %}#e8f5e9{% elif reg.payment_status == 'waived' %}#f3f3f3{% else %}#fff8e1{% endif %}; border-radius:8px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;">
+        <div style="font-size:0.875rem; font-weight:600; color:{% if reg.payment_status == 'paid' %}#2e7d32{% elif reg.payment_status == 'waived' %}#888{% else %}#e65100{% endif %};">
+            {% if reg.payment_status == 'paid' %}✅ 已繳費
+            {% elif reg.payment_status == 'waived' %}— 免收費
+            {% else %}
+                ⚠️ 未繳費 NT${{ event.fee }}
+                {% if payment_fee_handling == 'payer' and payment_surcharge_rate > 0 %}
+                <span style="font-size:0.78rem; color:#888;">（含手續費 NT${{ (event.fee * payment_surcharge_rate / 100) | round(0) | int }}）</span>
+                {% endif %}
+            {% endif %}
+        </div>
+        {% if reg.payment_status != 'paid' and reg.payment_status != 'waived' %}
+        <a href="/events/{{ event.id }}/registrations/{{ reg.id }}/pay"
+           style="padding:7px 18px; background:#06C755; color:white; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold; white-space:nowrap;">
+            前往繳費 →
+        </a>
+        {% endif %}
+    </div>
+    {% endif %}
     {% if not reg.checked_in %}
+    <div style="margin-top:10px;">
     <button onclick="cancelReg('{{ reg.id }}')" class="btn btn-danger" style="font-size:0.875rem;">
         取消此筆報名
     </button>
+    </div>
     {% endif %}
 </div>
 {% endfor %}

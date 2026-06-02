@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>轉跳至綠界付款...</title></head>
+<body style="display:flex; align-items:center; justify-content:center; height:100vh; font-family:sans-serif; color:#555;">
+<div style="text-align:center;">
+    <div style="font-size:2rem; margin-bottom:12px;">⏳</div>
+    <p>正在連接綠界付款頁面，請稍候...</p>
+    <form id="ecpay-form" action="{{ action_url }}" method="post">
+        {% for key, val in params.items() %}
+        <input type="hidden" name="{{ key }}" value="{{ val }}">
+        {% endfor %}
+    </form>
+</div>
+<script>document.getElementById('ecpay-form').submit();</script>
+</body>
+</html>

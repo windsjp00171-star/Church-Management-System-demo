@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}付款功能未啟用{% endblock %}
+{% block content %}
+<div style="max-width:480px; margin:40px auto; padding:0 16px; text-align:center;">
+    <div class="card" style="padding:32px;">
+        <div style="font-size:3rem; margin-bottom:12px;">⚙️</div>
+        <h2 style="color:#555; margin-bottom:12px;">線上付款尚未啟用</h2>
+        <p style="color:#888; margin-bottom:8px;">請聯絡教會同工了解繳費方式。</p>
+        <a href="/events/{{ event.id }}" class="btn btn-primary" style="text-decoration:none; display:inline-block; margin-top:16px;">← 返回活動頁面</a>
+    </div>
+</div>
+{% endblock %}

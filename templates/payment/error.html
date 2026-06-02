@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}付款失敗{% endblock %}
+{% block content %}
+<div style="max-width:480px; margin:40px auto; padding:0 16px; text-align:center;">
+    <div class="card" style="padding:32px;">
+        <div style="font-size:3rem; margin-bottom:12px;">❌</div>
+        <h2 style="color:#c62828; margin-bottom:12px;">付款發生問題</h2>
+        <p style="color:#888; margin-bottom:24px;">{{ error }}</p>
+        <a href="javascript:history.back()" class="btn btn-primary" style="text-decoration:none;">← 返回</a>
+    </div>
+</div>
+{% endblock %}

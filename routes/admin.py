@@ -2356,6 +2356,41 @@ def reorder_portal_cards():
         return jsonify({'error': str(e)}), 500
 
 
+@admin_bp.route('/settings/payment', methods=['GET', 'POST'])
+def payment_settings():
+    if not session.get('is_admin') and not session.get('is_super_admin'):
+        return redirect('/admin/forbidden')
+    import settings_store as ss
+    saved = False
+    if request.method == 'POST':
+        ss.set('payment_gateway', request.form.get('gateway', 'none'))
+        ss.set('payment_ecpay_merchant_id', request.form.get('ecpay_merchant_id', ''))
+        ss.set('payment_ecpay_hash_key', request.form.get('ecpay_hash_key', ''))
+        ss.set('payment_ecpay_hash_iv', request.form.get('ecpay_hash_iv', ''))
+        ss.set('payment_ecpay_mode', request.form.get('ecpay_mode', 'test'))
+        ss.set('payment_linepay_channel_id', request.form.get('linepay_channel_id', ''))
+        ss.set('payment_linepay_channel_secret', request.form.get('linepay_channel_secret', ''))
+        ss.set('payment_linepay_mode', request.form.get('linepay_mode', 'sandbox'))
+        ss.set('payment_manual_instructions', request.form.get('manual_instructions', ''))
+        ss.set('payment_fee_handling', request.form.get('fee_handling', 'church'))
+        ss.set('payment_surcharge_rate', request.form.get('surcharge_rate', '3'))
+        saved = True
+    settings = {
+        'gateway': ss.get('payment_gateway') or 'none',
+        'ecpay_merchant_id': ss.get('payment_ecpay_merchant_id') or '',
+        'ecpay_hash_key': ss.get('payment_ecpay_hash_key') or '',
+        'ecpay_hash_iv': ss.get('payment_ecpay_hash_iv') or '',
+        'ecpay_mode': ss.get('payment_ecpay_mode') or 'test',
+        'linepay_channel_id': ss.get('payment_linepay_channel_id') or '',
+        'linepay_channel_secret': ss.get('payment_linepay_channel_secret') or '',
+        'linepay_mode': ss.get('payment_linepay_mode') or 'sandbox',
+        'manual_instructions': ss.get('payment_manual_instructions') or '',
+        'fee_handling': ss.get('payment_fee_handling') or 'church',
+        'surcharge_rate': ss.get('payment_surcharge_rate') or '3',
+    }
+    return render_template('admin/payment_settings.html', settings=settings, saved=saved)
+
+
 # ══════════════════════════════════════════
 # 資料交換中心後台
 # ══════════════════════════════════════════

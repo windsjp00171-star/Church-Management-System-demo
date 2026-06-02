@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% block title %}金流設定{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+    <h2>💳 線上金流設定</h2>
+    <a href="/admin" style="color:#666; text-decoration:none;">← 返回後台</a>
+</div>
+
+{% if saved %}
+<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:12px 16px; margin-bottom:20px; color:#2e7d32;">
+    ✅ 設定已儲存
+</div>
+{% endif %}
+
+<div style="background:white; border-radius:12px; padding:28px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <p style="color:#666; margin-bottom:20px; font-size:0.9rem; line-height:1.7;">
+        設定後，有收費的活動報名頁面會自動顯示「前往繳費」按鈕。<br>
+        選擇你的教會已有帳號的金流服務，填入對方提供的 API 金鑰即可。
+    </p>
+
+    <form method="POST" action="/admin/settings/payment">
+
+        <!-- 選擇金流服務 -->
+        <div style="margin-bottom:28px;">
+            <label style="font-weight:bold; display:block; margin-bottom:12px; font-size:0.95rem;">選擇金流服務</label>
+            <div style="display:grid; grid-template-columns:repeat(2,1fr); gap:10px;">
+
+                <label class="gateway-card" data-gw="none"
+                       style="border:2px solid {{ '#06C755' if not settings.gateway or settings.gateway == 'none' else '#e0e0e0' }};
+                              background:{{ '#f0fff4' if not settings.gateway or settings.gateway == 'none' else 'white' }};
+                              border-radius:10px; padding:16px; cursor:pointer; transition:all 0.15s;">
+                    <input type="radio" name="gateway" value="none"
+                           {{ 'checked' if not settings.gateway or settings.gateway == 'none' }}
+                           onchange="switchGateway('none')" style="display:none;">
+                    <div style="font-size:1.5rem; margin-bottom:6px;">🚫</div>
+                    <div style="font-weight:bold; font-size:0.9rem; color:#555;">不啟用</div>
+                    <div style="font-size:0.78rem; color:#aaa; margin-top:3px;">手動收款，不顯示線上繳費按鈕</div>
+                </label>
+
+                <label class="gateway-card" data-gw="manual"
+                       style="border:2px solid {{ '#06C755' if settings.gateway == 'manual' else '#e0e0e0' }};
+                              background:{{ '#f0fff4' if settings.gateway == 'manual' else 'white' }};
+                              border-radius:10px; padding:16px; cursor:pointer; transition:all 0.15s;">
+                    <input type="radio" name="gateway" value="manual"
+                           {{ 'checked' if settings.gateway == 'manual' }}
+                           onchange="switchGateway('manual')" style="display:none;">
+                    <div style="font-size:1.5rem; margin-bottom:6px;">📝</div>
+                    <div style="font-weight:bold; font-size:0.9rem; color:#333;">手動繳費說明</div>
+                    <div style="font-size:0.78rem; color:#888; margin-top:3px;">顯示帳號或繳費說明文字</div>
+                </label>
+
+                <label class="gateway-card" data-gw="ecpay"
+                       style="border:2px solid {{ '#06C755' if settings.gateway == 'ecpay' else '#e0e0e0' }};
+                              background:{{ '#f0fff4' if settings.gateway == 'ecpay' else 'white' }};
+                              border-radius:10px; padding:16px; cursor:pointer; transition:all 0.15s;">
+                    <input type="radio" name="gateway" value="ecpay"
+                           {{ 'checked' if settings.gateway == 'ecpay' }}
+                           onchange="switchGateway('ecpay')" style="display:none;">
+                    <div style="font-size:1.5rem; margin-bottom:6px;">🟢</div>
+                    <div style="font-weight:bold; font-size:0.9rem; color:#333;">綠界科技 ECPay</div>
+                    <div style="font-size:0.78rem; color:#888; margin-top:3px;">信用卡 / ATM / 超商代碼</div>
+                </label>
+
+                <label class="gateway-card" data-gw="linepay"
+                       style="border:2px solid {{ '#06C755' if settings.gateway == 'linepay' else '#e0e0e0' }};
+                              background:{{ '#f0fff4' if settings.gateway == 'linepay' else 'white' }};
+                              border-radius:10px; padding:16px; cursor:pointer; transition:all 0.15s;">
+                    <input type="radio" name="gateway" value="linepay"
+                           {{ 'checked' if settings.gateway == 'linepay' }}
+                           onchange="switchGateway('linepay')" style="display:none;">
+                    <div style="font-size:1.5rem; margin-bottom:6px;">💚</div>
+                    <div style="font-weight:bold; font-size:0.9rem; color:#333;">LINE Pay</div>
+                    <div style="font-size:0.78rem; color:#888; margin-top:3px;">LINE 內建付款，最便利</div>
+                </label>
+            </div>
+        </div>
+
+        <!-- Manual 設定 -->
+        <div id="section-manual" style="{{ 'display:none;' if settings.gateway != 'manual' else '' }}">
+            <div style="border-top:1px solid #eee; padding-top:20px; margin-bottom:20px;">
+                <h3 style="margin-bottom:12px; font-size:0.95rem;">📝 繳費說明內容</h3>
+                <p style="font-size:0.82rem; color:#888; margin-bottom:8px;">這段文字會顯示在報名者的「去繳費」頁面，例如銀行帳號、匯款說明、繳費截止等。</p>
+                <textarea name="manual_instructions" rows="6"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; resize:vertical; line-height:1.8;">{{ settings.manual_instructions or '' }}</textarea>
+            </div>
+        </div>
+
+        <!-- ECPay 設定 -->
+        <div id="section-ecpay" style="{{ 'display:none;' if settings.gateway != 'ecpay' else '' }}">
+            <div style="border-top:1px solid #eee; padding-top:20px; margin-bottom:20px;">
+                <h3 style="margin-bottom:16px; font-size:0.95rem;">🟢 綠界 ECPay 設定</h3>
+                <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#795548; line-height:1.7;">
+                    💡 到 <strong>綠界後台 → 系統開發管理 → 介接參數設定</strong> 取得以下資料。
+                    測試模式使用綠界的「特店測試帳號」，不會有真實扣款。
+                </div>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:6px; font-size:0.88rem;">特店編號 (MerchantID)</label>
+                        <input type="text" name="ecpay_merchant_id" value="{{ settings.ecpay_merchant_id or '' }}"
+                            placeholder="例：2000132"
+                            style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; font-family:monospace;">
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:6px; font-size:0.88rem;">HashKey</label>
+                        <input type="text" name="ecpay_hash_key" value="{{ settings.ecpay_hash_key or '' }}"
+                            style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; font-family:monospace;">
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:6px; font-size:0.88rem;">HashIV</label>
+                        <input type="text" name="ecpay_hash_iv" value="{{ settings.ecpay_hash_iv or '' }}"
+                            style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; font-family:monospace;">
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:6px; font-size:0.88rem;">環境</label>
+                        <div style="display:flex; gap:16px;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="radio" name="ecpay_mode" value="test"
+                                    {{ 'checked' if not settings.ecpay_mode or settings.ecpay_mode == 'test' }}
+                                    style="width:16px; height:16px;">
+                                <span>測試環境（不會真實扣款）</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="radio" name="ecpay_mode" value="production"
+                                    {{ 'checked' if settings.ecpay_mode == 'production' }}
+                                    style="width:16px; height:16px;">
+                                <span style="color:#c62828; font-weight:bold;">正式環境（真實扣款）</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- LINE Pay 設定 -->
+        <div id="section-linepay" style="{{ 'display:none;' if settings.gateway != 'linepay' else '' }}">
+            <div style="border-top:1px solid #eee; padding-top:20px; margin-bottom:20px;">
+                <h3 style="margin-bottom:16px; font-size:0.95rem;">💚 LINE Pay 設定</h3>
+                <div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:12px 14px; margin-bottom:16px; font-size:0.82rem; color:#2e7d32; line-height:1.7;">
+                    💡 到 <strong>LINE Pay 商家後台 → 管理付款連結 → 連結資訊</strong> 取得 Channel ID 和 Channel Secret Key。
+                    Sandbox 模式不會有真實扣款。
+                </div>
+                <div style="display:grid; gap:14px;">
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:6px; font-size:0.88rem;">Channel ID</label>
+                        <input type="text" name="linepay_channel_id" value="{{ settings.linepay_channel_id or '' }}"
+                            style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; font-family:monospace;">
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:6px; font-size:0.88rem;">Channel Secret Key</label>
+                        <input type="password" name="linepay_channel_secret" value="{{ settings.linepay_channel_secret or '' }}"
+                            style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem; font-family:monospace;">
+                    </div>
+                    <div>
+                        <label style="font-weight:bold; display:block; margin-bottom:6px; font-size:0.88rem;">環境</label>
+                        <div style="display:flex; gap:16px;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="radio" name="linepay_mode" value="sandbox"
+                                    {{ 'checked' if not settings.linepay_mode or settings.linepay_mode == 'sandbox' }}
+                                    style="width:16px; height:16px;">
+                                <span>Sandbox（不會真實扣款）</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="radio" name="linepay_mode" value="production"
+                                    {{ 'checked' if settings.linepay_mode == 'production' }}
+                                    style="width:16px; height:16px;">
+                                <span style="color:#c62828; font-weight:bold;">正式環境（真實扣款）</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 手續費負擔設定 -->
+        <div id="section-fee-handling" style="{{ 'display:none;' if not settings.gateway or settings.gateway == 'none' else '' }}">
+            <div style="border-top:1px solid #eee; padding-top:20px; margin-bottom:20px;">
+                <h3 style="margin-bottom:12px; font-size:0.95rem;">🧾 手續費由誰承擔？</h3>
+                <p style="font-size:0.82rem; color:#888; margin-bottom:14px; line-height:1.7;">
+                    綠界 / LINE Pay 每筆交易會收取平台手續費（信用卡約 2.75%，ATM NT$15，超商 NT$25–30）。<br>
+                    選擇由教會吸收或讓繳費者多付。
+                </p>
+                <div style="display:flex; flex-direction:column; gap:10px; margin-bottom:16px;">
+                    <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:12px 14px; border:1px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                        <input type="radio" name="fee_handling" value="church"
+                            {{ 'checked' if not settings.fee_handling or settings.fee_handling == 'church' }}
+                            onchange="toggleSurcharge(false)"
+                            style="width:16px; height:16px; margin-top:2px; flex-shrink:0;">
+                        <div>
+                            <div style="font-weight:bold; font-size:0.9rem;">教會吸收（推薦）</div>
+                            <div style="font-size:0.8rem; color:#888; margin-top:2px;">弟兄姊妹繳活動公告的金額，手續費由教會承擔</div>
+                        </div>
+                    </label>
+                    <label style="display:flex; align-items:flex-start; gap:10px; cursor:pointer; padding:12px 14px; border:1px solid #e0e0e0; border-radius:8px; background:#fafafa;">
+                        <input type="radio" name="fee_handling" value="payer"
+                            {{ 'checked' if settings.fee_handling == 'payer' }}
+                            onchange="toggleSurcharge(true)"
+                            style="width:16px; height:16px; margin-top:2px; flex-shrink:0;">
+                        <div>
+                            <div style="font-weight:bold; font-size:0.9rem;">繳費者承擔</div>
+                            <div style="font-size:0.8rem; color:#888; margin-top:2px;">系統自動加上手續費，報名頁會顯示費用明細</div>
+                        </div>
+                    </label>
+                </div>
+                <!-- 手續費率說明（公告費率，不可自行修改） -->
+                <div id="surcharge-config" style="{{ '' if settings.fee_handling == 'payer' else 'display:none;' }} background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:14px 16px;">
+                    <div style="font-weight:bold; font-size:0.88rem; margin-bottom:8px; color:#5d4037;">📋 各平台公告手續費率（自動套用，不可修改）</div>
+                    <table style="font-size:0.82rem; color:#5d4037; line-height:2; border-collapse:collapse; width:100%;">
+                        <tr style="border-bottom:1px solid #ffe082;">
+                            <td style="padding:3px 12px 3px 0; font-weight:bold;">綠界 信用卡</td>
+                            <td>2.75% + NT$1</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #ffe082;">
+                            <td style="padding:3px 12px 3px 0; font-weight:bold;">綠界 ATM 轉帳</td>
+                            <td>NT$15 固定</td>
+                        </tr>
+                        <tr style="border-bottom:1px solid #ffe082;">
+                            <td style="padding:3px 12px 3px 0; font-weight:bold;">綠界 超商代碼</td>
+                            <td>NT$28 固定</td>
+                        </tr>
+                        <tr>
+                            <td style="padding:3px 12px 3px 0; font-weight:bold;">LINE Pay</td>
+                            <td>2.9%</td>
+                        </tr>
+                    </table>
+                    <p style="font-size:0.78rem; color:#8d6e63; margin-top:8px; line-height:1.6;">
+                        ⚠️ 系統以信用卡費率（最高）計算，讓繳費者有一個固定預期金額。<br>
+                        繳費頁面會明確顯示「活動費 + 手續費 = 合計」，避免爭議。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:28px;">
+            <button type="submit"
+                style="padding:12px 32px; background:#06C755; color:white; border:none; border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer;">
+                儲存設定
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function switchGateway(gw) {
+    document.querySelectorAll('.gateway-card').forEach(card => {
+        const sel = card.dataset.gw === gw;
+        card.style.borderColor = sel ? '#06C755' : '#e0e0e0';
+        card.style.background = sel ? '#f0fff4' : 'white';
+    });
+    ['none','manual','ecpay','linepay'].forEach(g => {
+        const sec = document.getElementById('section-' + g);
+        if (sec) sec.style.display = g === gw ? 'block' : 'none';
+    });
+    const feeSection = document.getElementById('section-fee-handling');
+    if (feeSection) feeSection.style.display = gw === 'none' ? 'none' : 'block';
+}
+
+function toggleSurcharge(show) {
+    document.getElementById('surcharge-config').style.display = show ? 'block' : 'none';
+}
+</script>
+{% endblock %}
