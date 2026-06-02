@@ -138,6 +138,9 @@ def create_app():
         'cell_report.children',
         'cell_report.prayer',
         'cell_report.morning_prayer',
+        # 部署精靈（初始設定時尚未有 real_name）
+        'setup_wizard.index',
+        'setup_wizard.db_status',
     }
 
     @app.before_request

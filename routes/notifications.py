@@ -147,56 +147,59 @@ def api_check_reminders():
             created += 1
 
     # ── 2. 課程繳費提醒 ──────────────────────────
-    course_enrollments = supabase.table('course_enrollments')\
-        .select('course_id, payment_status')\
-        .eq('user_id', uid)\
-        .eq('status', 'enrolled')\
-        .eq('payment_status', 'unpaid')\
-        .execute().data or []
+    try:
+        course_enrollments = supabase.table('course_enrollments')\
+            .select('course_id, payment_status')\
+            .eq('user_id', uid)\
+            .eq('status', 'enrolled')\
+            .eq('payment_status', 'unpaid')\
+            .execute().data or []
 
-    for ce in course_enrollments:
-        cid = ce['course_id']
-        course = supabase.table('courses')\
-            .select('id, title, has_material, meal_options, reminder_days')\
-            .eq('id', cid).execute().data
-        if not course:
-            continue
-        c = course[0]
-        has_fee = c.get('has_material') or \
-                  (c.get('meal_options') and c['meal_options'].get('enabled'))
-        if not has_fee:
-            continue
+        for ce in course_enrollments:
+            cid = ce['course_id']
+            course = supabase.table('courses')\
+                .select('id, title, has_material, meal_options, reminder_days')\
+                .eq('id', cid).execute().data
+            if not course:
+                continue
+            c = course[0]
+            has_fee = c.get('has_material') or \
+                      (c.get('meal_options') and c['meal_options'].get('enabled'))
+            if not has_fee:
+                continue
 
-        days = c.get('reminder_days') or 3
-        # 找 reminder_days 天內有沒有堂次
-        soon_str  = (now + timedelta(days=days)).strftime('%Y-%m-%dT23:59:59')
-        today_str = now.strftime('%Y-%m-%dT00:00:00')
-        next_sess = supabase.table('course_sessions')\
-            .select('scheduled_at')\
-            .eq('course_id', cid)\
-            .gte('scheduled_at', today_str)\
-            .lte('scheduled_at', soon_str)\
-            .order('scheduled_at').limit(1).execute().data
-        if not next_sess:
-            continue
+            days = c.get('reminder_days') or 3
+            # 找 reminder_days 天內有沒有堂次
+            soon_str  = (now + timedelta(days=days)).strftime('%Y-%m-%dT23:59:59')
+            today_str = now.strftime('%Y-%m-%dT00:00:00')
+            next_sess = supabase.table('course_sessions')\
+                .select('scheduled_at')\
+                .eq('course_id', cid)\
+                .gte('scheduled_at', today_str)\
+                .lte('scheduled_at', soon_str)\
+                .order('scheduled_at').limit(1).execute().data
+            if not next_sess:
+                continue
 
-        existing = supabase.table('notifications').select('id')\
-            .eq('user_id', uid).eq('type', 'payment_reminder')\
-            .eq('ref_type', 'course').eq('ref_id', cid).execute().data
-        if existing:
-            continue
+            existing = supabase.table('notifications').select('id')\
+                .eq('user_id', uid).eq('type', 'payment_reminder')\
+                .eq('ref_type', 'course').eq('ref_id', cid).execute().data
+            if existing:
+                continue
 
-        sess_date = (next_sess[0].get('scheduled_at') or '')[:10]
-        create_notification(
-            user_id  = uid,
-            title    = f'⬜ 費用待繳 — {c["title"]}',
-            body     = f'近期堂次 {sess_date} 即將到來，課程含教材費/餐費，請盡快完成繳費。',
-            type     = 'payment_reminder',
-            link     = f'/courses/{cid}',
-            ref_type = 'course',
-            ref_id   = cid,
-        )
-        created += 1
+            sess_date = (next_sess[0].get('scheduled_at') or '')[:10]
+            create_notification(
+                user_id  = uid,
+                title    = f'⬜ 費用待繳 — {c["title"]}',
+                body     = f'近期堂次 {sess_date} 即將到來，課程含教材費/餐費，請盡快完成繳費。',
+                type     = 'payment_reminder',
+                link     = f'/courses/{cid}',
+                ref_type = 'course',
+                ref_id   = cid,
+            )
+            created += 1
+    except Exception as e:
+        print(f'[notifications] course reminders error (table may not exist): {e}')
 
     # ── 3. 個人行程提醒 ──────────────────────────
     try:
