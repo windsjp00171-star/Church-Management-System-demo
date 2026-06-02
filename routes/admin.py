@@ -118,7 +118,8 @@ def can_manage_event(event):
 @admin_required
 def index():
     """後台首頁"""
-    return render_template('admin/index.html')
+    return render_template('admin/index.html',
+        has_finance_access=_has_finance_access())
 
 
 @admin_bp.route('/calendar')
@@ -2413,10 +2414,23 @@ def portal_group_defaults():
         group_card_configs=group_card_configs)
 
 
+def _has_finance_access():
+    """超管永遠可以；或 group_tags 包含財務管理標籤之一；未設定標籤時退化為一般管理員"""
+    if session.get('is_super_admin'):
+        return True
+    import settings_store as _ss
+    raw = _ss.get('admin_finance_group_tags') or ''
+    allowed = [t.strip() for t in raw.split(',') if t.strip()]
+    if not allowed:
+        return bool(session.get('is_admin'))
+    user_tags = session.get('group_tags') or []
+    return bool(set(user_tags) & set(allowed))
+
+
 @admin_bp.route('/settings/payment', methods=['GET', 'POST'])
 def payment_settings():
-    if not session.get('is_admin') and not session.get('is_super_admin'):
-        return redirect('/admin/forbidden')
+    if not _has_finance_access():
+        return render_template('admin/forbidden.html'), 403
     import settings_store as ss
     saved = False
     if request.method == 'POST':
@@ -2435,6 +2449,8 @@ def payment_settings():
         ss.set('payment_ecpay_credit_flat', request.form.get('ecpay_credit_flat', '1'))
         ss.set('payment_linepay_rate', request.form.get('linepay_rate', '2.9'))
         ss.set('payment_disclaimer', request.form.get('disclaimer', ''))
+        if session.get('is_super_admin'):
+            ss.set('admin_finance_group_tags', request.form.get('finance_group_tags', ''))
         saved = True
     settings = {
         'gateway': ss.get('payment_gateway') or 'none',
@@ -2452,6 +2468,7 @@ def payment_settings():
         'ecpay_credit_flat': ss.get('payment_ecpay_credit_flat') or '1',
         'linepay_rate': ss.get('payment_linepay_rate') or '2.9',
         'disclaimer': ss.get('payment_disclaimer') or '',
+        'finance_group_tags': ss.get('admin_finance_group_tags') or '',
     }
     return render_template('admin/payment_settings.html', settings=settings, saved=saved)
 
@@ -2462,8 +2479,8 @@ def payment_settings():
 
 @admin_bp.route('/payments')
 def payment_ledger():
-    if not session.get('is_admin') and not session.get('is_super_admin'):
-        return redirect('/admin/forbidden')
+    if not _has_finance_access():
+        return render_template('admin/forbidden.html'), 403
 
     import settings_store as ss
     from datetime import datetime, timezone
@@ -2608,8 +2625,8 @@ def payment_ledger():
 
 @admin_bp.route('/payments/export')
 def payment_ledger_export():
-    if not session.get('is_admin') and not session.get('is_super_admin'):
-        return redirect('/admin/forbidden')
+    if not _has_finance_access():
+        return render_template('admin/forbidden.html'), 403
 
     import csv, io, settings_store as ss
     from datetime import datetime, timezone
