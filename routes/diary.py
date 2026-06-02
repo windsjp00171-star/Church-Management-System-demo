@@ -12,6 +12,7 @@ from calendar import monthrange
 from typing import Any, Dict, List, Optional, Tuple
 
 import requests
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
     session, flash, jsonify, current_app
@@ -484,11 +485,16 @@ def index():
     except ImportError:
         book_bg = ''
 
-    entry = sb_get_entry(uid, d)
-    calendar_days, first_day_offset, prev_month, next_month = _build_calendar(uid, d, cy, cm)
-
-    pastors = sb_list_pastors()
-    granted_ids = sb_get_owner_grants(uid)
+    # 並行執行四個獨立 DB 查詢
+    with ThreadPoolExecutor(max_workers=4) as _pool:
+        _f_entry    = _pool.submit(sb_get_entry, uid, d)
+        _f_cal      = _pool.submit(_build_calendar, uid, d, cy, cm)
+        _f_pastors  = _pool.submit(sb_list_pastors)
+        _f_grants   = _pool.submit(sb_get_owner_grants, uid)
+        entry                                              = _f_entry.result()
+        calendar_days, first_day_offset, prev_month, next_month = _f_cal.result()
+        pastors                                            = _f_pastors.result()
+        granted_ids                                        = _f_grants.result()
     granted_map = {pid: True for pid in granted_ids}
 
     return render_template(

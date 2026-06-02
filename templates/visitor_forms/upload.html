@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}上傳留名單{% endblock %}
+{% block content %}
+
+<div style="max-width:520px; margin:0 auto; padding:0 4px;">
+    <div style="display:flex; align-items:center; gap:12px; margin-bottom:24px;">
+        <a href="/" style="color:#718096; text-decoration:none; font-size:.9rem;">← 返回首頁</a>
+    </div>
+
+    <h2 style="font-size:1.25rem; font-weight:700; margin:0 0 6px;">📋 上傳紙本留名單</h2>
+    <p style="font-size:.85rem; color:#718096; margin:0 0 28px;">拍照上傳聚會後的紙本留名單，供後台存查。</p>
+
+    <div style="background:white; border-radius:16px; padding:24px; box-shadow:0 1px 4px rgba(0,0,0,.08); border:1px solid #e5e7eb;">
+
+        {# 圖片預覽區 #}
+        <div id="preview-area" style="display:none; margin-bottom:18px;">
+            <img id="preview-img" src="" alt="預覽" style="width:100%; border-radius:10px; max-height:300px; object-fit:contain; border:1px solid #e5e7eb;">
+        </div>
+
+        {# 上傳按鈕 #}
+        <label for="img-input" id="upload-label"
+            style="display:flex; flex-direction:column; align-items:center; justify-content:center;
+                   gap:10px; border:2px dashed #cbd5e0; border-radius:12px; padding:32px 20px;
+                   cursor:pointer; transition:border-color .2s; background:#fafafa; margin-bottom:16px;">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+            </svg>
+            <span style="font-size:.9rem; color:#6b7280; font-weight:500;">點擊選取圖片或拍照</span>
+            <span style="font-size:.78rem; color:#9ca3af;">支援 JPG、PNG、HEIC</span>
+        </label>
+        <input type="file" id="img-input" accept="image/*" capture="environment"
+               style="display:none;" onchange="previewFile(this)">
+
+        {# 備註 #}
+        <div style="margin-bottom:20px;">
+            <label style="font-size:.82rem; color:#6b7280; display:block; margin-bottom:6px;">備註（選填）</label>
+            <input type="text" id="notes-input" placeholder="例如：6/8 主日 第一堂"
+                style="width:100%; padding:10px 12px; border:1.5px solid #e5e7eb; border-radius:10px;
+                       font-size:.9rem; font-family:inherit; outline:none; box-sizing:border-box;">
+        </div>
+
+        {# 送出按鈕 #}
+        <button id="submit-btn" onclick="submitForm()"
+            style="width:100%; padding:13px; background:#1565c0; color:white; border:none;
+                   border-radius:12px; font-size:.95rem; font-weight:700; cursor:pointer; transition:opacity .2s;">
+            上傳留名單
+        </button>
+
+        <div id="result-msg" style="margin-top:14px; font-size:.88rem; text-align:center; min-height:20px;"></div>
+    </div>
+
+    <p style="font-size:.75rem; color:#a0aec0; text-align:center; margin-top:16px;">
+        上傳後可在 <a href="/admin/visitor-forms" style="color:#718096;">後台</a> 查閱所有留名單記錄。
+    </p>
+</div>
+
+<script>
+function previewFile(input) {
+    const file = input.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        document.getElementById('preview-img').src = e.target.result;
+        document.getElementById('preview-area').style.display = 'block';
+        document.getElementById('upload-label').style.borderColor = '#60a5fa';
+    };
+    reader.readAsDataURL(file);
+}
+
+async function submitForm() {
+    const file  = document.getElementById('img-input').files[0];
+    const notes = document.getElementById('notes-input').value.trim();
+    const msg   = document.getElementById('result-msg');
+    const btn   = document.getElementById('submit-btn');
+
+    if (!file) {
+        msg.textContent = '⚠️ 請先選取圖片';
+        msg.style.color = '#c62828';
+        return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = '上傳中…';
+    msg.textContent = '';
+
+    const fd = new FormData();
+    fd.append('image', file);
+    if (notes) fd.append('notes', notes);
+
+    try {
+        const resp = await fetch('/visitor-form/upload', { method: 'POST', body: fd });
+        const data = await resp.json();
+        if (data.success) {
+            msg.textContent = '✅ 上傳成功！';
+            msg.style.color = '#2e7d32';
+            document.getElementById('img-input').value = '';
+            document.getElementById('preview-area').style.display = 'none';
+            document.getElementById('notes-input').value = '';
+            document.getElementById('upload-label').style.borderColor = '#cbd5e0';
+            btn.textContent = '上傳留名單';
+            btn.disabled = false;
+        } else {
+            msg.textContent = '❌ ' + (data.error || '上傳失敗，請稍後再試');
+            msg.style.color = '#c62828';
+            btn.textContent = '上傳留名單';
+            btn.disabled = false;
+        }
+    } catch (e) {
+        msg.textContent = '❌ 網路錯誤，請稍後再試';
+        msg.style.color = '#c62828';
+        btn.textContent = '上傳留名單';
+        btn.disabled = false;
+    }
+}
+</script>
+
+{% endblock %}

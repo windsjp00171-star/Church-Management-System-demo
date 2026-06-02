@@ -9,6 +9,24 @@ visitor_forms_bp = Blueprint('visitor_forms', __name__)
 TAIPEI_TZ = timezone(timedelta(hours=8))
 
 
+@visitor_forms_bp.route('/visitor-form/upload', methods=['GET'])
+@login_required
+def upload_visitor_form_page():
+    """同工上傳留名單的前端頁面"""
+    uid = session['user_id']
+    allowed = session.get('is_admin', False)
+    if not allowed:
+        try:
+            user = supabase.table('users').select('group_tags').eq('id', uid).single().execute()
+            tags = (user.data or {}).get('group_tags') or []
+        except Exception:
+            tags = []
+        allowed = '同工' in tags
+    if not allowed:
+        return render_template('admin/forbidden.html'), 403
+    return render_template('visitor_forms/upload.html')
+
+
 @visitor_forms_bp.route('/visitor-form/upload', methods=['POST'])
 @login_required
 def upload_visitor_form():

@@ -239,14 +239,15 @@ def homepage_settings():
             settings_store.set(f'portal_user_{uid}', _json.dumps(config))
         return jsonify({'success': True})
 
-    # 6 sections the user can toggle
+    # 7 sections the user can toggle
     SECTIONS = [
-        {'key': 'hero',           'label': 'Hero 橫幅',      'emoji': '🖼️'},
-        {'key': 'todo_widget',    'label': '本週待辦',         'emoji': '📋'},
-        {'key': 'upcoming_events','label': '我的近期活動',     'emoji': '📅'},
-        {'key': 'diary_widget',   'label': '靈修空間',         'emoji': '📖'},
-        {'key': 'portal_cards',   'label': '更多功能（功能磚）','emoji': '🔲'},
-        {'key': 'weekly_info',    'label': '本週資訊',         'emoji': '📰'},
+        {'key': 'hero',             'label': 'Hero 橫幅',        'emoji': '🖼️'},
+        {'key': 'todo_widget',      'label': '本週待辦',           'emoji': '📋'},
+        {'key': 'upcoming_events',  'label': '我的近期活動',       'emoji': '📅'},
+        {'key': 'diary_widget',     'label': '靈修空間',           'emoji': '📖'},
+        {'key': 'portal_cards',     'label': '更多功能（功能磚）',  'emoji': '🔲'},
+        {'key': 'group_discussion', 'label': '小組討論',           'emoji': '💬'},
+        {'key': 'weekly_info',      'label': '本週資訊',           'emoji': '📰'},
     ]
 
     # Load all active portal cards
