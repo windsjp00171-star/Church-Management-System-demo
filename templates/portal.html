@@ -444,38 +444,38 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% endif %}
 
 {# ════ 角色任務小工具 ════ #}
-{% if 'todo_widget' not in hidden_sections %}
-{% if is_group_leader or is_pastor or is_staff or is_admin %}
-<div class="role-widget card pa" style="--d:40ms; padding: 24px; margin-bottom: 32px;">
-  <p class="section-label-sm" style="margin: 0 0 16px;">本週待辦</p>
-
-  {% if is_group_leader %}
-  <div style="margin-bottom: 12px;">
-    {% if pending_report %}
-    <a href="/cell-report/portal" class="callout callout-neutral" style="text-decoration: none;">
-      <span style="font-size: 1.25rem;">📋</span>
-      <div>
-        <p style="font-weight: 600; color: #4A5568; font-size: 0.9rem; margin: 0;">本週小組回報單還沒填喔</p>
-        <p style="color: #A0AEC0; font-size: 0.78rem; margin: 2px 0 0;">有空的時候記得填一下 ☺</p>
-      </div>
-      <span style="margin-left: auto; color: #CBD5E0;">›</span>
-    </a>
-    {% else %}
-    <div class="callout callout-success">
-      <span style="font-size: 1.25rem;">✅</span>
-      <p style="font-weight: 600; color: #276749; font-size: 0.9rem; margin: 0;">本週小組回報單已完成</p>
+{# ════ 小組回報提醒 ════ #}
+{% if 'cell_report_reminder' not in hidden_sections %}
+{% if is_group_leader %}
+<div class="role-widget card pa" style="--d:40ms; padding: 20px; margin-bottom: 16px;">
+  <p class="section-label-sm" style="margin: 0 0 12px;">本週待辦</p>
+  {% if pending_report %}
+  <a href="/cell-report/portal" class="callout callout-neutral" style="text-decoration: none;">
+    <span style="font-size: 1.25rem;">📋</span>
+    <div>
+      <p style="font-weight: 600; color: #4A5568; font-size: 0.9rem; margin: 0;">本週小組回報單還沒填喔</p>
+      <p style="color: #A0AEC0; font-size: 0.78rem; margin: 2px 0 0;">有空的時候記得填一下 ☺</p>
     </div>
-    {% endif %}
+    <span style="margin-left: auto; color: #CBD5E0;">›</span>
+  </a>
+  {% else %}
+  <div class="callout callout-success">
+    <span style="font-size: 1.25rem;">✅</span>
+    <p style="font-weight: 600; color: #276749; font-size: 0.9rem; margin: 0;">本週小組回報單已完成</p>
   </div>
   {% endif %}
+</div>
+{% endif %}
+{% endif %}
 
-  {% if is_staff or is_pastor or is_admin %}
-  {# ── 聚會人數總覽 ── #}
-  {% set as = attendance_summary %}
-  <p class="section-label-sm" style="margin: 0 0 10px; font-size:.68rem;">聚會人數總覽</p>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 10px;">
+{# ════ 聚會人數總覽 ════ #}
+{% if 'attendance_summary' not in hidden_sections %}
+{% if is_staff or is_pastor or is_admin %}
+{% set as = attendance_summary %}
+<div class="role-widget card pa" style="--d:50ms; padding: 20px; margin-bottom: 16px;">
+  <p class="section-label-sm" style="margin: 0 0 10px;">聚會人數總覽</p>
+  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
 
-    {# 成人主日 #}
     <a href="/cell-report/sunday" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #16a34a;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">⛪ 成人主日</span>
       {% if as and as.sunday %}
@@ -489,13 +489,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
         <span style="font-size:.65rem;color:#9ca3af;margin-top:2px;">{{ as.sunday.date }}{% if not filled %} · 尚未填報{% endif %}</span>
       {% else %}
-        <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">—</span>
+        <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">0</span>
         <span style="font-size:.65rem;color:#9ca3af;margin-top:4px;">尚未填報</span>
       {% endif %}
       <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#d1d5db;">填報 ›</span>
     </a>
 
-    {# 兒童主日 #}
     <a href="/cell-report/children" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #2563eb;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">🧒 兒童主日</span>
       {% if as and as.children %}
@@ -504,13 +503,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         <span style="font-size:2.2rem;font-weight:800;color:{{ '#111827' if filled else '#9ca3af' }};line-height:1;">{{ cnt }}</span>
         <span style="font-size:.65rem;color:#9ca3af;margin-top:4px;">{{ as.children.date }}{% if not filled %} · 尚未填報{% endif %}</span>
       {% else %}
-        <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">—</span>
+        <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">0</span>
         <span style="font-size:.65rem;color:#9ca3af;margin-top:4px;">尚未填報</span>
       {% endif %}
       <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#d1d5db;">填報 ›</span>
     </a>
 
-    {# 禱告會 #}
     <a href="/cell-report/prayer" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #7c3aed;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">🙏 禱告會</span>
       {% if as and as.prayer %}
@@ -519,13 +517,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         <span style="font-size:2.2rem;font-weight:800;color:{{ '#111827' if filled else '#9ca3af' }};line-height:1;">{{ cnt }}</span>
         <span style="font-size:.65rem;color:#9ca3af;margin-top:4px;">{{ as.prayer.date }}{% if not filled %} · 尚未填報{% endif %}</span>
       {% else %}
-        <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">—</span>
+        <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">0</span>
         <span style="font-size:.65rem;color:#9ca3af;margin-top:4px;">尚未填報</span>
       {% endif %}
       <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#d1d5db;">填報 ›</span>
     </a>
 
-    {# 晨禱 #}
     <a href="/cell-report/morning-prayer" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #d97706;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">🌅 晨禱</span>
       {% if as and as.morning %}
@@ -534,31 +531,34 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         <span style="font-size:2.2rem;font-weight:800;color:{{ '#111827' if filled else '#9ca3af' }};line-height:1;">{{ cnt }}</span>
         <span style="font-size:.65rem;color:#9ca3af;margin-top:4px;">{{ as.morning.date }}{% if not filled %} · 尚未填報{% endif %}</span>
       {% else %}
-        <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">—</span>
+        <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">0</span>
         <span style="font-size:.65rem;color:#9ca3af;margin-top:4px;">尚未填報</span>
       {% endif %}
       <span style="position:absolute;top:8px;right:10px;font-size:.6rem;color:#d1d5db;">填報 ›</span>
     </a>
 
   </div>
-  <div style="border-top: 1px solid #E2E8F0; padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
-    {% if is_pastor %}
-    <a href="/cell-report/pastor-dashboard" style="display:flex;align-items:center;gap:10px;background:#FFF7ED;border:1px solid #FBBF24;border-radius:10px;padding:12px 14px;text-decoration:none;">
-      <span style="font-size:1.2rem;">📊</span>
-      <p style="font-weight:600;color:#92400E;font-size:.9rem;margin:0;">牧者查閱</p>
-      <span style="margin-left:auto;color:#D97706;">›</span>
-    </a>
-    {% endif %}
-    {% if is_staff and not is_pastor %}
-    <a href="/cell-report/staff-dashboard" style="display:flex;align-items:center;gap:10px;background:#EBF8FF;border:1px solid #90CDF4;border-radius:10px;padding:12px 14px;text-decoration:none;">
-      <span style="font-size:1.2rem;">📋</span>
-      <p style="font-weight:600;color:#2C5282;font-size:.9rem;margin:0;">同工查閱</p>
-      <span style="margin-left:auto;color:#3B82F6;">›</span>
-    </a>
-    {% endif %}
-  </div>
-  {% endif %}
+</div>
+{% endif %}
+{% endif %}
 
+{# ════ 同工 / 牧者查閱 ════ #}
+{% if 'staff_review' not in hidden_sections %}
+{% if is_pastor or (is_staff and not is_pastor) %}
+<div class="role-widget card pa" style="--d:60ms; padding: 20px; margin-bottom: 16px;">
+  {% if is_pastor %}
+  <a href="/cell-report/pastor-dashboard" style="display:flex;align-items:center;gap:10px;background:#FFF7ED;border:1px solid #FBBF24;border-radius:10px;padding:12px 14px;text-decoration:none;">
+    <span style="font-size:1.2rem;">📊</span>
+    <p style="font-weight:600;color:#92400E;font-size:.9rem;margin:0;">牧者查閱</p>
+    <span style="margin-left:auto;color:#D97706;">›</span>
+  </a>
+  {% else %}
+  <a href="/cell-report/staff-dashboard" style="display:flex;align-items:center;gap:10px;background:#EBF8FF;border:1px solid #90CDF4;border-radius:10px;padding:12px 14px;text-decoration:none;">
+    <span style="font-size:1.2rem;">📋</span>
+    <p style="font-weight:600;color:#2C5282;font-size:.9rem;margin:0;">同工查閱</p>
+    <span style="margin-left:auto;color:#3B82F6;">›</span>
+  </a>
+  {% endif %}
 </div>
 {% endif %}
 {% endif %}
