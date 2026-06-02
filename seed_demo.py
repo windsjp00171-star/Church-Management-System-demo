@@ -631,6 +631,40 @@ def seed():
     ok(f'{len(nids)} 條站內通知')
 
     # ────────────────────────────────────────────────────────
+    # 12. 福音探索（gospel_cards + gospel_inquiries）
+    # ────────────────────────────────────────────────────────
+    print('✝️   建立福音探索資料...')
+    gcids = [g() for _ in range(6)]
+    safe_insert('gospel_cards', [
+        {'id': gcids[0], 'icon': '🌱', 'question': '什麼是基督教信仰的核心？',
+         'answer': '基督教信仰的核心是耶穌基督——神的兒子道成肉身，為我們的罪死在十字架上，第三天復活，賜給我們永生的盼望（約翰福音 3:16）。', 'sort_order': 1, 'is_active': True},
+        {'id': gcids[1], 'icon': '❓', 'question': '我需要做什麼才能得救？',
+         'answer': '聖經說：「你若口裡認耶穌為主，心裡信神叫他從死裡復活，就必得救。」（羅馬書 10:9）。得救是神的恩典，不是靠我們的行為，只要真心相信並接受耶穌基督。', 'sort_order': 2, 'is_active': True},
+        {'id': gcids[2], 'icon': '📖', 'question': '聖經是什麼？為什麼基督徒這麼重視？',
+         'answer': '聖經是神透過人寫成的話語，包含舊約 39 卷和新約 27 卷，記錄神創造、救贖與愛的計畫。它是基督徒信仰與生活的最高準則（提摩太後書 3:16-17）。', 'sort_order': 3, 'is_active': True},
+        {'id': gcids[3], 'icon': '🙏', 'question': '禱告是什麼？怎麼禱告？',
+         'answer': '禱告是與神對話，就像孩子跟父親說話一樣。不需要特別的語言或姿勢，只要用真誠的心說出你的感謝、需要和困惑。主耶穌教導我們「主禱文」（馬太福音 6:9-13）作為禱告的模範。', 'sort_order': 4, 'is_active': True},
+        {'id': gcids[4], 'icon': '⛪', 'question': '為什麼要去教會？',
+         'answer': '教會是基督徒彼此相聚、一起敬拜神、互相扶持的地方（希伯來書 10:25）。在教會裡，你可以聽到聖經的教導、找到屬靈的家人，並在信仰上一起成長。', 'sort_order': 5, 'is_active': True},
+        {'id': gcids[5], 'icon': '💫', 'question': '信耶穌之後，生命會有什麼改變？',
+         'answer': '聖經說「若有人在基督裡，他就是新造的人，舊事已過，都變成新的了」（哥林多後書 5:17）。許多信徒見證：他們得到內心的平安、與人的關係改善、對生命有了新的盼望與方向。', 'sort_order': 6, 'is_active': True},
+    ])
+    ids['gcids'] = gcids
+    ok(f'{len(gcids)} 張福音卡片')
+
+    giids = [g() for _ in range(3)]
+    safe_insert('gospel_inquiries', [
+        {'id': giids[0], 'name': '陳小明', 'contact': 'Line: chen_xm',
+         'message': '我對基督教有興趣，想多了解。之前有朋友帶我來教會一次，感覺很溫馨，想知道怎麼開始？', 'status': 'new'},
+        {'id': giids[1], 'name': '林雅婷', 'contact': '0912-345-678',
+         'message': '最近生活遇到一些困難，想試試看禱告。可以有人陪我聊聊嗎？', 'status': 'contacted'},
+        {'id': giids[2], 'name': '王大衛', 'contact': 'david.wang@email.com',
+         'message': '我在找一個有青年聚會的教會，想認識同齡的基督徒朋友。請問你們有青年團契嗎？', 'status': 'new'},
+    ])
+    ids['giids'] = giids
+    ok(f'{len(giids)} 筆福音問卷')
+
+    # ────────────────────────────────────────────────────────
     # 完成
     # ────────────────────────────────────────────────────────
     save_ids(ids)
@@ -670,6 +704,8 @@ def clear():
                 warn(f'delete {table}', e)
         print(f'  🗑   {table} ({len(id_list)})')
 
+    del_by_ids('gospel_inquiries',          ids.get('giids', []))
+    del_by_ids('gospel_cards',             ids.get('gcids', []))
     del_by_ids('notifications',            ids.get('nids', []))
     del_by_ids('weekly_bulletins',         ids.get('bids', {}))
     del_by_ids('devotional_registrations', ids.get('drids', {}))

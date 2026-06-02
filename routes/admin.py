@@ -2501,7 +2501,7 @@ def payment_ledger():
 
     # 基本查詢：已報名（含付款/未付款）
     query = supabase.table('registrations')\
-        .select('id, event_id, user_id, payment_status, payment_note, created_at, events(title, fee), users(real_name)')\
+        .select('id, event_id, user_id, payment_status, payment_note, created_at')\
         .neq('status', 'cancelled')
 
     if filter_event:
@@ -2516,8 +2516,28 @@ def payment_ledger():
     regs_result = query.order('created_at', desc=True).limit(500).execute()
     regs_raw = regs_result.data or []
 
+    # 批次撈活動資料
+    event_ids = list({r['event_id'] for r in regs_raw if r.get('event_id')})
+    event_map = {}
+    if event_ids:
+        ev_rows = supabase.table('events').select('id, title, fee').in_('id', event_ids).execute().data or []
+        event_map = {e['id']: e for e in ev_rows}
+
+    # 批次撈使用者姓名
+    uid_set = list({r['user_id'] for r in regs_raw if r.get('user_id')})
+    user_map = {}
+    if uid_set:
+        u_rows = supabase.table('users').select('id, real_name, display_name').in_('id', uid_set).execute().data or []
+        user_map = {u['id']: u.get('real_name') or u.get('display_name') or '—' for u in u_rows}
+
     # 只保留有費用的活動報名
-    regs = [r for r in regs_raw if r.get('events') and (r['events'].get('fee') or 0) > 0]
+    regs = []
+    for r in regs_raw:
+        ev = event_map.get(r.get('event_id') or '')
+        if ev and (ev.get('fee') or 0) > 0:
+            r['_event'] = ev
+            r['_user_name'] = user_map.get(r.get('user_id') or '', '—')
+            regs.append(r)
 
     # 讀取費率設定
     gateway = ss.get('payment_gateway') or 'none'
@@ -2542,8 +2562,7 @@ def payment_ledger():
     total_paid = 0
 
     for r in regs:
-        ev = r.get('events') or {}
-        usr = r.get('users') or {}
+        ev = r.get('_event') or {}
         fee = int(ev.get('fee') or 0)
         if fee <= 0:
             continue
@@ -2569,7 +2588,7 @@ def payment_ledger():
             'reg_id': r['id'],
             'event_id': r['event_id'],
             'event_title': ev.get('title', '—'),
-            'name': usr.get('real_name', '—'),
+            'name': r.get('_user_name', '—'),
             'fee': fee,
             'payment_status': r.get('payment_status', 'unpaid'),
             'gateway': pay_gw,
@@ -2640,7 +2659,7 @@ def payment_ledger_export():
     date_to = request.args.get('date_to', '')
 
     query = supabase.table('registrations')\
-        .select('id, event_id, user_id, payment_status, payment_note, created_at, events(title, fee), users(real_name)')\
+        .select('id, event_id, user_id, payment_status, payment_note, created_at')\
         .neq('status', 'cancelled')
     if filter_event:
         query = query.eq('event_id', filter_event)
@@ -2653,7 +2672,26 @@ def payment_ledger_export():
 
     regs_result = query.order('created_at', desc=True).limit(2000).execute()
     regs_raw = regs_result.data or []
-    regs = [r for r in regs_raw if r.get('events') and (r['events'].get('fee') or 0) > 0]
+
+    # 批次撈活動與使用者
+    ev_ids = list({r['event_id'] for r in regs_raw if r.get('event_id')})
+    ev_map = {}
+    if ev_ids:
+        ev_rows = supabase.table('events').select('id, title, fee').in_('id', ev_ids).execute().data or []
+        ev_map = {e['id']: e for e in ev_rows}
+    uid_set = list({r['user_id'] for r in regs_raw if r.get('user_id')})
+    u_map = {}
+    if uid_set:
+        u_rows = supabase.table('users').select('id, real_name, display_name').in_('id', uid_set).execute().data or []
+        u_map = {u['id']: u.get('real_name') or u.get('display_name') or '—' for u in u_rows}
+
+    regs = []
+    for r in regs_raw:
+        ev = ev_map.get(r.get('event_id') or '')
+        if ev and (ev.get('fee') or 0) > 0:
+            r['_event'] = ev
+            r['_user_name'] = u_map.get(r.get('user_id') or '', '—')
+            regs.append(r)
 
     gateway = ss.get('payment_gateway') or 'none'
     ecpay_rate = float(ss.get('payment_ecpay_credit_rate') or 2.75)
@@ -2673,8 +2711,7 @@ def payment_ledger_export():
     writer.writerow(['報名時間', '活動名稱', '姓名', '活動費用(NT$)', '繳費狀態', '金流平台', '交易編號', '預估手續費(NT$)', '預估實收(NT$)'])
 
     for r in regs:
-        ev = r.get('events') or {}
-        usr = r.get('users') or {}
+        ev = r.get('_event') or {}
         fee = int(ev.get('fee') or 0)
         note = r.get('payment_note') or ''
         pay_gw = 'ecpay' if note.startswith('ecpay:') else \
@@ -2691,7 +2728,7 @@ def payment_ledger_export():
             paid_at = raw_time[:16]
         status_label = {'paid': '已付款', 'unpaid': '未付款', 'waived': '免收費'}.get(r.get('payment_status', 'unpaid'), '未付款')
         gw_label = {'ecpay': '綠界科技', 'linepay': 'LINE Pay', 'manual': '手動'}.get(pay_gw, '—')
-        writer.writerow([paid_at, ev.get('title', ''), usr.get('real_name', ''), fee, status_label, gw_label, trade_no, fee_est, net])
+        writer.writerow([paid_at, ev.get('title', ''), r.get('_user_name', '—'), fee, status_label, gw_label, trade_no, fee_est, net])
 
     output.seek(0)
     from flask import Response
