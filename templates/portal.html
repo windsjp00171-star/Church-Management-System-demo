@@ -397,24 +397,6 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 }
 </style>
 
-{# ════ 管理員橫幅 ════ #}
-{% if is_admin or is_super_admin %}
-<div class="pa" style="--d:0ms; background:linear-gradient(135deg,#1e1e2e,#2d1b69); border-radius:16px; padding:12px 16px; margin-bottom:12px; display:flex; align-items:center; gap:8px;">
-  <a href="/admin" style="flex:1; display:flex; align-items:center; gap:12px; text-decoration:none; min-width:0;">
-    <span style="font-size:1.2rem; flex-shrink:0;">⚙️</span>
-    <div style="min-width:0;">
-      <p style="font-weight:700; color:white; font-size:.88rem; margin:0; line-height:1.3;">後台管理</p>
-      <p style="color:rgba(255,255,255,.55); font-size:.72rem; margin:1px 0 0;">使用者、活動、系統設定</p>
-    </div>
-  </a>
-  {% if is_super_admin %}
-  <a href="/setup-wizard" style="display:flex; align-items:center; gap:6px; text-decoration:none; background:rgba(255,255,255,.1); border-radius:10px; padding:7px 12px; flex-shrink:0;">
-    <span style="font-size:.95rem;">🧙</span>
-    <span style="font-size:.75rem; font-weight:600; color:rgba(255,255,255,.85); white-space:nowrap;">部署精靈</span>
-  </a>
-  {% endif %}
-</div>
-{% endif %}
 
 {# ════ 未完成設定提示橫幅 ════ #}
 {% if not session.real_name %}
