@@ -371,7 +371,7 @@ def search_users():
 
     keyword     = request.args.get('q', '').strip()
     member_type = request.args.get('type', 'all').strip()   # member / visitor / all
-    fields = 'id, display_name, picture_url, is_admin, is_super_admin, is_pastor, is_staff, group_tags, real_name, created_at, member_type, line_user_id'
+    fields = 'id, display_name, picture_url, is_admin, is_super_admin, is_pastor, is_staff, is_blocked, group_tags, real_name, created_at, member_type, line_user_id'
 
     def apply_type_filter(query):
         if member_type == 'member':
@@ -627,6 +627,46 @@ def toggle_super_admin(user_id):
         'is_super_admin': new_value,
         'display_name': result.data[0]['display_name']
     })
+
+
+@admin_bp.route('/api/users/<user_id>/toggle-block', methods=['POST'])
+@admin_required
+def toggle_block_user(user_id):
+    """封鎖 / 解封用戶（超級管理員限定）"""
+    if not session.get('is_super_admin'):
+        return jsonify({'error': '僅超級管理員可操作'}), 403
+    if user_id == session.get('user_id'):
+        return jsonify({'error': '不能封鎖自己'}), 400
+
+    result = supabase.table('users')\
+        .select('is_blocked, display_name')\
+        .eq('id', user_id).execute()
+    if not result.data:
+        return jsonify({'error': '找不到此用戶'}), 404
+
+    current = result.data[0].get('is_blocked') or False
+    new_value = not current
+    supabase.table('users').update({'is_blocked': new_value}).eq('id', user_id).execute()
+    return jsonify({
+        'success': True,
+        'is_blocked': new_value,
+        'display_name': result.data[0]['display_name'],
+    })
+
+
+# =====================
+# Demo 洽詢名單
+# =====================
+
+@admin_bp.route('/contact-leads')
+@admin_required
+def contact_leads():
+    try:
+        rows = supabase.table('contact_leads')\
+            .select('*').order('submitted_at', desc=True).limit(200).execute().data or []
+    except Exception:
+        rows = []
+    return render_template('admin/contact_leads.html', rows=rows)
 
 
 # =====================
@@ -2493,158 +2533,145 @@ def payment_ledger():
     filter_status = request.args.get('status', 'all')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
-    date_from = request.args.get('date_from', '')
-    date_to = request.args.get('date_to', '')
 
-    # 撈所有有費用的活動（供篩選下拉）
-    events_result = supabase.table('events').select('id, title, fee')\
-        .gt('fee', 0).order('created_at', desc=True).execute()
-    all_events = events_result.data or []
+    try:
+        # 撈所有有費用的活動（供篩選下拉）
+        events_result = supabase.table('events').select('id, title, fee')\
+            .gt('fee', 0).order('created_at', desc=True).execute()
+        all_events = events_result.data or []
 
-    # 基本查詢：已報名（含付款/未付款）
-    query = supabase.table('registrations')\
-        .select('id, event_id, user_id, payment_status, payment_note, created_at')\
-        .neq('status', 'cancelled')
+        # 基本查詢：已報名（含付款/未付款）
+        query = supabase.table('registrations')\
+            .select('id, event_id, user_id, payment_status, payment_note, created_at')\
+            .neq('status', 'cancelled')
+        if filter_event:
+            query = query.eq('event_id', filter_event)
+        if filter_status != 'all':
+            query = query.eq('payment_status', filter_status)
+        if date_from:
+            query = query.gte('created_at', date_from + 'T00:00:00+00:00')
+        if date_to:
+            query = query.lte('created_at', date_to + 'T23:59:59+00:00')
 
-    if filter_event:
-        query = query.eq('event_id', filter_event)
-    if filter_status != 'all':
-        query = query.eq('payment_status', filter_status)
-    if date_from:
-        query = query.gte('created_at', date_from + 'T00:00:00+00:00')
-    if date_to:
-        query = query.lte('created_at', date_to + 'T23:59:59+00:00')
+        regs_raw = query.order('created_at', desc=True).limit(500).execute().data or []
 
-    regs_result = query.order('created_at', desc=True).limit(500).execute()
-    regs_raw = regs_result.data or []
+        # 批次撈活動與使用者
+        event_ids = list({r['event_id'] for r in regs_raw if r.get('event_id')})
+        event_map = {}
+        if event_ids:
+            ev_rows = supabase.table('events').select('id, title, fee').in_('id', event_ids).execute().data or []
+            event_map = {e['id']: e for e in ev_rows}
 
-    # 批次撈活動資料
-    event_ids = list({r['event_id'] for r in regs_raw if r.get('event_id')})
-    event_map = {}
-    if event_ids:
-        ev_rows = supabase.table('events').select('id, title, fee').in_('id', event_ids).execute().data or []
-        event_map = {e['id']: e for e in ev_rows}
+        uid_set = list({r['user_id'] for r in regs_raw if r.get('user_id')})
+        user_map = {}
+        if uid_set:
+            u_rows = supabase.table('users').select('id, real_name, display_name').in_('id', uid_set).execute().data or []
+            user_map = {u['id']: u.get('real_name') or u.get('display_name') or '—' for u in u_rows}
 
-    # 批次撈使用者姓名
-    uid_set = list({r['user_id'] for r in regs_raw if r.get('user_id')})
-    user_map = {}
-    if uid_set:
-        u_rows = supabase.table('users').select('id, real_name, display_name').in_('id', uid_set).execute().data or []
-        user_map = {u['id']: u.get('real_name') or u.get('display_name') or '—' for u in u_rows}
+        regs = []
+        for r in regs_raw:
+            ev = event_map.get(r.get('event_id') or '')
+            if ev and (ev.get('fee') or 0) > 0:
+                r['_event'] = ev
+                r['_user_name'] = user_map.get(r.get('user_id') or '', '—')
+                regs.append(r)
 
-    # 只保留有費用的活動報名
-    regs = []
-    for r in regs_raw:
-        ev = event_map.get(r.get('event_id') or '')
-        if ev and (ev.get('fee') or 0) > 0:
-            r['_event'] = ev
-            r['_user_name'] = user_map.get(r.get('user_id') or '', '—')
-            regs.append(r)
+        gateway = ss.get('payment_gateway') or 'none'
+        fee_handling = ss.get('payment_fee_handling') or 'church'
+        ecpay_rate = float(ss.get('payment_ecpay_credit_rate') or 2.75)
+        ecpay_flat = float(ss.get('payment_ecpay_credit_flat') or 1)
+        linepay_rate = float(ss.get('payment_linepay_rate') or 2.9)
+        taipei_tz = timezone(timedelta(hours=8))
 
-    # 讀取費率設定
-    gateway = ss.get('payment_gateway') or 'none'
-    fee_handling = ss.get('payment_fee_handling') or 'church'
-    ecpay_rate = float(ss.get('payment_ecpay_credit_rate') or 2.75)
-    ecpay_flat = float(ss.get('payment_ecpay_credit_flat') or 1)
-    linepay_rate = float(ss.get('payment_linepay_rate') or 2.9)
+        def estimate_fee(amount, gw):
+            if gw == 'ecpay':
+                return round(amount * ecpay_rate / 100 + ecpay_flat, 1)
+            elif gw == 'linepay':
+                return round(amount * linepay_rate / 100, 1)
+            return 0
 
-    taipei_tz = timezone(timedelta(hours=8))
+        rows = []
+        total_charged = 0
+        total_fee_est = 0
+        total_paid = 0
 
-    def estimate_fee(amount, gw):
-        if gw == 'ecpay':
-            return round(amount * ecpay_rate / 100 + ecpay_flat, 1)
-        elif gw == 'linepay':
-            return round(amount * linepay_rate / 100, 1)
-        return 0
+        for r in regs:
+            ev = r.get('_event') or {}
+            fee = int(ev.get('fee') or 0)
+            if fee <= 0:
+                continue
+            note = r.get('payment_note') or ''
+            pay_gw = 'ecpay' if note.startswith('ecpay:') else \
+                     'linepay' if note.startswith('linepay:') else \
+                     gateway if r.get('payment_status') == 'paid' else 'manual'
+            trade_no = note.split(':', 1)[1] if ':' in note else '—'
+            is_paid = r.get('payment_status') == 'paid'
+            fee_est = estimate_fee(fee, pay_gw) if is_paid else 0
+            net = round(fee - fee_est, 1) if is_paid else 0
+            raw_time = r.get('created_at', '')
+            try:
+                dt = datetime.fromisoformat(raw_time.replace('Z', '+00:00')).astimezone(taipei_tz)
+                paid_at = dt.strftime('%Y/%m/%d %H:%M')
+            except Exception:
+                paid_at = raw_time[:16]
+            rows.append({
+                'reg_id': r['id'],
+                'event_id': r['event_id'],
+                'event_title': ev.get('title', '—'),
+                'name': r.get('_user_name', '—'),
+                'fee': fee,
+                'payment_status': r.get('payment_status', 'unpaid'),
+                'gateway': pay_gw,
+                'trade_no': trade_no,
+                'fee_est': fee_est,
+                'net': net,
+                'created_at': paid_at,
+            })
+            if is_paid:
+                total_paid += 1
+                total_charged += fee
+                total_fee_est += fee_est
 
-    # 整理每筆紀錄
-    rows = []
-    total_charged = 0
-    total_fee_est = 0
-    total_paid = 0
+        total_net = round(total_charged - total_fee_est, 1)
 
-    for r in regs:
-        ev = r.get('_event') or {}
-        fee = int(ev.get('fee') or 0)
-        if fee <= 0:
-            continue
+        event_summary = {}
+        for row in rows:
+            eid = row['event_id']
+            if eid not in event_summary:
+                event_summary[eid] = {'title': row['event_title'], 'fee': row['fee'],
+                                      'paid': 0, 'unpaid': 0, 'total_charged': 0, 'total_fee': 0}
+            s = event_summary[eid]
+            if row['payment_status'] == 'paid':
+                s['paid'] += 1
+                s['total_charged'] += row['fee']
+                s['total_fee'] += row['fee_est']
+            else:
+                s['unpaid'] += 1
+        for s in event_summary.values():
+            s['net'] = round(s['total_charged'] - s['total_fee'], 1)
 
-        note = r.get('payment_note') or ''
-        pay_gw = 'ecpay' if note.startswith('ecpay:') else \
-                 'linepay' if note.startswith('linepay:') else \
-                 gateway if r.get('payment_status') == 'paid' else 'manual'
-        trade_no = note.split(':', 1)[1] if ':' in note else '—'
+        return render_template('admin/payment_ledger.html',
+            rows=rows, all_events=all_events,
+            filter_event=filter_event, filter_status=filter_status,
+            date_from=date_from, date_to=date_to,
+            gateway=gateway, fee_handling=fee_handling,
+            total_charged=total_charged,
+            total_fee_est=round(total_fee_est, 1),
+            total_net=total_net, total_paid=total_paid,
+            event_summary=event_summary,
+        )
 
-        is_paid = r.get('payment_status') == 'paid'
-        fee_est = estimate_fee(fee, pay_gw) if is_paid else 0
-        net = round(fee - fee_est, 1) if is_paid else 0
-
-        raw_time = r.get('created_at', '')
-        try:
-            dt = datetime.fromisoformat(raw_time.replace('Z', '+00:00')).astimezone(taipei_tz)
-            paid_at = dt.strftime('%Y/%m/%d %H:%M')
-        except Exception:
-            paid_at = raw_time[:16]
-
-        rows.append({
-            'reg_id': r['id'],
-            'event_id': r['event_id'],
-            'event_title': ev.get('title', '—'),
-            'name': r.get('_user_name', '—'),
-            'fee': fee,
-            'payment_status': r.get('payment_status', 'unpaid'),
-            'gateway': pay_gw,
-            'trade_no': trade_no,
-            'fee_est': fee_est,
-            'net': net,
-            'created_at': paid_at,
-        })
-
-        if is_paid:
-            total_paid += 1
-            total_charged += fee
-            total_fee_est += fee_est
-
-    total_net = round(total_charged - total_fee_est, 1)
-
-    # 按活動分組摘要
-    event_summary = {}
-    for row in rows:
-        eid = row['event_id']
-        if eid not in event_summary:
-            event_summary[eid] = {
-                'title': row['event_title'],
-                'fee': row['fee'],
-                'paid': 0,
-                'unpaid': 0,
-                'total_charged': 0,
-                'total_fee': 0,
-            }
-        s = event_summary[eid]
-        if row['payment_status'] == 'paid':
-            s['paid'] += 1
-            s['total_charged'] += row['fee']
-            s['total_fee'] += row['fee_est']
-        else:
-            s['unpaid'] += 1
-    for s in event_summary.values():
-        s['net'] = round(s['total_charged'] - s['total_fee'], 1)
-
-    return render_template('admin/payment_ledger.html',
-        rows=rows,
-        all_events=all_events,
-        filter_event=filter_event,
-        filter_status=filter_status,
-        date_from=date_from,
-        date_to=date_to,
-        gateway=gateway,
-        fee_handling=fee_handling,
-        total_charged=total_charged,
-        total_fee_est=round(total_fee_est, 1),
-        total_net=total_net,
-        total_paid=total_paid,
-        event_summary=event_summary,
-    )
+    except Exception as e:
+        print(f'[payment_ledger] error: {e}')
+        import traceback; traceback.print_exc()
+        return render_template('admin/payment_ledger.html',
+            rows=[], all_events=[], error=str(e),
+            filter_event=filter_event, filter_status=filter_status,
+            date_from=date_from, date_to=date_to,
+            gateway='none', fee_handling='church',
+            total_charged=0, total_fee_est=0, total_net=0,
+            total_paid=0, event_summary={},
+        )
 
 
 @admin_bp.route('/payments/export')

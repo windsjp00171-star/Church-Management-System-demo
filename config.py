@@ -62,6 +62,11 @@ class Config:
     # ── 錯誤監控（可選，未設定則停用）──────────────────────────────
     SENTRY_DSN = os.getenv('SENTRY_DSN') or None
 
+    # ── Demo / 聯繫資訊 ────────────────────────────────────────────
+    DEMO_MODE      = os.getenv('DEMO_MODE', 'false').lower() == 'true'
+    CONTACT_EMAIL  = os.getenv('CONTACT_EMAIL', '')   # 管理員信箱（顯示於聯繫模組）
+    CONTACT_LINE   = os.getenv('CONTACT_LINE', '')    # 管理員 LINE ID 或群組連結（可選）
+
     # ── 部署旗標 ────────────────────────────────────────────────────
     RENDER = bool(os.getenv('RENDER', False))
 

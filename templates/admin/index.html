@@ -262,6 +262,16 @@
         </div>
     </a>
 
+    {% if config.DEMO_MODE or config.CONTACT_EMAIL %}
+    <a href="/admin/contact-leads" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#ecfdf5; color:#059669;">📩</div>
+            <div class="admin-card-name">Demo 洽詢名單</div>
+            <div class="admin-card-desc">體驗洽詢留言管理</div>
+        </div>
+    </a>
+    {% endif %}
+
 </div>
 {% endif %}
 

@@ -4,6 +4,7 @@ from urllib.parse import urlparse
 from flask import Blueprint, redirect, request, session, url_for, render_template, jsonify
 from config import Config
 from db import supabase
+from datetime import datetime, timedelta, timezone
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
 
@@ -149,6 +150,9 @@ def callback():
         }).execute()
         user = result.data[0]
 
+    if user.get('is_blocked'):
+        return render_template('auth/blocked.html'), 403
+
     _populate_session(user)
 
     if not user.get('real_name'):
@@ -200,6 +204,9 @@ def liff_login():
         }).execute()
         user = result.data[0]
 
+    if user.get('is_blocked'):
+        return jsonify({'error': '帳號已被停用，請聯繫教會行政同工'}), 403
+
     _populate_session(user)
 
     # 第一次登入尚未填真實姓名 → 引導填資料
@@ -230,6 +237,53 @@ def login_page():
         return redirect(next_url or url_for('event.portal'))
     _remember_next_url(next_url)
     return render_template('auth/login.html', next_url=next_url)
+
+
+@auth_bp.route('/contact', methods=['POST'])
+def contact_submit():
+    """Demo 洽詢表單：將留言存入 DB 並通知所有管理員。"""
+    data = request.get_json() or {}
+    name         = (data.get('name') or '').strip()[:50]
+    church       = (data.get('church') or '').strip()[:100]
+    contact_info = (data.get('contact') or '').strip()[:200]
+    message      = (data.get('message') or '').strip()[:1000]
+
+    if not name or not contact_info:
+        return jsonify({'error': '姓名與聯絡方式為必填'}), 400
+
+    body_text = f"教會/機構：{church or '（未填）'}\n聯絡方式：{contact_info}\n\n{message or '（無附加說明）'}"
+
+    # 儲存到 contact_leads 表（不存在也不崩潰）
+    try:
+        supabase.table('contact_leads').insert({
+            'name': name,
+            'church': church,
+            'contact_info': contact_info,
+            'message': message,
+            'submitted_at': datetime.now(timezone(timedelta(hours=8))).isoformat(),
+        }).execute()
+    except Exception:
+        pass  # 表不存在時靜默忽略
+
+    # 通知所有管理員
+    try:
+        admins = supabase.table('users').select('id')\
+            .eq('is_admin', True).execute().data or []
+        admin_ids = [a['id'] for a in admins]
+        if admin_ids:
+            rows = [{
+                'user_id': uid,
+                'title':   f'📩 新洽詢：{name}',
+                'body':    body_text[:200],
+                'type':    'info',
+                'link':    '/admin/contact-leads',
+            } for uid in admin_ids]
+            for i in range(0, len(rows), 100):
+                supabase.table('notifications').insert(rows[i:i+100]).execute()
+    except Exception:
+        pass
+
+    return jsonify({'success': True})
 
 
 @auth_bp.route('/setup-admin', methods=['GET', 'POST'])
