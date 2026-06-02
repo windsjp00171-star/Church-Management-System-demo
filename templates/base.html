@@ -98,6 +98,139 @@
 <div id="help-bubble" class="help-bubble" style="display:none;">👆 點我看使用說明</div>
 <a href="/manual" id="help-btn" class="help-btn">？</a>
 
+{% if config.DEMO_MODE or config.CONTACT_EMAIL %}
+<!-- ══ Demo 洽詢浮動列 ══ -->
+<div id="demo-contact-bar" style="position:fixed;bottom:0;left:0;right:0;z-index:9000;
+     background:linear-gradient(90deg,#06C755 0%,#00a846 50%,#0891b2 100%);
+     color:white;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;
+     box-shadow:0 -3px 16px rgba(0,0,0,.25);font-size:0.88rem;">
+    <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:1.3rem;">🏠</span>
+        <span><strong>想為您的教會導入這套系統？</strong> 立即洽詢，免費了解方案</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
+        {% if config.CONTACT_EMAIL %}
+        <a href="mailto:{{ config.CONTACT_EMAIL }}" target="_blank"
+           style="padding:7px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);
+                  color:white;border-radius:20px;text-decoration:none;font-size:0.82rem;font-weight:600;
+                  white-space:nowrap;">✉️ 寄信</a>
+        {% endif %}
+        {% if config.CONTACT_LINE %}
+        <a href="{{ config.CONTACT_LINE }}" target="_blank"
+           style="padding:7px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);
+                  color:white;border-radius:20px;text-decoration:none;font-size:0.82rem;font-weight:600;
+                  white-space:nowrap;">💬 LINE</a>
+        {% endif %}
+        <button onclick="openContactModal()"
+           style="padding:7px 18px;background:white;color:#06C755;border:none;border-radius:20px;
+                  font-size:0.82rem;font-weight:700;cursor:pointer;white-space:nowrap;">📋 留下資料</button>
+        <button onclick="document.getElementById('demo-contact-bar').style.display='none'"
+           style="background:none;border:none;color:rgba(255,255,255,.7);font-size:1.1rem;cursor:pointer;padding:4px 6px;line-height:1;">×</button>
+    </div>
+</div>
+
+<!-- ══ 聯繫 Modal ══ -->
+<div id="contact-modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9100;align-items:center;justify-content:center;">
+    <div style="background:white;border-radius:16px;padding:28px 28px 24px;width:min(480px,92vw);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3);">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;">
+            <h3 style="margin:0;font-size:1.1rem;color:#1a202c;">📩 洽詢導入資訊</h3>
+            <button onclick="closeContactModal()" style="background:none;border:none;font-size:1.4rem;cursor:pointer;color:#999;line-height:1;">×</button>
+        </div>
+        <p style="font-size:0.82rem;color:#718096;margin:0 0 20px;line-height:1.6;">
+            請填寫基本資料，我們將盡快與您聯繫，說明系統功能與部署方式。
+        </p>
+        <form id="contact-form" onsubmit="submitContact(event)">
+            <div style="margin-bottom:14px;">
+                <label style="font-size:0.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:5px;">姓名 *</label>
+                <input type="text" id="cf-name" placeholder="您的稱呼" required
+                    style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:0.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:5px;">教會 / 機構名稱</label>
+                <input type="text" id="cf-church" placeholder="例：安安靈糧堂"
+                    style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:14px;">
+                <label style="font-size:0.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:5px;">聯絡方式（Email 或手機）*</label>
+                <input type="text" id="cf-contact" placeholder="email@example.com 或 09xx-xxx-xxx" required
+                    style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;box-sizing:border-box;">
+            </div>
+            <div style="margin-bottom:20px;">
+                <label style="font-size:0.82rem;font-weight:600;color:#4a5568;display:block;margin-bottom:5px;">說明 / 想了解的功能（可選）</label>
+                <textarea id="cf-message" rows="3" placeholder="例：我們有 5 個小組、想了解報名與簽到功能..."
+                    style="width:100%;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;font-size:0.88rem;resize:vertical;box-sizing:border-box;"></textarea>
+            </div>
+            <button type="submit" id="cf-submit"
+                style="width:100%;padding:11px;background:#06C755;color:white;border:none;border-radius:10px;font-size:0.9rem;font-weight:700;cursor:pointer;">
+                送出洽詢
+            </button>
+        </form>
+        <div id="cf-success" style="display:none;text-align:center;padding:20px 0;">
+            <div style="font-size:2.5rem;margin-bottom:10px;">🎉</div>
+            <p style="font-weight:700;color:#2e7d32;margin:0 0 6px;">已收到您的洽詢！</p>
+            <p style="font-size:0.85rem;color:#666;">我們將盡快透過您提供的聯絡方式與您聯繫。</p>
+        </div>
+        {% if config.CONTACT_EMAIL %}
+        <p style="text-align:center;font-size:0.78rem;color:#a0aec0;margin:14px 0 0;">
+            或直接寄信至 <a href="mailto:{{ config.CONTACT_EMAIL }}" style="color:#06C755;">{{ config.CONTACT_EMAIL }}</a>
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+#contact-modal-overlay.open { display:flex !important; }
+</style>
+<script>
+function openContactModal() {
+    var overlay = document.getElementById('contact-modal-overlay');
+    overlay.classList.add('open');
+    // pre-fill name if logged in
+    var nameEl = document.getElementById('cf-name');
+    if (nameEl && !nameEl.value) {
+        nameEl.value = '{{ session.real_name or "" }}';
+    }
+}
+function closeContactModal() {
+    document.getElementById('contact-modal-overlay').classList.remove('open');
+    document.getElementById('cf-success').style.display = 'none';
+    document.getElementById('contact-form').style.display = 'block';
+    document.getElementById('cf-submit').disabled = false;
+    document.getElementById('cf-submit').textContent = '送出洽詢';
+}
+document.getElementById('contact-modal-overlay').addEventListener('click', function(e) {
+    if (e.target === this) closeContactModal();
+});
+function submitContact(e) {
+    e.preventDefault();
+    var btn = document.getElementById('cf-submit');
+    btn.disabled = true; btn.textContent = '送出中...';
+    fetch('/auth/contact', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': _CSRF_TOKEN},
+        body: JSON.stringify({
+            name:    document.getElementById('cf-name').value,
+            church:  document.getElementById('cf-church').value,
+            contact: document.getElementById('cf-contact').value,
+            message: document.getElementById('cf-message').value,
+        })
+    }).then(function(r){ return r.json(); }).then(function(d) {
+        if (d.success) {
+            document.getElementById('contact-form').style.display = 'none';
+            document.getElementById('cf-success').style.display = 'block';
+            document.getElementById('demo-contact-bar').style.display = 'none';
+        } else {
+            btn.disabled = false; btn.textContent = '送出洽詢';
+            alert(d.error || '送出失敗，請稍後再試');
+        }
+    }).catch(function() {
+        btn.disabled = false; btn.textContent = '送出洽詢';
+        alert('網路異常，請稍後再試');
+    });
+}
+</script>
+{% endif %}
+
 <!-- ══ Toast Container ══ -->
 <div id="toast-container" class="toast-container"></div>
 

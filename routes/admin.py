@@ -655,6 +655,21 @@ def toggle_block_user(user_id):
 
 
 # =====================
+# Demo 洽詢名單
+# =====================
+
+@admin_bp.route('/contact-leads')
+@admin_required
+def contact_leads():
+    try:
+        rows = supabase.table('contact_leads')\
+            .select('*').order('submitted_at', desc=True).limit(200).execute().data or []
+    except Exception:
+        rows = []
+    return render_template('admin/contact_leads.html', rows=rows)
+
+
+# =====================
 # 小組回報管理（cell_groups）
 # =====================
 

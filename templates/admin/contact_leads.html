@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Demo 洽詢名單{% endblock %}
+{% block content %}
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;flex-wrap:wrap;gap:12px;">
+    <h2>📩 Demo 洽詢名單</h2>
+    <a href="/admin" style="color:#666;text-decoration:none;font-size:0.9rem;">← 返回後台</a>
+</div>
+
+{% if rows %}
+<div style="background:white;border-radius:10px;padding:20px;box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <p style="font-size:0.85rem;color:#666;margin-bottom:16px;">共 {{ rows|length }} 筆洽詢</p>
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+            <thead>
+                <tr style="background:#f5f5f5;text-align:left;">
+                    <th style="padding:10px 12px;font-weight:bold;color:#555;">時間</th>
+                    <th style="padding:10px 12px;font-weight:bold;color:#555;">姓名</th>
+                    <th style="padding:10px 12px;font-weight:bold;color:#555;">教會/機構</th>
+                    <th style="padding:10px 12px;font-weight:bold;color:#555;">聯絡方式</th>
+                    <th style="padding:10px 12px;font-weight:bold;color:#555;">說明</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in rows %}
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:10px 12px;color:#888;white-space:nowrap;">
+                        {{ r.submitted_at[:16].replace('T',' ') if r.submitted_at else '—' }}
+                    </td>
+                    <td style="padding:10px 12px;font-weight:600;">{{ r.name }}</td>
+                    <td style="padding:10px 12px;">{{ r.church or '—' }}</td>
+                    <td style="padding:10px 12px;font-family:monospace;">{{ r.contact_info }}</td>
+                    <td style="padding:10px 12px;color:#555;max-width:300px;white-space:pre-wrap;word-break:break-word;">{{ r.message or '—' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div style="text-align:center;padding:60px;color:#aaa;">
+    <div style="font-size:2.5rem;margin-bottom:12px;">📭</div>
+    <p>目前尚無洽詢紀錄</p>
+    <p style="font-size:0.82rem;margin-top:6px;">（需先建立 contact_leads 資料表）</p>
+</div>
+{% endif %}
+
+{% endblock %}
