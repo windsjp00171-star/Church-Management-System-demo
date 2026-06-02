@@ -5,7 +5,7 @@ DEMO 資料種子腳本 - 整合型教會行政系統
   python seed_demo.py          # 插入展示資料
   python seed_demo.py --clear  # 清除所有展示資料
 """
-import sys, json, uuid, datetime, os
+import sys, json, uuid, datetime, os, secrets
 from pathlib import Path
 
 try:
@@ -171,6 +171,10 @@ def seed():
             'event_end':   dt_str(16, 17, 0),
             'location': '台灣基督長老教會烏來教育中心',
             'capacity': 80, 'fee': 2800, 'is_open': True, 'reminder_days': 7,
+            'checkin_enabled': True,
+            'checkin_token': secrets.token_urlsafe(16),
+            'checkin_mode': 'registered_only',
+            'allow_open_checkin': True,
         },
         {
             'id': eids['marriage'],
@@ -180,6 +184,10 @@ def seed():
             'event_end':   dt_str(7, 17, 0),
             'location': '教會多功能教室',
             'capacity': 40, 'fee': 0, 'is_open': True, 'reminder_days': 3,
+            'checkin_enabled': True,
+            'checkin_token': secrets.token_urlsafe(16),
+            'checkin_mode': 'open',
+            'allow_open_checkin': True,
         },
         {
             'id': eids['parent'],
@@ -189,6 +197,10 @@ def seed():
             'event_end':   dt_str(21, 12, 0),
             'location': '教會兒童教室',
             'capacity': 30, 'fee': 500, 'is_open': True, 'reminder_days': 3,
+            'checkin_enabled': True,
+            'checkin_token': secrets.token_urlsafe(16),
+            'checkin_mode': 'registered_only',
+            'allow_open_checkin': False,
         },
     ]
     safe_insert('events', events_data)
@@ -310,13 +322,17 @@ def seed():
     for i, sid in enumerate(sess_nl):
         sessions.append({'id': sid, 'course_id': cids['new_life'],
                          'session_number': i + 1,
+                         'title': f'第 {i+1} 堂',
                          'scheduled_at': dt_str(7 * i - 35, 14, 0),
-                         'location': '教會多功能教室'})
+                         'location': '教會多功能教室',
+                         'checkin_token': secrets.token_urlsafe(12)})
     for i, sid in enumerate(sess_disc):
         sessions.append({'id': sid, 'course_id': cids['disciple'],
                          'session_number': i + 1,
+                         'title': f'第 {i+1} 堂',
                          'scheduled_at': dt_str(7 * i - 28, 19, 0),
-                         'location': '教會小教室'})
+                         'location': '教會小教室',
+                         'checkin_token': secrets.token_urlsafe(12)})
     safe_insert('course_sessions', sessions)
     ids['sess_nl'] = sess_nl
     ids['sess_disc'] = sess_disc
