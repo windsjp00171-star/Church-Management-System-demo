@@ -35,6 +35,9 @@
                 {% endif %}
                 <span class="navbar-username">{{ session.real_name or '' }}</span>
             </a>
+            {% if session.is_admin or session.is_super_admin %}
+            <a href="/admin" title="後台管理" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:8px;background:rgba(255,255,255,.12);color:white;text-decoration:none;font-size:1rem;flex-shrink:0;">⚙️</a>
+            {% endif %}
             <!-- 🔔 通知鈴鐺 -->
             <div class="notif-wrap" id="notifWrap">
                 <button class="notif-btn" id="notifBtn" onclick="toggleNotifPanel()" aria-label="通知">
