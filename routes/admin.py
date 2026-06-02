@@ -2359,7 +2359,7 @@ def reorder_portal_cards():
 
 
 @admin_bp.route('/portal-cards/group-defaults', methods=['GET', 'POST'])
-@admin_required
+@super_admin_required
 def portal_group_defaults():
     """小組首頁預設：區塊顯示 + 卡片顯示"""
     import settings_store as ss, json as _json
