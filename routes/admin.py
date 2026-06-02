@@ -2483,11 +2483,13 @@ def payment_ledger():
         return render_template('admin/forbidden.html'), 403
 
     import settings_store as ss
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
 
     # 篩選條件
     filter_event = request.args.get('event_id', '')
     filter_status = request.args.get('status', 'all')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
     date_from = request.args.get('date_from', '')
     date_to = request.args.get('date_to', '')
 
@@ -2629,7 +2631,7 @@ def payment_ledger_export():
         return render_template('admin/forbidden.html'), 403
 
     import csv, io, settings_store as ss
-    from datetime import datetime, timezone
+    from datetime import datetime, timezone, timedelta
 
     filter_event = request.args.get('event_id', '')
     filter_status = request.args.get('status', 'all')
