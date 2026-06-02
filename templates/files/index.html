@@ -554,7 +554,7 @@ main .btn-full { width: 100%; justify-content: center; }
 </div>
 
 <!-- 隱藏的原生相機/相簿 input -->
-<input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none" onchange="handlePhotoSelected(this)">
+<input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoSelected(this)">
 <!-- 多檔案選擇 input -->
 <input type="file" id="multiFileInput" multiple style="display:none" onchange="handleMultiFileSelected(this)">
 
@@ -838,18 +838,8 @@ async function copyQuickLink() {
 // ── 拍照上傳（原生選擇器）──
 const _isLineBrowser = /Line\//i.test(navigator.userAgent);
 
-// 若在 LINE 瀏覽器內，替換 label 行為為提示訊息
-if (_isLineBrowser) {
-  document.addEventListener('DOMContentLoaded', () => {
-    const lbl = document.querySelector('label[for="photoInput"]');
-    if (lbl) {
-      lbl.removeAttribute('for');
-      lbl.onclick = () => {
-        showToast('LINE 瀏覽器不支援直接開啟相機，請用外部瀏覽器', 'warning');
-      };
-    }
-  });
-}
+// label[for="photoInput"] 直接關聯 input，iOS LINE WebView 可正常觸發選圖/拍照
+// （移除 capture="environment" 後，LINE 不再需要特殊處理）
 
 let selectedPhotoFile = null;
 function openCamera() {
