@@ -67,6 +67,7 @@ def setup():
 
         session['real_name']    = real_name
         session['member_type']  = member_type
+        session['group_tags']   = tags
 
         next_url = session.pop('next_url', None) or url_for('event.portal')
         return jsonify({'success': True, 'next': next_url})
