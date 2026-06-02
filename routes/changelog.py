@@ -113,7 +113,10 @@ def changelog_delete(log_id):
 def mark_seen():
     from datetime import datetime, timezone
     now_iso = datetime.now(timezone.utc).isoformat()
-    supabase.table('users').update({
-        'last_seen_changelog_at': now_iso,
-    }).eq('id', session['user_id']).execute()
+    try:
+        supabase.table('users').update({
+            'last_seen_changelog_at': now_iso,
+        }).eq('id', session['user_id']).execute()
+    except Exception as e:
+        print(f'[changelog] mark_seen error: {e}')
     return jsonify({'success': True})
