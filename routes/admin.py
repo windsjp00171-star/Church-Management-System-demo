@@ -1967,14 +1967,14 @@ def admin_verse_delete(verse_id):
 # ══════════════════════════════════════════
 
 @admin_bp.route('/portal-links')
-@admin_required
+@super_admin_required
 def admin_portal_links():
     links = supabase.table('portal_links').select('*').order('sort_order').execute().data or []
     return render_template('admin/admin_links.html', links=links)
 
 
 @admin_bp.route('/portal-links/new', methods=['POST'])
-@admin_required
+@super_admin_required
 def admin_portal_link_new():
     data = request.get_json() or {}
     title = (data.get('title') or '').strip()
@@ -2000,7 +2000,7 @@ def admin_portal_link_new():
 
 
 @admin_bp.route('/portal-links/<link_id>/edit', methods=['POST'])
-@admin_required
+@super_admin_required
 def admin_portal_link_edit(link_id):
     data = request.get_json() or {}
     title = (data.get('title') or '').strip()
@@ -2022,14 +2022,14 @@ def admin_portal_link_edit(link_id):
 
 
 @admin_bp.route('/portal-links/<link_id>/delete', methods=['POST'])
-@admin_required
+@super_admin_required
 def admin_portal_link_delete(link_id):
     supabase.table('portal_links').delete().eq('id', link_id).execute()
     return jsonify({'success': True})
 
 
 @admin_bp.route('/portal-links/reorder', methods=['POST'])
-@admin_required
+@super_admin_required
 def reorder_portal_links():
     data = request.get_json() or {}
     order = data.get('order', [])
@@ -2203,7 +2203,7 @@ def group_discussion_delete(gd_id):
 # ── 首頁卡片開關（超管） ──
 
 @admin_bp.route('/portal-card-settings/toggle', methods=['POST'])
-@admin_required
+@super_admin_required
 def portal_card_settings_toggle():
     """超管切換固定卡片可見度"""
     if not session.get('is_super_admin'):
@@ -2222,7 +2222,7 @@ def portal_card_settings_toggle():
 
 
 @admin_bp.route('/portal-links/<link_id>/toggle', methods=['POST'])
-@admin_required
+@super_admin_required
 def portal_link_toggle(link_id):
     """超管切換快捷連結可見度"""
     if not session.get('is_super_admin'):
@@ -2307,7 +2307,7 @@ def _load_portal_cards_from_db():
 
 
 @admin_bp.route('/portal-cards')
-@admin_required
+@super_admin_required
 def portal_cards_page():
     """門戶卡片管理頁面（僅超管）"""
     if not session.get('is_super_admin'):
@@ -2323,7 +2323,7 @@ def portal_cards_page():
 
 
 @admin_bp.route('/api/portal-cards/<key>', methods=['POST'])
-@admin_required
+@super_admin_required
 def update_portal_card(key):
     """更新單張門戶卡片設定"""
     if not session.get('is_super_admin'):
@@ -2341,7 +2341,7 @@ def update_portal_card(key):
 
 
 @admin_bp.route('/api/portal-cards/reorder', methods=['POST'])
-@admin_required
+@super_admin_required
 def reorder_portal_cards():
     """批次更新 sort_order"""
     if not session.get('is_super_admin'):
