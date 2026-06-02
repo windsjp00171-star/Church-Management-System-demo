@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% block title %}確認付款 - {{ event.title }}{% endblock %}
+{% block content %}
+<div style="max-width:520px; margin:0 auto; padding:24px 16px;">
+
+    <!-- 費用明細 -->
+    <div class="card" style="padding:24px; margin-bottom:16px;">
+        <h2 style="margin-bottom:4px; font-size:1.1rem; color:#333;">{{ event.title }}</h2>
+        <p style="color:#888; font-size:0.85rem; margin-bottom:20px;">確認以下費用後點「確認前往繳費」</p>
+
+        <div style="background:#f9f9f9; border-radius:8px; padding:16px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#555; margin-bottom:8px;">
+                <span>活動費用</span>
+                <span>NT$ {{ base_fee }}</span>
+            </div>
+            {% if surcharge %}
+            <div style="display:flex; justify-content:space-between; font-size:0.9rem; color:#888; margin-bottom:8px; padding-bottom:8px; border-bottom:1px dashed #ddd;">
+                <span>平台手續費
+                    <span style="font-size:0.75rem;">（{% if gateway == 'ecpay' %}綠界科技{% else %}LINE Pay{% endif %} 收取，由繳費者承擔）</span>
+                </span>
+                <span>NT$ {{ surcharge }}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:bold; color:#333;">
+                <span>合計</span>
+                <span style="color:#e53935;">NT$ {{ charge_fee }}</span>
+            </div>
+            {% else %}
+            <div style="display:flex; justify-content:space-between; font-size:1rem; font-weight:bold; color:#333; border-top:1px dashed #ddd; padding-top:8px;">
+                <span>合計</span>
+                <span style="color:#e53935;">NT$ {{ charge_fee }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px; background:#f0fff4; border:1px solid #a7f3d0; border-radius:8px; padding:10px 14px; font-size:0.82rem; color:#065f46;">
+            <span style="font-size:1.2rem;">{% if gateway == 'ecpay' %}🟢{% else %}💚{% endif %}</span>
+            <span>你將被導向 <strong>{% if gateway == 'ecpay' %}綠界科技{% else %}LINE Pay{% endif %}</strong> 安全付款頁面</span>
+        </div>
+    </div>
+
+    <!-- 免責聲明 -->
+    <div class="card" style="padding:20px; margin-bottom:16px; border-left:3px solid #fbbf24; background:#fffbeb;">
+        <div style="font-weight:bold; font-size:0.88rem; color:#92400e; margin-bottom:8px;">📋 注意事項</div>
+        <div style="font-size:0.82rem; color:#78350f; line-height:1.9; white-space:pre-wrap;">{% if custom_disclaimer %}{{ custom_disclaimer }}{% else %}本教會與第三方金流平台（綠界科技 / LINE Pay）各自獨立，付款過程中的資料傳輸及資料安全均由各平台負責，本教會不持有你的信用卡或帳戶資訊。
+
+如需退費，請直接聯絡本教會負責同工，由同工協助辦理，恕不接受直接向平台申請退款。
+
+付款完成後，系統將自動更新你的繳費狀態，無須另行通知。{% endif %}</div>
+    </div>
+
+    <!-- 操作按鈕 -->
+    <form method="POST" action="/events/{{ event.id }}/registrations/{{ reg.id }}/pay/execute">
+        <button type="submit"
+            style="width:100%; padding:14px; background:#06C755; color:white; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer; margin-bottom:12px;">
+            確認，前往繳費 →
+        </button>
+    </form>
+    <a href="/events/{{ event.id }}"
+       style="display:block; text-align:center; padding:12px; color:#888; font-size:0.9rem; text-decoration:none; border:1px solid #e0e0e0; border-radius:10px;">
+        取消，返回活動頁面
+    </a>
+</div>
+{% endblock %}

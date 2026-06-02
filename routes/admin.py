@@ -2374,6 +2374,10 @@ def payment_settings():
         ss.set('payment_manual_instructions', request.form.get('manual_instructions', ''))
         ss.set('payment_fee_handling', request.form.get('fee_handling', 'church'))
         ss.set('payment_surcharge_rate', request.form.get('surcharge_rate', '3'))
+        ss.set('payment_ecpay_credit_rate', request.form.get('ecpay_credit_rate', '2.75'))
+        ss.set('payment_ecpay_credit_flat', request.form.get('ecpay_credit_flat', '1'))
+        ss.set('payment_linepay_rate', request.form.get('linepay_rate', '2.9'))
+        ss.set('payment_disclaimer', request.form.get('disclaimer', ''))
         saved = True
     settings = {
         'gateway': ss.get('payment_gateway') or 'none',
@@ -2387,6 +2391,10 @@ def payment_settings():
         'manual_instructions': ss.get('payment_manual_instructions') or '',
         'fee_handling': ss.get('payment_fee_handling') or 'church',
         'surcharge_rate': ss.get('payment_surcharge_rate') or '3',
+        'ecpay_credit_rate': ss.get('payment_ecpay_credit_rate') or '2.75',
+        'ecpay_credit_flat': ss.get('payment_ecpay_credit_flat') or '1',
+        'linepay_rate': ss.get('payment_linepay_rate') or '2.9',
+        'disclaimer': ss.get('payment_disclaimer') or '',
     }
     return render_template('admin/payment_settings.html', settings=settings, saved=saved)
 

@@ -202,33 +202,50 @@
                         </div>
                     </label>
                 </div>
-                <!-- 手續費率說明（公告費率，不可自行修改） -->
+                <!-- 手續費率設定（可編輯） -->
                 <div id="surcharge-config" style="{{ '' if settings.fee_handling == 'payer' else 'display:none;' }} background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:14px 16px;">
-                    <div style="font-weight:bold; font-size:0.88rem; margin-bottom:8px; color:#5d4037;">📋 各平台公告手續費率（自動套用，不可修改）</div>
-                    <table style="font-size:0.82rem; color:#5d4037; line-height:2; border-collapse:collapse; width:100%;">
-                        <tr style="border-bottom:1px solid #ffe082;">
-                            <td style="padding:3px 12px 3px 0; font-weight:bold;">綠界 信用卡</td>
-                            <td>2.75% + NT$1</td>
-                        </tr>
-                        <tr style="border-bottom:1px solid #ffe082;">
-                            <td style="padding:3px 12px 3px 0; font-weight:bold;">綠界 ATM 轉帳</td>
-                            <td>NT$15 固定</td>
-                        </tr>
-                        <tr style="border-bottom:1px solid #ffe082;">
-                            <td style="padding:3px 12px 3px 0; font-weight:bold;">綠界 超商代碼</td>
-                            <td>NT$28 固定</td>
-                        </tr>
-                        <tr>
-                            <td style="padding:3px 12px 3px 0; font-weight:bold;">LINE Pay</td>
-                            <td>2.9%</td>
-                        </tr>
-                    </table>
-                    <p style="font-size:0.78rem; color:#8d6e63; margin-top:8px; line-height:1.6;">
-                        ⚠️ 系統以信用卡費率（最高）計算，讓繳費者有一個固定預期金額。<br>
-                        繳費頁面會明確顯示「活動費 + 手續費 = 合計」，避免爭議。
+                    <div style="font-weight:bold; font-size:0.88rem; margin-bottom:4px; color:#5d4037;">📋 平台手續費率設定</div>
+                    <p style="font-size:0.78rem; color:#8d6e63; margin-bottom:12px; line-height:1.6;">
+                        ⚠️ 請依各平台最新公告費率填寫，勿任意調整。費率變更時才需修改此處。
+                    </p>
+                    <div style="display:grid; gap:10px;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <label style="font-size:0.82rem; font-weight:bold; color:#5d4037; min-width:130px;">綠界 信用卡費率（%）</label>
+                            <input type="number" name="ecpay_credit_rate" min="0" max="10" step="0.01"
+                                value="{{ settings.ecpay_credit_rate or '2.75' }}"
+                                style="width:80px; padding:6px 8px; border:1px solid #ffc107; border-radius:6px; font-size:0.88rem; text-align:center;">
+                            <span style="font-size:0.8rem; color:#888;">% +</span>
+                            <input type="number" name="ecpay_credit_flat" min="0" max="100" step="1"
+                                value="{{ settings.ecpay_credit_flat or '1' }}"
+                                style="width:70px; padding:6px 8px; border:1px solid #ffc107; border-radius:6px; font-size:0.88rem; text-align:center;">
+                            <span style="font-size:0.8rem; color:#888;">NT$ 固定費</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <label style="font-size:0.82rem; font-weight:bold; color:#5d4037; min-width:130px;">LINE Pay 費率（%）</label>
+                            <input type="number" name="linepay_rate" min="0" max="10" step="0.01"
+                                value="{{ settings.linepay_rate or '2.9' }}"
+                                style="width:80px; padding:6px 8px; border:1px solid #ffc107; border-radius:6px; font-size:0.88rem; text-align:center;">
+                            <span style="font-size:0.8rem; color:#888;">%</span>
+                        </div>
+                    </div>
+                    <p style="font-size:0.76rem; color:#aaa; margin-top:10px; line-height:1.5;">
+                        參考：綠界信用卡 2.75%+NT$1（2025公告）／LINE Pay 2.9%（2025公告）
                     </p>
                 </div>
             </div>
+        </div>
+
+        <!-- 免責聲明文字設定 -->
+        <div style="border-top:1px solid #eee; padding-top:20px; margin-bottom:20px;">
+            <h3 style="margin-bottom:8px; font-size:0.95rem;">📄 付款前免責聲明</h3>
+            <p style="font-size:0.82rem; color:#888; margin-bottom:8px; line-height:1.7;">
+                使用者點「前往繳費」前會看到的聲明文字。留空則使用系統預設。
+            </p>
+            <textarea name="disclaimer" rows="5"
+                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.88rem; resize:vertical; line-height:1.8;">{{ settings.disclaimer or '' }}</textarea>
+            <p style="font-size:0.76rem; color:#aaa; margin-top:6px;">
+                預設聲明：「本教會與第三方金流平台（綠界科技 / LINE Pay）各自獨立，付款過程及資料安全由各平台負責。如有退費需求，請聯絡本教會同工。」
+            </p>
         </div>
 
         <div style="margin-top:28px;">

@@ -38,17 +38,17 @@ def _get_gateway_settings():
 
 
 def _apply_surcharge(fee: int, gateway: str) -> int:
-    """Return total amount after surcharge (payer absorbs, using published rates)."""
+    """Return total amount after surcharge using rates from settings (fallback to published defaults)."""
     if gateway == 'ecpay':
-        # Use credit card rate as the worst-case (ALL payment methods selected)
-        r = ECPAY_RATES['credit']
-        surcharge = fee * r['rate'] / 100 + r['flat']
+        rate = float(settings_store.get('payment_ecpay_credit_rate') or 2.75)
+        flat = float(settings_store.get('payment_ecpay_credit_flat') or 1)
     elif gateway == 'linepay':
-        r = LINEPAY_RATE
-        surcharge = fee * r['rate'] / 100 + r['flat']
+        rate = float(settings_store.get('payment_linepay_rate') or 2.9)
+        flat = float(settings_store.get('payment_linepay_flat') or 0)
     else:
         return fee
-    return int(fee + surcharge + 0.5)  # round up to int NT$
+    surcharge = fee * rate / 100 + flat
+    return int(fee + surcharge + 0.5)
 
 
 def _ecpay_checksum(params: dict, hash_key: str, hash_iv: str) -> str:
@@ -98,15 +98,59 @@ def initiate_payment(event_id, reg_id):
         charge_fee = _apply_surcharge(fee, gateway)
         surcharge = charge_fee - fee
 
-    if gateway == 'ecpay':
-        return _ecpay_initiate(event, reg, charge_fee, cfg, base_fee=fee, surcharge=surcharge)
-    elif gateway == 'linepay':
-        return _linepay_initiate(event, reg, charge_fee, cfg, base_fee=fee, surcharge=surcharge)
+    if gateway in ('ecpay', 'linepay'):
+        # Show confirmation page with disclaimer before actual payment
+        custom_disclaimer = settings_store.get('payment_disclaimer') or ''
+        return render_template('payment/confirm.html',
+            event=event,
+            reg=reg,
+            base_fee=fee,
+            surcharge=surcharge,
+            charge_fee=charge_fee,
+            gateway=gateway,
+            fee_handling=cfg['fee_handling'],
+            custom_disclaimer=custom_disclaimer,
+        )
     elif gateway == 'manual':
         return render_template('payment/manual.html', event=event, reg=reg, fee=fee,
                                instructions=cfg['manual_instructions'])
     else:
         return render_template('payment/unavailable.html', event=event)
+
+
+@payment_bp.route('/events/<event_id>/registrations/<reg_id>/pay/execute', methods=['POST'])
+def execute_payment(event_id, reg_id):
+    if not session.get('user_id'):
+        return redirect(url_for('auth.login_page'))
+
+    reg_result = supabase.table('registrations').select('*').eq('id', reg_id).eq('event_id', event_id).execute()
+    if not reg_result.data:
+        abort(404)
+    reg = reg_result.data[0]
+    if reg.get('user_id') != session['user_id']:
+        abort(403)
+
+    event_result = supabase.table('events').select('*').eq('id', event_id).execute()
+    if not event_result.data:
+        abort(404)
+    event = event_result.data[0]
+    fee = int(event.get('fee') or 0)
+
+    cfg = _get_gateway_settings()
+    gateway = cfg['gateway']
+
+    charge_fee = fee
+    surcharge = 0
+    if cfg['fee_handling'] == 'payer' and gateway in ('ecpay', 'linepay'):
+        charge_fee = _apply_surcharge(fee, gateway)
+        surcharge = charge_fee - fee
+
+    if gateway == 'ecpay':
+        return _ecpay_initiate(event, reg, charge_fee, cfg, base_fee=fee, surcharge=surcharge)
+    elif gateway == 'linepay':
+        return _linepay_initiate(event, reg, charge_fee, cfg, base_fee=fee, surcharge=surcharge)
+    else:
+        return redirect(url_for('event.event_detail', event_id=event_id))
 
 
 def _ecpay_initiate(event, reg, fee, cfg, base_fee=None, surcharge=0):
