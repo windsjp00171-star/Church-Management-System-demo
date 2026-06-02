@@ -177,6 +177,31 @@ def admin_cards():
     return render_template('gospel/admin_cards.html', cards=cards)
 
 
+@gospel_bp.route('/admin/gospel/cards/create', methods=['POST'])
+def admin_card_create():
+    if not session.get('is_super_admin'):
+        return jsonify({'success': False}), 403
+    data = request.get_json() or {}
+    question = (data.get('question') or '').strip()
+    answer   = (data.get('answer') or '').strip()
+    if not question or not answer:
+        return jsonify({'success': False, 'error': '問題與答案不能空白'})
+    icon = (data.get('icon') or '✝️').strip() or '✝️'
+    try:
+        max_order = supabase.table('gospel_cards').select('sort_order').order('sort_order', desc=True).limit(1).execute().data
+        next_order = (max_order[0]['sort_order'] + 1) if max_order else 1
+        supabase.table('gospel_cards').insert({
+            'question': question,
+            'answer': answer,
+            'icon': icon,
+            'sort_order': next_order,
+            'is_active': True,
+        }).execute()
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
 @gospel_bp.route('/admin/gospel/cards/<card_id>/update', methods=['POST'])
 def admin_card_update(card_id):
     if not session.get('is_super_admin'):

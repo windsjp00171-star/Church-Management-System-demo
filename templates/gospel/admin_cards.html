@@ -15,6 +15,35 @@
     </a>
 </div>
 
+{# 新增卡片表單 #}
+<div style="background:#f0f9ff; border:1.5px dashed #60a5fa; border-radius:14px; padding:22px 24px; margin-bottom:24px;" id="create-form">
+    <p style="font-weight:700; font-size:.95rem; color:#1e40af; margin:0 0 16px;">➕ 新增信仰問答卡片</p>
+    <div style="display:grid; grid-template-columns:80px 1fr; gap:14px; align-items:start; margin-bottom:12px;">
+        <div>
+            <label style="font-size:.78rem; color:#888; display:block; margin-bottom:4px;">圖示</label>
+            <input type="text" id="new-icon" value="✝️"
+                style="width:100%; padding:8px; border:1.5px solid #bfdbfe; border-radius:8px; font-size:1.2rem; text-align:center;">
+        </div>
+        <div>
+            <label style="font-size:.78rem; color:#888; display:block; margin-bottom:4px;">問題（卡片正面）</label>
+            <input type="text" id="new-question" placeholder="例如：基督徒相信什麼？"
+                style="width:100%; padding:9px 12px; border:1.5px solid #bfdbfe; border-radius:8px; font-size:.92rem; font-family:inherit;">
+        </div>
+    </div>
+    <div style="margin-bottom:12px;">
+        <label style="font-size:.78rem; color:#888; display:block; margin-bottom:4px;">答案（卡片背面）</label>
+        <textarea id="new-answer" rows="3" placeholder="填入信仰回答…"
+            style="width:100%; padding:9px 12px; border:1.5px solid #bfdbfe; border-radius:8px; font-size:.9rem; resize:vertical; font-family:inherit; line-height:1.6;"></textarea>
+    </div>
+    <div style="display:flex; align-items:center; gap:10px;">
+        <button onclick="createCard()"
+            style="padding:8px 22px; background:#1565c0; color:white; border:none; border-radius:8px; cursor:pointer; font-size:.9rem; font-weight:600;">
+            新增卡片
+        </button>
+        <span id="create-msg" style="font-size:.82rem;"></span>
+    </div>
+</div>
+
 <div style="display:flex; flex-direction:column; gap:14px;">
 {% for card in cards %}
 <div style="background:white; border-radius:14px; padding:22px 24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);
@@ -113,7 +142,32 @@ function toggleActive(cardId, newVal, btn) {
         body: JSON.stringify({ is_active: newVal === 'true' || newVal === true })
     }).then(r => r.json()).then(d => {
         if (d.success) location.reload();
-        else showToast(d.error || '操作失敗', 'error');
+        else alert(d.error || '操作失敗');
+    });
+}
+
+function createCard() {
+    const icon     = document.getElementById('new-icon').value.trim() || '✝️';
+    const question = document.getElementById('new-question').value.trim();
+    const answer   = document.getElementById('new-answer').value.trim();
+    const msg      = document.getElementById('create-msg');
+
+    if (!question || !answer) {
+        msg.textContent = '⚠️ 問題與答案不能空白';
+        msg.style.color = '#c62828';
+        return;
+    }
+    fetch('/admin/gospel/cards/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ icon, question, answer })
+    }).then(r => r.json()).then(d => {
+        if (d.success) {
+            location.reload();
+        } else {
+            msg.textContent = '❌ ' + (d.error || '新增失敗');
+            msg.style.color = '#c62828';
+        }
     });
 }
 </script>
