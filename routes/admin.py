@@ -2400,6 +2400,232 @@ def payment_settings():
 
 
 # ══════════════════════════════════════════
+# 收款對帳報表
+# ══════════════════════════════════════════
+
+@admin_bp.route('/payments')
+def payment_ledger():
+    if not session.get('is_admin') and not session.get('is_super_admin'):
+        return redirect('/admin/forbidden')
+
+    import settings_store as ss
+    from datetime import datetime, timezone
+
+    # 篩選條件
+    filter_event = request.args.get('event_id', '')
+    filter_status = request.args.get('status', 'all')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+
+    # 撈所有有費用的活動（供篩選下拉）
+    events_result = supabase.table('events').select('id, title, fee')\
+        .gt('fee', 0).order('created_at', desc=True).execute()
+    all_events = events_result.data or []
+
+    # 基本查詢：已報名（含付款/未付款）
+    query = supabase.table('registrations')\
+        .select('id, event_id, user_id, payment_status, payment_note, created_at, events(title, fee), users(real_name)')\
+        .neq('status', 'cancelled')
+
+    if filter_event:
+        query = query.eq('event_id', filter_event)
+    if filter_status != 'all':
+        query = query.eq('payment_status', filter_status)
+    if date_from:
+        query = query.gte('created_at', date_from + 'T00:00:00+00:00')
+    if date_to:
+        query = query.lte('created_at', date_to + 'T23:59:59+00:00')
+
+    regs_result = query.order('created_at', desc=True).limit(500).execute()
+    regs_raw = regs_result.data or []
+
+    # 只保留有費用的活動報名
+    regs = [r for r in regs_raw if r.get('events') and (r['events'].get('fee') or 0) > 0]
+
+    # 讀取費率設定
+    gateway = ss.get('payment_gateway') or 'none'
+    fee_handling = ss.get('payment_fee_handling') or 'church'
+    ecpay_rate = float(ss.get('payment_ecpay_credit_rate') or 2.75)
+    ecpay_flat = float(ss.get('payment_ecpay_credit_flat') or 1)
+    linepay_rate = float(ss.get('payment_linepay_rate') or 2.9)
+
+    taipei_tz = timezone(timedelta(hours=8))
+
+    def estimate_fee(amount, gw):
+        if gw == 'ecpay':
+            return round(amount * ecpay_rate / 100 + ecpay_flat, 1)
+        elif gw == 'linepay':
+            return round(amount * linepay_rate / 100, 1)
+        return 0
+
+    # 整理每筆紀錄
+    rows = []
+    total_charged = 0
+    total_fee_est = 0
+    total_paid = 0
+
+    for r in regs:
+        ev = r.get('events') or {}
+        usr = r.get('users') or {}
+        fee = int(ev.get('fee') or 0)
+        if fee <= 0:
+            continue
+
+        note = r.get('payment_note') or ''
+        pay_gw = 'ecpay' if note.startswith('ecpay:') else \
+                 'linepay' if note.startswith('linepay:') else \
+                 gateway if r.get('payment_status') == 'paid' else 'manual'
+        trade_no = note.split(':', 1)[1] if ':' in note else '—'
+
+        is_paid = r.get('payment_status') == 'paid'
+        fee_est = estimate_fee(fee, pay_gw) if is_paid else 0
+        net = round(fee - fee_est, 1) if is_paid else 0
+
+        raw_time = r.get('created_at', '')
+        try:
+            dt = datetime.fromisoformat(raw_time.replace('Z', '+00:00')).astimezone(taipei_tz)
+            paid_at = dt.strftime('%Y/%m/%d %H:%M')
+        except Exception:
+            paid_at = raw_time[:16]
+
+        rows.append({
+            'reg_id': r['id'],
+            'event_id': r['event_id'],
+            'event_title': ev.get('title', '—'),
+            'name': usr.get('real_name', '—'),
+            'fee': fee,
+            'payment_status': r.get('payment_status', 'unpaid'),
+            'gateway': pay_gw,
+            'trade_no': trade_no,
+            'fee_est': fee_est,
+            'net': net,
+            'created_at': paid_at,
+        })
+
+        if is_paid:
+            total_paid += 1
+            total_charged += fee
+            total_fee_est += fee_est
+
+    total_net = round(total_charged - total_fee_est, 1)
+
+    # 按活動分組摘要
+    event_summary = {}
+    for row in rows:
+        eid = row['event_id']
+        if eid not in event_summary:
+            event_summary[eid] = {
+                'title': row['event_title'],
+                'fee': row['fee'],
+                'paid': 0,
+                'unpaid': 0,
+                'total_charged': 0,
+                'total_fee': 0,
+            }
+        s = event_summary[eid]
+        if row['payment_status'] == 'paid':
+            s['paid'] += 1
+            s['total_charged'] += row['fee']
+            s['total_fee'] += row['fee_est']
+        else:
+            s['unpaid'] += 1
+    for s in event_summary.values():
+        s['net'] = round(s['total_charged'] - s['total_fee'], 1)
+
+    return render_template('admin/payment_ledger.html',
+        rows=rows,
+        all_events=all_events,
+        filter_event=filter_event,
+        filter_status=filter_status,
+        date_from=date_from,
+        date_to=date_to,
+        gateway=gateway,
+        fee_handling=fee_handling,
+        total_charged=total_charged,
+        total_fee_est=round(total_fee_est, 1),
+        total_net=total_net,
+        total_paid=total_paid,
+        event_summary=event_summary,
+    )
+
+
+@admin_bp.route('/payments/export')
+def payment_ledger_export():
+    if not session.get('is_admin') and not session.get('is_super_admin'):
+        return redirect('/admin/forbidden')
+
+    import csv, io, settings_store as ss
+    from datetime import datetime, timezone
+
+    filter_event = request.args.get('event_id', '')
+    filter_status = request.args.get('status', 'all')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+
+    query = supabase.table('registrations')\
+        .select('id, event_id, user_id, payment_status, payment_note, created_at, events(title, fee), users(real_name)')\
+        .neq('status', 'cancelled')
+    if filter_event:
+        query = query.eq('event_id', filter_event)
+    if filter_status != 'all':
+        query = query.eq('payment_status', filter_status)
+    if date_from:
+        query = query.gte('created_at', date_from + 'T00:00:00+00:00')
+    if date_to:
+        query = query.lte('created_at', date_to + 'T23:59:59+00:00')
+
+    regs_result = query.order('created_at', desc=True).limit(2000).execute()
+    regs_raw = regs_result.data or []
+    regs = [r for r in regs_raw if r.get('events') and (r['events'].get('fee') or 0) > 0]
+
+    gateway = ss.get('payment_gateway') or 'none'
+    ecpay_rate = float(ss.get('payment_ecpay_credit_rate') or 2.75)
+    ecpay_flat = float(ss.get('payment_ecpay_credit_flat') or 1)
+    linepay_rate = float(ss.get('payment_linepay_rate') or 2.9)
+    taipei_tz = timezone(timedelta(hours=8))
+
+    def estimate_fee(amount, gw):
+        if gw == 'ecpay':
+            return round(amount * ecpay_rate / 100 + ecpay_flat, 1)
+        elif gw == 'linepay':
+            return round(amount * linepay_rate / 100, 1)
+        return 0
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['報名時間', '活動名稱', '姓名', '活動費用(NT$)', '繳費狀態', '金流平台', '交易編號', '預估手續費(NT$)', '預估實收(NT$)'])
+
+    for r in regs:
+        ev = r.get('events') or {}
+        usr = r.get('users') or {}
+        fee = int(ev.get('fee') or 0)
+        note = r.get('payment_note') or ''
+        pay_gw = 'ecpay' if note.startswith('ecpay:') else \
+                 'linepay' if note.startswith('linepay:') else gateway
+        trade_no = note.split(':', 1)[1] if ':' in note else ''
+        is_paid = r.get('payment_status') == 'paid'
+        fee_est = estimate_fee(fee, pay_gw) if is_paid else ''
+        net = round(fee - fee_est, 1) if is_paid else ''
+        raw_time = r.get('created_at', '')
+        try:
+            dt = datetime.fromisoformat(raw_time.replace('Z', '+00:00')).astimezone(taipei_tz)
+            paid_at = dt.strftime('%Y/%m/%d %H:%M')
+        except Exception:
+            paid_at = raw_time[:16]
+        status_label = {'paid': '已付款', 'unpaid': '未付款', 'waived': '免收費'}.get(r.get('payment_status', 'unpaid'), '未付款')
+        gw_label = {'ecpay': '綠界科技', 'linepay': 'LINE Pay', 'manual': '手動'}.get(pay_gw, '—')
+        writer.writerow([paid_at, ev.get('title', ''), usr.get('real_name', ''), fee, status_label, gw_label, trade_no, fee_est, net])
+
+    output.seek(0)
+    from flask import Response
+    return Response(
+        '﻿' + output.getvalue(),
+        mimetype='text/csv; charset=utf-8',
+        headers={'Content-Disposition': 'attachment; filename=payment_ledger.csv'}
+    )
+
+
+# ══════════════════════════════════════════
 # 資料交換中心後台
 # ══════════════════════════════════════════
 
