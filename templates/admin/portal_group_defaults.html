@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}小組首頁預設{% endblock %}
+{% block content %}
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
+    <h2>👥 小組首頁預設設定</h2>
+    <a href="/admin/portal-cards" style="color:#666; text-decoration:none;">← 返回卡片管理</a>
+</div>
+
+<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:10px 14px; margin-bottom:20px; font-size:0.82rem; color:#2e7d32; line-height:1.7;">
+    ℹ️ 設定後，屬於該小組的成員在沒有個人客製化設定時，會依照這裡的設定決定首頁顯示。個人設定優先於小組預設。
+</div>
+
+{% if not group_tags %}
+<div style="background:white; border-radius:10px; padding:32px; text-align:center; color:#aaa; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="font-size:2rem; margin-bottom:8px;">👤</div>
+    <p>目前尚無小組標籤。請先在「會員管理」為會友設定小組標籤。</p>
+</div>
+{% else %}
+
+{% for tag in group_tags %}
+{% set sec_cfg = group_section_configs.get(tag, {}) %}
+{% set card_cfg = group_card_configs.get(tag, {}) %}
+<div style="background:white; border-radius:10px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:16px;">
+    <h3 style="margin-bottom:16px; font-size:0.95rem; color:#333;">🏷️ {{ tag }}</h3>
+    <form method="POST" action="/admin/portal-cards/group-defaults">
+        <input type="hidden" name="group_tag" value="{{ tag }}">
+
+        <p style="font-size:0.82rem; font-weight:700; color:#888; letter-spacing:.05em; margin-bottom:8px;">頁面區塊</p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; margin-bottom:20px;">
+            {% for sec in sections %}
+            {% set is_hidden = sec.key in (sec_cfg.hidden or []) %}
+            <label style="display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid {{ '#fecaca' if is_hidden else '#e2e8f0' }}; border-radius:8px; cursor:pointer; background:{{ '#fff5f5' if is_hidden else 'white' }}; font-size:0.85rem;">
+                <input type="checkbox" name="hidden_sections" value="{{ sec.key }}"
+                    {{ 'checked' if is_hidden }}
+                    style="accent-color:#e53935;">
+                <span>{{ sec.emoji }} {{ sec.label }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        {% if portal_cards %}
+        <p style="font-size:0.82rem; font-weight:700; color:#888; letter-spacing:.05em; margin-bottom:8px;">功能卡片（個別開關）</p>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:8px; margin-bottom:20px;">
+            {% for card in portal_cards %}
+            {% set is_hidden = card.key in (card_cfg.hidden or []) %}
+            <label style="display:flex; align-items:center; gap:8px; padding:8px 12px; border:1px solid {{ '#fecaca' if is_hidden else '#e2e8f0' }}; border-radius:8px; cursor:pointer; background:{{ '#fff5f5' if is_hidden else 'white' }}; font-size:0.85rem;">
+                <input type="checkbox" name="hidden_cards" value="{{ card.key }}"
+                    {{ 'checked' if is_hidden }}
+                    style="accent-color:#e53935;">
+                <span>{{ card.emoji }} {{ card.name }}</span>
+            </label>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <button type="submit"
+            style="padding:9px 22px; background:#06C755; color:white; border:none; border-radius:8px; font-size:0.88rem; font-weight:bold; cursor:pointer;">
+            儲存 {{ tag }} 預設
+        </button>
+    </form>
+</div>
+{% endfor %}
+{% endif %}
+{% endblock %}

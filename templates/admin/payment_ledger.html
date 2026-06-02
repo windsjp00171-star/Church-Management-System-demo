@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}收款對帳報表{% endblock %}
+{% block content %}
+
+<div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:12px;">
+    <h2>💳 收款對帳報表</h2>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <a href="/admin/settings/payment" style="color:#888; font-size:0.85rem; text-decoration:none;">⚙️ 金流設定</a>
+        <a href="/admin" style="color:#666; text-decoration:none; font-size:0.9rem;">← 返回後台</a>
+    </div>
+</div>
+
+{% if fee_handling == 'church' %}
+<div style="background:#e8f5e9; border:1px solid #a5d6a7; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:0.82rem; color:#2e7d32;">
+    ℹ️ 目前設定為<strong>教會吸收手續費</strong>。「預估手續費」為系統估算，實際以平台月結單為準。
+</div>
+{% else %}
+<div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:0.82rem; color:#795548;">
+    ℹ️ 目前設定為<strong>繳費者承擔手續費</strong>。活動費欄為原始費用，手續費已由繳費者額外支付。
+</div>
+{% endif %}
+
+<!-- 篩選列 -->
+<div style="background:white; border-radius:10px; padding:18px 20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:20px;">
+    <form method="GET" action="/admin/payments" style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+        <div>
+            <label style="font-size:0.82rem; font-weight:bold; display:block; margin-bottom:4px; color:#555;">活動</label>
+            <select name="event_id" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem; min-width:180px;">
+                <option value="">全部活動</option>
+                {% for ev in all_events %}
+                <option value="{{ ev.id }}" {{ 'selected' if filter_event == ev.id }}>{{ ev.title }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label style="font-size:0.82rem; font-weight:bold; display:block; margin-bottom:4px; color:#555;">繳費狀態</label>
+            <select name="status" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem;">
+                <option value="all" {{ 'selected' if filter_status == 'all' }}>全部</option>
+                <option value="paid" {{ 'selected' if filter_status == 'paid' }}>已付款</option>
+                <option value="unpaid" {{ 'selected' if filter_status == 'unpaid' }}>未付款</option>
+            </select>
+        </div>
+        <div>
+            <label style="font-size:0.82rem; font-weight:bold; display:block; margin-bottom:4px; color:#555;">報名日期（起）</label>
+            <input type="date" name="date_from" value="{{ date_from }}"
+                style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem;">
+        </div>
+        <div>
+            <label style="font-size:0.82rem; font-weight:bold; display:block; margin-bottom:4px; color:#555;">報名日期（迄）</label>
+            <input type="date" name="date_to" value="{{ date_to }}"
+                style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.88rem;">
+        </div>
+        <button type="submit"
+            style="padding:8px 20px; background:#06C755; color:white; border:none; border-radius:6px; font-size:0.88rem; font-weight:bold; cursor:pointer;">
+            套用篩選
+        </button>
+        <a href="/admin/payments" style="padding:8px 14px; color:#888; border:1px solid #ddd; border-radius:6px; font-size:0.88rem; text-decoration:none;">
+            清除
+        </a>
+    </form>
+</div>
+
+<!-- 總計摘要卡 -->
+<div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(160px, 1fr)); gap:12px; margin-bottom:20px;">
+    <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center;">
+        <div style="font-size:1.6rem; font-weight:bold; color:#06C755;">{{ total_paid }}</div>
+        <div style="font-size:0.82rem; color:#888; margin-top:4px;">已付款筆數</div>
+    </div>
+    <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center;">
+        <div style="font-size:1.6rem; font-weight:bold; color:#1565c0;">NT$ {{ "{:,}".format(total_charged) }}</div>
+        <div style="font-size:0.82rem; color:#888; margin-top:4px;">應收總額</div>
+    </div>
+    <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center;">
+        <div style="font-size:1.6rem; font-weight:bold; color:#e53935;">- NT$ {{ "{:,}".format(total_fee_est) }}</div>
+        <div style="font-size:0.82rem; color:#888; margin-top:4px;">預估手續費（信用卡費率）</div>
+    </div>
+    <div style="background:white; border-radius:10px; padding:18px; box-shadow:0 2px 8px rgba(0,0,0,0.06); text-align:center; border:2px solid #06C755;">
+        <div style="font-size:1.6rem; font-weight:bold; color:#2e7d32;">NT$ {{ "{:,}".format(total_net) }}</div>
+        <div style="font-size:0.82rem; color:#888; margin-top:4px;">預估實收（扣除手續費後）</div>
+    </div>
+</div>
+
+{% if event_summary %}
+<!-- 活動分組摘要 -->
+<div style="background:white; border-radius:10px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:20px;">
+    <h3 style="margin-bottom:14px; font-size:0.95rem; color:#333;">📊 各活動收款摘要</h3>
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.85rem;">
+            <thead>
+                <tr style="background:#f5f5f5; text-align:left;">
+                    <th style="padding:10px 12px; font-weight:bold; color:#555;">活動名稱</th>
+                    <th style="padding:10px 12px; font-weight:bold; color:#555; text-align:center;">已付款</th>
+                    <th style="padding:10px 12px; font-weight:bold; color:#555; text-align:center;">未付款</th>
+                    <th style="padding:10px 12px; font-weight:bold; color:#555; text-align:right;">應收小計</th>
+                    <th style="padding:10px 12px; font-weight:bold; color:#555; text-align:right;">預估手續費</th>
+                    <th style="padding:10px 12px; font-weight:bold; color:#555; text-align:right;">預估實收</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for eid, s in event_summary.items() %}
+                <tr style="border-bottom:1px solid #f0f0f0;">
+                    <td style="padding:10px 12px; font-weight:500;">{{ s.title }}</td>
+                    <td style="padding:10px 12px; text-align:center;">
+                        <span style="color:#06C755; font-weight:bold;">{{ s.paid }}</span> 人
+                    </td>
+                    <td style="padding:10px 12px; text-align:center;">
+                        {% if s.unpaid > 0 %}
+                        <span style="color:#e53935; font-weight:bold;">{{ s.unpaid }}</span> 人
+                        {% else %}
+                        <span style="color:#aaa;">—</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:10px 12px; text-align:right; font-weight:bold;">NT$ {{ "{:,}".format(s.total_charged) }}</td>
+                    <td style="padding:10px 12px; text-align:right; color:#e53935;">- NT$ {{ "{:,.1f}".format(s.total_fee) }}</td>
+                    <td style="padding:10px 12px; text-align:right; font-weight:bold; color:#2e7d32;">NT$ {{ "{:,.1f}".format(s.net) }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<!-- 明細表格 + 匯出 -->
+<div style="background:white; border-radius:10px; padding:20px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:10px;">
+        <h3 style="font-size:0.95rem; color:#333; margin:0;">📋 付款明細（{{ rows|length }} 筆）</h3>
+        <a href="/admin/payments/export?event_id={{ filter_event }}&status={{ filter_status }}&date_from={{ date_from }}&date_to={{ date_to }}"
+           style="padding:8px 18px; background:#1565c0; color:white; border-radius:6px; text-decoration:none; font-size:0.85rem; font-weight:bold;">
+            ⬇ 匯出 CSV（對帳用）
+        </a>
+    </div>
+
+    {% if rows %}
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:0.83rem; white-space:nowrap;">
+            <thead>
+                <tr style="background:#f5f5f5; text-align:left;">
+                    <th style="padding:9px 12px; font-weight:bold; color:#555;">報名時間</th>
+                    <th style="padding:9px 12px; font-weight:bold; color:#555;">活動</th>
+                    <th style="padding:9px 12px; font-weight:bold; color:#555;">姓名</th>
+                    <th style="padding:9px 12px; font-weight:bold; color:#555; text-align:center;">狀態</th>
+                    <th style="padding:9px 12px; font-weight:bold; color:#555; text-align:right;">活動費</th>
+                    <th style="padding:9px 12px; font-weight:bold; color:#555; text-align:right;">預估手續費</th>
+                    <th style="padding:9px 12px; font-weight:bold; color:#555; text-align:right;">預估實收</th>
+                    <th style="padding:9px 12px; font-weight:bold; color:#555;">平台</th>
+                    <th style="padding:9px 12px; font-weight:bold; color:#555;">交易編號</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr style="border-bottom:1px solid #f5f5f5; {{ 'background:#fafff9;' if row.payment_status == 'paid' else '' }}">
+                    <td style="padding:9px 12px; color:#888;">{{ row.created_at }}</td>
+                    <td style="padding:9px 12px;">
+                        <a href="/admin/events/{{ row.event_id }}/registrations"
+                           style="color:#1565c0; text-decoration:none;">{{ row.event_title[:20] }}{% if row.event_title|length > 20 %}…{% endif %}</a>
+                    </td>
+                    <td style="padding:9px 12px; font-weight:500;">{{ row.name }}</td>
+                    <td style="padding:9px 12px; text-align:center;">
+                        {% if row.payment_status == 'paid' %}
+                        <span style="background:#e8f5e9; color:#2e7d32; padding:2px 10px; border-radius:20px; font-size:0.78rem; font-weight:bold;">已付款</span>
+                        {% elif row.payment_status == 'waived' %}
+                        <span style="background:#f5f5f5; color:#888; padding:2px 10px; border-radius:20px; font-size:0.78rem;">免收費</span>
+                        {% else %}
+                        <span style="background:#fff3e0; color:#e65100; padding:2px 10px; border-radius:20px; font-size:0.78rem; font-weight:bold;">未付款</span>
+                        {% endif %}
+                    </td>
+                    <td style="padding:9px 12px; text-align:right;">NT$ {{ row.fee }}</td>
+                    <td style="padding:9px 12px; text-align:right; color:#e53935;">
+                        {% if row.payment_status == 'paid' and row.fee_est %}- NT$ {{ row.fee_est }}{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:9px 12px; text-align:right; font-weight:bold; color:#2e7d32;">
+                        {% if row.payment_status == 'paid' and row.net %}NT$ {{ row.net }}{% else %}—{% endif %}
+                    </td>
+                    <td style="padding:9px 12px; color:#555; font-size:0.78rem;">
+                        {% if row.gateway == 'ecpay' %}🟢 綠界
+                        {% elif row.gateway == 'linepay' %}💚 LINE Pay
+                        {% elif row.gateway == 'manual' %}📝 手動
+                        {% else %}—{% endif %}
+                    </td>
+                    <td style="padding:9px 12px; color:#aaa; font-family:monospace; font-size:0.78rem;">{{ row.trade_no }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <p style="font-size:0.76rem; color:#aaa; margin-top:12px; line-height:1.7;">
+        ⚠️ 「預估手續費」以信用卡費率計算（最高），僅供參考。實際手續費請以各平台月結對帳單為準。<br>
+        交易編號可於各平台後台查詢對應帳款。匯出 CSV 後可用 Excel 開啟，貼入記帳軟體。
+    </p>
+    {% else %}
+    <div style="text-align:center; padding:40px; color:#aaa;">
+        <div style="font-size:2rem; margin-bottom:8px;">📭</div>
+        <p>目前篩選條件下無付款紀錄</p>
+    </div>
+    {% endif %}
+</div>
+
+{% endblock %}

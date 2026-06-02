@@ -87,7 +87,12 @@ def devotional_register(order_id):
     if not user_group:
         return jsonify({'ok': False, 'msg': '找不到您的所屬小組'}), 400
 
-    qty = int(request.form.get('quantity', 1))
+    try:
+        qty = int(request.form.get('quantity', 1))
+        if qty < 0:
+            raise ValueError
+    except (ValueError, TypeError):
+        return jsonify({'ok': False, 'msg': '數量格式錯誤'}), 400
     notes = request.form.get('notes', '').strip()
     user_id = session.get('user_id')
 

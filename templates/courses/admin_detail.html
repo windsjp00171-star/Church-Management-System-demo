@@ -125,10 +125,10 @@
                 </td>
                 <td style="padding:14px 16px; text-align:center;">
                     <div style="display:flex; gap:6px; justify-content:center;">
-                        <a href="/admin/courses/{{ course.id }}/sessions/{{ s.id }}/qrcode"
-                           style="padding:5px 12px; background:#fff3e0; color:#e65100; border-radius:6px; text-decoration:none; font-size:0.82rem;">
+                        <button onclick="showSessionQR('{{ s.id }}', '{{ s.checkin_token or '' }}', '第 {{ s.session_number }} 堂')"
+                            style="padding:5px 12px; background:#fff3e0; color:#e65100; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
                             📱 QR
-                        </a>
+                        </button>
                         <button onclick="toggleEditRow('{{ s.id }}')"
                             style="padding:5px 12px; background:#e3f2fd; color:#1565c0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem;">
                             ✏️ 編輯
@@ -439,6 +439,72 @@ function closeSharedQR() {
         <p style="color:#aaa; font-size:0.78rem;">掃描後用 LINE 登入即可簽到</p>
     </div>
 </div>
+
+<!-- 堂次簽到 QR Modal -->
+<div id="session-qr-modal" onclick="if(event.target===this)closeSessionQR()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55);
+           z-index:1000; align-items:center; justify-content:center; padding:20px;">
+    <div style="background:white; border-radius:16px; padding:28px; max-width:360px; width:100%; text-align:center; position:relative;">
+        <button onclick="closeSessionQR()"
+            style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.3rem; cursor:pointer; color:#aaa;">✕</button>
+        <h3 style="margin-bottom:2px;">📱 堂次簽到 QR</h3>
+        <p id="session-qr-label" style="color:#888; font-size:0.85rem; margin-bottom:16px;"></p>
+        <div style="background:#f5f5f5; border-radius:12px; padding:16px; margin-bottom:16px; display:inline-block;">
+            <img id="session-qr-img" src="" alt="QR Code" style="width:220px; height:220px; display:block;">
+        </div>
+        <div style="display:flex; gap:8px; margin-bottom:10px;">
+            <input id="session-qr-url-text" type="text" readonly
+                style="flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.82rem; color:#555; background:#f9f9f9;">
+            <button id="session-copy-btn" onclick="copySessionUrl()"
+                style="padding:8px 14px; background:#e65100; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.85rem; white-space:nowrap;">
+                📋 複製
+            </button>
+        </div>
+        <button id="session-fullscreen-btn" onclick="openSessionFullscreen()"
+            style="width:100%; padding:10px; background:#fff3e0; color:#e65100; border:1px solid #ffccbc;
+                   border-radius:8px; cursor:pointer; font-size:0.9rem; font-weight:600;">
+            🖥️ 全螢幕投影
+        </button>
+        <p style="color:#aaa; font-size:0.78rem; margin-top:10px;">學員掃描後以 LINE 登入即完成出席記錄</p>
+    </div>
+</div>
+
+<script>
+let _sessionCheckinUrl = '';
+let _sessionId = '';
+
+function showSessionQR(sessionId, token, label) {
+    if (!token) {
+        alert('此堂次尚未產生 QR Code，請重新儲存堂次設定。');
+        return;
+    }
+    _sessionId = sessionId;
+    _sessionCheckinUrl = `${location.origin}/course-checkin/${sessionId}/${token}`;
+    document.getElementById('session-qr-label').textContent = label + '・{{ course.title }}';
+    document.getElementById('session-qr-url-text').value = _sessionCheckinUrl;
+    document.getElementById('session-qr-img').src =
+        `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(_sessionCheckinUrl)}`;
+    document.getElementById('session-fullscreen-btn').dataset.courseId = '{{ course.id }}';
+    document.getElementById('session-qr-modal').style.display = 'flex';
+}
+
+function closeSessionQR() {
+    document.getElementById('session-qr-modal').style.display = 'none';
+}
+
+function copySessionUrl() {
+    const input = document.getElementById('session-qr-url-text');
+    input.select();
+    document.execCommand('copy');
+    const btn = document.getElementById('session-copy-btn');
+    btn.textContent = '✅ 已複製';
+    setTimeout(() => btn.textContent = '📋 複製', 1500);
+}
+
+function openSessionFullscreen() {
+    window.open(`/admin/courses/{{ course.id }}/sessions/${_sessionId}/qrcode`, '_blank');
+}
+</script>
 {% endif %}
 
 {% endblock %}

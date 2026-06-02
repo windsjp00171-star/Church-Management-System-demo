@@ -146,6 +146,8 @@ def new_prayer():
             'reaction_count': 0,
             'comment_count': 0,
         }).execute()
+        if not r.data:
+            return jsonify({'success': False, 'error': '建立失敗'})
         return jsonify({'success': True, 'id': r.data[0]['id']})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
@@ -284,7 +286,7 @@ def mark_answered(prayer_id):
 
         supabase.table('prayers').update({
             'status': 'answered',
-            'answered_at': 'now()',
+            'answered_at': datetime.now(timezone.utc).isoformat(),
         }).eq('id', prayer_id).execute()
         return jsonify({'success': True})
     except Exception as e:
@@ -350,7 +352,7 @@ def archive_prayer(prayer_id):
 
         supabase.table('prayers').update({
             'status': 'archived',
-            'archived_at': 'now()',
+            'archived_at': datetime.now(timezone.utc).isoformat(),
         }).eq('id', prayer_id).execute()
         return jsonify({'success': True})
     except Exception as e:

@@ -115,6 +115,10 @@ def create_app():
     from routes.devotional import devotional_bp
     app.register_blueprint(devotional_bp)
 
+    # ── 線上金流 ───────────────────────────────────────────────
+    from routes.payment import payment_bp
+    app.register_blueprint(payment_bp)
+
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',

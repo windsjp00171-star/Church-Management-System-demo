@@ -118,7 +118,8 @@ def can_manage_event(event):
 @admin_required
 def index():
     """後台首頁"""
-    return render_template('admin/index.html')
+    return render_template('admin/index.html',
+        has_finance_access=_has_finance_access())
 
 
 @admin_bp.route('/calendar')
@@ -874,6 +875,7 @@ def event_new():
             'checkin_token': secrets.token_urlsafe(16) if checkin_enabled else None,
             'allow_multiple': data.get('allow_multiple', False),
             'allow_external_reg': data.get('allow_external_reg', False),
+            'payment_enabled': data.get('payment_enabled', False),
             'party_animation': data.get('party_animation', False),
             'poster_url': data.get('poster_url') or None,
             'whitelist_enabled': data.get('whitelist_enabled', False),
@@ -952,6 +954,7 @@ def event_edit(event_id):
             'checkin_token': existing_token,
             'allow_multiple': data.get('allow_multiple', False),
             'allow_external_reg': data.get('allow_external_reg', False),
+            'payment_enabled': data.get('payment_enabled', False),
             'party_animation': data.get('party_animation', False),
             'poster_url': data.get('poster_url') or None,
             'whitelist_enabled': data.get('whitelist_enabled', False),
@@ -1965,14 +1968,14 @@ def admin_verse_delete(verse_id):
 # ══════════════════════════════════════════
 
 @admin_bp.route('/portal-links')
-@admin_required
+@super_admin_required
 def admin_portal_links():
     links = supabase.table('portal_links').select('*').order('sort_order').execute().data or []
     return render_template('admin/admin_links.html', links=links)
 
 
 @admin_bp.route('/portal-links/new', methods=['POST'])
-@admin_required
+@super_admin_required
 def admin_portal_link_new():
     data = request.get_json() or {}
     title = (data.get('title') or '').strip()
@@ -1998,7 +2001,7 @@ def admin_portal_link_new():
 
 
 @admin_bp.route('/portal-links/<link_id>/edit', methods=['POST'])
-@admin_required
+@super_admin_required
 def admin_portal_link_edit(link_id):
     data = request.get_json() or {}
     title = (data.get('title') or '').strip()
@@ -2020,14 +2023,14 @@ def admin_portal_link_edit(link_id):
 
 
 @admin_bp.route('/portal-links/<link_id>/delete', methods=['POST'])
-@admin_required
+@super_admin_required
 def admin_portal_link_delete(link_id):
     supabase.table('portal_links').delete().eq('id', link_id).execute()
     return jsonify({'success': True})
 
 
 @admin_bp.route('/portal-links/reorder', methods=['POST'])
-@admin_required
+@super_admin_required
 def reorder_portal_links():
     data = request.get_json() or {}
     order = data.get('order', [])
@@ -2201,7 +2204,7 @@ def group_discussion_delete(gd_id):
 # ── 首頁卡片開關（超管） ──
 
 @admin_bp.route('/portal-card-settings/toggle', methods=['POST'])
-@admin_required
+@super_admin_required
 def portal_card_settings_toggle():
     """超管切換固定卡片可見度"""
     if not session.get('is_super_admin'):
@@ -2220,7 +2223,7 @@ def portal_card_settings_toggle():
 
 
 @admin_bp.route('/portal-links/<link_id>/toggle', methods=['POST'])
-@admin_required
+@super_admin_required
 def portal_link_toggle(link_id):
     """超管切換快捷連結可見度"""
     if not session.get('is_super_admin'):
@@ -2305,7 +2308,7 @@ def _load_portal_cards_from_db():
 
 
 @admin_bp.route('/portal-cards')
-@admin_required
+@super_admin_required
 def portal_cards_page():
     """門戶卡片管理頁面（僅超管）"""
     if not session.get('is_super_admin'):
@@ -2321,7 +2324,7 @@ def portal_cards_page():
 
 
 @admin_bp.route('/api/portal-cards/<key>', methods=['POST'])
-@admin_required
+@super_admin_required
 def update_portal_card(key):
     """更新單張門戶卡片設定"""
     if not session.get('is_super_admin'):
@@ -2339,7 +2342,7 @@ def update_portal_card(key):
 
 
 @admin_bp.route('/api/portal-cards/reorder', methods=['POST'])
-@admin_required
+@super_admin_required
 def reorder_portal_cards():
     """批次更新 sort_order"""
     if not session.get('is_super_admin'):
@@ -2354,6 +2357,346 @@ def reorder_portal_cards():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/portal-cards/group-defaults', methods=['GET', 'POST'])
+@super_admin_required
+def portal_group_defaults():
+    """小組首頁預設：區塊顯示 + 卡片顯示"""
+    import settings_store as ss, json as _json
+
+    SECTIONS = [
+        {'key': 'hero',           'label': 'Hero 橫幅',      'emoji': '🖼️'},
+        {'key': 'todo_widget',    'label': '本週待辦',         'emoji': '📋'},
+        {'key': 'upcoming_events','label': '我的近期活動',     'emoji': '📅'},
+        {'key': 'diary_widget',   'label': '靈修空間',         'emoji': '📖'},
+        {'key': 'portal_cards',   'label': '更多功能（功能磚）','emoji': '🔲'},
+        {'key': 'weekly_info',    'label': '本週資訊',         'emoji': '📰'},
+    ]
+
+    try:
+        users_data = supabase.table('users').select('group_tags').execute().data or []
+        all_tags = set()
+        for u in users_data:
+            for t in (u.get('group_tags') or []):
+                if t:
+                    all_tags.add(t)
+        group_tags = sorted(all_tags)
+    except Exception:
+        group_tags = []
+
+    try:
+        portal_cards = supabase.table('portal_cards').select('key,name,emoji,subtitle')\
+            .eq('is_active', True).order('sort_order').execute().data or []
+    except Exception:
+        portal_cards = []
+
+    if request.method == 'POST':
+        tag = request.form.get('group_tag', '').strip()
+        if tag:
+            hidden_sections = request.form.getlist('hidden_sections')
+            ss.set(f'portal_sections_group_{tag}', _json.dumps({'hidden': hidden_sections}))
+            hidden_cards = request.form.getlist('hidden_cards')
+            ss.set(f'portal_group_{tag}', _json.dumps({'hidden': hidden_cards}))
+        return redirect(url_for('admin.portal_group_defaults'))
+
+    group_section_configs = {}
+    group_card_configs = {}
+    for tag in group_tags:
+        raw_sec = ss.get(f'portal_sections_group_{tag}')
+        group_section_configs[tag] = _json.loads(raw_sec) if raw_sec else {'hidden': []}
+        raw_card = ss.get(f'portal_group_{tag}')
+        group_card_configs[tag] = _json.loads(raw_card) if raw_card else {'hidden': []}
+
+    return render_template('admin/portal_group_defaults.html',
+        group_tags=group_tags, sections=SECTIONS, portal_cards=portal_cards,
+        group_section_configs=group_section_configs,
+        group_card_configs=group_card_configs)
+
+
+def _has_finance_access():
+    """超管永遠可以；或 group_tags 包含財務管理標籤之一；未設定標籤時退化為一般管理員"""
+    if session.get('is_super_admin'):
+        return True
+    import settings_store as _ss
+    raw = _ss.get('admin_finance_group_tags') or ''
+    allowed = [t.strip() for t in raw.split(',') if t.strip()]
+    if not allowed:
+        return bool(session.get('is_admin'))
+    user_tags = session.get('group_tags') or []
+    return bool(set(user_tags) & set(allowed))
+
+
+@admin_bp.route('/settings/payment', methods=['GET', 'POST'])
+def payment_settings():
+    if not _has_finance_access():
+        return render_template('admin/forbidden.html'), 403
+    import settings_store as ss
+    saved = False
+    if request.method == 'POST':
+        ss.set('payment_gateway', request.form.get('gateway', 'none'))
+        ss.set('payment_ecpay_merchant_id', request.form.get('ecpay_merchant_id', ''))
+        ss.set('payment_ecpay_hash_key', request.form.get('ecpay_hash_key', ''))
+        ss.set('payment_ecpay_hash_iv', request.form.get('ecpay_hash_iv', ''))
+        ss.set('payment_ecpay_mode', request.form.get('ecpay_mode', 'test'))
+        ss.set('payment_linepay_channel_id', request.form.get('linepay_channel_id', ''))
+        ss.set('payment_linepay_channel_secret', request.form.get('linepay_channel_secret', ''))
+        ss.set('payment_linepay_mode', request.form.get('linepay_mode', 'sandbox'))
+        ss.set('payment_manual_instructions', request.form.get('manual_instructions', ''))
+        ss.set('payment_fee_handling', request.form.get('fee_handling', 'church'))
+        ss.set('payment_surcharge_rate', request.form.get('surcharge_rate', '3'))
+        ss.set('payment_ecpay_credit_rate', request.form.get('ecpay_credit_rate', '2.75'))
+        ss.set('payment_ecpay_credit_flat', request.form.get('ecpay_credit_flat', '1'))
+        ss.set('payment_linepay_rate', request.form.get('linepay_rate', '2.9'))
+        ss.set('payment_disclaimer', request.form.get('disclaimer', ''))
+        if session.get('is_super_admin'):
+            ss.set('admin_finance_group_tags', request.form.get('finance_group_tags', ''))
+        saved = True
+    settings = {
+        'gateway': ss.get('payment_gateway') or 'none',
+        'ecpay_merchant_id': ss.get('payment_ecpay_merchant_id') or '',
+        'ecpay_hash_key': ss.get('payment_ecpay_hash_key') or '',
+        'ecpay_hash_iv': ss.get('payment_ecpay_hash_iv') or '',
+        'ecpay_mode': ss.get('payment_ecpay_mode') or 'test',
+        'linepay_channel_id': ss.get('payment_linepay_channel_id') or '',
+        'linepay_channel_secret': ss.get('payment_linepay_channel_secret') or '',
+        'linepay_mode': ss.get('payment_linepay_mode') or 'sandbox',
+        'manual_instructions': ss.get('payment_manual_instructions') or '',
+        'fee_handling': ss.get('payment_fee_handling') or 'church',
+        'surcharge_rate': ss.get('payment_surcharge_rate') or '3',
+        'ecpay_credit_rate': ss.get('payment_ecpay_credit_rate') or '2.75',
+        'ecpay_credit_flat': ss.get('payment_ecpay_credit_flat') or '1',
+        'linepay_rate': ss.get('payment_linepay_rate') or '2.9',
+        'disclaimer': ss.get('payment_disclaimer') or '',
+        'finance_group_tags': ss.get('admin_finance_group_tags') or '',
+    }
+    return render_template('admin/payment_settings.html', settings=settings, saved=saved)
+
+
+# ══════════════════════════════════════════
+# 收款對帳報表
+# ══════════════════════════════════════════
+
+@admin_bp.route('/payments')
+def payment_ledger():
+    if not _has_finance_access():
+        return render_template('admin/forbidden.html'), 403
+
+    import settings_store as ss
+    from datetime import datetime, timezone
+
+    # 篩選條件
+    filter_event = request.args.get('event_id', '')
+    filter_status = request.args.get('status', 'all')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+
+    # 撈所有有費用的活動（供篩選下拉）
+    events_result = supabase.table('events').select('id, title, fee')\
+        .gt('fee', 0).order('created_at', desc=True).execute()
+    all_events = events_result.data or []
+
+    # 基本查詢：已報名（含付款/未付款）
+    query = supabase.table('registrations')\
+        .select('id, event_id, user_id, payment_status, payment_note, created_at, events(title, fee), users(real_name)')\
+        .neq('status', 'cancelled')
+
+    if filter_event:
+        query = query.eq('event_id', filter_event)
+    if filter_status != 'all':
+        query = query.eq('payment_status', filter_status)
+    if date_from:
+        query = query.gte('created_at', date_from + 'T00:00:00+00:00')
+    if date_to:
+        query = query.lte('created_at', date_to + 'T23:59:59+00:00')
+
+    regs_result = query.order('created_at', desc=True).limit(500).execute()
+    regs_raw = regs_result.data or []
+
+    # 只保留有費用的活動報名
+    regs = [r for r in regs_raw if r.get('events') and (r['events'].get('fee') or 0) > 0]
+
+    # 讀取費率設定
+    gateway = ss.get('payment_gateway') or 'none'
+    fee_handling = ss.get('payment_fee_handling') or 'church'
+    ecpay_rate = float(ss.get('payment_ecpay_credit_rate') or 2.75)
+    ecpay_flat = float(ss.get('payment_ecpay_credit_flat') or 1)
+    linepay_rate = float(ss.get('payment_linepay_rate') or 2.9)
+
+    taipei_tz = timezone(timedelta(hours=8))
+
+    def estimate_fee(amount, gw):
+        if gw == 'ecpay':
+            return round(amount * ecpay_rate / 100 + ecpay_flat, 1)
+        elif gw == 'linepay':
+            return round(amount * linepay_rate / 100, 1)
+        return 0
+
+    # 整理每筆紀錄
+    rows = []
+    total_charged = 0
+    total_fee_est = 0
+    total_paid = 0
+
+    for r in regs:
+        ev = r.get('events') or {}
+        usr = r.get('users') or {}
+        fee = int(ev.get('fee') or 0)
+        if fee <= 0:
+            continue
+
+        note = r.get('payment_note') or ''
+        pay_gw = 'ecpay' if note.startswith('ecpay:') else \
+                 'linepay' if note.startswith('linepay:') else \
+                 gateway if r.get('payment_status') == 'paid' else 'manual'
+        trade_no = note.split(':', 1)[1] if ':' in note else '—'
+
+        is_paid = r.get('payment_status') == 'paid'
+        fee_est = estimate_fee(fee, pay_gw) if is_paid else 0
+        net = round(fee - fee_est, 1) if is_paid else 0
+
+        raw_time = r.get('created_at', '')
+        try:
+            dt = datetime.fromisoformat(raw_time.replace('Z', '+00:00')).astimezone(taipei_tz)
+            paid_at = dt.strftime('%Y/%m/%d %H:%M')
+        except Exception:
+            paid_at = raw_time[:16]
+
+        rows.append({
+            'reg_id': r['id'],
+            'event_id': r['event_id'],
+            'event_title': ev.get('title', '—'),
+            'name': usr.get('real_name', '—'),
+            'fee': fee,
+            'payment_status': r.get('payment_status', 'unpaid'),
+            'gateway': pay_gw,
+            'trade_no': trade_no,
+            'fee_est': fee_est,
+            'net': net,
+            'created_at': paid_at,
+        })
+
+        if is_paid:
+            total_paid += 1
+            total_charged += fee
+            total_fee_est += fee_est
+
+    total_net = round(total_charged - total_fee_est, 1)
+
+    # 按活動分組摘要
+    event_summary = {}
+    for row in rows:
+        eid = row['event_id']
+        if eid not in event_summary:
+            event_summary[eid] = {
+                'title': row['event_title'],
+                'fee': row['fee'],
+                'paid': 0,
+                'unpaid': 0,
+                'total_charged': 0,
+                'total_fee': 0,
+            }
+        s = event_summary[eid]
+        if row['payment_status'] == 'paid':
+            s['paid'] += 1
+            s['total_charged'] += row['fee']
+            s['total_fee'] += row['fee_est']
+        else:
+            s['unpaid'] += 1
+    for s in event_summary.values():
+        s['net'] = round(s['total_charged'] - s['total_fee'], 1)
+
+    return render_template('admin/payment_ledger.html',
+        rows=rows,
+        all_events=all_events,
+        filter_event=filter_event,
+        filter_status=filter_status,
+        date_from=date_from,
+        date_to=date_to,
+        gateway=gateway,
+        fee_handling=fee_handling,
+        total_charged=total_charged,
+        total_fee_est=round(total_fee_est, 1),
+        total_net=total_net,
+        total_paid=total_paid,
+        event_summary=event_summary,
+    )
+
+
+@admin_bp.route('/payments/export')
+def payment_ledger_export():
+    if not _has_finance_access():
+        return render_template('admin/forbidden.html'), 403
+
+    import csv, io, settings_store as ss
+    from datetime import datetime, timezone
+
+    filter_event = request.args.get('event_id', '')
+    filter_status = request.args.get('status', 'all')
+    date_from = request.args.get('date_from', '')
+    date_to = request.args.get('date_to', '')
+
+    query = supabase.table('registrations')\
+        .select('id, event_id, user_id, payment_status, payment_note, created_at, events(title, fee), users(real_name)')\
+        .neq('status', 'cancelled')
+    if filter_event:
+        query = query.eq('event_id', filter_event)
+    if filter_status != 'all':
+        query = query.eq('payment_status', filter_status)
+    if date_from:
+        query = query.gte('created_at', date_from + 'T00:00:00+00:00')
+    if date_to:
+        query = query.lte('created_at', date_to + 'T23:59:59+00:00')
+
+    regs_result = query.order('created_at', desc=True).limit(2000).execute()
+    regs_raw = regs_result.data or []
+    regs = [r for r in regs_raw if r.get('events') and (r['events'].get('fee') or 0) > 0]
+
+    gateway = ss.get('payment_gateway') or 'none'
+    ecpay_rate = float(ss.get('payment_ecpay_credit_rate') or 2.75)
+    ecpay_flat = float(ss.get('payment_ecpay_credit_flat') or 1)
+    linepay_rate = float(ss.get('payment_linepay_rate') or 2.9)
+    taipei_tz = timezone(timedelta(hours=8))
+
+    def estimate_fee(amount, gw):
+        if gw == 'ecpay':
+            return round(amount * ecpay_rate / 100 + ecpay_flat, 1)
+        elif gw == 'linepay':
+            return round(amount * linepay_rate / 100, 1)
+        return 0
+
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(['報名時間', '活動名稱', '姓名', '活動費用(NT$)', '繳費狀態', '金流平台', '交易編號', '預估手續費(NT$)', '預估實收(NT$)'])
+
+    for r in regs:
+        ev = r.get('events') or {}
+        usr = r.get('users') or {}
+        fee = int(ev.get('fee') or 0)
+        note = r.get('payment_note') or ''
+        pay_gw = 'ecpay' if note.startswith('ecpay:') else \
+                 'linepay' if note.startswith('linepay:') else gateway
+        trade_no = note.split(':', 1)[1] if ':' in note else ''
+        is_paid = r.get('payment_status') == 'paid'
+        fee_est = estimate_fee(fee, pay_gw) if is_paid else ''
+        net = round(fee - fee_est, 1) if is_paid else ''
+        raw_time = r.get('created_at', '')
+        try:
+            dt = datetime.fromisoformat(raw_time.replace('Z', '+00:00')).astimezone(taipei_tz)
+            paid_at = dt.strftime('%Y/%m/%d %H:%M')
+        except Exception:
+            paid_at = raw_time[:16]
+        status_label = {'paid': '已付款', 'unpaid': '未付款', 'waived': '免收費'}.get(r.get('payment_status', 'unpaid'), '未付款')
+        gw_label = {'ecpay': '綠界科技', 'linepay': 'LINE Pay', 'manual': '手動'}.get(pay_gw, '—')
+        writer.writerow([paid_at, ev.get('title', ''), usr.get('real_name', ''), fee, status_label, gw_label, trade_no, fee_est, net])
+
+    output.seek(0)
+    from flask import Response
+    return Response(
+        '﻿' + output.getvalue(),
+        mimetype='text/csv; charset=utf-8',
+        headers={'Content-Disposition': 'attachment; filename=payment_ledger.csv'}
+    )
 
 
 # ══════════════════════════════════════════

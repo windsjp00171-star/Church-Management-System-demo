@@ -824,7 +824,7 @@ def admin_plan_save():
 
     try:
         sb.table('diary_plan').upsert(
-            {'date': d, 'book': book, 'range': rng, 'updated_at': 'now()'},
+            {'date': d, 'book': book, 'range': rng},
             on_conflict='date'
         ).execute()
         _invalidate_plan_cache()

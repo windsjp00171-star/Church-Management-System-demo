@@ -100,6 +100,29 @@
 
 </div>
 
+{% if has_finance_access %}
+<div class="section-label">財務管理</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+
+    <a href="/admin/settings/payment" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fff4; color:#15803d;">💳</div>
+            <div class="admin-card-name">金流設定</div>
+            <div class="admin-card-desc">綠界 / LINE Pay / 手動繳費設定</div>
+        </div>
+    </a>
+
+    <a href="/admin/payments" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">🧾</div>
+            <div class="admin-card-name">收款對帳報表</div>
+            <div class="admin-card-desc">付款明細、手續費估算、匯出 CSV</div>
+        </div>
+    </a>
+
+</div>
+{% endif %}
+
 {% if session.get('is_super_admin') %}
 <div class="section-label">會員管理 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
 <p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
@@ -156,6 +179,14 @@
             <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🏠</div>
             <div class="admin-card-name">首頁內容</div>
             <div class="admin-card-desc">系統功能卡片與快捷連結</div>
+        </div>
+    </a>
+
+    <a href="/admin/portal-cards/group-defaults" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">👥</div>
+            <div class="admin-card-name">小組首頁預設</div>
+            <div class="admin-card-desc">各小組的區塊與卡片顯示預設</div>
         </div>
     </a>
 
