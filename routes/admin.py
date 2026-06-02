@@ -2361,10 +2361,9 @@ def reorder_portal_cards():
 @admin_bp.route('/portal-cards/group-defaults', methods=['GET', 'POST'])
 @admin_required
 def portal_group_defaults():
-    """小組首頁預設區塊顯示設定"""
+    """小組首頁預設：區塊顯示 + 卡片顯示"""
     import settings_store as ss, json as _json
 
-    # 6 major sections that can be toggled per group
     SECTIONS = [
         {'key': 'hero',           'label': 'Hero 橫幅',      'emoji': '🖼️'},
         {'key': 'todo_widget',    'label': '本週待辦',         'emoji': '📋'},
@@ -2374,7 +2373,6 @@ def portal_group_defaults():
         {'key': 'weekly_info',    'label': '本週資訊',         'emoji': '📰'},
     ]
 
-    # Load available group tags from users table
     try:
         users_data = supabase.table('users').select('group_tags').execute().data or []
         all_tags = set()
@@ -2386,22 +2384,33 @@ def portal_group_defaults():
     except Exception:
         group_tags = []
 
+    try:
+        portal_cards = supabase.table('portal_cards').select('key,name,emoji,subtitle')\
+            .eq('is_active', True).order('sort_order').execute().data or []
+    except Exception:
+        portal_cards = []
+
     if request.method == 'POST':
         tag = request.form.get('group_tag', '').strip()
-        hidden = request.form.getlist('hidden_sections')
         if tag:
-            config = {'hidden': hidden}
-            ss.set(f'portal_sections_group_{tag}', _json.dumps(config))
+            hidden_sections = request.form.getlist('hidden_sections')
+            ss.set(f'portal_sections_group_{tag}', _json.dumps({'hidden': hidden_sections}))
+            hidden_cards = request.form.getlist('hidden_cards')
+            ss.set(f'portal_group_{tag}', _json.dumps({'hidden': hidden_cards}))
         return redirect(url_for('admin.portal_group_defaults'))
 
-    # Load existing group section configs
-    group_configs = {}
+    group_section_configs = {}
+    group_card_configs = {}
     for tag in group_tags:
-        raw = ss.get(f'portal_sections_group_{tag}')
-        group_configs[tag] = _json.loads(raw) if raw else {'hidden': []}
+        raw_sec = ss.get(f'portal_sections_group_{tag}')
+        group_section_configs[tag] = _json.loads(raw_sec) if raw_sec else {'hidden': []}
+        raw_card = ss.get(f'portal_group_{tag}')
+        group_card_configs[tag] = _json.loads(raw_card) if raw_card else {'hidden': []}
 
     return render_template('admin/portal_group_defaults.html',
-        group_tags=group_tags, sections=SECTIONS, group_configs=group_configs)
+        group_tags=group_tags, sections=SECTIONS, portal_cards=portal_cards,
+        group_section_configs=group_section_configs,
+        group_card_configs=group_card_configs)
 
 
 @admin_bp.route('/settings/payment', methods=['GET', 'POST'])

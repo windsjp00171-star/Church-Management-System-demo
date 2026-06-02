@@ -262,6 +262,20 @@ def homepage_settings():
     hidden_keys = config.get('hidden', [])
     order = config.get('order', [])
 
+    # Fall back to group default for hidden cards if user has no personal setting
+    group_hidden_keys = []
+    if not raw:
+        for gtag in (session.get('group_tags') or []):
+            raw_grp = settings_store.get(f'portal_group_{gtag}')
+            if raw_grp:
+                try:
+                    gcfg = _json.loads(raw_grp)
+                    group_hidden_keys = gcfg.get('hidden', [])
+                    hidden_keys = group_hidden_keys
+                    break
+                except Exception:
+                    pass
+
     # Sort cards by user order
     if order:
         order_map = {k: i for i, k in enumerate(order)}
