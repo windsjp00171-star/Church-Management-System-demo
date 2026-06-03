@@ -2542,7 +2542,7 @@ def payment_ledger():
 
         # 基本查詢：已報名（含付款/未付款）
         query = supabase.table('registrations')\
-            .select('id, event_id, user_id, payment_status, payment_note, created_at')\
+            .select('id, event_id, user_id, payment_status, created_at')\
             .neq('status', 'cancelled')
         if filter_event:
             query = query.eq('event_id', filter_event)
@@ -2688,7 +2688,7 @@ def payment_ledger_export():
     date_to = request.args.get('date_to', '')
 
     query = supabase.table('registrations')\
-        .select('id, event_id, user_id, payment_status, payment_note, created_at')\
+        .select('id, event_id, user_id, payment_status, created_at')\
         .neq('status', 'cancelled')
     if filter_event:
         query = query.eq('event_id', filter_event)

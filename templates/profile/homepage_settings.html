@@ -13,7 +13,7 @@
 {# ── 區塊顯示設定 ── #}
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06); margin-bottom:16px;">
     <p style="font-weight:bold; font-size:1rem; margin-bottom:4px; color:#333;">首頁區塊顯示</p>
-    <p style="color:#666; font-size:0.85rem; margin-bottom:16px;">點選眼睛圖示可以隱藏不需要的首頁區塊。</p>
+    <p style="color:#666; font-size:0.85rem; margin-bottom:16px;">點選按鈕可以隱藏不需要的首頁區塊。</p>
 
     <div id="section-list" style="display:flex; flex-direction:column; gap:8px;">
         {% for sec in sections %}
@@ -25,9 +25,10 @@
             </div>
             <button onclick="toggleSectionVisibility(this, '{{ sec.key }}')"
                 class="sec-vis-btn {{ 'hidden-section' if sec.key in hidden_sections else '' }}"
-                style="background:none; border:none; font-size:1.2rem; cursor:pointer; padding:4px 8px; border-radius:6px; transition:opacity 0.2s;"
-                title="{{ '顯示' if sec.key in hidden_sections else '隱藏' }}">
-                {{ '🚫' if sec.key in hidden_sections else '👁️' }}
+                style="font-size:0.78rem;font-weight:600;cursor:pointer;padding:5px 12px;border-radius:20px;border:1px solid;transition:all 0.2s;
+                       {{ 'background:#fff3e0;color:#e65100;border-color:#ffb74d;' if sec.key in hidden_sections else 'background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;' }}"
+                title="{{ '點擊顯示' if sec.key in hidden_sections else '點擊隱藏' }}">
+                {{ '已隱藏' if sec.key in hidden_sections else '顯示中' }}
             </button>
         </div>
         {% endfor %}
@@ -48,7 +49,7 @@
 {# ── 功能磚排序與顯示 ── #}
 <div style="background:white; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
     <p style="font-weight:bold; font-size:1rem; margin-bottom:4px; color:#333;">「更多功能」卡片排列</p>
-    <p style="color:#666; font-size:0.9rem; margin-bottom:20px;">拖曳卡片可以改變排列順序，點眼睛圖示可以隱藏不需要的功能。</p>
+    <p style="color:#666; font-size:0.9rem; margin-bottom:20px;">拖曳卡片可以改變排列順序，點按鈕可以隱藏不需要的功能。</p>
 
     <div id="card-list" style="display:flex; flex-direction:column; gap:8px;">
         {% for card in cards %}
@@ -62,9 +63,10 @@
             </div>
             <button onclick="toggleCardVisibility(this, '{{ card.key }}')"
                 class="vis-btn {{ 'hidden-card' if card.key in hidden_keys else '' }}"
-                style="background:none; border:none; font-size:1.2rem; cursor:pointer; padding:4px 8px; border-radius:6px; transition:opacity 0.2s;"
-                title="{{ '顯示' if card.key in hidden_keys else '隱藏' }}">
-                {{ '🚫' if card.key in hidden_keys else '👁️' }}
+                style="font-size:0.78rem;font-weight:600;cursor:pointer;padding:5px 12px;border-radius:20px;border:1px solid;transition:all 0.2s;
+                       {{ 'background:#fff3e0;color:#e65100;border-color:#ffb74d;' if card.key in hidden_keys else 'background:#e8f5e9;color:#2e7d32;border-color:#a5d6a7;' }}"
+                title="{{ '點擊顯示' if card.key in hidden_keys else '點擊隱藏' }}">
+                {{ '已隱藏' if card.key in hidden_keys else '顯示中' }}
             </button>
         </div>
         {% endfor %}
@@ -90,14 +92,16 @@ function toggleSectionVisibility(btn, key) {
     const isHidden = hiddenSections.includes(key);
     if (isHidden) {
         hiddenSections = hiddenSections.filter(k => k !== key);
-        btn.textContent = '👁️';
-        btn.title = '隱藏';
+        btn.textContent = '顯示中';
+        btn.title = '點擊隱藏';
+        btn.style.background='#e8f5e9'; btn.style.color='#2e7d32'; btn.style.borderColor='#a5d6a7';
         btn.classList.remove('hidden-section');
         btn.closest('.section-row').style.opacity = '1';
     } else {
         hiddenSections.push(key);
-        btn.textContent = '🚫';
-        btn.title = '顯示';
+        btn.textContent = '已隱藏';
+        btn.title = '點擊顯示';
+        btn.style.background='#fff3e0'; btn.style.color='#e65100'; btn.style.borderColor='#ffb74d';
         btn.classList.add('hidden-section');
         btn.closest('.section-row').style.opacity = '0.45';
     }
@@ -142,14 +146,16 @@ function toggleCardVisibility(btn, key) {
     const isHidden = hiddenKeys.includes(key);
     if (isHidden) {
         hiddenKeys = hiddenKeys.filter(k => k !== key);
-        btn.textContent = '👁️';
-        btn.title = '隱藏';
+        btn.textContent = '顯示中';
+        btn.title = '點擊隱藏';
+        btn.style.background='#e8f5e9'; btn.style.color='#2e7d32'; btn.style.borderColor='#a5d6a7';
         btn.classList.remove('hidden-card');
         btn.closest('.card-row').style.opacity = '1';
     } else {
         hiddenKeys.push(key);
-        btn.textContent = '🚫';
-        btn.title = '顯示';
+        btn.textContent = '已隱藏';
+        btn.title = '點擊顯示';
+        btn.style.background='#fff3e0'; btn.style.color='#e65100'; btn.style.borderColor='#ffb74d';
         btn.classList.add('hidden-card');
         btn.closest('.card-row').style.opacity = '0.45';
     }
