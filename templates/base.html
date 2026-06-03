@@ -95,8 +95,9 @@
 </main>
 
 <!-- ══ Help Button ══ -->
-<div id="help-bubble" class="help-bubble" style="display:none;">👆 點我看使用說明</div>
-<a href="/manual" id="help-btn" class="help-btn">？</a>
+<div id="help-bubble" class="help-bubble" style="display:none;{% if config.DEMO_MODE or config.CONTACT_EMAIL %}bottom:76px;{% endif %}">👆 點我看使用說明</div>
+<a href="/manual" id="help-btn" class="help-btn"
+   {% if config.DEMO_MODE or config.CONTACT_EMAIL %}style="bottom:68px;"{% endif %}>？</a>
 
 {% if config.DEMO_MODE or config.CONTACT_EMAIL %}
 <!-- ══ Demo 洽詢浮動列 ══ -->
