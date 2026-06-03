@@ -39,6 +39,7 @@ def _populate_session(user):
     session['is_super_admin']= bool(user.get('is_super_admin'))
     session['is_pastor']     = bool(user.get('is_pastor'))
     session['is_staff']      = bool(user.get('is_staff'))
+    session['is_blocked']    = bool(user.get('is_blocked'))
     session['cell_group_ids']= cell_group_ids
 
 
