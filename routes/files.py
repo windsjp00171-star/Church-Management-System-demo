@@ -34,6 +34,7 @@ VISIBILITY_LABELS = {
 }
 
 PREVIEWABLE = {'.pdf', '.jpg', '.jpeg', '.png', '.gif', '.webp', '.mp4', '.webm'}
+AUDIO_EXTS = {'.mp3', '.m4a', '.wav', '.ogg', '.aac'}
 OFFICE_PREVIEW = {'.ppt', '.pptx', '.doc', '.docx', '.xls', '.xlsx'}
 IMAGE_EXTS = {'.jpg', '.jpeg', '.png', '.gif', '.webp'}
 
@@ -212,6 +213,7 @@ def index():
 
     all_users = supabase.table('users').select('id, display_name') \
         .neq('id', session['user_id']) \
+        .eq('is_blocked', False) \
         .order('display_name').execute().data or []
 
     all_groups = supabase.table('groups').select('id, name') \
@@ -339,7 +341,7 @@ def upload():
 
 
 def _notify_file_shared(file_id, filename, visibility, allowed_users, allowed_groups):
-    uploader = session.get('display_name', '同工')
+    uploader = session.get('real_name', '同工')
     title = f'{uploader} 分享了「{filename}」給你'
     link = f'/files/{file_id}/view'
     notify_ids = set()
@@ -357,7 +359,7 @@ def _notify_file_shared(file_id, filename, visibility, allowed_users, allowed_gr
     notify_ids.discard(session.get('user_id'))
 
     for uid in notify_ids:
-        create_notification(uid, 'file_shared', title, body='點擊查看文件', link=link)
+        create_notification(uid, title, body='點擊查看文件', type='info', link=link)
 
 
 @files_bp.route('/files/<file_id>/rename', methods=['POST'])
@@ -396,7 +398,10 @@ def view_file(file_id):
     preview_type = None
     is_owner = file_record.get('owner_id') == session.get('user_id')
 
-    if ext in PREVIEWABLE:
+    if ext in AUDIO_EXTS:
+        preview_url = get_presigned_url(file_record['file_key'], expires=3600)
+        preview_type = 'audio'
+    elif ext in PREVIEWABLE:
         preview_url = get_presigned_url(file_record['file_key'])
         preview_type = 'direct'
     elif ext in OFFICE_PREVIEW:
@@ -558,9 +563,9 @@ def delete(file_id):
     if not is_owner:
         create_notification(
             user_id=file_record['owner_id'],
-            type_='file_deleted',
             title=f'您的檔案「{file_record["name"]}」已被管理員刪除',
             body='如有疑問請聯繫管理員。',
+            type='info',
         )
 
     delete_file(file_record['file_key'])
@@ -659,9 +664,9 @@ def delete_folder(folder_id):
     if not is_owner:
         create_notification(
             user_id=folder['created_by'],
-            type_='folder_deleted',
             title=f'您建立的資料夾「{folder["name"]}」已被管理員刪除',
             body='如有疑問請聯繫管理員。',
+            type='info',
         )
 
     supabase.table('folders').delete().eq('id', folder_id).execute()

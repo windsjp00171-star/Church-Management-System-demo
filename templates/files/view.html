@@ -13,7 +13,13 @@
 
 {% set stream_url = url_for('files.stream_file', file_id=file.id) %}
 {% if preview_url %}
-  {% if preview_type == 'direct' %}
+  {% if preview_type == 'audio' %}
+  <div class="preview-container" style="display:flex;justify-content:center;align-items:center;padding:40px 20px;">
+    <audio src="{{ preview_url }}" controls style="width:100%;max-width:560px;">
+      您的瀏覽器不支援音訊播放，請直接下載。
+    </audio>
+  </div>
+  {% elif preview_type == 'direct' %}
     {% if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp'] %}
     <div class="preview-container">
       <img src="{{ stream_url }}" alt="{{ file.name }}" class="preview-image">
