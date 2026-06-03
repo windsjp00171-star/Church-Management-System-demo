@@ -290,7 +290,10 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 45%,#1e40af 100%);
     border-radius:var(--radius-xl);padding:20px 18px 22px;
     overflow:hidden;position:relative;
-    border:1px solid rgba(96,165,250,.2);
+    border-top:1px solid rgba(96,165,250,.2);
+    border-bottom:1px solid rgba(96,165,250,.2);
+    border-left:4px solid rgba(96,165,250,.55);
+    border-right:4px solid rgba(96,165,250,.55);
     box-shadow:0 4px 24px rgba(30,64,175,.25);
 }
 .gd-card::after { content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(96,165,250,.15) 0%,transparent 70%);border-radius:50%;pointer-events:none; }
