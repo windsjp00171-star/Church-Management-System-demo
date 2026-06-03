@@ -973,43 +973,46 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% if group_discussion and 'group_discussion' not in hidden_sections %}
 <div class="pa" style="--d:870ms; margin-bottom:20px;">
     <p class="section-label-sm" style="margin:0 0 10px;">小組討論</p>
-    <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);border:1px solid #e5e7eb;">
+    {% set gd = group_discussion %}
+    <div class="gd-card">
+        <div class="gd-card-head">
+            <div class="gd-card-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                     stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                </svg>
+            </div>
+            <div class="gd-card-title">{{ gd.title or '本週小組討論' }}</div>
+            <span style="font-size:.72rem;background:rgba(96,165,250,.2);color:#93c5fd;padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;">本週</span>
+        </div>
 
-        {# 上：YouTube embed 16:9 全卡片寬 #}
-        {% if group_discussion.video_id %}
-        <div style="position:relative;padding-bottom:56.25%;background:#000;">
-            <iframe src="https://www.youtube.com/embed/{{ group_discussion.video_id }}"
-                style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"
+        {% if gd.video_id %}
+        <div class="gd-video-wrap">
+            <iframe src="https://www.youtube.com/embed/{{ gd.video_id }}?rel=0"
+                title="{{ gd.title }}"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowfullscreen loading="lazy"></iframe>
         </div>
         {% endif %}
 
-        {# 下：標題 + 內容 + 討論問題 #}
-        <div style="padding:14px 18px;">
-            {% if group_discussion.title %}
-            <p style="font-weight:700;font-size:.95rem;color:#1a202c;margin:0 0 6px;">{{ group_discussion.title }}</p>
-            {% endif %}
-            {% if group_discussion.content %}
-            <p style="font-size:.88rem;color:#4a5568;line-height:1.6;margin:0 0 8px;white-space:pre-wrap;">{{ group_discussion.content }}</p>
-            {% endif %}
-            {% if group_discussion.scripture %}
-            <p style="font-size:.82rem;color:#718096;margin:0 0 8px;"><span style="color:#c05621;font-weight:600;">📖</span> {{ group_discussion.scripture }}</p>
-            {% endif %}
-            {% if group_discussion.questions %}
-            <div style="margin-top:8px;padding-top:8px;border-top:1px solid #e2e8f0;">
-                <p style="font-size:.78rem;font-weight:600;color:#888;margin:0 0 6px;">討論問題</p>
-                <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
-                    {% for q in group_discussion.questions %}
-                    <li style="font-size:.88rem;color:#374151;line-height:1.55;">{{ q }}</li>
-                    {% endfor %}
-                </ol>
+        {% if gd.questions %}
+        <div style="position:relative;z-index:1;">
+            <div class="gd-questions-label">討論問題</div>
+            {% for q in gd.questions %}
+            <div class="gd-question">
+                <div class="gd-q-num">{{ loop.index }}</div>
+                <div class="gd-q-text">{{ q }}</div>
             </div>
-            {% endif %}
-            <p style="font-size:.72rem;color:#a0aec0;margin:10px 0 0;">
-                {{ group_discussion.week_label or (group_discussion.created_at | taipei_time('%Y-%m-%d')) }}
-            </p>
+            {% endfor %}
         </div>
+        {% endif %}
+
+        <p style="font-size:.72rem;color:rgba(147,197,253,.5);margin:12px 0 0;position:relative;z-index:1;">
+            {{ gd.week_label or (gd.created_at | taipei_time('%Y-%m-%d')) }}
+        </p>
     </div>
 </div>
 {% endif %}
