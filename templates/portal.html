@@ -975,37 +975,37 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <p class="section-label-sm" style="margin:0 0 10px;">小組討論</p>
     <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid #e5e7eb;">
 
-        {# YouTube embed #}
+        {# YouTube embed — 限制高度，避免佔滿整個螢幕 #}
         {% if group_discussion.video_id %}
-        <div style="position:relative;padding-bottom:56.25%;background:#000;">
+        <div style="max-height:240px;overflow:hidden;background:#000;">
             <iframe src="https://www.youtube.com/embed/{{ group_discussion.video_id }}"
-                style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"
+                style="width:100%;height:240px;border:none;display:block;"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowfullscreen loading="lazy"></iframe>
         </div>
         {% endif %}
 
-        <div style="padding:16px 18px;">
+        <div style="padding:14px 16px;">
             {% if group_discussion.title %}
-            <p style="font-weight:700;font-size:.95rem;color:#1a202c;margin:0 0 6px;">{{ group_discussion.title }}</p>
+            <p style="font-weight:700;font-size:1rem;color:#1a202c;margin:0 0 6px;">{{ group_discussion.title }}</p>
             {% endif %}
             {% if group_discussion.content %}
-            <p style="font-size:.88rem;color:#4a5568;line-height:1.6;margin:0 0 10px;white-space:pre-wrap;">{{ group_discussion.content }}</p>
+            <p style="font-size:.92rem;color:#4a5568;line-height:1.6;margin:0 0 10px;white-space:pre-wrap;">{{ group_discussion.content }}</p>
             {% endif %}
             {% if group_discussion.scripture %}
-            <p style="font-size:.82rem;color:#718096;margin:0 0 10px;"><span style="color:#c05621;font-weight:600;">📖</span> {{ group_discussion.scripture }}</p>
+            <p style="font-size:.88rem;color:#718096;margin:0 0 10px;"><span style="color:#c05621;font-weight:600;">📖</span> {{ group_discussion.scripture }}</p>
             {% endif %}
             {% if group_discussion.questions %}
             <div style="margin-top:10px;padding-top:10px;border-top:1px solid #e2e8f0;">
-                <p style="font-size:.78rem;font-weight:600;color:#718096;margin:0 0 8px;">討論問題</p>
-                <ol style="margin:0;padding-left:18px;display:flex;flex-direction:column;gap:6px;">
+                <p style="font-size:.82rem;font-weight:600;color:#555;margin:0 0 8px;">討論問題</p>
+                <ol style="margin:0;padding-left:20px;display:flex;flex-direction:column;gap:8px;">
                     {% for q in group_discussion.questions %}
-                    <li style="font-size:.88rem;color:#4a5568;line-height:1.5;">{{ q }}</li>
+                    <li style="font-size:.92rem;color:#374151;line-height:1.6;">{{ q }}</li>
                     {% endfor %}
                 </ol>
             </div>
             {% endif %}
-            <p style="font-size:.72rem;color:#a0aec0;margin:10px 0 0;">
+            <p style="font-size:.78rem;color:#a0aec0;margin:10px 0 0;">
                 {{ group_discussion.week_label or (group_discussion.created_at | taipei_time('%Y-%m-%d')) }}
             </p>
         </div>

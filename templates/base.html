@@ -110,7 +110,7 @@
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;">
         {% if config.CONTACT_EMAIL %}
-        <a href="mailto:{{ config.CONTACT_EMAIL }}" target="_blank"
+        <a href="https://mail.google.com/mail/?view=cm&to={{ config.CONTACT_EMAIL }}" target="_blank"
            style="padding:7px 16px;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.4);
                   color:white;border-radius:20px;text-decoration:none;font-size:0.82rem;font-weight:600;
                   white-space:nowrap;">✉️ 寄信</a>
@@ -172,7 +172,7 @@
         </div>
         {% if config.CONTACT_EMAIL %}
         <p style="text-align:center;font-size:0.78rem;color:#a0aec0;margin:14px 0 0;">
-            或直接寄信至 <a href="mailto:{{ config.CONTACT_EMAIL }}" style="color:#06C755;">{{ config.CONTACT_EMAIL }}</a>
+            或直接寄信至 <a href="https://mail.google.com/mail/?view=cm&to={{ config.CONTACT_EMAIL }}" target="_blank" style="color:#06C755;">{{ config.CONTACT_EMAIL }}</a>
         </p>
         {% endif %}
     </div>
