@@ -1006,6 +1006,14 @@ def _do_event_register(event_id):
             'checked_in': False,
         }).execute()
         reg_id = reg_result.data[0]['id']
+        # 插入後重新計數防止 TOCTOU 競態（補償交易）
+        if event.get('capacity'):
+            recheck = supabase.table('registrations')\
+                .select('id', count='exact')\
+                .eq('event_id', event_id).eq('status', 'registered').execute()
+            if (recheck.count or 0) > event['capacity']:
+                supabase.table('registrations').delete().eq('id', reg_id).execute()
+                return jsonify({'error': '報名人數已達上限，請稍後再試'}), 400
     else:
         # 不允許重複報名：檢查是否已有紀錄（優先找 registered/waitlisted，其次最新 cancelled）
         existing = supabase.table('registrations')\
@@ -1039,6 +1047,14 @@ def _do_event_register(event_id):
                 'checked_in': False,
             }).execute()
             reg_id = reg_result.data[0]['id']
+            # 插入後重新計數防止 TOCTOU 競態（補償交易）
+            if event.get('capacity'):
+                recheck = supabase.table('registrations')\
+                    .select('id', count='exact')\
+                    .eq('event_id', event_id).eq('status', 'registered').execute()
+                if (recheck.count or 0) > event['capacity']:
+                    supabase.table('registrations').delete().eq('id', reg_id).execute()
+                    return jsonify({'error': '報名人數已達上限，請稍後再試'}), 400
 
     # 寫入自訂欄位答案
     data = request.get_json() or {}

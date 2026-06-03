@@ -19,6 +19,7 @@ from flask import (
 )
 
 from db import supabase as sb
+from extensions import limiter
 
 diary_bp = Blueprint('diary', __name__, template_folder='../templates/diary')
 
@@ -1105,6 +1106,7 @@ def stars():
 # =========================
 
 @diary_bp.get('/api/diary/guide')
+@limiter.limit("15 per minute")
 def api_guide():
     if not _require_login():
         return jsonify({'error': '未登入'}), 401
@@ -1160,6 +1162,7 @@ def api_guide():
 
 
 @diary_bp.get('/api/diary/passage-intro')
+@limiter.limit("15 per minute")
 def api_passage_intro():
     if not _require_login():
         return jsonify({'error': '未登入'}), 401
