@@ -973,13 +973,13 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% if group_discussion and 'group_discussion' not in hidden_sections %}
 <div class="pa" style="--d:870ms; margin-bottom:20px;">
     <p class="section-label-sm" style="margin:0 0 10px;">小組討論</p>
-    <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,.06);border:1px solid #e5e7eb;">
+    <div style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08);border:1px solid #e5e7eb;max-width:520px;">
 
-        {# YouTube embed — 限制高度，避免佔滿整個螢幕 #}
+        {# YouTube embed — 16:9 正確比例，卡片限寬 520px #}
         {% if group_discussion.video_id %}
-        <div style="max-height:240px;overflow:hidden;background:#000;">
+        <div style="position:relative;padding-bottom:56.25%;background:#000;">
             <iframe src="https://www.youtube.com/embed/{{ group_discussion.video_id }}"
-                style="width:100%;height:240px;border:none;display:block;"
+                style="position:absolute;top:0;left:0;width:100%;height:100%;border:none;"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowfullscreen loading="lazy"></iframe>
         </div>
