@@ -316,8 +316,20 @@ def sb_list_month_entries(line_user_id: str, y: int, m: int) -> Dict[str, bool]:
 
 
 def sb_is_pastor(line_user_id: str) -> bool:
-    """從 session 讀取牧者身分（登入時已由 auth.py 統一寫入）。"""
-    return bool(session.get('is_pastor'))
+    """確認指定 LINE user ID 是否有牧者/小組長資格（查 DB，不依賴 session）。"""
+    if not line_user_id or not sb:
+        return False
+    try:
+        res = sb.table('users').select('id,is_pastor').eq('line_id', line_user_id).limit(1).execute()
+        if not res.data:
+            return False
+        user = res.data[0]
+        if user.get('is_pastor'):
+            return True
+        leader_res = sb.table('cell_group_leaders').select('user_id').eq('user_id', user['id']).limit(1).execute()
+        return bool(leader_res.data)
+    except Exception:
+        return False
 
 
 def sb_list_pastors() -> List[Dict[str, Any]]:
@@ -1189,7 +1201,7 @@ def api_passage_intro():
 
 
 def _get_ai_clients():
-    """動態取得 AI 客戶端（避免啟動時強制依賴）"""
+    """動態取得 AI 客戶端（Groq 主、Gemini 備，兩者皆嘗試初始化）"""
     groq_client = None
     gemini_model = None
 
@@ -1201,30 +1213,34 @@ def _get_ai_clients():
         except Exception:
             pass
 
-    if not groq_client:
-        gemini_key = os.environ.get('GEMINI_API_KEY', '')
-        if gemini_key:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=gemini_key)
-                gemini_model = genai.GenerativeModel('gemini-2.0-flash')
-            except Exception:
-                pass
+    # 永遠嘗試初始化 Gemini，讓 runtime 錯誤時仍能備援
+    gemini_key = os.environ.get('GEMINI_API_KEY', '')
+    if gemini_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+        except Exception:
+            pass
 
     return groq_client, gemini_model
 
 
 def _call_ai(groq_client, gemini_model, system_prompt: str, content: str, max_tokens: int = 400) -> str:
     if groq_client:
-        resp = groq_client.chat.completions.create(
-            model='llama-3.3-70b-versatile',
-            messages=[
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': content},
-            ],
-            max_tokens=max_tokens,
-        )
-        return resp.choices[0].message.content.strip()
-    else:
+        try:
+            resp = groq_client.chat.completions.create(
+                model='llama-3.3-70b-versatile',
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': content},
+                ],
+                max_tokens=max_tokens,
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception:
+            pass  # Groq 呼叫失敗，fall through 到 Gemini
+    if gemini_model:
         resp = gemini_model.generate_content(f'{system_prompt}\n\n{content}')
         return resp.text.strip()
+    raise RuntimeError('無可用的 AI 服務（Groq 與 Gemini 均無法使用）')

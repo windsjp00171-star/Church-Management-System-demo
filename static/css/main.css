@@ -52,7 +52,7 @@ button { font-family: inherit; }
   --transition: 0.18s ease;
   --navbar-height: 58px;
 
-  --font-main: "Noto Serif TC", "PingFang TC", "Microsoft JhengHei", serif;
+  --font-main: "Noto Sans TC", "Inter", "PingFang TC", "Microsoft JhengHei", sans-serif;
 }
 
 /* ── Base ── */
@@ -843,7 +843,7 @@ select.form-control { cursor: pointer; }
   box-shadow: 0 2px 12px rgba(60,40,10,0.07);
 }
 .calendar-card h2, .diary-card h2, .scripture-card h2 {
-  font-family: "Noto Serif TC", Georgia, serif;
+  font-family: "Noto Sans TC", "Inter", sans-serif;
   font-size: 17px; font-weight: 700; color: #2e2a26;
   border-left: 3px solid #b8956a; padding-left: 10px; margin: 0 0 14px 0;
 }
@@ -851,7 +851,7 @@ select.form-control { cursor: pointer; }
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 12px; font-size: 16px;
 }
-.calendar-title { font-family: "Noto Serif TC", Georgia, serif; font-weight: 700; }
+.calendar-title { font-family: "Noto Sans TC", "Inter", sans-serif; font-weight: 700; }
 .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 10px; }
 .calendar-weekday {
   display: flex; align-items: center; justify-content: center;
@@ -879,7 +879,7 @@ select.form-control { cursor: pointer; }
 .legend .dot.future    { background: #ede8e0; }
 .legend .dot.selected  { background: #2e2a26; }
 .scripture-ref {
-  font-family: "Noto Serif TC", Georgia, serif;
+  font-family: "Noto Sans TC", "Inter", sans-serif;
   font-size: 18px; font-weight: 700; margin: 8px 0 10px; color: #2e2a26;
 }
 .book-bg-wrap { margin: 12px 0 14px; }
@@ -919,25 +919,25 @@ select.form-control { cursor: pointer; }
 .guide-question:last-child { border-bottom: none; }
 .stars-card { background: #080d1a; border-radius: 20px; overflow: hidden; margin-bottom: 16px; box-shadow: 0 4px 24px rgba(0,0,0,0.3); }
 .stars-header { padding: 20px 20px 12px; text-align: center; }
-.stars-title { font-family: "Noto Serif TC", Georgia, serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: 0.05em; margin-bottom: 6px; }
+.stars-title { font-family: "Noto Sans TC", "Inter", sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: 0.05em; margin-bottom: 6px; }
 .stars-count { font-size: 14px; color: #8899bb; }
 .stars-count strong { color: #f5c842; font-size: 18px; }
 .stars-canvas-wrap { position: relative; width: 100%; }
 .stars-canvas-wrap canvas { display: block; width: 100%; }
-.stars-verse { padding: 16px 20px 20px; text-align: center; font-family: "Noto Serif TC", Georgia, serif; font-size: 13px; color: #d4a843; line-height: 1.8; }
+.stars-verse { padding: 16px 20px 20px; text-align: center; font-family: "Noto Sans TC", "Inter", sans-serif; font-size: 13px; color: #d4a843; line-height: 1.8; }
 .pastor-entry-btn { display: flex; align-items: center; gap: 6px; padding: 10px 16px; background: #2e2a26; color: #fff; border-radius: 10px; font-size: 14px; font-weight: 700; text-decoration: none; }
 .pastor-entry-btn:hover { opacity: 0.85; color: #fff; }
 .pastor-banner { background: #2e2a26; color: #fff; margin: -16px -16px 16px -16px; padding: 14px 16px; }
 .pastor-banner-inner { max-width: 720px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .pastor-banner-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #b8956a; margin-bottom: 2px; }
-.pastor-banner-name { font-family: "Noto Serif TC", Georgia, serif; font-size: 18px; font-weight: 700; color: #fff; }
+.pastor-banner-name { font-family: "Noto Sans TC", "Inter", sans-serif; font-size: 18px; font-weight: 700; color: #fff; }
 .pastor-back-btn { padding: 8px 14px; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
 .member-switcher-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 12px; }
 .member-switcher { display: flex; gap: 8px; min-width: max-content; }
 .member-chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 14px; text-decoration: none; background: #ede8e0; color: #3a3530; font-size: 12px; font-weight: 600; }
 .member-chip img, .member-avatar-placeholder { width: 36px; height: 36px; border-radius: 50%; object-fit: cover; }
 .member-chip.active { background: #2e2a26; color: #fff; }
-.grant-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; background: none; border: none; padding: 0 0 0 10px; cursor: pointer; font-size: 16px; font-family: "Noto Serif TC", serif; font-weight: 600; color: #2e2a26; border-left: 3px solid #b8956a; text-align: left; }
+.grant-toggle { width: 100%; display: flex; align-items: center; justify-content: space-between; background: none; border: none; padding: 0 0 0 10px; cursor: pointer; font-size: 16px; font-family: "Noto Sans TC", "Inter", sans-serif; font-weight: 600; color: #2e2a26; border-left: 3px solid #b8956a; text-align: left; }
 .grant-badge { font-size: 12px; font-weight: 500; background: #f0ebe3; color: #7a5c3a; padding: 2px 8px; border-radius: 10px; }
 
 /* ============================================================

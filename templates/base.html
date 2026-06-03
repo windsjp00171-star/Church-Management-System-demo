@@ -6,7 +6,7 @@
     <title>{% block title %}{{ config.CHURCH_NAME or '教會行政系統' }}{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#1a3a5c">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -31,7 +31,7 @@
         {% if session.user_id or session.line_id %}
             <a href="/profile" style="display:flex;align-items:center;gap:8px;text-decoration:none;color:inherit;">
                 {% if session.picture_url %}
-                <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar">
+                <img src="{{ session.picture_url }}" alt="頭像" class="navbar-avatar" onerror="this.style.display='none'">
                 {% endif %}
                 <span class="navbar-username">{{ session.real_name or '' }}</span>
             </a>
@@ -189,7 +189,7 @@ function openContactModal() {
     // pre-fill name if logged in
     var nameEl = document.getElementById('cf-name');
     if (nameEl && !nameEl.value) {
-        nameEl.value = '{{ session.real_name or "" }}';
+        nameEl.value = {{ session.real_name or '' | tojson }};
     }
 }
 function closeContactModal() {
@@ -351,7 +351,10 @@ function loadNotifications() {
             }
             renderNotifications(d.notifications || []);
         })
-        .catch(function(){});
+        .catch(function(){
+            var list = document.getElementById('notifList');
+            if (list) list.innerHTML = '<p class="notif-empty">通知載入失敗，請稍後再試</p>';
+        });
 }
 
 function renderNotifications(items) {
