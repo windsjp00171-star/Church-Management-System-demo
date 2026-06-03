@@ -46,16 +46,21 @@ routes/                 # Blueprint 模組
   files.py              # 檔案分享（church-data-hub）
   diary.py              # 天父日記（tianfu-diary）
   cell_report.py        # 小組回報（cell_reporter）
+  devotional.py         # 禱讀本訂購（devotional_bp）
 templates/              # Jinja2 模板
   base.html             # 共用基底模板
   diary/                # 天父日記模板（extends base.html）
   files/                # 檔案分享模板
   cell_report/          # 小組回報模板
+  devotional/           # 禱讀本訂購模板
   ...                   # 其他模板
 data/
   book_background.py    # 聖經書卷背景說明
 scripture/
   cuv.json              # 和合本聖經全文（JSON）
+migrations/             # Supabase SQL migration 腳本
+  007_devotional.sql    # 禱讀本訂購三張表
+  008_diary_admin_whitelist.sql  # 天父日記後台白名單表
 ```
 
 ## Blueprint 路由前綴
@@ -68,6 +73,7 @@ scripture/
 | files_bp | — | `/files`, `/folders` |
 | diary_bp | — | `/diary`, `/api/diary/...` |
 | cell_report_bp | — | `/cell-report/...` |
+| devotional_bp | — | `/devotional/...` |
 
 ## 重要開發規則
 
@@ -84,6 +90,7 @@ from db import supabase
 | `real_name` | 真實姓名 |
 | `line_id` | LINE user ID |
 | `is_admin` | 管理員旗標 |
+| `is_super_admin` | 超管旗標（env var ADMIN_LINE_USER_IDS） |
 | `is_pastor` | 牧者旗標（小組回報用） |
 | `is_staff` | 同工旗標（小組回報用） |
 | `picture_url` | 大頭貼 URL |
@@ -107,6 +114,48 @@ diary blueprint 在每次 API 呼叫時動態建立 AI 客戶端（`_get_ai_clie
 | `children_sunday_reports` | 兒童主日聚會人數 |
 | `prayer_reports` | 禱告會人數 |
 | `morning_prayer_reports` | 晨禱人數 |
+
+### Supabase 資料表（禱讀本訂購）
+| 資料表 | 說明 |
+|--------|------|
+| `devotional_orders` | 訂購主表（scripture, author, price, deadline, cover_url） |
+| `devotional_registrations` | 各小組登記數量（order_id, group_name, quantity, is_delivered） |
+| `devotional_registration_logs` | 登記變更記錄（audit log） |
+
+migration 腳本：`migrations/007_devotional.sql`
+
+### Supabase 資料表（天父日記後台）
+| 資料表 | 說明 |
+|--------|------|
+| `diary_plan` | DB 讀經進度表（date, book, range）；優先於 plan.xlsx |
+| `admin_whitelist` | 天父日記後台管理員白名單（line_user_id, is_active） |
+
+migration 腳本：`migrations/008_diary_admin_whitelist.sql`
+
+## 功能模組說明
+
+### Portal（首頁入口）
+- Hero 區塊與功能卡片同在 `max-width: 1280px` 容器內，Navbar 保持全寬
+- Demo 模式啟用時底部顯示洽詢橫幅，`?` 說明按鈕自動上移避免被遮住
+- 功能卡片包含：活動報名、天父日記、禱讀本訂購、檔案分享、小組回報等
+
+### 禱讀本訂購（devotional_bp）
+- 管理員可新增訂購、上傳封面圖、設截止日
+- 各小組可登記本數，支援備註與已領取標記
+- 管理員後台提供登記連結 QR code（使用 `api.qrserver.com` 產生）
+- 封面上傳相容 iOS LINE WebView（使用 `<label for>` 而非 JS `click()`）
+- 列印簽收條：`/devotional/<id>/print`
+
+### 天父日記（diary_bp）
+- 讀經進度：DB `diary_plan` 優先，fallback 讀 `plan.xlsx`（TTL 5 分鐘快取）
+- 逐節經文支援逗號分隔多段範圍，如 `6:28-29,31:3`（去重保序）
+- 日記後台管理員三層驗證：`session.is_admin` → 環境變數 `ADMIN_LINE_USER_IDS` → `admin_whitelist` 資料表（TTL 2 分鐘快取）
+- 後台可管理讀經進度（逐筆 key-in 或批次匯入 xlsx）、牧者白名單、日記後台白名單
+
+### 檔案分享（files_bp）
+- 支援音訊預覽（`.mp3`, `.m4a`, `.wav`, `.ogg`, `.aac`）：直接顯示 `<audio>` 播放器
+- 通知系統使用 `real_name`（整合系統 session key），非 `display_name`
+- User picker 過濾已封鎖使用者（`.eq('is_blocked', False)`）
 
 ## 環境變數
 
@@ -140,7 +189,7 @@ GROQ_API_KEY=
 GEMINI_API_KEY=
 ANTHROPIC_API_KEY=
 
-# 管理員 LINE User IDs（逗號分隔）
+# 管理員 LINE User IDs（逗號分隔）——同時是天父日記超管
 ADMIN_LINE_USER_IDS=
 
 # Demo 洽詢系統（正式教會部署版設為 false 或移除）
@@ -165,6 +214,16 @@ python app.py      # debug=True, port 5000
 ## 部署
 
 平台：Render，自動從 `Procfile` 讀取 gunicorn 指令。
+
+## 新教會部署 Migration 清單
+
+每次為新教會部署時，依序在 Supabase > SQL Editor 執行：
+
+| 順序 | 檔案 | 說明 |
+|------|------|------|
+| 001～006 | （既有 migrations） | 基礎資料表 |
+| 007 | `migrations/007_devotional.sql` | 禱讀本訂購三張表 |
+| 008 | `migrations/008_diary_admin_whitelist.sql` | 天父日記後台白名單 |
 
 ## 多教會部署架構與開發者權限原則
 
