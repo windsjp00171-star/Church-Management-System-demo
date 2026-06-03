@@ -88,8 +88,8 @@ function dismissChangelog() {
    Hero
 ═══════════════════════════════════════════ */
 .portal-hero {
-    margin: 0 0 16px;
-    border-radius: 0 0 20px 20px;
+    margin: 16px 0 16px;
+    border-radius: 20px;
     min-height: 0;
     position: relative;
     overflow: hidden;
@@ -400,6 +400,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 }
 </style>
 
+<div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,64px);">
 
 {# ════ 未完成設定提示橫幅 ════ #}
 {% if not session.real_name %}
@@ -435,10 +436,6 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     </div>
     <div class="hero-fade"></div>
 </div>
-{% endif %}
-
-<div style="max-width:960px;margin:0 auto;padding:0 16px;">
-
 {# ════ 自訂首頁小連結 ════ #}
 {% if session.user_id %}
 <div class="pa" style="--d:35ms; text-align:right; margin-bottom:8px;">
