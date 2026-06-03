@@ -77,6 +77,11 @@
       <div style="font-size:.82rem; color:#9ca3af; margin-top:2px;">截止：{{ order.deadline }}{% if order.price %} · 每本 ${{ order.price }}{% endif %}</div>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button onclick="showRegLink()"
+        style="padding:9px 18px; background:#e3f2fd; color:#1565c0; border:none;
+               border-radius:8px; cursor:pointer; font-weight:700; font-size:.88rem;">
+        🔗 登記連結 / QR
+      </button>
       <a href="{{ url_for('devotional.admin_devotional_print', order_id=order.id) }}"
          target="_blank" class="btn-primary" style="background:#059669;">🖨 列印簽收條</a>
       <button class="btn-danger"
@@ -101,12 +106,13 @@
     </div>
     <div style="display:flex; flex-direction:column; gap:8px; justify-content:center;">
       <label style="font-size:.78rem; font-weight:600; color:#6b7280;">封面圖片</label>
-      <input type="file" id="cover-file-input" accept="image/*" style="display:none;"
-             onchange="uploadCover(this)">
-      <button class="btn-primary" style="font-size:.78rem; padding:6px 14px; background:#6366f1;"
-              onclick="document.getElementById('cover-file-input').click()">
+      <label for="cover-file-input"
+        style="display:inline-block; padding:6px 14px; background:#6366f1; color:white;
+               border-radius:8px; cursor:pointer; font-size:.78rem; font-weight:700;">
         📷 {{ '更換封面' if order.cover_url else '上傳封面' }}
-      </button>
+        <input type="file" id="cover-file-input" accept="image/*"
+               style="display:none;" onchange="uploadCover(this)">
+      </label>
       <div id="cover-upload-status" style="font-size:.75rem; color:#6b7280; min-height:16px;"></div>
     </div>
   </div>
@@ -229,6 +235,34 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+{# QR / 登記連結 Modal #}
+<div id="reg-link-modal" onclick="if(event.target===this)closeRegLink()"
+  style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
+         z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:white; border-radius:16px; padding:28px; max-width:360px;
+              width:100%; text-align:center; position:relative;">
+    <button onclick="closeRegLink()"
+      style="position:absolute; top:12px; right:16px; background:none;
+             border:none; font-size:1.3rem; cursor:pointer; color:#aaa;">✕</button>
+    <h3 style="margin:0 0 4px; font-size:1rem; color:#1e1b4b;">🔗 禱讀本登記連結</h3>
+    <p style="color:#9ca3af; font-size:.82rem; margin:0 0 20px;">《{{ order.scripture }}》禱讀本</p>
+    <div style="background:#f5f5f5; border-radius:12px; padding:16px; margin-bottom:16px; display:inline-block;">
+      <img id="reg-qr-img" src="" alt="QR" style="width:200px; height:200px; display:block;">
+    </div>
+    <div style="display:flex; gap:8px; margin-bottom:8px;">
+      <input id="reg-url-text" type="text" readonly
+        style="flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:8px;
+               font-size:.78rem; color:#555; background:#f9f9f9;">
+      <button id="reg-copy-btn" onclick="copyRegUrl()"
+        style="padding:8px 12px; background:#1565c0; color:white; border:none;
+               border-radius:8px; cursor:pointer; font-size:.82rem; white-space:nowrap; flex-shrink:0;">
+        📋 複製
+      </button>
+    </div>
+    <p style="color:#aaa; font-size:.75rem; margin:0;">掃描 QR 或分享連結，登入後即可登記</p>
+  </div>
+</div>
 
 {% block extra_js %}
 <script>
@@ -370,6 +404,26 @@ function showToast(msg, isErr) {
   t.style.background = isErr ? '#991b1b' : '#1e1b4b';
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2600);
+}
+
+const REG_URL = `${location.origin}/devotional/${ORDER_ID}`;
+function showRegLink() {
+  document.getElementById('reg-link-modal').style.display = 'flex';
+  document.getElementById('reg-url-text').value = REG_URL;
+  document.getElementById('reg-qr-img').src =
+    `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(REG_URL)}`;
+}
+function closeRegLink() {
+  document.getElementById('reg-link-modal').style.display = 'none';
+}
+function copyRegUrl() {
+  navigator.clipboard?.writeText(REG_URL).catch(() => {
+    document.getElementById('reg-url-text').select();
+    document.execCommand('copy');
+  });
+  const btn = document.getElementById('reg-copy-btn');
+  btn.textContent = '✅ 已複製';
+  setTimeout(() => btn.textContent = '📋 複製', 1500);
 }
 </script>
 {% endblock %}
