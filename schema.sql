@@ -469,6 +469,27 @@ CREATE TABLE IF NOT EXISTS group_members (
 -- 天父日記（tianfu-diary）
 -- ============================================================
 
+-- 讀經進度表（DB 優先，優於 plan.xlsx）
+CREATE TABLE IF NOT EXISTS diary_plan (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    plan_date  DATE NOT NULL UNIQUE,
+    book       TEXT NOT NULL,
+    range      TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS diary_plan_date_idx ON diary_plan (plan_date);
+
+-- 牧者白名單（可查閱已授權會友日記）
+CREATE TABLE IF NOT EXISTS pastor_whitelist (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    line_user_id   TEXT NOT NULL UNIQUE,
+    display_name   TEXT,
+    picture_url    TEXT,
+    active         BOOLEAN NOT NULL DEFAULT true,
+    created_at     TIMESTAMPTZ DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS diary_entries (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     line_user_id   TEXT NOT NULL,
@@ -757,6 +778,60 @@ AS $$
 $$;
 
 GRANT EXECUTE ON FUNCTION public.check_table_exists(TEXT) TO anon, authenticated;
+
+-- ============================================================
+-- 禱讀本訂購（devotional）
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS devotional_orders (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    scripture   TEXT NOT NULL,
+    author      TEXT,
+    price       INTEGER DEFAULT 0,
+    deadline    DATE,
+    cover_url   TEXT,
+    created_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS devotional_registrations (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id        UUID REFERENCES devotional_orders(id) ON DELETE CASCADE,
+    group_name      TEXT NOT NULL,
+    quantity        INTEGER DEFAULT 0,
+    notes           TEXT,
+    is_delivered    BOOLEAN DEFAULT FALSE,
+    registered_by   UUID REFERENCES users(id),
+    created_at      TIMESTAMPTZ DEFAULT now(),
+    UNIQUE(order_id, group_name)
+);
+
+CREATE TABLE IF NOT EXISTS devotional_registration_logs (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    order_id    UUID REFERENCES devotional_orders(id) ON DELETE CASCADE,
+    group_name  TEXT,
+    quantity    INTEGER,
+    notes       TEXT,
+    changed_by  UUID REFERENCES users(id),
+    changed_at  TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS devotional_regs_order_idx ON devotional_registrations (order_id);
+CREATE INDEX IF NOT EXISTS devotional_logs_order_idx ON devotional_registration_logs (order_id);
+
+-- ============================================================
+-- 天父日記後台管理員白名單
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS admin_whitelist (
+    id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    line_user_id   TEXT NOT NULL UNIQUE,
+    note           TEXT,
+    is_active      BOOLEAN DEFAULT TRUE,
+    created_at     TIMESTAMPTZ DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS admin_whitelist_uid_idx    ON admin_whitelist (line_user_id);
+CREATE INDEX IF NOT EXISTS admin_whitelist_active_idx ON admin_whitelist (is_active);
 
 -- ============================================================
 -- 差勤系統
