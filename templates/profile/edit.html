@@ -115,6 +115,7 @@
 
         {% set grant_count = granted_map|length %}
         <form method="post" action="{{ url_for('diary.grant') }}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="entry_date" value="">
             <select name="pastor_line_user_id" style="flex:1; min-width:180px; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem;">
                 <option value="">— 選擇牧者 / 小組長 —</option>
@@ -137,6 +138,7 @@
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                     <span style="font-size:0.9rem;">{{ p.display_name }}</span>
                     <form method="post" action="{{ url_for('diary.grant') }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="entry_date" value="">
                         <input type="hidden" name="pastor_line_user_id" value="{{ p.line_user_id }}">
                         <button type="submit" name="action" value="revoke"

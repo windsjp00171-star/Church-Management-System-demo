@@ -39,6 +39,7 @@ def _populate_session(user):
     session['is_super_admin']= bool(user.get('is_super_admin'))
     session['is_pastor']     = bool(user.get('is_pastor'))
     session['is_staff']      = bool(user.get('is_staff'))
+    session['is_blocked']    = bool(user.get('is_blocked'))
     session['cell_group_ids']= cell_group_ids
 
 
@@ -295,10 +296,10 @@ def setup_admin():
     existing_admin = supabase.table('users').select('id')\
         .eq('is_admin', True).limit(1).execute().data
 
-    # 已有 super_admin → 完全關閉此頁（避免任意提權）
+    # 已有 super_admin → 只允許現有超管進入，任何非超管（含一般 admin）一律擋回
     existing_super = supabase.table('users').select('id')\
         .eq('is_super_admin', True).limit(1).execute().data
-    if existing_super and not session.get('is_admin'):
+    if existing_super and not session.get('is_super_admin'):
         return redirect(url_for('event.portal'))
 
     # 已是 admin 且已有 super_admin → 已設定完成，直接進後台

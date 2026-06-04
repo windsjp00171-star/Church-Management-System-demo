@@ -253,6 +253,7 @@ function loadGuide() {
 
   {% else %}
     <form method="post" action="{{ url_for('diary.save') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <textarea
         name="content"
         class="diary-textarea"
