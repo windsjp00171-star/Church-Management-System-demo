@@ -334,7 +334,7 @@
         {% endif %}
     </div>
 
-    <button onclick="quickReg()" class="btn btn-primary" style="width:100%; padding:14px; font-size:1.05rem;">
+    <button onclick="quickReg(this)" class="btn btn-primary" style="width:100%; padding:14px; font-size:1.05rem;">
         確認報名
     </button>
     <p style="color:var(--text-4); font-size:0.8rem; margin-top:10px;">資料有誤？<a href="/profile" style="color:var(--text-3);">修改個人資料</a></p>
@@ -648,8 +648,8 @@ function toggleAddForm() {
 
 // ===================================================
 // 一鍵報名（quick_reg 模式）
-function quickReg() {
-    const btn = event?.target || document.querySelector('[onclick="quickReg()"]');
+function quickReg(btn) {
+    if (btn) { btn.disabled = true; btn.textContent = '送出中…'; }
     fetch('/event/{{ event.id }}/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -657,10 +657,31 @@ function quickReg() {
     })
     .then(r => r.json())
     .then(d => {
-        if (d.success) location.reload();
-        else showError(d.error || '報名失敗，請稍後再試');
+        if (d.success) { location.reload(); }
+        else {
+            if (btn) { btn.disabled = false; btn.textContent = '確認報名'; }
+            showError(d.error || '報名失敗，請稍後再試');
+        }
     })
-    .catch(() => showError('網路錯誤，請稍後再試'));
+    .catch(() => {
+        if (btn) { btn.disabled = false; btn.textContent = '確認報名'; }
+        showError('網路錯誤，請稍後再試');
+    });
+}
+
+function showConfirm(msg, onConfirm) {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    modal.innerHTML = `<div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);">
+      <p style="font-size:1rem;color:#1a202c;margin:0 0 20px;line-height:1.5;">${msg}</p>
+      <div style="display:flex;gap:10px;justify-content:flex-end;">
+        <button id="_conf-cancel" style="padding:10px 20px;border-radius:10px;border:1px solid #e2e8f0;background:#f7fafc;color:#4a5568;font-size:.95rem;cursor:pointer;min-height:44px;">取消</button>
+        <button id="_conf-ok" style="padding:10px 20px;border-radius:10px;border:none;background:#e53e3e;color:white;font-size:.95rem;font-weight:600;cursor:pointer;min-height:44px;">確認</button>
+      </div></div>`;
+    document.body.appendChild(modal);
+    modal.querySelector('#_conf-ok').onclick = () => { modal.remove(); onConfirm(); };
+    modal.querySelector('#_conf-cancel').onclick = () => modal.remove();
+    modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 }
 
 function calcEvTotal() {
@@ -741,16 +762,17 @@ function submitReg() {
 
 // 取消報名（傳入特定報名 ID）
 function cancelReg(regId) {
-    if (!confirm('確定要取消這筆報名嗎？')) return;
-    fetch('/event/{{ event.id }}/cancel', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reg_id: regId })
-    })
-    .then(res => res.json())
-    .then(data => {
-        if (data.success) location.reload();
-        else showToast('❌ ' + (data.error || '取消失敗'), 'error');
+    showConfirm('確定要取消這筆報名嗎？', () => {
+        fetch('/event/{{ event.id }}/cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ reg_id: regId })
+        })
+        .then(res => res.json())
+        .then(data => {
+            if (data.success) location.reload();
+            else showToast('❌ ' + (data.error || '取消失敗'), 'error');
+        });
     });
 }
 
@@ -761,36 +783,38 @@ function showError(msg) {
 
 // 加入候補名單
 function joinWaitlist() {
-    if (!confirm('確定加入候補名單嗎？有名額釋出時系統會自動晉升為正式報名。')) return;
-    fetch('/event/{{ event.id }}/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers: [] })
-    })
-    .then(r => r.json())
-    .then(d => {
-        if (d.success && d.waitlisted) {
-            showToast('ℹ️ 已加入候補名單！有名額時系統將自動為您升為正式報名。', 'info');
-            location.reload();
-        } else if (d.success) {
-            location.reload();
-        } else {
-            showToast('❌ ' + (d.error || '操作失敗，請稍後再試'), 'error');
-        }
+    showConfirm('確定加入候補名單嗎？有名額釋出時系統會自動晉升為正式報名。', () => {
+        fetch('/event/{{ event.id }}/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ answers: [] })
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success && d.waitlisted) {
+                showToast('ℹ️ 已加入候補名單！有名額時系統將自動為您升為正式報名。', 'info');
+                location.reload();
+            } else if (d.success) {
+                location.reload();
+            } else {
+                showToast('❌ ' + (d.error || '操作失敗，請稍後再試'), 'error');
+            }
+        });
     });
 }
 
 // 退出候補名單
 function cancelWaitlist() {
-    if (!confirm('確定退出候補名單嗎？')) return;
-    fetch('/event/{{ event.id }}/cancel_waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-    })
-    .then(r => r.json())
-    .then(d => {
-        if (d.success) location.reload();
-        else showToast('❌ ' + (d.error || '操作失敗'), 'error');
+    showConfirm('確定退出候補名單嗎？', () => {
+        fetch('/event/{{ event.id }}/cancel_waitlist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        })
+        .then(r => r.json())
+        .then(d => {
+            if (d.success) location.reload();
+            else showToast('❌ ' + (d.error || '操作失敗'), 'error');
+        });
     });
 }
 </script>
