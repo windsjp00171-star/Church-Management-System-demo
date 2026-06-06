@@ -492,7 +492,7 @@ function openAddManualModal() {
 async function submitAddManual() {
     const name = document.getElementById('am-name').value.trim();
     const type = document.getElementById('am-type').value;
-    if (!name) { alert('請輸入姓名'); return; }
+    if (!name) { showToast('請輸入姓名', 'error'); return; }
     const r = await fetch('/admin/api/users/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -504,7 +504,7 @@ async function submitAddManual() {
         showToast('已建立會員：' + name, 'success');
         loadUsers();
     } else {
-        alert(d.error || '建立失敗');
+        showToast(d.error || '建立失敗', 'error');
     }
 }
 

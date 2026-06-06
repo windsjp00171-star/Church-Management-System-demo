@@ -260,7 +260,7 @@ function loadGuide() {
 
       <input type="hidden" name="entry_date" value="{{ entry_date }}">
       <button type="submit" class="primary-btn"
-        onclick="return confirm('確定要儲存並鎖定嗎？\n鎖定後內容就無法再修改了。')">儲存並鎖定</button>
+        onclick="var f=this.form;openConfirm('確定要儲存並鎖定嗎？鎖定後內容就無法再修改了。',()=>f.submit());return false;">儲存並鎖定</button>
     </form>
   {% endif %}
 </section>

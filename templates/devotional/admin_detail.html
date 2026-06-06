@@ -85,8 +85,7 @@
       <a href="{{ url_for('devotional.admin_devotional_print', order_id=order.id) }}"
          target="_blank" class="btn-primary" style="background:#059669;">🖨 列印簽收條</a>
       <button class="btn-danger"
-        onclick="if(confirm('確定刪除《{{ order.scripture }}》及所有登記？'))
-                   document.getElementById('del-form').submit()">🗑 刪除訂購</button>
+        onclick="openConfirm('確定刪除《{{ order.scripture | e }}》及所有登記？', () => document.getElementById('del-form').submit())">🗑 刪除訂購</button>
     </div>
   </div>
   <form id="del-form" method="POST" action="{{ url_for('devotional.admin_devotional_delete', order_id=order.id) }}" style="display:none;">
@@ -330,13 +329,14 @@ async function toggleDeliver(regId, btn) {
 }
 
 async function deleteReg(regId) {
-  if (!confirm('確定刪除此小組的登記？')) return;
-  const res = await fetch(`/admin/devotional/registrations/${regId}/delete`, { method:'POST' });
-  const data = await res.json();
-  if (data.ok) {
-    showToast('已刪除');
-    setTimeout(() => location.reload(), 700);
-  }
+  openConfirm('確定刪除此小組的登記？', async () => {
+    const res = await fetch(`/admin/devotional/registrations/${regId}/delete`, { method:'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('已刪除');
+      setTimeout(() => location.reload(), 700);
+    }
+  });
 }
 
 async function openLogs(groupName) {

@@ -1038,28 +1038,30 @@ function sendComment(prayerId) {
 
 // ── 標記蒙應允 ────────────────────────────────
 function markAnswered(prayerId, btn) {
-    if (!confirm('確定標記這則代禱已蒙應允？感謝神的恩典 ✨')) return;
-    btn.disabled = true;
-    fetch(`/prayer/${prayerId}/answered`, { method: 'POST' })
-        .then(r => r.json()).then(d => {
-            if (d.success) location.reload();
-            else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; }
-        });
+    openConfirm('確定標記這則代禱已蒙應允？感謝神的恩典 ✨', () => {
+        btn.disabled = true;
+        fetch(`/prayer/${prayerId}/answered`, { method: 'POST' })
+            .then(r => r.json()).then(d => {
+                if (d.success) location.reload();
+                else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; }
+            });
+    });
 }
 
 // ── 刪除代禱 ────────────────────────────────
 function deletePrayer(prayerId, btn) {
-    if (!confirm('確定刪除這則代禱事項？')) return;
-    btn.disabled = true;
-    fetch(`/prayer/${prayerId}/delete`, { method: 'POST' })
-        .then(r => r.json()).then(d => {
-            if (d.success) {
-                const card = document.getElementById('card-' + prayerId);
-                card.style.opacity = '0';
-                card.style.transition = 'opacity 0.3s';
-                setTimeout(() => card.remove(), 350);
-            } else { showToast(d.error || '刪除失敗', 'error'); btn.disabled = false; }
-        });
+    openConfirm('確定刪除這則代禱事項？', () => {
+        btn.disabled = true;
+        fetch(`/prayer/${prayerId}/delete`, { method: 'POST' })
+            .then(r => r.json()).then(d => {
+                if (d.success) {
+                    const card = document.getElementById('card-' + prayerId);
+                    card.style.opacity = '0';
+                    card.style.transition = 'opacity 0.3s';
+                    setTimeout(() => card.remove(), 350);
+                } else { showToast(d.error || '刪除失敗', 'error'); btn.disabled = false; }
+            });
+    });
 }
 
 // ── 工具函式 ────────────────────────────────

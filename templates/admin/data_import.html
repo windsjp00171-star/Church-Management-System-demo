@@ -95,7 +95,7 @@ dropZone.addEventListener('click', function() {
 
 function handleFile(f) {
   if (!f || !f.name.endsWith('.zip')) {
-    alert('請選擇 .zip 檔案');
+    showToast('請選擇 .zip 檔案', 'error');
     return;
   }
   selectedFile = f;
@@ -125,13 +125,13 @@ function doPreview() {
   .then(function(data) {
     btn.disabled = false;
     btn.textContent = '🔍 預覽匯入內容';
-    if (data.error) { alert(data.error); return; }
+    if (data.error) { showToast(data.error, 'error'); return; }
     renderPreview(data);
   })
   .catch(function(e) {
     btn.disabled = false;
     btn.textContent = '🔍 預覽匯入內容';
-    alert('預覽失敗：' + e);
+    showToast('預覽失敗：' + e, 'error');
   });
 }
 

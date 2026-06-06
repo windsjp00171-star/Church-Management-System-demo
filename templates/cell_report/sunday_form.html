@@ -67,30 +67,33 @@ function updateTotal() {
 if (first) first.oninput = updateTotal;
 if (second) second.oninput = updateTotal;
 
-async function submitReport() {
+function submitReport() {
   const f = parseInt(first.value) || 0;
   const s = second ? (parseInt(second.value) || 0) : 0;
-  if (EXISTING > 0 && !confirm(`本週已填報 ${EXISTING} 人，確定要覆蓋嗎？`)) return;
-  const btn = document.getElementById('submit-btn');
-  btn.disabled = true; btn.textContent = '送出中…';
-  const body = SERVICE_COUNT >= 2
-    ? { first_service_count: f, second_service_count: s }
-    : { first_service_count: f, second_service_count: 0 };
-  try {
-    const res = await fetch(window.location.href, {
-      method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
-    });
-    if ((await res.json()).success) {
-      btn.style.display = 'none';
-      document.getElementById('result').style.display = 'block';
-    } else {
-      showToast('儲存失敗，請再試', 'error');
+  const _do = async () => {
+    const btn = document.getElementById('submit-btn');
+    btn.disabled = true; btn.textContent = '送出中…';
+    const body = SERVICE_COUNT >= 2
+      ? { first_service_count: f, second_service_count: s }
+      : { first_service_count: f, second_service_count: 0 };
+    try {
+      const res = await fetch(window.location.href, {
+        method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+      });
+      if ((await res.json()).success) {
+        btn.style.display = 'none';
+        document.getElementById('result').style.display = 'block';
+      } else {
+        showToast('儲存失敗，請再試', 'error');
+        btn.disabled = false; btn.textContent = '送出';
+      }
+    } catch(e) {
+      showToast('網路錯誤', 'error');
       btn.disabled = false; btn.textContent = '送出';
     }
-  } catch(e) {
-    showToast('網路錯誤', 'error');
-    btn.disabled = false; btn.textContent = '送出';
-  }
+  };
+  if (EXISTING > 0) { openConfirm(`本週已填報 ${EXISTING} 人，確定要覆蓋嗎？`, _do); return; }
+  _do();
 }
 </script>
 {% endblock %}

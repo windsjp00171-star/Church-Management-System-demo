@@ -380,8 +380,7 @@ function updateBar() {
 }
 
 function resetChanges() {
-    if (!confirm('還原所有未儲存的變更？')) return;
-    location.reload();
+    openConfirm('還原所有未儲存的變更？', () => location.reload());
 }
 
 // ══════════════════════════════════════════

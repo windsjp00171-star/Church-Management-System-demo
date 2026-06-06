@@ -222,11 +222,11 @@ function submitContact(e) {
             document.getElementById('demo-contact-bar').style.display = 'none';
         } else {
             btn.disabled = false; btn.textContent = '送出洽詢';
-            alert(d.error || '送出失敗，請稍後再試');
+            showToast(d.error || '送出失敗，請稍後再試', 'error');
         }
     }).catch(function() {
         btn.disabled = false; btn.textContent = '送出洽詢';
-        alert('網路異常，請稍後再試');
+        showToast('網路異常，請稍後再試', 'error');
     });
 }
 </script>
