@@ -166,18 +166,19 @@ async function saveLimit() {
 }
 
 async function adminDelete(id, name) {
-    if (!confirm(`確定刪除「${name}」？此操作無法還原。`)) return;
-    const r = await fetch(`/admin/api/files/${id}/delete`, {
-        method: 'POST',
-        headers: {'X-CSRF-Token': _csrf}
+    openConfirm(`確定刪除「${name}」？此操作無法還原。`, async () => {
+        const r = await fetch(`/admin/api/files/${id}/delete`, {
+            method: 'POST',
+            headers: {'X-CSRF-Token': _csrf}
+        });
+        const d = await r.json();
+        if (d.success) {
+            document.getElementById('frow-' + id)?.remove();
+            showToast('✓ 已刪除', 'success');
+        } else {
+            showToast(d.error || '刪除失敗', 'error');
+        }
     });
-    const d = await r.json();
-    if (d.success) {
-        document.getElementById('frow-' + id)?.remove();
-        showToast('✓ 已刪除', 'success');
-    } else {
-        showToast(d.error || '刪除失敗', 'error');
-    }
 }
 </script>
 {% endblock %}

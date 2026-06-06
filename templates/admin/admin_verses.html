@@ -426,10 +426,11 @@ function saveEdit(id) {
     });
 }
 function deleteVerse(id) {
-    if (!confirm('確定刪除此經文？')) return;
-    fetch(`/admin/verses/${id}/delete`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
+    openConfirm('確定刪除此經文？', () => {
+        fetch(`/admin/verses/${id}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
+    });
 }
 
 function previewCustomTheme(input) {
@@ -477,10 +478,11 @@ function uploadCustomTheme() {
 }
 
 function deleteCustomTheme(id) {
-    if (!confirm('確定刪除此自訂樣式？')) return;
-    fetch(`/admin/verses/custom-theme/${id}/delete`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
+    openConfirm('確定刪除此自訂樣式？', () => {
+        fetch(`/admin/verses/custom-theme/${id}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
+    });
 }
 
 function previewWatermark(input) {

@@ -1015,13 +1015,14 @@ function uploadPoster(input) {
 }
 
 function removePoster() {
-    if (!confirm('確定移除海報？')) return;
-    document.getElementById('poster_url').value = '';
-    const preview = document.getElementById('poster-preview');
-    preview.src = '';
-    preview.style.display = 'none';
-    const ph = document.getElementById('poster-placeholder');
-    if (ph) ph.style.display = 'block';
+    openConfirm('確定移除海報？', () => {
+        document.getElementById('poster_url').value = '';
+        const preview = document.getElementById('poster-preview');
+        preview.src = '';
+        preview.style.display = 'none';
+        const ph = document.getElementById('poster-placeholder');
+        if (ph) ph.style.display = 'block';
+    });
 }
 </script>
 {% endblock %}

@@ -550,18 +550,19 @@ function toggleCheckin(regId, btn) {
 
 // ── 刪除報名 ──────────────────────────
 function cancelReg(eventId, regId, btn) {
-    if (!confirm('確定要刪除此報名紀錄嗎？')) return;
-    btn.disabled = true;
-    fetch(`/admin/events/${eventId}/registrations/${regId}/cancel`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
-                const row = btn.closest('tr');
-                row.style.opacity = '0';
-                row.style.transition = 'opacity 0.3s';
-                setTimeout(() => row.remove(), 300);
-            } else { showToast(d.error || '刪除失敗', 'error'); btn.disabled = false; }
-        });
+    openConfirm('確定要刪除此報名紀錄嗎？', () => {
+        btn.disabled = true;
+        fetch(`/admin/events/${eventId}/registrations/${regId}/cancel`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    const row = btn.closest('tr');
+                    row.style.opacity = '0';
+                    row.style.transition = 'opacity 0.3s';
+                    setTimeout(() => row.remove(), 300);
+                } else { showToast(d.error || '刪除失敗', 'error'); btn.disabled = false; }
+            });
+    });
 }
 
 // ── 白名單管理 ──────────────────────────

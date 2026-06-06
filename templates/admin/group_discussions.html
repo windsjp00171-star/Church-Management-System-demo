@@ -273,13 +273,14 @@ async function submitForm() {
 }
 
 async function deleteItem(id) {
-    if (!confirm('確定刪除此小組討論排程？')) return;
-    const res = await fetch(`/admin/group-discussions/${id}/delete`, {
-        method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+    openConfirm('確定刪除此小組討論排程？', async () => {
+        const res = await fetch(`/admin/group-discussions/${id}/delete`, {
+            method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+        });
+        const d = await res.json();
+        if (d.success) location.reload();
+        else showToast('刪除失敗', 'error');
     });
-    const d = await res.json();
-    if (d.success) location.reload();
-    else showToast('刪除失敗', 'error');
 }
 </script>
 
