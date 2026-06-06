@@ -145,7 +145,7 @@
         </div>
         {% if reg.payment_status != 'paid' and reg.payment_status != 'waived' %}
         <a href="/events/{{ event.id }}/registrations/{{ reg.id }}/pay"
-           style="padding:7px 18px; background:#06C755; color:white; border-radius:8px; text-decoration:none; font-size:0.85rem; font-weight:bold; white-space:nowrap;">
+           style="padding:10px 20px; background:#06C755; color:white; border-radius:8px; text-decoration:none; font-size:0.88rem; font-weight:bold; white-space:nowrap; min-height:44px; display:inline-flex; align-items:center;">
             前往繳費 →
         </a>
         {% endif %}
