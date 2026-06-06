@@ -409,17 +409,22 @@ function escHtml(s) {
 {% endif %}
 <script>
 function openConfirm(msg, onOk) {
+    if (document.querySelector('._oc-overlay')) return;
     const m = document.createElement('div');
+    m.className = '_oc-overlay';
     m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
-    m.innerHTML = `<div style="background:#fff;border-radius:16px;padding:24px;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);">
-      <p style="font-size:1rem;color:#1a202c;margin:0 0 20px;line-height:1.55;">${msg}</p>
-      <div style="display:flex;gap:10px;justify-content:flex-end;">
-        <button id="_oc-cancel" style="padding:10px 20px;border-radius:10px;border:1px solid #e2e8f0;background:#f7fafc;color:#4a5568;font-size:.95rem;cursor:pointer;min-height:44px;">取消</button>
-        <button id="_oc-ok" style="padding:10px 20px;border-radius:10px;border:none;background:#e53e3e;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;min-height:44px;">確認</button>
-      </div></div>`;
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);';
+    const p = document.createElement('p');
+    p.style.cssText = 'font-size:1rem;color:#1a202c;margin:0 0 20px;line-height:1.55;';
+    p.textContent = msg;
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+    btns.innerHTML = '<button style="padding:10px 20px;border-radius:10px;border:1px solid #e2e8f0;background:#f7fafc;color:#4a5568;font-size:.95rem;cursor:pointer;min-height:44px;">取消</button><button style="padding:10px 20px;border-radius:10px;border:none;background:#e53e3e;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;min-height:44px;">確認</button>';
+    box.appendChild(p); box.appendChild(btns); m.appendChild(box);
     document.body.appendChild(m);
-    m.querySelector('#_oc-ok').onclick = () => { m.remove(); onOk(); };
-    m.querySelector('#_oc-cancel').onclick = () => m.remove();
+    btns.children[1].onclick = () => { m.remove(); onOk(); };
+    btns.children[0].onclick = () => m.remove();
     m.onclick = e => { if (e.target === m) m.remove(); };
 }
 </script>

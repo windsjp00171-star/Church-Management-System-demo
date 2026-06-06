@@ -141,7 +141,8 @@
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="entry_date" value="">
                         <input type="hidden" name="pastor_line_user_id" value="{{ p.line_user_id }}">
-                        <button type="submit" name="action" value="revoke"
+                        <input type="hidden" name="action" value="revoke">
+                        <button type="submit"
                             style="padding:5px 12px; background:#fff0f0; color:#c62828; border:1px solid #fca5a5; border-radius:6px; font-size:0.82rem; cursor:pointer;"
                             onclick="var f=this.form;openConfirm('確定取消授權嗎？',()=>f.submit());return false;">取消授權</button>
                     </form>
