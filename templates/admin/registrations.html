@@ -114,7 +114,10 @@
 
 <!-- 名單表格 -->
 <div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
-    <div style="overflow-x:auto;">
+    <div style="font-size:0.75rem; color:#aaa; text-align:right; padding:8px 14px 0; display:none;"
+         id="scroll-hint">← 左右滑動查看更多 →</div>
+    <div style="overflow-x:auto;" onscroll="document.getElementById('scroll-hint').style.display='none'"
+         id="reg-table-wrap">
         <table style="width:100%; border-collapse:collapse;">
             <thead>
                 <tr style="background:#f5f5f5; font-size:0.85rem; color:#666;">
@@ -481,6 +484,13 @@ function sendEventNotify() {
 </div>
 
 <script>
+// Show horizontal scroll hint on mobile
+window.addEventListener('load', () => {
+    const wrap = document.getElementById('reg-table-wrap');
+    if (wrap && wrap.scrollWidth > wrap.clientWidth)
+        document.getElementById('scroll-hint').style.display = 'block';
+});
+
 // 姓名即時搜尋
 function filterTable(keyword) {
     const kw = keyword.trim().toLowerCase();

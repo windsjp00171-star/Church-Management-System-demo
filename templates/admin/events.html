@@ -25,12 +25,12 @@
 <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; align-items:center;">
     <span style="font-size:0.85rem; color:#888;">篩選小組：</span>
     <button onclick="filterGroup('')" id="filter-all"
-        style="padding:5px 14px; border-radius:20px; border:none; cursor:pointer; font-size:0.85rem;
-               background:#333; color:white;">全部</button>
+        style="padding:8px 16px; border-radius:20px; border:none; cursor:pointer; font-size:0.85rem;
+               background:#333; color:white; min-height:44px;">全部</button>
     {% for tag in all_tags %}
     <button onclick="filterGroup('{{ tag }}')" id="filter-{{ loop.index }}"
-        style="padding:5px 14px; border-radius:20px; border:1px solid #ddd; cursor:pointer; font-size:0.85rem;
-               background:white; color:#555;">{{ tag }}</button>
+        style="padding:8px 16px; border-radius:20px; border:1px solid #ddd; cursor:pointer; font-size:0.85rem;
+               background:white; color:#555; min-height:44px;">{{ tag }}</button>
     {% endfor %}
 </div>
 {% endif %}
