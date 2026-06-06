@@ -420,9 +420,9 @@
 
     <!-- 送出 -->
     <div style="margin-top:32px; display:flex; gap:12px;">
-        <button onclick="submitForm()"
+        <button onclick="submitForm(this)"
             style="padding:12px 32px; background:#06C755; color:white; border:none;
-                   border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer;">
+                   border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer; min-height:44px;">
             {{ '儲存變更' if event else '建立活動' }}
         </button>
         <a href="/admin/events"
@@ -686,9 +686,11 @@ window.addEventListener('DOMContentLoaded', initMealConfig);
 // ==========================================
 // 送出表單
 // ==========================================
-function submitForm() {
+function submitForm(btn) {
     const title = document.getElementById('title').value.trim();
     if (!title) { showToast('請填寫活動名稱', 'warning'); document.getElementById('title').focus(); return; }
+    const origLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = '送出中…';
 
     const fields = [];
     document.querySelectorAll('.field-row').forEach((row, index) => {
@@ -771,9 +773,9 @@ function submitForm() {
     }))
     .then(data => {
         if (data.success) window.location.href = '/admin/events';
-        else showToast('建立失敗：' + (data.error || '未知錯誤'), 'error');
+        else { btn.disabled = false; btn.textContent = origLabel; showToast('建立失敗：' + (data.error || '未知錯誤'), 'error'); }
     })
-    .catch(err => showToast('錯誤：' + err.message, 'error'));
+    .catch(err => { btn.disabled = false; btn.textContent = origLabel; showToast('錯誤：' + err.message, 'error'); });
 }
 
 // ==========================================
