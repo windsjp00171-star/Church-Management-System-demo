@@ -166,6 +166,15 @@ def admin_devotional_detail(order_id):
     delivered_count = sum(1 for r in regs.values() if r.get('is_delivered'))
     total_amount = total_qty * order['price']
 
+    confirmed_user_ids = list({r['confirmed_by'] for r in regs.values() if r.get('confirmed_by')})
+    confirmed_name_map = {}
+    if confirmed_user_ids:
+        users = supabase.table('users').select('id,real_name')\
+            .in_('id', confirmed_user_ids).execute().data or []
+        confirmed_name_map = {u['id']: u['real_name'] for u in users}
+    for r in regs.values():
+        r['confirmed_name'] = confirmed_name_map.get(r.get('confirmed_by'), '')
+
     return render_template('devotional/admin_detail.html',
                            order=order,
                            primary_names=primary_names,
@@ -271,8 +280,52 @@ def admin_devotional_deliver(reg_id):
     if not reg.data:
         return jsonify({'ok': False}), 404
     new_val = not reg.data[0]['is_delivered']
-    supabase.table('devotional_registrations').update({'is_delivered': new_val}).eq('id', reg_id).execute()
+    body = request.get_json() or {}
+    update = {'is_delivered': new_val}
+    if new_val:
+        update['confirmed_at'] = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat()
+        update['confirmed_by'] = session.get('user_id')
+        update['pickup_note'] = (body.get('pickup_note') or '').strip() or None
+    else:
+        update['confirmed_at'] = None
+        update['confirmed_by'] = None
+        update['pickup_note'] = None
+    supabase.table('devotional_registrations').update(update).eq('id', reg_id).execute()
     return jsonify({'ok': True, 'is_delivered': new_val})
+
+
+@devotional_bp.route('/devotional/<order_id>/pickup', methods=['GET', 'POST'])
+@login_required
+def devotional_pickup(order_id):
+    order = supabase.table('devotional_orders').select('*').eq('id', order_id).execute()
+    if not order.data:
+        return redirect('/devotional')
+    order = order.data[0]
+    primary_names = _primary_groups()
+    my_group = _detect_user_group(primary_names)
+    reg_data = None
+    if my_group:
+        res = supabase.table('devotional_registrations').select('*')\
+            .eq('order_id', order_id).eq('group_name', my_group).execute()
+        reg_data = res.data[0] if res.data else None
+    if request.method == 'POST':
+        if not my_group:
+            return jsonify({'error': '無法取得您的小組資訊'}), 400
+        if not reg_data or reg_data.get('quantity', 0) == 0:
+            return jsonify({'error': '您的小組尚未登記此訂購'}), 400
+        if reg_data.get('is_delivered'):
+            return jsonify({'error': '已簽收'}), 400
+        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat()
+        supabase.table('devotional_registrations').update({
+            'is_delivered': True,
+            'confirmed_at': now,
+            'confirmed_by': session.get('user_id'),
+            'pickup_note': session.get('real_name', ''),
+        }).eq('id', reg_data['id']).execute()
+        return jsonify({'success': True})
+    return render_template('devotional/pickup.html',
+        order=order, my_group=my_group, my_reg=reg_data,
+        real_name=session.get('real_name', ''))
 
 
 @devotional_bp.post('/admin/devotional/<order_id>/upload-cover')
