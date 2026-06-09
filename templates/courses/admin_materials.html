@@ -185,22 +185,23 @@ function submitAdd() {
 
 function deleteM(id, name, force = false) {
     const msg = force
-        ? `⚠️ 確定強制刪除「${name}」？\n所有進貨／銷售記錄將一併清除，無法復原！`
+        ? `⚠️ 確定強制刪除「${name}」？所有進貨／銷售記錄將一併清除，無法復原！`
         : `確定刪除「${name}」？`;
-    if (!confirm(msg)) return;
-    fetch(`/admin/materials/${id}/delete`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ force }),
-    }).then(r => r.json()).then(d => {
-        if (d.success) location.reload();
-        else if (!force && d.error && d.error.includes('異動記錄')) {
-            if (confirm(`「${name}」有進貨／銷售記錄。\n確定要連同所有記錄一起強制刪除？\n（此操作無法復原）`)) {
-                deleteM(id, name, true);
+    openConfirm(msg, () => {
+        fetch(`/admin/materials/${id}/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ force }),
+        }).then(r => r.json()).then(d => {
+            if (d.success) location.reload();
+            else if (!force && d.error && d.error.includes('異動記錄')) {
+                openConfirm(`「${name}」有進貨／銷售記錄，確定要連同所有記錄一起強制刪除？（此操作無法復原）`, () => {
+                    deleteM(id, name, true);
+                });
+            } else {
+                showToast(d.error || '刪除失敗', 'error');
             }
-        } else {
-            showToast(d.error || '刪除失敗', 'error');
-        }
+        });
     });
 }
 

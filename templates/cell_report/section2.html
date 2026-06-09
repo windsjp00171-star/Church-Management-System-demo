@@ -274,15 +274,16 @@ async function addMember() {
 }
 
 async function removeMember(memberId, btn) {
-  if (!confirm('確定要從本小組移除此成員嗎？')) return;
-  try {
-    const res = await fetch(`/cell-report/${GROUP_ID}/ajax/remove-member/${memberId}`, {method: 'POST'});
-    const data = await res.json();
-    if (data.success) {
-      const card = document.querySelector(`.att-card[data-member-id="${memberId}"]`);
-      if (card) card.remove();
-    }
-  } catch(e) { console.error(e); }
+  openConfirm('確定要從本小組移除此成員嗎？', async () => {
+    try {
+      const res = await fetch(`/cell-report/${GROUP_ID}/ajax/remove-member/${memberId}`, {method: 'POST'});
+      const data = await res.json();
+      if (data.success) {
+        const card = document.querySelector(`.att-card[data-member-id="${memberId}"]`);
+        if (card) card.remove();
+      }
+    } catch(e) { console.error(e); }
+  });
 }
 
 // init: mark already-selected buttons and check completion

@@ -380,18 +380,18 @@ function showDetail(dateStr, items) {
         const personalBtns = isPersonal ? `
             <div style="display:flex; gap:6px; margin-top:8px;">
                 <button onclick="openEditPersonal('${item.id}','${(item.title||'').replace(/'/g,"\\'")}','${item.date}','${(item.description||'').replace(/'/g,"\\'")}','${item.color||'#e65100'}',event)"
-                    style="padding:4px 12px; background:#fff3e0; color:#e65100; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">編輯</button>
+                    style="padding:8px 14px; background:#fff3e0; color:#e65100; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; min-height:44px;">編輯</button>
                 <button onclick="deletePersonal('${item.id}',event)"
-                    style="padding:4px 12px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">刪除</button>
+                    style="padding:8px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; min-height:44px;">刪除</button>
             </div>` : '';
 
         // 教會行事：管理員可編輯/刪除
         const churchBtns = (IS_ADMIN && isChurch) ? `
             <div style="display:flex; gap:6px; margin-top:8px;">
                 <button onclick="openEditChurch('${item.id}','${(item.title||'').replace(/'/g,"\\'")}','${item.date}','${(item.description||'').replace(/'/g,"\\'")}','${item.color||'#7b1fa2'}',event)"
-                    style="padding:4px 12px; background:#f0f0f0; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">編輯</button>
+                    style="padding:8px 14px; background:#f0f0f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; min-height:44px;">編輯</button>
                 <button onclick="deleteChurch('${item.id}',event)"
-                    style="padding:4px 12px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.8rem;">刪除</button>
+                    style="padding:8px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; min-height:44px;">刪除</button>
             </div>` : '';
 
         return `
@@ -475,11 +475,12 @@ async function submitPersonalForm() {
 }
 async function deletePersonal(id, ev) {
     ev.stopPropagation();
-    if (!confirm('確定刪除這筆個人行程？')) return;
-    const res = await fetch(`/calendar/personal/${id}/delete`, { method: 'POST' });
-    const d   = await res.json();
-    if (d.success) loadCalendar();
-    else showToast('❌ 刪除失敗', 'error');
+    openConfirm('確定刪除這筆個人行程？', async () => {
+        const res = await fetch(`/calendar/personal/${id}/delete`, { method: 'POST' });
+        const d   = await res.json();
+        if (d.success) loadCalendar();
+        else showToast('❌ 刪除失敗', 'error');
+    });
 }
 
 // ── 教會行事（管理員）────────────────────────────────────────
@@ -534,13 +535,14 @@ async function submitChurchForm() {
 }
 async function deleteChurch(id, ev) {
     ev && ev.stopPropagation();
-    if (!confirm('確定刪除這筆教會行事？')) return;
-    const res = await fetch(`/admin/calendar/church/${id}/delete`, {
-        method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+    openConfirm('確定刪除這筆教會行事？', async () => {
+        const res = await fetch(`/admin/calendar/church/${id}/delete`, {
+            method: 'POST', headers: { 'X-CSRF-Token': CSRF },
+        });
+        const d = await res.json();
+        if (d.success) { loadCalendar(); document.getElementById('day-detail').style.display = 'none'; }
+        else showToast('❌ 刪除失敗', 'error');
     });
-    const d = await res.json();
-    if (d.success) { loadCalendar(); document.getElementById('day-detail').style.display = 'none'; }
-    else showToast('❌ 刪除失敗', 'error');
 }
 </script>
 

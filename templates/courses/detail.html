@@ -410,23 +410,24 @@ function submitEnroll() {
         .then(d => {
             if (d.success) { showToast(d.message || '報名成功！', 'success'); location.reload(); }
             else if (d.already_certified) {
-                if (confirm(d.message + '\n確定要回鍋嗎？')) {
+                openConfirm(d.message + ' 確定要回鍋嗎？', () => {
                     _forceEnroll = true;
                     submitEnroll();
-                }
+                });
             }
             else showToast(d.error || '報名失敗', 'error');
         });
 }
 function enroll() { showEnrollForm(); }
 function unenroll() {
-    if (!confirm('確定要取消報名嗎？')) return;
-    fetch('/courses/{{ course.id }}/unenroll', { method: 'POST' })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) location.reload();
-            else showToast(d.error || '取消失敗', 'error');
-        });
+    openConfirm('確定要取消報名嗎？', () => {
+        fetch('/courses/{{ course.id }}/unenroll', { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) location.reload();
+                else showToast(d.error || '取消失敗', 'error');
+            });
+    });
 }
 </script>
 {% endblock %}

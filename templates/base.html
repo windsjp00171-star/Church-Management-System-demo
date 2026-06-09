@@ -59,7 +59,36 @@
             <a href="/auth/login" class="btn btn-sm btn-primary">LINE 登入</a>
         {% endif %}
     </div>
+    <!-- 漢堡選單（手機版，桌機版 CSS 隱藏） -->
+    <button class="hamburger" id="hamburger-btn" onclick="toggleDrawer()" aria-label="選單">
+        <span></span><span></span><span></span>
+    </button>
 </nav>
+
+<!-- ══ Mobile Drawer ══ -->
+<div class="navbar-drawer" id="navbar-drawer">
+    {% if session.user_id or session.line_id %}
+    <div class="drawer-user-row">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" alt="頭像"
+             style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;"
+             onerror="this.style.display='none'">
+        {% endif %}
+        <a href="/profile" style="text-decoration:none;">
+            <div class="drawer-username">{{ session.real_name or '' }}</div>
+            <div style="font-size:0.78rem;color:rgba(255,255,255,.6);">查看個人資料</div>
+        </a>
+    </div>
+    <hr class="drawer-divider">
+    {% if session.is_admin or session.is_super_admin %}
+    <a href="/admin" class="drawer-nav-link nav-link-admin">⚙️ 後台管理</a>
+    {% endif %}
+    <a href="/profile" class="drawer-nav-link">👤 個人資料</a>
+    <a href="/auth/logout" class="drawer-nav-link">🚪 登出</a>
+    {% else %}
+    <a href="/auth/login" class="drawer-nav-link">🔑 LINE 登入</a>
+    {% endif %}
+</div>
 
 <!-- ══ Flash Messages ══ -->
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -222,11 +251,11 @@ function submitContact(e) {
             document.getElementById('demo-contact-bar').style.display = 'none';
         } else {
             btn.disabled = false; btn.textContent = '送出洽詢';
-            alert(d.error || '送出失敗，請稍後再試');
+            showToast(d.error || '送出失敗，請稍後再試', 'error');
         }
     }).catch(function() {
         btn.disabled = false; btn.textContent = '送出洽詢';
-        alert('網路異常，請稍後再試');
+        showToast('網路異常，請稍後再試', 'error');
     });
 }
 </script>
@@ -251,6 +280,23 @@ const _LINE_LIFF_ID = "{{ config.LINE_LIFF_ID or '' }}";
         });
     };
 })();
+
+function toggleDrawer() {
+    var d = document.getElementById('navbar-drawer');
+    var b = document.getElementById('hamburger-btn');
+    if (!d || !b) return;
+    d.classList.toggle('open');
+    b.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+    var d = document.getElementById('navbar-drawer');
+    var b = document.getElementById('hamburger-btn');
+    if (!d || !b) return;
+    if (d.classList.contains('open') && !d.contains(e.target) && !b.contains(e.target)) {
+        d.classList.remove('open');
+        b.classList.remove('open');
+    }
+});
 
 function showToast(msg, type) {
     type = type || 'info';
@@ -407,5 +453,26 @@ function escHtml(s) {
 })();
 </script>
 {% endif %}
+<script>
+function openConfirm(msg, onOk) {
+    if (document.querySelector('._oc-overlay')) return;
+    const m = document.createElement('div');
+    m.className = '_oc-overlay';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    const box = document.createElement('div');
+    box.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);';
+    const p = document.createElement('p');
+    p.style.cssText = 'font-size:1rem;color:#1a202c;margin:0 0 20px;line-height:1.55;';
+    p.textContent = msg;
+    const btns = document.createElement('div');
+    btns.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
+    btns.innerHTML = '<button style="padding:10px 20px;border-radius:10px;border:1px solid #e2e8f0;background:#f7fafc;color:#4a5568;font-size:.95rem;cursor:pointer;min-height:44px;">取消</button><button style="padding:10px 20px;border-radius:10px;border:none;background:#e53e3e;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;min-height:44px;">確認</button>';
+    box.appendChild(p); box.appendChild(btns); m.appendChild(box);
+    document.body.appendChild(m);
+    btns.children[1].onclick = () => { m.remove(); onOk(); };
+    btns.children[0].onclick = () => m.remove();
+    m.onclick = e => { if (e.target === m) m.remove(); };
+}
+</script>
 </body>
 </html>

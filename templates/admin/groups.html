@@ -116,14 +116,15 @@ function toggleStaff(id, btn) {
 }
 
 function deleteGroup(id, name, btn) {
-    if (!confirm(`確定要刪除「${name}」嗎？\n已套用此標籤的使用者不受影響，僅移除選單選項。`)) return;
-    btn.disabled = true;
-    fetch(`/admin/api/groups/${id}/delete`, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) loadGroups();
-            else { showToast(data.error || '刪除失敗', 'error'); btn.disabled = false; }
-        });
+    openConfirm(`確定要刪除「${name}」嗎？已套用此標籤的使用者不受影響，僅移除選單選項。`, () => {
+        btn.disabled = true;
+        fetch(`/admin/api/groups/${id}/delete`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) loadGroups();
+                else { showToast(data.error || '刪除失敗', 'error'); btn.disabled = false; }
+            });
+    });
 }
 
 

@@ -25,12 +25,12 @@
 <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; align-items:center;">
     <span style="font-size:0.85rem; color:#888;">篩選小組：</span>
     <button onclick="filterGroup('')" id="filter-all"
-        style="padding:5px 14px; border-radius:20px; border:none; cursor:pointer; font-size:0.85rem;
-               background:#333; color:white;">全部</button>
+        style="padding:8px 16px; border-radius:20px; border:none; cursor:pointer; font-size:0.85rem;
+               background:#333; color:white; min-height:44px;">全部</button>
     {% for tag in all_tags %}
     <button onclick="filterGroup('{{ tag }}')" id="filter-{{ loop.index }}"
-        style="padding:5px 14px; border-radius:20px; border:1px solid #ddd; cursor:pointer; font-size:0.85rem;
-               background:white; color:#555;">{{ tag }}</button>
+        style="padding:8px 16px; border-radius:20px; border:1px solid #ddd; cursor:pointer; font-size:0.85rem;
+               background:white; color:#555; min-height:44px;">{{ tag }}</button>
     {% endfor %}
 </div>
 {% endif %}
@@ -157,16 +157,14 @@ function filterGroup(tag) {
 }
 
 function cloneEvent(eventId) {
-    if (!confirm('複製這個活動嗎？\n日期會清空，報名預設關閉，請複製後再去編輯。')) return;
-    fetch(`/admin/events/${eventId}/clone`, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = `/admin/events/${data.new_id}/edit`;
-            } else {
-                showToast(data.error || '複製失敗', 'error');
-            }
-        });
+    openConfirm('複製這個活動嗎？日期會清空，報名預設關閉，請複製後再去編輯。', () => {
+        fetch(`/admin/events/${eventId}/clone`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) window.location.href = `/admin/events/${data.new_id}/edit`;
+                else showToast(data.error || '複製失敗', 'error');
+            });
+    });
 }
 
 function toggleEvent(eventId, btn) {
@@ -180,14 +178,15 @@ function toggleEvent(eventId, btn) {
 }
 
 function deleteEvent(eventId, btn) {
-    if (!confirm('確定要刪除這個活動嗎？報名資料也會一併刪除！')) return;
-    btn.disabled = true;
-    fetch(`/admin/events/${eventId}/delete`, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) { showToast(data.error, 'error'); btn.disabled = false; return; }
-            location.reload();
-        });
+    openConfirm('確定要刪除這個活動嗎？報名資料也會一併刪除！', () => {
+        btn.disabled = true;
+        fetch(`/admin/events/${eventId}/delete`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) { showToast(data.error, 'error'); btn.disabled = false; return; }
+                location.reload();
+            });
+    });
 }
 </script>
 {% endblock %}

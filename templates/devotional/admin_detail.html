@@ -25,6 +25,8 @@
 }
 .btn-deliver   { background:#dcfce7; color:#15803d; }
 .btn-undeliver { background:#fef9c3; color:#92400e; }
+.btn-pay       { background:#dbeafe; color:#1d4ed8; }
+.btn-unpay     { background:#fce7f3; color:#9d174d; }
 .btn-log       { background:#e0e7ff; color:#4338ca; }
 .btn-del       { background:#fee2e2; color:#b91c1c; }
 .btn-edit      { background:#f3f4f6; color:#374151; }
@@ -77,6 +79,11 @@
       <div style="font-size:.82rem; color:#9ca3af; margin-top:2px;">截止：{{ order.deadline }}{% if order.price %} · 每本 ${{ order.price }}{% endif %}</div>
     </div>
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <button onclick="showPickupQR()"
+        style="padding:9px 18px; background:#e8f5e9; color:#2e7d32; border:none;
+               border-radius:8px; cursor:pointer; font-weight:700; font-size:.88rem;">
+        📦 領書 QR
+      </button>
       <button onclick="showRegLink()"
         style="padding:9px 18px; background:#e3f2fd; color:#1565c0; border:none;
                border-radius:8px; cursor:pointer; font-weight:700; font-size:.88rem;">
@@ -85,8 +92,7 @@
       <a href="{{ url_for('devotional.admin_devotional_print', order_id=order.id) }}"
          target="_blank" class="btn-primary" style="background:#059669;">🖨 列印簽收條</a>
       <button class="btn-danger"
-        onclick="if(confirm('確定刪除《{{ order.scripture }}》及所有登記？'))
-                   document.getElementById('del-form').submit()">🗑 刪除訂購</button>
+        onclick="openConfirm('確定刪除《{{ order.scripture | e }}》及所有登記？', () => document.getElementById('del-form').submit())">🗑 刪除訂購</button>
     </div>
   </div>
   <form id="del-form" method="POST" action="{{ url_for('devotional.admin_devotional_delete', order_id=order.id) }}" style="display:none;">
@@ -137,6 +143,14 @@
       <div class="stat-val">{{ delivered_count }}</div>
       <div class="stat-lbl">已簽收</div>
     </div>
+    <div class="stat-card">
+      <div class="stat-val">{{ paid_count }}</div>
+      <div class="stat-lbl">已收費小組</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{% if order.price > 0 %}${{ paid_amount }}{% else %}—{% endif %}</div>
+      <div class="stat-lbl">已收金額</div>
+    </div>
   </div>
 
   {# 小組表格 #}
@@ -151,6 +165,7 @@
         <th>小組</th>
         <th style="text-align:right;">本數</th>
         <th>備註</th>
+        <th>收費</th>
         <th>簽收</th>
         <th></th>
       </tr>
@@ -166,8 +181,27 @@
         <td style="font-size:.82rem; color:#6b7280;">{{ reg.notes if reg and reg.notes else '' }}</td>
         <td>
           {% if reg %}
+            {% if reg.paid_at %}
+            <div style="font-size:.78rem; line-height:1.5;">
+              <span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:20px; font-size:.72rem; font-weight:700;">💰 已收費</span>
+              <div style="color:#9ca3af; margin-top:2px;">{{ reg.paid_at[:16].replace('T',' ') }}</div>
+            </div>
+            {% else %}
+            <span style="background:#f3f4f6; color:#9ca3af; padding:2px 10px; border-radius:20px; font-size:.72rem;">未收費</span>
+            {% endif %}
+          {% endif %}
+        </td>
+        <td>
+          {% if reg %}
             {% if reg.is_delivered %}
-            <span style="background:#dcfce7; color:#15803d; padding:2px 10px; border-radius:20px; font-size:.72rem; font-weight:700;">✓ 已簽收</span>
+            <div style="font-size:.78rem; line-height:1.5;">
+              <span style="background:#dcfce7; color:#15803d; padding:2px 8px; border-radius:20px; font-size:.72rem; font-weight:700;">✓ 已簽收</span>
+              {% if reg.confirmed_at %}
+              <div style="color:#9ca3af; margin-top:2px;">{{ reg.confirmed_at[:16].replace('T',' ') }}</div>
+              {% endif %}
+              {% if reg.pickup_note %}<div style="color:#555;">{{ reg.pickup_note }}</div>{% endif %}
+              {% if reg.confirmed_name %}<div style="color:#9ca3af; font-size:.7rem;">操作：{{ reg.confirmed_name }}</div>{% endif %}
+            </div>
             {% else %}
             <span style="background:#f3f4f6; color:#9ca3af; padding:2px 10px; border-radius:20px; font-size:.72rem;">待簽收</span>
             {% endif %}
@@ -177,6 +211,10 @@
           {% if reg %}
           <button class="btn-sm btn-edit"
                   onclick="openEditModal('{{ gname }}', {{ reg.quantity }}, '{{ (reg.notes or '')|replace("'", "\\'") }}')">編輯</button>
+          <button class="btn-sm {{ 'btn-unpay' if reg.paid_at else 'btn-pay' }}"
+                  onclick="togglePay('{{ reg.id }}', this)">
+            {{ '取消收費' if reg.paid_at else '收費' }}
+          </button>
           <button class="btn-sm {{ 'btn-undeliver' if reg.is_delivered else 'btn-deliver' }}"
                   onclick="toggleDeliver('{{ reg.id }}', this)">
             {{ '取消簽收' if reg.is_delivered else '簽收' }}
@@ -266,6 +304,45 @@
   </div>
 </div>
 
+{# 簽收備註 Modal #}
+<div class="modal-bg" id="deliver-modal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="modal-box">
+    <h2>✅ 確認簽收</h2>
+    <input type="hidden" id="deliver-reg-id">
+    <div class="mf-row">
+      <label>領書人備註（選填）</label>
+      <input type="text" id="deliver-note" placeholder="例：組長代領">
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="document.getElementById('deliver-modal').classList.remove('open')">取消</button>
+      <button class="btn-primary" onclick="submitDeliver()">確認簽收</button>
+    </div>
+  </div>
+</div>
+
+{# 領書 QR Modal #}
+<div id="pickup-qr-modal" onclick="if(event.target===this)closePickupQR()"
+    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,.5);
+           z-index:1000; align-items:center; justify-content:center; padding:20px;">
+  <div style="background:white; border-radius:16px; padding:28px; max-width:380px; width:100%; text-align:center; position:relative;">
+    <button onclick="closePickupQR()"
+        style="position:absolute; top:12px; right:16px; background:none; border:none; font-size:1.3rem; cursor:pointer; color:#aaa;">✕</button>
+    <h3 style="margin:0 0 4px; font-size:1rem; color:#2e7d32;">📦 領書簽收 QR</h3>
+    <p style="color:#9ca3af; font-size:.82rem; margin:0 0 20px;">《{{ order.scripture }}》｜各組長掃碼後自行確認</p>
+    <div style="background:#f5f5f5; border-radius:12px; padding:14px; margin-bottom:16px; display:inline-block;">
+      <img id="pickup-qr-img" src="" alt="QR" style="width:220px; height:220px; display:block;">
+    </div>
+    <div style="display:flex; gap:8px;">
+      <input id="pickup-url-text" type="text" readonly
+          style="flex:1; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:.78rem; background:#f9f9f9;">
+      <button id="pickup-copy-btn" onclick="copyPickupUrl()"
+          style="padding:8px 14px; background:#2e7d32; color:white; border:none; border-radius:8px; cursor:pointer; font-size:.82rem; white-space:nowrap;">
+        📋 複製
+      </button>
+    </div>
+  </div>
+</div>
+
 {% block extra_js %}
 <script>
 const ORDER_ID = '{{ order.id }}';
@@ -320,23 +397,60 @@ async function submitEdit() {
   }
 }
 
-async function toggleDeliver(regId, btn) {
-  const res = await fetch(`/admin/devotional/registrations/${regId}/deliver`, { method:'POST' });
-  const data = await res.json();
-  if (data.ok) {
-    showToast(data.is_delivered ? '✓ 已標記簽收' : '已取消簽收');
-    setTimeout(() => location.reload(), 700);
+function toggleDeliver(regId, btn) {
+  const isDelivered = btn.classList.contains('btn-undeliver');
+  if (isDelivered) {
+    openConfirm('確定取消簽收？', async () => {
+      const res = await fetch(`/admin/devotional/registrations/${regId}/deliver`, {
+        method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify({})
+      });
+      const data = await res.json();
+      if (data.ok) { showToast('已取消簽收'); setTimeout(() => location.reload(), 700); }
+    });
+  } else {
+    document.getElementById('deliver-reg-id').value = regId;
+    document.getElementById('deliver-note').value = '';
+    document.getElementById('deliver-modal').classList.add('open');
+    setTimeout(() => document.getElementById('deliver-note').focus(), 100);
   }
+}
+async function submitDeliver() {
+  const regId = document.getElementById('deliver-reg-id').value;
+  const note = document.getElementById('deliver-note').value.trim();
+  document.getElementById('deliver-modal').classList.remove('open');
+  const res = await fetch(`/admin/devotional/registrations/${regId}/deliver`, {
+    method: 'POST', headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({ pickup_note: note || null })
+  });
+  const data = await res.json();
+  if (data.ok) { showToast('✓ 已標記簽收'); setTimeout(() => location.reload(), 700); }
+  else showToast('⚠ 操作失敗', true);
+}
+
+async function togglePay(regId, btn) {
+  const isPaid = btn.classList.contains('btn-unpay');
+  const msg = isPaid ? '確定取消收費記錄？' : '標記此小組已繳費？';
+  openConfirm(msg, async () => {
+    const res = await fetch(`/admin/devotional/registrations/${regId}/pay`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(data.paid ? '💰 已標記收費' : '已取消收費');
+      setTimeout(() => location.reload(), 700);
+    } else {
+      showToast('⚠ 操作失敗', true);
+    }
+  });
 }
 
 async function deleteReg(regId) {
-  if (!confirm('確定刪除此小組的登記？')) return;
-  const res = await fetch(`/admin/devotional/registrations/${regId}/delete`, { method:'POST' });
-  const data = await res.json();
-  if (data.ok) {
-    showToast('已刪除');
-    setTimeout(() => location.reload(), 700);
-  }
+  openConfirm('確定刪除此小組的登記？', async () => {
+    const res = await fetch(`/admin/devotional/registrations/${regId}/delete`, { method:'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast('已刪除');
+      setTimeout(() => location.reload(), 700);
+    }
+  });
 }
 
 async function openLogs(groupName) {
@@ -409,6 +523,25 @@ function showToast(msg, isErr) {
 }
 
 const REG_URL = `${location.origin}/devotional/${ORDER_ID}`;
+const PICKUP_URL = `${location.origin}/devotional/${ORDER_ID}/pickup`;
+
+function showPickupQR() {
+  document.getElementById('pickup-qr-modal').style.display = 'flex';
+  document.getElementById('pickup-qr-img').src =
+    `https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(PICKUP_URL)}`;
+  document.getElementById('pickup-url-text').value = PICKUP_URL;
+}
+function closePickupQR() { document.getElementById('pickup-qr-modal').style.display = 'none'; }
+function copyPickupUrl() {
+  navigator.clipboard?.writeText(PICKUP_URL).catch(() => {
+    document.getElementById('pickup-url-text').select();
+    document.execCommand('copy');
+  });
+  const btn = document.getElementById('pickup-copy-btn');
+  btn.textContent = '✅ 已複製';
+  setTimeout(() => btn.textContent = '📋 複製', 1500);
+}
+
 function showRegLink() {
   document.getElementById('reg-link-modal').style.display = 'flex';
   document.getElementById('reg-url-text').value = REG_URL;

@@ -794,17 +794,19 @@ function startRename(el) {
 }
 
 async function deleteFile(id) {
-  if (!confirm('確定刪除這個檔案？')) return;
-  const res = await fetch(`/files/${id}/delete`, { method: 'POST' });
-  const data = await res.json();
-  if (data.success) { location.reload(); }
+  openConfirm('確定刪除這個檔案？', async () => {
+    const res = await fetch(`/files/${id}/delete`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { location.reload(); }
+  });
 }
 
 async function deleteFolder(id) {
-  if (!confirm('確定刪除這個資料夾？（資料夾內的檔案不會被刪除）')) return;
-  const res = await fetch(`/folders/${id}/delete`, { method: 'POST' });
-  const data = await res.json();
-  if (data.success) { location.reload(); }
+  openConfirm('確定刪除這個資料夾？（資料夾內的檔案不會被刪除）', async () => {
+    const res = await fetch(`/folders/${id}/delete`, { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { location.reload(); }
+  });
 }
 
 // ── 快速分享 ──
