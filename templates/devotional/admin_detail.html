@@ -25,6 +25,8 @@
 }
 .btn-deliver   { background:#dcfce7; color:#15803d; }
 .btn-undeliver { background:#fef9c3; color:#92400e; }
+.btn-pay       { background:#dbeafe; color:#1d4ed8; }
+.btn-unpay     { background:#fce7f3; color:#9d174d; }
 .btn-log       { background:#e0e7ff; color:#4338ca; }
 .btn-del       { background:#fee2e2; color:#b91c1c; }
 .btn-edit      { background:#f3f4f6; color:#374151; }
@@ -141,6 +143,14 @@
       <div class="stat-val">{{ delivered_count }}</div>
       <div class="stat-lbl">已簽收</div>
     </div>
+    <div class="stat-card">
+      <div class="stat-val">{{ paid_count }}</div>
+      <div class="stat-lbl">已收費小組</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-val">{% if order.price > 0 %}${{ paid_amount }}{% else %}—{% endif %}</div>
+      <div class="stat-lbl">已收金額</div>
+    </div>
   </div>
 
   {# 小組表格 #}
@@ -155,6 +165,7 @@
         <th>小組</th>
         <th style="text-align:right;">本數</th>
         <th>備註</th>
+        <th>收費</th>
         <th>簽收</th>
         <th></th>
       </tr>
@@ -168,6 +179,18 @@
           {{ reg.quantity if reg else 0 }}
         </td>
         <td style="font-size:.82rem; color:#6b7280;">{{ reg.notes if reg and reg.notes else '' }}</td>
+        <td>
+          {% if reg %}
+            {% if reg.paid_at %}
+            <div style="font-size:.78rem; line-height:1.5;">
+              <span style="background:#dbeafe; color:#1d4ed8; padding:2px 8px; border-radius:20px; font-size:.72rem; font-weight:700;">💰 已收費</span>
+              <div style="color:#9ca3af; margin-top:2px;">{{ reg.paid_at[:16].replace('T',' ') }}</div>
+            </div>
+            {% else %}
+            <span style="background:#f3f4f6; color:#9ca3af; padding:2px 10px; border-radius:20px; font-size:.72rem;">未收費</span>
+            {% endif %}
+          {% endif %}
+        </td>
         <td>
           {% if reg %}
             {% if reg.is_delivered %}
@@ -188,6 +211,10 @@
           {% if reg %}
           <button class="btn-sm btn-edit"
                   onclick="openEditModal('{{ gname }}', {{ reg.quantity }}, '{{ (reg.notes or '')|replace("'", "\\'") }}')">編輯</button>
+          <button class="btn-sm {{ 'btn-unpay' if reg.paid_at else 'btn-pay' }}"
+                  onclick="togglePay('{{ reg.id }}', this)">
+            {{ '取消收費' if reg.paid_at else '收費' }}
+          </button>
           <button class="btn-sm {{ 'btn-undeliver' if reg.is_delivered else 'btn-deliver' }}"
                   onclick="toggleDeliver('{{ reg.id }}', this)">
             {{ '取消簽收' if reg.is_delivered else '簽收' }}
@@ -398,6 +425,21 @@ async function submitDeliver() {
   const data = await res.json();
   if (data.ok) { showToast('✓ 已標記簽收'); setTimeout(() => location.reload(), 700); }
   else showToast('⚠ 操作失敗', true);
+}
+
+async function togglePay(regId, btn) {
+  const isPaid = btn.classList.contains('btn-unpay');
+  const msg = isPaid ? '確定取消收費記錄？' : '標記此小組已繳費？';
+  openConfirm(msg, async () => {
+    const res = await fetch(`/admin/devotional/registrations/${regId}/pay`, { method: 'POST' });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(data.paid ? '💰 已標記收費' : '已取消收費');
+      setTimeout(() => location.reload(), 700);
+    } else {
+      showToast('⚠ 操作失敗', true);
+    }
+  });
 }
 
 async function deleteReg(regId) {

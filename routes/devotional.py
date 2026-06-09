@@ -164,7 +164,10 @@ def admin_devotional_detail(order_id):
     registered_count = len(regs)
     total_qty = sum(r['quantity'] for r in regs.values())
     delivered_count = sum(1 for r in regs.values() if r.get('is_delivered'))
+    paid_count = sum(1 for r in regs.values() if r.get('paid_at'))
+    paid_qty = sum(r.get('paid_quantity') or 0 for r in regs.values())
     total_amount = total_qty * order['price']
+    paid_amount = paid_qty * order['price']
 
     confirmed_user_ids = list({r['confirmed_by'] for r in regs.values() if r.get('confirmed_by')})
     confirmed_name_map = {}
@@ -182,7 +185,9 @@ def admin_devotional_detail(order_id):
                            registered_count=registered_count,
                            total_qty=total_qty,
                            delivered_count=delivered_count,
-                           total_amount=total_amount)
+                           total_amount=total_amount,
+                           paid_count=paid_count,
+                           paid_amount=paid_amount)
 
 
 @devotional_bp.post('/admin/devotional/<order_id>/register')
@@ -361,6 +366,26 @@ def admin_devotional_upload_cover(order_id):
         return jsonify({'ok': True, 'url': url})
     except Exception as e:
         return jsonify({'ok': False, 'msg': str(e)}), 500
+
+
+@devotional_bp.post('/admin/devotional/registrations/<reg_id>/pay')
+@admin_required
+def admin_devotional_pay(reg_id):
+    reg = supabase.table('devotional_registrations').select('paid_at, quantity').eq('id', reg_id).execute()
+    if not reg.data:
+        return jsonify({'ok': False}), 404
+    r = reg.data[0]
+    if r.get('paid_at'):
+        supabase.table('devotional_registrations').update({
+            'paid_at': None, 'paid_quantity': None
+        }).eq('id', reg_id).execute()
+        return jsonify({'ok': True, 'paid': False})
+    else:
+        now = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=8))).isoformat()
+        supabase.table('devotional_registrations').update({
+            'paid_at': now, 'paid_quantity': r['quantity']
+        }).eq('id', reg_id).execute()
+        return jsonify({'ok': True, 'paid': True})
 
 
 @devotional_bp.post('/admin/devotional/registrations/<reg_id>/delete')
