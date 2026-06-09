@@ -1,5 +1,12 @@
 {% extends "base.html" %}
 {% block title %}{{ '編輯活動' if event else '建立活動' }}{% endblock %}
+{% block extra_css %}
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+<style>
+.flatpickr-input { background:white !important; cursor:pointer !important; }
+@media (max-width:620px) { .dt-grid { grid-template-columns:1fr !important; } }
+</style>
+{% endblock %}
 {% block content %}
 
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
@@ -69,32 +76,36 @@
             <textarea id="description" rows="3"
                 style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; resize:vertical;">{{ event.description if event else '' }}</textarea>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="dt-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div>
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">活動開始時間</label>
-                <input id="event_start" type="datetime-local"
+                <input id="event_start" type="text" class="flatpickr-dt"
                     value="{{ event.event_start | taipei_time('%Y-%m-%dT%H:%M') if event and event.event_start else '' }}"
-                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+                    placeholder="選擇日期與時間"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; box-sizing:border-box;">
             </div>
             <div>
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">活動結束時間</label>
-                <input id="event_end" type="datetime-local"
+                <input id="event_end" type="text" class="flatpickr-dt"
                     value="{{ event.event_end | taipei_time('%Y-%m-%dT%H:%M') if event and event.event_end else '' }}"
-                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+                    placeholder="選擇日期與時間"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; box-sizing:border-box;">
             </div>
         </div>
-        <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
+        <div class="dt-grid" style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
             <div>
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">報名開始時間</label>
-                <input id="reg_start" type="datetime-local"
+                <input id="reg_start" type="text" class="flatpickr-dt"
                     value="{{ event.reg_start | taipei_time('%Y-%m-%dT%H:%M') if event and event.reg_start else '' }}"
-                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+                    placeholder="選擇日期與時間"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; box-sizing:border-box;">
             </div>
             <div>
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">報名截止時間</label>
-                <input id="reg_end" type="datetime-local"
+                <input id="reg_end" type="text" class="flatpickr-dt"
                     value="{{ event.reg_end | taipei_time('%Y-%m-%dT%H:%M') if event and event.reg_end else '' }}"
-                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+                    placeholder="選擇日期與時間"
+                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem; box-sizing:border-box;">
             </div>
         </div>
         <div style="display:grid; grid-template-columns:1fr 1fr; gap:16px;">
@@ -164,9 +175,10 @@
                 </p>
                 <div id="waitlist_deadline_section" style="display:{{ 'block' if event and event.waitlist_enabled else 'none' }}; margin-top:10px;">
                     <label style="font-size:0.85rem; font-weight:bold; display:block; margin-bottom:4px;">候補截止時間（選填，過期後自動關閉候補）</label>
-                    <input id="waitlist_deadline" type="datetime-local"
+                    <input id="waitlist_deadline" type="text" class="flatpickr-dt"
                         value="{{ event.waitlist_deadline[:16] if event and event.waitlist_deadline else '' }}"
-                        style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; width:100%; max-width:260px;">
+                        placeholder="選擇日期與時間"
+                        style="padding:8px 10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; width:100%; max-width:260px; box-sizing:border-box;">
                 </div>
             </div>
         </div>
@@ -793,6 +805,16 @@ function toggleWaitlistDeadline(checkbox) {
 // ==========================================
 // 電子簽到 preset selector
 // ==========================================
+function warnAndClearConflict() {
+    const wl    = document.getElementById('whitelist_enabled');
+    const waitl = document.getElementById('waitlist_enabled');
+    const msgs  = [];
+    if (wl.checked)    { wl.checked = false; msgs.push('「限定報名名單」'); }
+    if (waitl.checked) { waitl.checked = false; toggleWaitlistDeadline(waitl); msgs.push('「候補名單」'); }
+    if (msgs.length)
+        showToast('開放型聚會已自動關閉 ' + msgs.join('、') + '（兩者不相容）', 'warning');
+}
+
 function selectCheckinPreset(preset) {
     document.querySelectorAll('.checkin-preset').forEach(card => {
         const sel = card.dataset.preset === preset;
@@ -822,6 +844,7 @@ function selectCheckinPreset(preset) {
             openEl.checked = true;
             autoEl.checked = true;
             customSection.style.display = 'none';
+            warnAndClearConflict();
         } else if (preset === 'confirm') {
             registeredEl.checked = true;
             autoEl.checked = false;
@@ -843,6 +866,7 @@ function syncCustomMode(radio) {
     document.querySelector(`input[name="checkin_mode"][value="${radio.value}"]`).checked = true;
     document.getElementById('allow_open_checkin_section_custom').style.display =
         radio.value === 'open' ? 'block' : 'none';
+    if (radio.value === 'open') warnAndClearConflict();
 }
 
 function syncAllowOpen(checkbox) {
@@ -1026,5 +1050,22 @@ function removePoster() {
         if (ph) ph.style.display = 'block';
     });
 }
+</script>
+{% endblock %}
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+<script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh_tw.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    flatpickr.localize(flatpickr.l10ns.zh_tw);
+    document.querySelectorAll('.flatpickr-dt').forEach(el => {
+        flatpickr(el, {
+            enableTime: true,
+            dateFormat: 'Y-m-dTH:i',
+            time_24hr: true,
+            allowInput: true,
+        });
+    });
+});
 </script>
 {% endblock %}
