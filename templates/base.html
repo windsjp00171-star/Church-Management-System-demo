@@ -59,7 +59,36 @@
             <a href="/auth/login" class="btn btn-sm btn-primary">LINE 登入</a>
         {% endif %}
     </div>
+    <!-- 漢堡選單（手機版，桌機版 CSS 隱藏） -->
+    <button class="hamburger" id="hamburger-btn" onclick="toggleDrawer()" aria-label="選單">
+        <span></span><span></span><span></span>
+    </button>
 </nav>
+
+<!-- ══ Mobile Drawer ══ -->
+<div class="navbar-drawer" id="navbar-drawer">
+    {% if session.user_id or session.line_id %}
+    <div class="drawer-user-row">
+        {% if session.picture_url %}
+        <img src="{{ session.picture_url }}" alt="頭像"
+             style="width:36px;height:36px;border-radius:50%;object-fit:cover;flex-shrink:0;"
+             onerror="this.style.display='none'">
+        {% endif %}
+        <a href="/profile" style="text-decoration:none;">
+            <div class="drawer-username">{{ session.real_name or '' }}</div>
+            <div style="font-size:0.78rem;color:rgba(255,255,255,.6);">查看個人資料</div>
+        </a>
+    </div>
+    <hr class="drawer-divider">
+    {% if session.is_admin or session.is_super_admin %}
+    <a href="/admin" class="drawer-nav-link nav-link-admin">⚙️ 後台管理</a>
+    {% endif %}
+    <a href="/profile" class="drawer-nav-link">👤 個人資料</a>
+    <a href="/auth/logout" class="drawer-nav-link">🚪 登出</a>
+    {% else %}
+    <a href="/auth/login" class="drawer-nav-link">🔑 LINE 登入</a>
+    {% endif %}
+</div>
 
 <!-- ══ Flash Messages ══ -->
 {% with messages = get_flashed_messages(with_categories=true) %}
@@ -251,6 +280,23 @@ const _LINE_LIFF_ID = "{{ config.LINE_LIFF_ID or '' }}";
         });
     };
 })();
+
+function toggleDrawer() {
+    var d = document.getElementById('navbar-drawer');
+    var b = document.getElementById('hamburger-btn');
+    if (!d || !b) return;
+    d.classList.toggle('open');
+    b.classList.toggle('open');
+}
+document.addEventListener('click', function(e) {
+    var d = document.getElementById('navbar-drawer');
+    var b = document.getElementById('hamburger-btn');
+    if (!d || !b) return;
+    if (d.classList.contains('open') && !d.contains(e.target) && !b.contains(e.target)) {
+        d.classList.remove('open');
+        b.classList.remove('open');
+    }
+});
 
 function showToast(msg, type) {
     type = type || 'info';
