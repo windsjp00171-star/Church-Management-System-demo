@@ -772,56 +772,94 @@
 <!-- ══════════════════════════════════════════════════
      發出代禱 Modal
 ══════════════════════════════════════════════════ -->
+<style>
+.prayer-modal-input {
+    width: 100%;
+    padding: 12px 14px;
+    background: rgba(255,248,220,0.85);
+    border: 1.5px solid rgba(180,130,0,0.28);
+    border-radius: 12px;
+    font-size: 0.95rem;
+    color: #3a2000;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.18s, box-shadow 0.18s;
+    box-sizing: border-box;
+}
+.prayer-modal-input:focus {
+    border-color: #c49535;
+    box-shadow: 0 0 0 3px rgba(196,149,53,0.18);
+}
+.prayer-modal-input::placeholder { color: #c4a060; }
+.prayer-modal-select-wrap {
+    position: relative;
+}
+.prayer-modal-select-wrap::after {
+    content: '▾';
+    position: absolute;
+    right: 13px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #9a7040;
+    font-size: 0.85rem;
+    pointer-events: none;
+}
+.prayer-modal-select-wrap select {
+    appearance: none;
+    -webkit-appearance: none;
+    padding-right: 32px;
+    cursor: pointer;
+}
+.prayer-modal-label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: #7a4e00;
+    margin-bottom: 6px;
+    letter-spacing: 0.02em;
+}
+</style>
+
 <div id="new-overlay" onclick="closeNewPrayer()"
     style="display:none; position:fixed; inset:0; background:rgba(80,40,0,0.45); z-index:9000; backdrop-filter:blur(3px);"></div>
 
 <div id="new-panel"
     style="display:none; position:fixed; top:50%; left:50%; transform:translate(-50%,-50%);
-           width:min(500px,94vw); background:linear-gradient(160deg,#fffcf0,#fff8dc);
-           border-radius:20px; z-index:9001; padding:28px 24px;
+           width:min(480px,94vw); background:linear-gradient(160deg,#fffcf0,#fff8dc);
+           border-radius:20px; z-index:9001; padding:28px 22px 24px;
            box-shadow:0 20px 60px rgba(120,60,0,0.3); border:1.5px solid rgba(212,168,67,0.4);">
 
-    <div style="text-align:center; margin-bottom:20px;">
-        <div style="width:48px; height:48px; background:rgba(234,179,8,0.15); border-radius:12px; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; color:#b45309;">
+    <div style="text-align:center; margin-bottom:22px;">
+        <div style="width:48px; height:48px; background:rgba(234,179,8,0.15); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 10px; color:#b45309;">
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
         </div>
         <h3 style="margin:0 0 4px; color:#3a2000; font-size:1.1rem; font-weight:800;">發出代禱</h3>
-        <p style="color:#9a7040; font-size:0.82rem; margin:0;">把你的需要交托給神，讓弟兄姊妹為你代禱</p>
+        <p style="color:#9a7040; font-size:0.83rem; margin:0;">把你的需要交托給神，讓弟兄姊妹為你代禱</p>
     </div>
 
     <div style="margin-bottom:14px;">
-        <label class="form-label" style="color:#5c3a00;">
-            代禱標題 <span style="color:#c06040;">*</span>
-        </label>
-        <input id="new-title" type="text" maxlength="60"
-            placeholder="簡短描述你的代禱需求..."
-            class="form-input"
-            style="background:rgba(255,248,220,0.7); border-color:rgba(180,130,0,0.3); color:#3a2000;">
+        <label class="prayer-modal-label">你的代禱事項 <span style="color:#c06040;">*</span></label>
+        <textarea id="new-content" rows="5"
+            placeholder="寫下你想請弟兄姊妹代禱的事情..."
+            class="prayer-modal-input"
+            style="resize:vertical; min-height:100px; line-height:1.65;"></textarea>
     </div>
 
-    <div style="margin-bottom:14px;">
-        <label class="form-label" style="color:#5c3a00;">詳細內容（選填）</label>
-        <textarea id="new-content" rows="3"
-            placeholder="可以補充更多情況讓大家更了解如何代禱..."
-            class="form-input"
-            style="background:rgba(255,248,220,0.7); border-color:rgba(180,130,0,0.3); color:#3a2000; resize:vertical; min-height:72px;"></textarea>
-    </div>
-
-    <div style="display:flex; gap:12px; margin-bottom:16px; flex-wrap:wrap;">
-        <div style="flex:1; min-width:140px;">
-            <label class="form-label" style="color:#5c3a00;">類別</label>
-            <select id="new-category"
-                class="form-input"
-                style="background:rgba(255,248,220,0.7); border-color:rgba(180,130,0,0.3); color:#3a2000;">
-                {% for k, v in categories.items() %}
-                <option value="{{ k }}">{{ v }}</option>
-                {% endfor %}
-            </select>
+    <div style="display:flex; gap:12px; align-items:center; margin-bottom:20px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:130px;">
+            <label class="prayer-modal-label">類別</label>
+            <div class="prayer-modal-select-wrap">
+                <select id="new-category" class="prayer-modal-input">
+                    {% for k, v in categories.items() %}
+                    <option value="{{ k }}">{{ v }}</option>
+                    {% endfor %}
+                </select>
+            </div>
         </div>
-        <div style="display:flex; align-items:flex-end; padding-bottom:2px;">
-            <label style="display:flex; align-items:center; gap:7px; cursor:pointer; font-size:0.88rem; color:#5c3a00; font-weight:600;">
-                <input type="checkbox" id="new-anon" style="width:16px; height:16px; accent-color:#c47800;">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#9a7040;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        <div style="padding-top:20px;">
+            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; font-size:0.88rem; color:#7a4e00; font-weight:600; white-space:nowrap;">
+                <input type="checkbox" id="new-anon" style="width:17px; height:17px; accent-color:#c47800; flex-shrink:0;">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#9a7040; flex-shrink:0;"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 匿名發出
             </label>
         </div>
@@ -831,12 +869,23 @@
 
     <div style="display:flex; gap:10px;">
         <button onclick="submitNewPrayer()"
-            class="btn btn-primary"
-            style="flex:1; background:linear-gradient(135deg,#e8a020,#c47800); border-color:transparent; box-shadow:0 4px 12px rgba(180,100,0,0.3); font-size:0.95rem; gap:8px; display:flex; align-items:center; justify-content:center;">
+            style="flex:1; display:flex; align-items:center; justify-content:center; gap:8px;
+                   padding:13px 20px; background:linear-gradient(135deg,#e8a020,#c47800);
+                   color:white; border:none; border-radius:12px; font-size:0.97rem;
+                   font-weight:700; cursor:pointer; box-shadow:0 4px 14px rgba(180,100,0,0.3);
+                   transition:opacity 0.15s; font-family:inherit; min-height:48px;"
+            onmouseover="this.style.opacity='.88'" onmouseout="this.style.opacity='1'">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z"/></svg>
             送出代禱
         </button>
-        <button onclick="closeNewPrayer()" class="btn btn-secondary">取消</button>
+        <button onclick="closeNewPrayer()"
+            style="padding:13px 20px; background:rgba(180,130,0,0.12); color:#7a4e00;
+                   border:1.5px solid rgba(180,130,0,0.22); border-radius:12px;
+                   font-size:0.95rem; font-weight:600; cursor:pointer; font-family:inherit;
+                   transition:background 0.15s; min-height:48px; white-space:nowrap;"
+            onmouseover="this.style.background='rgba(180,130,0,0.2)'" onmouseout="this.style.background='rgba(180,130,0,0.12)'">
+            取消
+        </button>
     </div>
 </div>
 
@@ -849,7 +898,7 @@ function openNewPrayer() {
     document.getElementById('new-overlay').style.display = 'block';
     document.getElementById('new-panel').style.display = 'block';
     document.body.style.overflow = 'hidden';
-    setTimeout(() => document.getElementById('new-title').focus(), 100);
+    setTimeout(() => document.getElementById('new-content').focus(), 100);
 }
 function closeNewPrayer() {
     document.getElementById('new-overlay').style.display = 'none';
@@ -860,14 +909,16 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNewPray
 
 // ── 發出代禱 ────────────────────────────────
 function submitNewPrayer() {
-    const title    = document.getElementById('new-title').value.trim();
     const content  = document.getElementById('new-content').value.trim();
     const category = document.getElementById('new-category').value;
     const anon     = document.getElementById('new-anon').checked;
     const errEl    = document.getElementById('new-error');
 
-    if (!title) { errEl.textContent = '請填寫代禱標題'; return; }
+    if (!content) { errEl.textContent = '請填寫代禱事項'; return; }
     errEl.textContent = '';
+
+    // 自動截取前 30 字作為標題
+    const title = content.length > 30 ? content.slice(0, 30) + '…' : content;
 
     fetch('/prayer/new', {
         method: 'POST',
