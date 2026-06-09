@@ -1113,15 +1113,15 @@
     </div>
 
     <div class="desc-block">
-      電子簽到功能讓活動報到作業全面數位化。會友在活動當天只需出示手機上的個人 QR 碼，由同工掃描即完成報到，完全告別紙本名冊。系統即時顯示已簽到人數，讓現場工作人員隨時掌握出席狀況。
+      電子簽到功能讓活動報到作業全面數位化。管理員為每個活動產生一組專屬 QR 碼，張貼於會場入口；會友用手機掃描後，系統自動透過 LINE 帳號辨識身分，一鍵完成報到，完全告別紙本名冊。系統即時顯示已簽到人數，讓現場工作人員隨時掌握出席狀況。
     </div>
 
     <div class="info-grid">
       <div class="info-card">
         <div class="info-card-title">主要使用角色</div>
         <div style="margin-bottom:8px;">
-          <span class="role-tag role-staff">服事同工</span>
-          <span style="font-size:0.82rem;color:var(--gray-600);">掃描 QR 碼、操作簽到介面</span>
+          <span class="role-tag role-admin">管理員 / 同工</span>
+          <span style="font-size:0.82rem;color:var(--gray-600);">產生 QR 碼、代為標記出席</span>
         </div>
         <div style="margin-bottom:8px;">
           <span class="role-tag role-admin">管理員</span>
@@ -1129,14 +1129,14 @@
         </div>
         <div>
           <span class="role-tag role-member">一般會友</span>
-          <span style="font-size:0.82rem;color:var(--gray-600);">出示個人 QR 碼完成報到</span>
+          <span style="font-size:0.82rem;color:var(--gray-600);">掃描現場活動 QR 碼完成報到</span>
         </div>
       </div>
       <div class="info-card">
         <div class="info-card-title">簽到方式</div>
         <ul class="feature-list" style="margin-bottom:0;">
-          <li>同工掃描會友的 QR 碼</li>
-          <li>會友自行掃描現場共用 QR 碼</li>
+          <li>會友自行掃描現場活動 QR 碼（已登入 LINE 即可辨識身分）</li>
+          <li>同工以「代為簽到」功能，搜尋姓名協助他人完成報到</li>
           <li>管理員在後台手動標記出席</li>
         </ul>
       </div>
@@ -1144,18 +1144,18 @@
 
     <div class="sub-heading">主要功能說明</div>
     <ul class="feature-list">
-      <li><strong>個人 QR 碼：</strong>每位會友登入後均有專屬 QR 碼，顯示於個人頁面，活動當天出示即可</li>
-      <li><strong>共用簽到連結：</strong>活動可產生一組共用簽到連結，同工不需登入系統即可開啟掃碼頁面，方便多位同工同時在不同入口服務</li>
+      <li><strong>活動 QR 碼：</strong>每個活動產生一組專屬 QR 碼，張貼於現場或以圖片分享，會友用手機掃描即可；系統自動透過 LINE 登入狀態辨識身分，無需輸入任何資料</li>
+      <li><strong>代為簽到：</strong>同工以管理員身分登入後，可在同一個簽到頁面搜尋會友姓名，代為完成報到，適合協助年長者或行動不便的會友</li>
       <li><strong>即時出席人數統計：</strong>掃碼後畫面立即更新已簽到人數，讓現場人員清楚掌握狀況</li>
       <li><strong>簽到時間紀錄：</strong>系統自動記錄每位會友的確切簽到時間，可供事後查閱</li>
-      <li><strong>手機操作：</strong>掃碼操作完全支援手機，同工用自己的手機即可，無需專用設備</li>
-      <li><strong>防重複簽到：</strong>已完成簽到的 QR 碼再次掃描時，系統會提示該人員已完成報到，避免誤操作</li>
+      <li><strong>手機操作：</strong>簽到流程完全支援手機，無需專用設備或打印設備</li>
+      <li><strong>防重複簽到：</strong>已完成簽到的帳號再次掃描時，系統會提示該人員已完成報到，避免重複記錄</li>
     </ul>
 
     <div class="privacy-box">
       <div class="privacy-box-icon">✓</div>
       <div>
-        <strong>便利性說明：</strong>使用共用簽到連結的同工，不需要知道系統的帳號密碼，只需在現場開啟連結即可操作。連結可設定為僅限當日有效，確保安全性。
+        <strong>便利性說明：</strong>會友只需用手機掃描活動現場的 QR 碼，系統自動辨識身分，一個步驟即完成報到。整個流程不超過 10 秒，適合大量人員快速入場的場合。
       </div>
     </div>
   </div>
@@ -1306,8 +1306,8 @@
       <div class="info-card">
         <div class="info-card-title">代禱模式</div>
         <ul class="feature-list" style="margin-bottom:0;">
-          <li>公開代禱：全體會友可見</li>
-          <li>私密代禱：僅管理員/牧者可見</li>
+          <li>具名代禱：顯示發出代禱者姓名</li>
+          <li>匿名代禱：隱藏姓名，全體會友仍可看見內容並代禱</li>
         </ul>
       </div>
     </div>
@@ -1317,13 +1317,13 @@
       <li><strong>提交代禱事項：</strong>會友可輸入代禱需求，選擇公開或私密，提交後列於代禱清單中</li>
       <li><strong>代禱清單瀏覽：</strong>所有公開代禱事項集中顯示，讓會友可以看見彼此的需要，養成互相代禱的習慣</li>
       <li><strong>標記已蒙應允：</strong>禱告有了回應時，提交者可將該事項標記為「已蒙應允」，向大家見證神的恩典</li>
-      <li><strong>私密代禱選項：</strong>不方便公開的代禱需求可選擇私密模式，僅牧者或管理員可見，讓需要保密的事項也能得到守望</li>
+      <li><strong>匿名代禱選項：</strong>不方便具名的代禱需求可選擇匿名模式，系統隱藏發出者姓名，其他會友仍可看見內容並為其守望代禱</li>
       <li><strong>追蹤禱告回應：</strong>代禱事項建立後持續保留，方便日後查閱神的回應紀錄，建立信心</li>
     </ul>
 
     <div class="privacy-box">
       <div class="privacy-box-icon">✓</div>
-      <div>私密代禱事項只有管理員與牧者可以看見，其他會友無法查閱，確保個人隱私受到保護。</div>
+      <div>選擇匿名發出時，其他會友只看得到代禱內容，看不到是誰發出的，讓有顧慮的事項也能得到弟兄姊妹的守望。</div>
     </div>
   </div>
 
@@ -1484,7 +1484,7 @@
       <li><strong>各小組分別登記：</strong>每個小組可獨立登記所需本數，並可附加備註（如：已有舊版、需要特殊裝訂等）</li>
       <li><strong>QR 碼無紙化簽收：</strong>發書時，組長掃描 QR 碼即可確認領書，系統自動記錄領書時間與人員</li>
       <li><strong>列印紙本簽收條：</strong>如需紙本記錄，可從系統列印格式整齊的簽收條，供現場簽名留存</li>
-      <li><strong>收費狀態追蹤：</strong>管理員可標記各小組的收費狀態（待繳費、已繳費），清楚掌握款項進度</li>
+      <li><strong>領書簽收記錄：</strong>每筆簽收均記錄領書時間與領書人姓名，管理員可隨時查看各小組是否已完成領書，方便催收或追蹤</li>
       <li><strong>修改記錄 Log：</strong>所有登記數量的修改均有完整記錄（誰、何時、改了什麼），確保帳目透明</li>
       <li><strong>彙整總數統計：</strong>系統自動加總所有小組的登記本數，管理員直接知道需要向出版社訂購的數量</li>
     </ul>
