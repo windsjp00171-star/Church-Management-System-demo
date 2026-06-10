@@ -1,5 +1,6 @@
 # Flask 主程式 — 整合型教會行政系統
 from flask import Flask, session, request, redirect, url_for, jsonify
+import hmac
 import secrets
 import time
 from config import Config
@@ -155,6 +156,31 @@ def create_app():
         return redirect(url_for('profile.setup'))
     # ──────────────────────────────────────────────────────────
 
+    # ── 全站 CSRF 保護（涵蓋所有 blueprint 的狀態變更請求）────
+    # 未登入請求不檢查：外部報名表、金流回調等無 session 可挾持。
+    CSRF_EXEMPT_ENDPOINTS = {
+        'gospel.inquiry',   # 公開福音詢問表單（登入與否皆可填）
+    }
+    CSRF_EXEMPT_PREFIXES = (
+        'checkin.',   # 簽到頁以活動專屬 token（QR Code 內）作為授權
+        'payment.',   # 金流閘道回調（跨站 POST，無法帶 token）
+    )
+
+    @app.before_request
+    def csrf_protect_global():
+        if request.method not in ('POST', 'PUT', 'DELETE', 'PATCH'):
+            return
+        if not session.get('user_id'):
+            return
+        endpoint = request.endpoint or ''
+        if endpoint in CSRF_EXEMPT_ENDPOINTS or endpoint.startswith(CSRF_EXEMPT_PREFIXES):
+            return
+        token = request.headers.get('X-CSRF-Token') or request.form.get('_csrf_token')
+        expected = session.get('_csrf_token')
+        if not expected or not token or not hmac.compare_digest(token, expected):
+            return jsonify({'error': 'CSRF token 驗證失敗，請重新整理頁面'}), 403
+    # ──────────────────────────────────────────────────────────
+
     # ── Jinja2 全域：CSRF token ───────────────────────────────
     def get_csrf_token():
         if '_csrf_token' not in session:
@@ -227,6 +253,11 @@ def create_app():
     def server_error(e):
         from flask import render_template as _rt
         return _rt('errors/500.html'), 500
+
+    # ── 健康檢查（供 Render / 監控使用）──────────────────────
+    @app.route('/health')
+    def health():
+        return jsonify({'status': 'ok'})
 
     # ── PWA manifest ─────────────────────────────────────────
     @app.route('/manifest.json')

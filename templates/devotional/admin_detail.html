@@ -89,7 +89,7 @@
                    document.getElementById('del-form').submit()">🗑 刪除訂購</button>
     </div>
   </div>
-  <form id="del-form" method="POST" action="{{ url_for('devotional.admin_devotional_delete', order_id=order.id) }}" style="display:none;"></form>
+  <form id="del-form" method="POST" action="{{ url_for('devotional.admin_devotional_delete', order_id=order.id) }}" style="display:none;"><input type="hidden" name="_csrf_token" value="{{ csrf_token() }}"></form>
 
   {# 封面圖片 #}
   <div style="display:flex; align-items:flex-start; gap:16px; margin-bottom:20px; flex-wrap:wrap;">

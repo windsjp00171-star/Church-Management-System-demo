@@ -1,3 +1,4 @@
+import logging
 # 門訓學程模組路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
@@ -84,7 +85,7 @@ def _material_auto_out(course_id, enrollment_id):
             'transaction_date': datetime.now(TAIPEI_TZ).date().isoformat(),
         }).execute()
     except Exception:
-        pass  # 庫存扣除失敗不阻斷報名
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 庫存扣除失敗不阻斷報名
 
 
 def _material_auto_return(enrollment_id):
@@ -98,7 +99,7 @@ def _material_auto_return(enrollment_id):
             supabase.table('material_transactions').delete()\
                 .eq('id', txn.data[0]['id']).execute()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
 
 def search_users(q, extra_fields='', limit=20):
@@ -211,7 +212,7 @@ def auto_close_expired_courses():
             .lt('reg_deadline', now_iso)\
             .execute()
     except Exception:
-        pass  # 失敗靜默，下次再試
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 失敗靜默，下次再試
 
 
 @courses_bp.route('/admin/courses')
@@ -1374,7 +1375,7 @@ def admin_cert_batch_add():
                 }).execute()
             success_count += 1
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return jsonify({'success': True, 'count': success_count})
 
@@ -1422,14 +1423,14 @@ def admin_cert_bulk_save():
                 ).execute()
             add_count += 1
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     for cert_id in deletes:
         try:
             supabase.table('course_certificates').delete().eq('id', cert_id).execute()
             del_count += 1
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return jsonify({'success': True, 'added': add_count, 'deleted': del_count})
 
@@ -1933,7 +1934,7 @@ def admin_materials():
         for r in rows:
             r['cover_url'] = cover_map.get(r['id'])
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     try:
         categories = supabase.table('course_categories').select('id, name')\
             .eq('is_active', True).order('sort_order').execute().data or []

@@ -1,9 +1,11 @@
+import logging
 import secrets
 import requests
 from urllib.parse import urlparse
 from flask import Blueprint, redirect, request, session, url_for, render_template, jsonify
 from config import Config
 from db import supabase
+from extensions import limiter
 from datetime import datetime, timedelta, timezone
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -89,6 +91,7 @@ def login():
 
 
 @auth_bp.route('/callback')
+@limiter.limit('20 per minute')
 def callback():
     # 驗證 state 防止 CSRF 攻擊
     received_state = request.args.get('state')
@@ -162,6 +165,7 @@ def callback():
 
 
 @auth_bp.route('/liff-login', methods=['POST'])
+@limiter.limit('20 per minute')
 def liff_login():
     """LIFF 登入：前端送來 ID Token，驗證後建立 session"""
     data = request.get_json() or {}
@@ -240,6 +244,7 @@ def login_page():
 
 
 @auth_bp.route('/contact', methods=['POST'])
+@limiter.limit('5 per minute')
 def contact_submit():
     """Demo 洽詢表單：將留言存入 DB 並通知所有管理員。"""
     data = request.get_json() or {}
@@ -263,7 +268,7 @@ def contact_submit():
             'submitted_at': datetime.now(timezone(timedelta(hours=8))).isoformat(),
         }).execute()
     except Exception:
-        pass  # 表不存在時靜默忽略
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 表不存在時靜默忽略
 
     # 通知所有管理員
     try:
@@ -281,7 +286,7 @@ def contact_submit():
             for i in range(0, len(rows), 100):
                 supabase.table('notifications').insert(rows[i:i+100]).execute()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return jsonify({'success': True})
 

@@ -250,6 +250,31 @@ const _LINE_LIFF_ID = "{{ config.LINE_LIFF_ID or '' }}";
             return Promise.reject(err);
         });
     };
+
+    // XHR（檔案上傳進度條等）也自動帶 CSRF token（僅同源請求）
+    const _open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url) {
+        this._csrfNeeded = method && method.toUpperCase() !== 'GET' &&
+            (typeof url !== 'string' || url.charAt(0) === '/' || url.indexOf(location.origin) === 0);
+        return _open.apply(this, arguments);
+    };
+    const _send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function() {
+        if (this._csrfNeeded) { try { this.setRequestHeader('X-CSRF-Token', _CSRF_TOKEN); } catch(e){} }
+        return _send.apply(this, arguments);
+    };
+
+    // 傳統表單 POST 自動補上 hidden token（僅同源 action）
+    document.addEventListener('submit', function(e) {
+        var f = e.target;
+        if (!f || (f.method || '').toLowerCase() !== 'post') return;
+        if (f.action && f.action.indexOf(location.origin) !== 0) return;
+        if (!f.querySelector('input[name="_csrf_token"]')) {
+            var i = document.createElement('input');
+            i.type = 'hidden'; i.name = '_csrf_token'; i.value = _CSRF_TOKEN;
+            f.appendChild(i);
+        }
+    }, true);
 })();
 
 function showToast(msg, type) {

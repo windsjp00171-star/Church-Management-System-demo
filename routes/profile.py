@@ -1,3 +1,4 @@
+import logging
 # 會員個人資料路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, current_app, flash
 from db import supabase
@@ -194,7 +195,7 @@ def edit():
             my_cell_group_id = my_cell[0]['group_id']
             my_cell_confirmed = my_cell[0]['is_confirmed']
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     pastors = []
     granted_map = {}
@@ -204,7 +205,7 @@ def edit():
         granted_ids = sb_get_owner_grants(session.get('line_id', ''))
         granted_map = {pid: True for pid in granted_ids}
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return render_template('profile/edit.html',
         user=user, groups=groups,
@@ -277,7 +278,7 @@ def homepage_settings():
                     hidden_keys = group_hidden_keys
                     break
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # Sort cards by user order
     if order:

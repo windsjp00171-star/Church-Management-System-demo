@@ -1,3 +1,4 @@
+import logging
 """
 小組回報 Blueprint（Flask 版，使用 Supabase）
 移植自 cell_reporter（Django）。
@@ -61,7 +62,7 @@ def _get_meeting_settings() -> Dict[str, Dict]:
             if res.data:
                 cfg.update(json.loads(res.data[0]['value']))
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         result[key] = cfg
     # Custom meetings (keys stored as meeting.custom_*)
     try:
@@ -74,9 +75,9 @@ def _get_meeting_settings() -> Dict[str, Dict]:
                 cfg['_custom'] = True
                 result[meeting_key] = cfg
             except Exception:
-                pass
+                logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     _MEETING_CFG_CACHE = result
     _MEETING_CFG_TS = now
     return result
@@ -100,7 +101,7 @@ def _get_module_settings() -> Dict[str, bool]:
             if short_key in result:
                 result[short_key] = row['value'] in ('true', '1', 'on')
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     _MODULE_CFG_CACHE = result
     _MODULE_CFG_TS = now
     return result
@@ -128,7 +129,7 @@ def _get_custom_meetings_data(mcfg: Dict, base_date=None) -> List[Dict]:
             if res.data:
                 count = res.data[0].get('attendance_count', 0) or 0
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         result.append({
             'key': key,
             'label': cfg.get('label', '聚會'),
@@ -251,7 +252,7 @@ def _get_or_create_report(group_id, week_date_str: str) -> Dict:
         if ins.data:
             return ins.data[0]
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     # Re-select in case of concurrent insert or insert returned no data
     res2 = (
         supabase.table('cell_reports')
@@ -757,7 +758,7 @@ def view_report(group_id):
             parsed = json.loads(report['newcomer_raw'])
             newcomers = parsed if isinstance(parsed, list) else []
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     prev_week = week_date - datetime.timedelta(days=7)
     next_week = week_date + datetime.timedelta(days=7)
@@ -1092,7 +1093,7 @@ def admin_meeting_settings():
                 if meeting_key not in active_custom_keys:
                     supabase.table('settings').delete().eq('key', row['key']).execute()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
         # Upsert active custom meetings
         for meeting_key in active_custom_keys:
@@ -1204,7 +1205,7 @@ def _get_submitter_name(report: Optional[Dict]) -> Optional[str]:
             u = res.data[0]
             return u.get('real_name') or u.get('display_name') or '未知'
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return None
 
 
@@ -1239,7 +1240,7 @@ def _get_or_create_sunday_report(date_str: str) -> Dict:
         if res.data:
             return res.data[0]
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return _get_sunday_report(date_str) or {}
 
 
@@ -1252,7 +1253,7 @@ def _get_or_create_children_report(date_str: str) -> Dict:
         if res.data:
             return res.data[0]
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return _get_children_report(date_str) or {}
 
 
@@ -1265,7 +1266,7 @@ def _get_or_create_prayer_report(date_str: str) -> Dict:
         if res.data:
             return res.data[0]
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return _get_prayer_report(date_str) or {}
 
 
@@ -1278,7 +1279,7 @@ def _get_or_create_morning_prayer_report(date_str: str) -> Dict:
         if res.data:
             return res.data[0]
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return _get_morning_prayer_report(date_str) or {}
 
 

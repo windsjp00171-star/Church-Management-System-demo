@@ -1,3 +1,4 @@
+import logging
 """
 天父日記 Blueprint
 整合自 tianfu-diary/app.py，以 Blueprint 模組化方式掛入整合系統。
@@ -19,6 +20,7 @@ from flask import (
 )
 
 from db import supabase as sb
+from extensions import limiter
 
 diary_bp = Blueprint('diary', __name__, template_folder='../templates/diary')
 
@@ -170,7 +172,7 @@ def load_plan_map() -> Dict[str, Dict[str, str]]:
                 _PLAN_CACHE_TS = now
                 return _PLAN_CACHE
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 2. Fallback: 讀 xlsx（DB 是空的時候）
     if not os.path.exists(PLAN_PATH):
@@ -1093,6 +1095,7 @@ def stars():
 # =========================
 
 @diary_bp.get('/api/diary/guide')
+@limiter.limit('30 per hour')
 def api_guide():
     if not _require_login():
         return jsonify({'error': '未登入'}), 401
@@ -1148,6 +1151,7 @@ def api_guide():
 
 
 @diary_bp.get('/api/diary/passage-intro')
+@limiter.limit('30 per hour')
 def api_passage_intro():
     if not _require_login():
         return jsonify({'error': '未登入'}), 401
@@ -1199,7 +1203,7 @@ def _get_ai_clients():
             from groq import Groq
             groq_client = Groq(api_key=groq_key)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     if not groq_client:
         gemini_key = os.environ.get('GEMINI_API_KEY', '')
@@ -1209,7 +1213,7 @@ def _get_ai_clients():
                 genai.configure(api_key=gemini_key)
                 gemini_model = genai.GenerativeModel('gemini-2.0-flash')
             except Exception:
-                pass
+                logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return groq_client, gemini_model
 

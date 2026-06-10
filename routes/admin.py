@@ -1,3 +1,4 @@
+import logging
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
@@ -351,7 +352,7 @@ def merge_line_account(user_id):
         try:
             supabase.table(tbl).update({'user_id': user_id}).eq('user_id', old_id).execute()
         except Exception:
-            pass  # 若資料表不存在或欄位不同就跳過
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 若資料表不存在或欄位不同就跳過
 
     # 刪除舊 LINE 帳號
     supabase.table('users').delete().eq('id', old_id).execute()
@@ -1958,7 +1959,7 @@ def delete_verse_custom_theme(theme_id):
             filename = row[0]['image_url'].split('verse-themes/')[-1].split('?')[0]
             supabase.storage.from_('verse-themes').remove([filename])
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     supabase.table('verse_custom_themes').delete().eq('id', theme_id).execute()
     return jsonify({'success': True})
 
@@ -2138,7 +2139,7 @@ def upload_bulletin():
         try:
             supabase.storage.create_bucket('bulletins', options={'public': True})
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         supabase.storage.from_('bulletins').upload(
             filename, file_bytes, {'content-type': 'application/pdf'}
         )
@@ -2343,7 +2344,7 @@ def _load_portal_cards_from_db():
         if rows:
             return rows, True
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return _PORTAL_CARDS_DEFAULT, False
 
 
@@ -2846,6 +2847,6 @@ def files_admin_delete(file_id):
     try:
         r2_delete(file_key)
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     supabase.table('files').delete().eq('id', file_id).execute()
     return jsonify({'success': True})

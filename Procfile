@@ -1,1 +1,1 @@
-web: gunicorn "app:create_app()" --limit-request-line 8190
+web: gunicorn "app:create_app()" --workers=2 --timeout=120 --limit-request-line 8190

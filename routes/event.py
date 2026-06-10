@@ -1,3 +1,4 @@
+import logging
 # 活動相關路由
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify, flash
 from db import supabase
@@ -171,7 +172,7 @@ def portal():
             .not_.is_('reg_deadline', 'null')\
             .lt('reg_deadline', now_tw).execute()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 撈現正開放報名的門訓課程
     try:
@@ -214,7 +215,7 @@ def portal():
         if bl.data:
             latest_bulletin = bl.data[0]
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 撈使用者自己的近期已報名活動
     # 利用已撈到的 all_events，只需一個額外的 registrations query
@@ -235,7 +236,7 @@ def portal():
                 and (e.get('event_end') or e.get('event_start') or '') >= now
             ][:3]
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 本週小組討論（當週有排程才顯示）──
     group_discussion = None
@@ -262,7 +263,7 @@ def portal():
                     item['questions'] = []
             group_discussion = item
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 門戶卡片設定（超管可控）──
     is_super = session.get('is_super_admin', False)
@@ -273,7 +274,7 @@ def portal():
         if pc_rows:
             portal_cards_config = {r['key']: r for r in pc_rows}
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 使用者 / 小組首頁個人化設定 ──
     import json as _json
@@ -294,7 +295,7 @@ def portal():
                 _user_hidden = _ucfg.get('hidden', [])
                 _user_order  = _ucfg.get('order', [])
             except Exception:
-                pass
+                logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         # 個人首頁區塊設定
         _raw_user_sec = _ss.get(f'portal_sections_user_{uid}')
         if _raw_user_sec:
@@ -302,7 +303,7 @@ def portal():
                 _usec = _json.loads(_raw_user_sec)
                 _user_hidden_sections = _usec.get('hidden', [])
             except Exception:
-                pass
+                logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         # 小組預設（取第一個有設定的小組）
         _user_group_tags = session.get('group_tags') or []
         for _gtag in _user_group_tags:
@@ -314,7 +315,7 @@ def portal():
                     _group_hidden = _gcfg.get('hidden', [])
                     break
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
             # 小組區塊預設
             _raw_grp_sec = _ss.get(f'portal_sections_group_{_gtag}')
             if _raw_grp_sec:
@@ -323,7 +324,7 @@ def portal():
                     _group_hidden_sections = _gsec.get('hidden', [])
                     break
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 套用排序：個人 order > 小組 pinned > 預設
     if portal_cards_config and (_user_order or _group_pinned):
@@ -356,7 +357,7 @@ def portal():
             for r in rows:
                 card_settings[r['key']] = r['is_visible']
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 超管看全部連結（含隱藏的），一般人只看 is_active=True
     all_portal_links = portal_links
@@ -365,7 +366,7 @@ def portal():
             all_portal_links = supabase.table('portal_links')\
                 .select('*').order('sort_order').execute().data or []
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 角色判斷：牧者、小組長、待辦週報 ──
     # 每次載入 portal 時從 DB 刷新 is_pastor / is_staff / is_super_admin，
@@ -382,7 +383,7 @@ def portal():
                 session['is_staff']       = bool(role_row.data.get('is_staff', False))
                 session['is_super_admin'] = bool(role_row.data.get('is_super_admin', False))
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     is_group_leader = False
     pending_report = False
     leader_groups = []
@@ -424,7 +425,7 @@ def portal():
                         pending_report = True
                         break
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 聚會人數（牧者/同工/管理員在首頁顯示）──
     attendance_summary = None
@@ -457,7 +458,7 @@ def portal():
                 'morning':  _by_date('morning_prayer_reports',  morning_date,  'date','attendance_count'),
             }
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── Hero 主題（與今日經文同步）──
     today_tw = datetime.now(timezone(timedelta(hours=8))).date().isoformat()
@@ -489,7 +490,7 @@ def portal():
                 .eq('user_id', uid).eq('is_active', True).limit(1).execute().data
             is_fulltime_staff = bool(sp)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return render_template('portal.html',
         open_events=open_events,
@@ -643,7 +644,7 @@ def daily_verse():
                 'verse_index': verse_index,
             }).execute()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     verse = verses[verse_index % len(verses)]
     try:
@@ -692,7 +693,7 @@ def api_verse_data():
                 'user_id': uid, 'drawn_date': today, 'verse_index': verse_index,
             }).execute()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     verse = verses[verse_index % len(verses)]
     try:

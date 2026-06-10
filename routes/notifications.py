@@ -1,3 +1,4 @@
+import logging
 # 站內通知系統路由
 from flask import Blueprint, session, request, jsonify, render_template, redirect, url_for
 from routes.decorators import login_required, admin_required, super_admin_required
@@ -25,7 +26,7 @@ def create_notification(user_id, title, body=None, type='info',
             'ref_id':   ref_id,
         }).execute()
     except Exception:
-        pass  # 通知失敗不影響主流程
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 通知失敗不影響主流程
 
 
 def batch_notify(user_ids, title, body=None, type='info',
@@ -44,7 +45,7 @@ def batch_notify(user_ids, title, body=None, type='info',
         try:
             supabase.table('notifications').insert(rows[i:i+100]).execute()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return len(rows)
 
 
@@ -234,7 +235,7 @@ def api_check_reminders():
             )
             created += 1
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 4. 教會行事曆提醒 ──────────────────────────
     try:
@@ -268,7 +269,7 @@ def api_check_reminders():
             )
             created += 1
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return jsonify({'success': True, 'created': created})
 
