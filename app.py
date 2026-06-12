@@ -1,8 +1,9 @@
 # Flask 主程式 — 整合型教會行政系統
-from flask import Flask, session, request, redirect, url_for, jsonify
+from flask import Flask, session, request, redirect, url_for, jsonify, g
 import hmac
 import secrets
 import time
+import uuid
 from config import Config
 
 # 門戶卡片名稱快取（60 秒 TTL，跨請求共用）
@@ -144,6 +145,17 @@ def create_app():
         'setup_wizard.db_status',
     }
 
+    # ── 請求追蹤代碼（錯誤頁／log／Sentry 三方對應）──────────
+    @app.before_request
+    def assign_request_id():
+        g.request_id = uuid.uuid4().hex[:8]
+        if Config.SENTRY_DSN:
+            try:
+                import sentry_sdk
+                sentry_sdk.set_tag('error_code', g.request_id)
+            except Exception:
+                pass
+
     @app.before_request
     def force_profile_setup():
         if not session.get('user_id'):
@@ -252,7 +264,13 @@ def create_app():
     @app.errorhandler(500)
     def server_error(e):
         from flask import render_template as _rt
-        return _rt('errors/500.html'), 500
+        code = getattr(g, 'request_id', '')
+        # 把錯誤代碼與完整 traceback 一起寫入 log，方便用代碼直接搜尋
+        app.logger.error(
+            '[500] 錯誤代碼=%s path=%s method=%s',
+            code, request.path, request.method, exc_info=True,
+        )
+        return _rt('errors/500.html', error_code=code), 500
 
     # ── 健康檢查（供 Render / 監控使用）──────────────────────
     @app.route('/health')
