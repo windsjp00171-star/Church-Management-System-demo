@@ -102,7 +102,7 @@ RENDER=true
 ```
 Runtime:       Python
 Build Command: pip install -r requirements.txt
-Start Command: gunicorn "app:create_app()" --workers=2 --timeout=120 --limit-request-line 8190
+Start Command: gunicorn "app:create_app()" --workers=1 --threads=8 --timeout=120 --limit-request-line 8190
 ```
 
 部署完成後前往 `/setup-wizard` 驗證所有設定。

@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     guest_phone    TEXT,
     payment_status TEXT NOT NULL DEFAULT 'unpaid'
                        CHECK (payment_status IN ('unpaid','paid','waived')),
+    payment_note   TEXT,  -- 金流交易編號（ecpay:交易碼 / linepay:交易碼）
     source         TEXT NOT NULL DEFAULT 'line'
                        CHECK (source IN ('line','external','import','proxy')),
     meal_selections TEXT[],
@@ -901,6 +902,10 @@ ALTER TABLE cell_members
 
 ALTER TABLE cell_members
   ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN NOT NULL DEFAULT true;
+
+-- 2026-06 registrations 新增 payment_note（金流交易編號，金流對帳報表使用）
+ALTER TABLE registrations
+  ADD COLUMN IF NOT EXISTS payment_note TEXT;
 
 -- 重新載入 PostgREST schema 快取（讓 API 立即看到新欄位）
 NOTIFY pgrst, 'reload schema';
