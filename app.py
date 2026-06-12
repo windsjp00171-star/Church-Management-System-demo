@@ -124,10 +124,13 @@ def create_app():
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',
+        'profile.onboarding',      # 首次登入引導頁（auth 登入後的導向目標）
+        'profile.merge_confirm',   # 自助帳號合併（發生在 real_name 尚未寫入前）
         'auth.login',
         'auth.callback',
         'auth.logout',
         'auth.login_page',
+        'auth.force_relogin',  # session 自救，避免重導死循環
         'static',
         'event.event_detail',
         'event.event_external_form',
@@ -160,10 +163,23 @@ def create_app():
     def force_profile_setup():
         if not session.get('user_id'):
             return
-        if session.get('real_name'):
-            return
         endpoint = request.endpoint or ''
         if endpoint in SKIP_FORCE_SETUP or endpoint.startswith('static'):
+            return
+        # 帳號被刪除／合併後 session 殘留 → 導向自助重登
+        # _user_verified 旗標讓 DB 檢查每個 session 只跑一次
+        if not session.get('_user_verified'):
+            try:
+                from db import supabase as _sb
+                row = _sb.table('users').select('id')\
+                    .eq('id', session['user_id']).execute().data
+            except Exception:
+                row = [True]  # DB 暫時無法連線時不誤殺 session
+            if not row:
+                session.clear()
+                return redirect(url_for('auth.force_relogin'))
+            session['_user_verified'] = True
+        if session.get('real_name'):
             return
         return redirect(url_for('profile.setup'))
     # ──────────────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import logging
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
+from routes.audit import log_action
 from routes.decorators import admin_required, super_admin_required, staff_required
 import secrets
 import uuid
@@ -304,6 +305,7 @@ def create_manual_user():
     }).execute()
     if not result.data:
         return jsonify({'error': '建立失敗'}), 500
+    log_action('user.create', 'user', result.data[0]['id'], {'name': name})
     return jsonify({'success': True, 'id': result.data[0]['id']})
 
 
@@ -336,27 +338,36 @@ def merge_line_account(user_id):
     if old_id == user_id:
         return jsonify({'error': '不能與自己整合'}), 400
 
-    # 複製 LINE 資訊到手動帳號
-    supabase.table('users').update({
-        'line_user_id': line_user_id,
-        'display_name': line_acct.get('display_name') or target.get('display_name'),
-        'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
-    }).eq('id', user_id).execute()
+    # ① 先清除舊 LINE 帳號的 line_user_id（line_user_id 有 UNIQUE 約束，
+    #    必須先釋放才能複製到手動帳號，否則會 UNIQUE 衝突）
+    supabase.table('users').update({'line_user_id': None}).eq('id', old_id).execute()
 
-    # 移轉關聯紀錄
-    tables_to_migrate = [
-        'course_enrollments', 'registrations', 'session_attendance',
-        'notifications', 'prayers', 'prayer_reactions', 'prayer_comments', 'personal_events',
-    ]
-    for tbl in tables_to_migrate:
-        try:
-            supabase.table(tbl).update({'user_id': user_id}).eq('user_id', old_id).execute()
-        except Exception:
-            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 若資料表不存在或欄位不同就跳過
+    # ② 複製 LINE 資訊到手動帳號
+    try:
+        supabase.table('users').update({
+            'line_user_id': line_user_id,
+            'display_name': line_acct.get('display_name') or target.get('display_name'),
+            'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
+        }).eq('id', user_id).execute()
+    except Exception as e:
+        # 還原舊帳號的 LINE 身份，避免卡在中間狀態
+        supabase.table('users').update({'line_user_id': line_user_id}).eq('id', old_id).execute()
+        return jsonify({'error': f'更新手動帳號失敗：{e}'}), 500
 
-    # 刪除舊 LINE 帳號
-    supabase.table('users').delete().eq('id', old_id).execute()
+    # ③ 移轉所有關聯紀錄（清單與 schema.sql 同步維護）
+    from routes.account_merge import transfer_user_records
+    failed = transfer_user_records(old_id, user_id)
 
+    # ④ 刪除舊 LINE 帳號
+    try:
+        supabase.table('users').delete().eq('id', old_id).execute()
+    except Exception as e:
+        return jsonify({'error': f'刪除舊帳號失敗（可能仍有未移轉的關聯資料）：{e}'}), 500
+
+    log_action('user.merge_line_admin', 'user', user_id, {
+        'merged_from': old_id, 'line_user_id': line_user_id,
+        'failed_tables': failed or None,
+    })
     return jsonify({'success': True})
 
 
@@ -588,6 +599,8 @@ def toggle_admin(user_id):
     if not new_value:
         update['is_super_admin'] = False
     supabase.table('users').update(update).eq('id', user_id).execute()
+    log_action('user.set_admin' if new_value else 'user.remove_admin',
+               'user', user_id, {'name': result.data[0]['display_name']})
 
     return jsonify({
         'success': True,
@@ -621,6 +634,8 @@ def toggle_super_admin(user_id):
     if new_value:
         update['is_admin'] = True
     supabase.table('users').update(update).eq('id', user_id).execute()
+    log_action('user.set_super_admin' if new_value else 'user.remove_super_admin',
+               'user', user_id, {'name': result.data[0]['display_name']})
 
     return jsonify({
         'success': True,
@@ -648,6 +663,8 @@ def toggle_block_user(user_id):
     current = result.data[0].get('is_blocked') or False
     new_value = not current
     supabase.table('users').update({'is_blocked': new_value}).eq('id', user_id).execute()
+    log_action('user.block' if new_value else 'user.unblock',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({
         'success': True,
         'is_blocked': new_value,
@@ -658,6 +675,35 @@ def toggle_block_user(user_id):
 # =====================
 # Demo 洽詢名單
 # =====================
+
+@admin_bp.route('/logs')
+@admin_required
+def audit_logs_page():
+    """稽核日誌查詢頁（超級管理員限定）"""
+    if not session.get('is_super_admin'):
+        return render_template('admin/forbidden.html'), 403
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 50
+    action_filter = request.args.get('action', '').strip()
+
+    query = supabase.table('audit_logs').select('*', count='exact')\
+        .order('created_at', desc=True)
+    if action_filter:
+        query = query.eq('action', action_filter)
+    try:
+        result = query.range((page - 1) * per_page, page * per_page - 1).execute()
+        logs, total = result.data or [], result.count or 0
+    except Exception:
+        logging.getLogger(__name__).warning('稽核日誌查詢失敗（資料表可能尚未建立）', exc_info=True)
+        logs, total = [], 0
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    from routes.audit import ACTION_LABELS
+    return render_template('admin/audit_logs.html',
+                           logs=logs, action_labels=ACTION_LABELS,
+                           action_filter=action_filter, page=page,
+                           total_pages=total_pages, total=total)
+
 
 @admin_bp.route('/contact-leads')
 @admin_required
@@ -823,6 +869,8 @@ def toggle_pastor(user_id):
         return jsonify({'error': '找不到此用戶'}), 404
     new_value = not bool(result.data[0].get('is_pastor', False))
     supabase.table('users').update({'is_pastor': new_value}).eq('id', user_id).execute()
+    log_action('user.set_pastor' if new_value else 'user.remove_pastor',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({'success': True, 'is_pastor': new_value, 'display_name': result.data[0]['display_name']})
 
 
@@ -836,6 +884,8 @@ def toggle_staff(user_id):
         return jsonify({'error': '找不到此用戶'}), 404
     new_value = not bool(result.data[0].get('is_staff', False))
     supabase.table('users').update({'is_staff': new_value}).eq('id', user_id).execute()
+    log_action('user.set_staff' if new_value else 'user.remove_staff',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({'success': True, 'is_staff': new_value, 'display_name': result.data[0]['display_name']})
 
 
@@ -1336,6 +1386,8 @@ def event_delete(event_id):
     except Exception as e:
         return jsonify({'error': f'刪除失敗：{str(e)}'}), 500
 
+    log_action('event.delete', 'event', event_id,
+               {'title': result.data[0].get('title')})
     return jsonify({'success': True})
 
 

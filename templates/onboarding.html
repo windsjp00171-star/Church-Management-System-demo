@@ -584,7 +584,7 @@ function getSelectedTags() {
 }
 
 // ── Submit ──────────────────────────────────────
-function submitOnboarding() {
+function submitOnboarding(mergeConfirmed) {
   const btn = document.getElementById('finish-btn');
   const name = document.getElementById('f-name').value.trim();
   const group_tags = selectedType === 'member' ? getSelectedTags() : [];
@@ -598,13 +598,18 @@ function submitOnboarding() {
     body: JSON.stringify({
       real_name: name,
       member_type: selectedType,
-      group_tags: group_tags
+      group_tags: group_tags,
+      merge_confirmed: !!mergeConfirmed
     })
   })
   .then(r => r.json())
   .then(d => {
     if (d.success) {
       window.location.href = d.next || '/';
+    } else if (d.needs_merge) {
+      showMergeModal(d);
+    } else if (d.needs_contact_admin) {
+      showMergeModal(null);
     } else {
       showToast(d.error || '儲存失敗，請重試');
       btn.disabled = false;
@@ -616,6 +621,62 @@ function submitOnboarding() {
     btn.disabled = false;
     btn.textContent = '開始使用 →';
   });
+}
+
+// ── 帳號合併確認（不用 window.confirm：LINE WebView 不可靠）──
+function showMergeModal(d) {
+  closeMergeModal();
+  const overlay = document.createElement('div');
+  overlay.id = 'merge-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;z-index:9999;padding:20px;';
+  const isMerge = !!d;
+  const tags = isMerge ? (d.candidate_tags || []).join('、') : '';
+  overlay.innerHTML = isMerge ? `
+    <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center;">
+      <div style="font-size:2rem;">🔗</div>
+      <h3 style="margin:8px 0 6px;font-size:1.1rem;">找到你的既有帳號</h3>
+      <p style="font-size:.88rem;color:#555;margin:0 0 14px;line-height:1.6;">
+        教會已為「<strong>${d.candidate_name}</strong>」${tags ? '（' + tags + '）' : ''}建立帳號。<br>
+        合併後過往的報名、認證等紀錄都會保留在同一個帳號。
+      </p>
+      <button onclick="confirmMerge('${d.candidate_id}')" style="width:100%;padding:12px;border:0;border-radius:10px;background:#06C755;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;">合併到既有帳號（建議）</button>
+      <button onclick="closeMergeModal();submitOnboarding(true)" style="width:100%;margin-top:8px;padding:11px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#666;font-size:.88rem;cursor:pointer;">不合併，建立新帳號</button>
+    </div>` : `
+    <div style="background:#fff;border-radius:16px;max-width:380px;width:100%;padding:24px;text-align:center;">
+      <div style="font-size:2rem;">⚠️</div>
+      <h3 style="margin:8px 0 6px;font-size:1.1rem;">發現同名帳號</h3>
+      <p style="font-size:.88rem;color:#555;margin:0 0 14px;line-height:1.6;">
+        已有同名同小組的帳號綁定了其他 LINE。<br>若那是你的舊帳號，請聯繫教會行政同工協助處理。
+      </p>
+      <button onclick="closeMergeModal();submitOnboarding(true)" style="width:100%;padding:12px;border:0;border-radius:10px;background:#06C755;color:#fff;font-size:.95rem;font-weight:700;cursor:pointer;">我是新朋友，建立新帳號</button>
+      <button onclick="closeMergeModal();resetFinishBtn()" style="width:100%;margin-top:8px;padding:11px;border:1px solid #ddd;border-radius:10px;background:#fff;color:#666;font-size:.88rem;cursor:pointer;">先取消，聯繫同工</button>
+    </div>`;
+  document.body.appendChild(overlay);
+}
+
+function closeMergeModal() {
+  const el = document.getElementById('merge-overlay');
+  if (el) el.remove();
+}
+
+function resetFinishBtn() {
+  const btn = document.getElementById('finish-btn');
+  btn.disabled = false;
+  btn.textContent = '開始使用 →';
+}
+
+function confirmMerge(candidateId) {
+  fetch('/profile/merge-confirm', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': '{{ csrf_token() }}'},
+    body: JSON.stringify({candidate_id: candidateId})
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.success) { window.location.href = d.next || '/'; }
+    else { closeMergeModal(); showToast(d.error || '合併失敗，請聯繫同工'); resetFinishBtn(); }
+  })
+  .catch(() => { closeMergeModal(); showToast('網路錯誤，請重試'); resetFinishBtn(); });
 }
 
 // ── Toast ───────────────────────────────────────

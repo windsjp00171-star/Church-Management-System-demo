@@ -42,6 +42,7 @@ def _populate_session(user):
     session['is_pastor']     = bool(user.get('is_pastor'))
     session['is_staff']      = bool(user.get('is_staff'))
     session['cell_group_ids']= cell_group_ids
+    session['_user_verified']= True  # 剛從 DB 讀出，免去 before_request 再驗證
 
 
 def _safe_next_url(value):
@@ -232,6 +233,16 @@ def liff_login():
 def logout():
     session.clear()
     return redirect(url_for('auth.login_page'))
+
+
+@auth_bp.route('/force-relogin')
+def force_relogin():
+    """清除 session 後直接發起 LINE 登入。
+
+    用於帳號被刪除／合併後瀏覽器仍殘留舊 session 導致卡死的自助恢復。
+    """
+    session.clear()
+    return redirect(url_for('auth.login'))
 
 
 @auth_bp.route('/')

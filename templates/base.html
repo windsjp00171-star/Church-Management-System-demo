@@ -94,6 +94,12 @@
     {% block content %}{% endblock %}
 </main>
 
+{% if session.get('user_id') %}
+<div style="text-align:center; padding:8px 16px 4px; font-size:0.72rem; color:var(--color-text-muted);">
+    登入異常？<a href="/auth/force-relogin" style="color:var(--color-text-light); text-decoration:underline;">點此重新登入</a>
+</div>
+{% endif %}
+
 <!-- ══ Help Button ══ -->
 <div id="help-bubble" class="help-bubble" style="display:none;{% if config.DEMO_MODE or config.CONTACT_EMAIL %}bottom:76px;{% endif %}">👆 點我看使用說明</div>
 <a href="/manual" id="help-btn" class="help-btn"
