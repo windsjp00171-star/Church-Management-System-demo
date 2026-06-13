@@ -748,11 +748,19 @@ document.getElementById('uploadForm')?.addEventListener('submit', function(e) {
 
 document.getElementById('folderForm')?.addEventListener('submit', async function(e) {
   e.preventDefault();
-  const form = new FormData(this);
-  const res = await fetch('/folders/create', { method: 'POST', body: form });
-  const data = await res.json();
-  if (data.success) { location.reload(); }
-  else { showToast(data.error || '建立失敗', 'error'); }
+  const btn = this.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+  try {
+    const form = new FormData(this);
+    const res = await fetch('/folders/create', { method: 'POST', body: form });
+    let data = {};
+    try { data = await res.json(); } catch (_) { /* 後端回非 JSON（403/500）時不讓它靜默 */ }
+    if (res.ok && data.success) { location.reload(); return; }
+    showToast(data.error || ('建立失敗（' + res.status + '）'), 'error');
+  } catch (err) {
+    showToast('網路錯誤，請重試', 'error');
+  }
+  if (btn) btn.disabled = false;
 });
 
 // ── 搜尋（Enter 提交伺服器搜尋）──
@@ -990,7 +998,7 @@ function closeBatchModal() {
 async function startBatchUpload() {
   if (!batchFiles.length || batchUploading) return;
   const folderId = document.getElementById('batchFolderId').value;
-  if (folderId === '') { showToast('請先選擇要上傳至哪個資料夾', 'warning'); return; }
+  // 空字串 = 根目錄（首頁），是合法的上傳位置，不需擋
   batchUploading = true;
   const btn = document.getElementById('batchUploadBtn');
   btn.disabled = true; btn.textContent = '上傳中…';
