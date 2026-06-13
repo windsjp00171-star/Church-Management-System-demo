@@ -947,6 +947,74 @@
 </div><!-- .page-container -->
 
 <script>
+/* 依登入者角色聚焦：預設只展開自己的角色說明，可一鍵展開全部 */
+(function(){
+  var FOCUS_ROLES = {{ user_roles|tojson }};
+  var FROM_PATH   = {{ (from_path or '')|tojson }};
+  var ALL = ['member','leader','staff','pastor','admin'];
+
+  function applyFocus(focus){
+    ALL.forEach(function(id){
+      var sec  = document.getElementById(id);
+      var pill = document.querySelector('.role-pill[href="#' + id + '"]');
+      var show = !focus || FOCUS_ROLES.indexOf(id) !== -1;
+      if(sec)  sec.style.display  = show ? '' : 'none';
+      if(pill) pill.style.display = show ? '' : 'none';
+    });
+    var btn = document.getElementById('manual-toggle-all');
+    if(btn){
+      btn.textContent = focus ? '顯示所有角色說明 ▾' : '只看我的功能 ▴';
+      btn.setAttribute('data-focus', focus ? '1' : '0');
+    }
+  }
+
+  // 一般角色聚焦自己的功能；管理員／超管預設看全部（方便查閱與支援會友）
+  var needFocus = FOCUS_ROLES.length
+                  && FOCUS_ROLES.length < ALL.length
+                  && FOCUS_ROLES.indexOf('admin') === -1;
+  if(needFocus){
+    var nav = document.querySelector('.manual-pills');
+    if(nav){
+      var btn = document.createElement('a');
+      btn.id = 'manual-toggle-all';
+      btn.href = 'javascript:void(0)';
+      btn.className = 'role-pill';
+      btn.style.cssText = 'background:#fff; border:1px dashed var(--color-border); color:var(--color-text-light);';
+      btn.addEventListener('click', function(){
+        applyFocus(btn.getAttribute('data-focus') !== '1');
+      });
+      nav.appendChild(btn);
+    }
+    applyFocus(true);
+
+    // 副標改成更貼心的提示
+    var sub = document.querySelector('.manual-page-header p');
+    if(sub) sub.textContent = '已為您顯示對應身分的功能說明（可按上方按鈕看全部）';
+  }
+
+  // 從來源頁精準跳轉並高亮對應功能（badge 文字即頁面路徑）
+  if(FROM_PATH && FROM_PATH !== '/' && FROM_PATH !== '/manual'){
+    var target = null;
+    document.querySelectorAll('.manual-section h3 .badge').forEach(function(b){
+      if(target) return;
+      var t = (b.textContent || '').trim();
+      if(t.charAt(0) === '/' && t.length > 1 && (t === FROM_PATH || FROM_PATH.indexOf(t) === 0)){
+        var sec = b.closest('.manual-section');
+        if(sec && sec.style.display !== 'none') target = b.closest('h3');
+      }
+    });
+    if(target){
+      setTimeout(function(){
+        target.scrollIntoView({behavior:'smooth', block:'center'});
+        target.style.transition = 'background-color .4s';
+        target.style.backgroundColor = '#fff3cd';
+        target.style.borderRadius = '8px';
+        setTimeout(function(){ target.style.backgroundColor = ''; }, 2200);
+      }, 250);
+    }
+  }
+})();
+
 /* Highlight active pill on scroll */
 (function(){
   var sections = ['member','leader','staff','pastor','admin'];

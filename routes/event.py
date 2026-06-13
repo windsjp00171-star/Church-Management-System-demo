@@ -520,8 +520,18 @@ def portal():
 @event_bp.route('/manual')
 @login_required
 def manual():
-    """使用手冊"""
-    return render_template('manual.html')
+    """使用手冊（依登入者角色自動聚焦，並可跳轉到來源頁對應的功能說明）"""
+    roles = ['member']  # 所有登入者皆具備一般會友功能
+    if session.get('cell_group_ids'):
+        roles.append('leader')
+    if session.get('is_staff'):
+        roles.append('staff')
+    if session.get('is_pastor'):
+        roles.append('pastor')
+    if session.get('is_admin') or session.get('is_super_admin'):
+        roles.append('admin')
+    from_path = request.args.get('from', '')
+    return render_template('manual.html', user_roles=roles, from_path=from_path)
 
 
 @event_bp.route('/product-spec')
