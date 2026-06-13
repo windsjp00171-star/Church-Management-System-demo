@@ -195,7 +195,7 @@ def index():
     files = [f for f in all_files if _can_access_file(f)]
 
     # 批次取上傳者姓名
-    uploader_ids = list({f['uploaded_by'] for f in files if f.get('uploaded_by')})
+    uploader_ids = list({f['owner_id'] for f in files if f.get('owner_id')})
     uploader_map = {}
     if uploader_ids:
         up_users = supabase.table('users').select('id, display_name')\
@@ -207,7 +207,7 @@ def index():
         ext = os.path.splitext(f['name'])[1].lower()
         f['thumb_url'] = get_presigned_url(f['file_key'], expires=3600) if ext in IMAGE_EXTS else None
         f['size_label'] = _format_size(f.get('file_size'))
-        f['uploader'] = uploader_map.get(f.get('uploaded_by'), '')
+        f['uploader'] = uploader_map.get(f.get('owner_id'), '')
 
     current_folder = None
     if folder_id:
@@ -598,17 +598,21 @@ def create_folder():
     if protection == 'password' and password:
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-    supabase.table('folders').insert({
-        'name': name,
-        'parent_id': parent_id,
-        'created_by': session['user_id'],
-        'visibility': visibility,
-        'allowed_roles': allowed_roles if allowed_roles else None,
-        'allowed_users': allowed_users if allowed_users else None,
-        'allowed_groups': allowed_groups if allowed_groups else None,
-        'protection': protection,
-        'password_hash': password_hash,
-    }).execute()
+    try:
+        supabase.table('folders').insert({
+            'name': name,
+            'parent_id': parent_id,
+            'created_by': session['user_id'],
+            'visibility': visibility,
+            'allowed_roles': allowed_roles if allowed_roles else None,
+            'allowed_users': allowed_users if allowed_users else None,
+            'allowed_groups': allowed_groups if allowed_groups else None,
+            'protection': protection,
+            'password_hash': password_hash,
+        }).execute()
+    except Exception:
+        logger.exception('建立資料夾失敗 name=%s', name)
+        return jsonify({'error': '資料庫寫入失敗，請稍後再試'}), 500
     return jsonify({'success': True})
 
 

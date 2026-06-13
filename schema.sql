@@ -421,6 +421,8 @@ CREATE TABLE IF NOT EXISTS folders (
     created_by    UUID REFERENCES users(id),
     visibility    TEXT NOT NULL DEFAULT 'private',
     allowed_roles TEXT[],
+    allowed_users UUID[],
+    allowed_groups UUID[],
     protection    TEXT NOT NULL DEFAULT 'none',
     password_hash TEXT,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -437,6 +439,7 @@ CREATE TABLE IF NOT EXISTS files (
     visibility    TEXT NOT NULL DEFAULT 'private',
     allowed_roles TEXT[],
     allowed_users UUID[],
+    allowed_groups UUID[],
     protection    TEXT NOT NULL DEFAULT 'none',
     password_hash TEXT,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
