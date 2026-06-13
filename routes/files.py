@@ -251,6 +251,23 @@ def index():
                            storage_info=storage_info)
 
 
+def _r2_error_hint(exc) -> str:
+    """把 boto3 / R2 的例外轉成可行動的中文提示（給超管看，協助排查設定）。"""
+    from botocore.exceptions import ClientError, EndpointConnectionError
+    if isinstance(exc, EndpointConnectionError):
+        return ('無法連線到 R2_ENDPOINT。請確認端點格式為 '
+                'https://<帳號ID>.r2.cloudflarestorage.com（不要包含 bucket 名稱）。')
+    if isinstance(exc, ClientError):
+        code = (exc.response.get('Error', {}) or {}).get('Code', '')
+        if code in ('AccessDenied', 'SignatureDoesNotMatch', 'InvalidAccessKeyId', '403'):
+            return ('R2 認證失敗（%s）。請檢查 R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY，'
+                    '並確認該 API Token 具有「物件讀寫（Object Read & Write）」權限。' % code)
+        if code in ('NoSuchBucket', '404'):
+            return 'R2 找不到指定的 Bucket。請檢查 R2_BUCKET_NAME 是否正確。'
+        return 'R2 回報錯誤代碼：%s。' % (code or '未知')
+    return ''
+
+
 @files_bp.route('/files/upload', methods=['POST'])
 @login_required
 @limiter.limit('30 per hour')
@@ -300,9 +317,14 @@ def upload():
 
     try:
         upload_file(f, file_key, content_type)
-    except Exception:
+    except Exception as exc:
         logger.exception('R2 upload failed: %s', safe_name)
-        return jsonify({'error': '檔案上傳至儲存空間失敗，請稍後再試'}), 500
+        msg = '檔案上傳至儲存空間失敗，請稍後再試'
+        if session.get('is_super_admin'):
+            hint = _r2_error_hint(exc)
+            if hint:
+                msg = '檔案上傳失敗 — ' + hint
+        return jsonify({'error': msg}), 500
 
     password_hash = None
     if protection == 'password' and password:
