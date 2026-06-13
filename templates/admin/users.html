@@ -466,20 +466,21 @@ function toggleStaff(userId, btn) {
 }
 
 function toggleBlock(userId, btn) {
-    if (!confirm('確定要封鎖 / 解封此用戶嗎？封鎖後該用戶將無法登入。')) return;
-    btn.disabled = true; btn.textContent = '處理中...';
-    fetch(`/admin/api/users/${userId}/toggle-block`, { method: 'POST', headers: {'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''} })
-        .then(r => r.json()).then(data => {
-            if (data.success) {
-                const blocked = data.is_blocked;
-                btn.textContent = blocked ? '🚫 已封鎖' : '封鎖';
-                btn.style.background = blocked ? '#ffebee' : 'white';
-                btn.style.borderColor = blocked ? '#c62828' : '#ddd';
-                btn.style.color = blocked ? '#c62828' : '#bbb';
-                showToast(blocked ? `已封鎖 ${data.display_name}` : `已解封 ${data.display_name}`, blocked ? 'error' : 'success');
-            } else { showToast(data.error || '操作失敗', 'error'); }
-            btn.disabled = false;
-        });
+    openConfirm('確定要封鎖 / 解封此用戶嗎？封鎖後該用戶將無法登入。', () => {
+        btn.disabled = true; btn.textContent = '處理中...';
+        fetch(`/admin/api/users/${userId}/toggle-block`, { method: 'POST', headers: {'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]')?.content || ''} })
+            .then(r => r.json()).then(data => {
+                if (data.success) {
+                    const blocked = data.is_blocked;
+                    btn.textContent = blocked ? '🚫 已封鎖' : '封鎖';
+                    btn.style.background = blocked ? '#ffebee' : 'white';
+                    btn.style.borderColor = blocked ? '#c62828' : '#ddd';
+                    btn.style.color = blocked ? '#c62828' : '#bbb';
+                    showToast(blocked ? `已封鎖 ${data.display_name}` : `已解封 ${data.display_name}`, blocked ? 'error' : 'success');
+                } else { showToast(data.error || '操作失敗', 'error'); }
+                btn.disabled = false;
+            });
+    });
 }
 
 // ─── 新增手動會員 ───────────────────────────
@@ -491,7 +492,7 @@ function openAddManualModal() {
 async function submitAddManual() {
     const name = document.getElementById('am-name').value.trim();
     const type = document.getElementById('am-type').value;
-    if (!name) { alert('請輸入姓名'); return; }
+    if (!name) { showToast('請輸入姓名', 'error'); return; }
     const r = await fetch('/admin/api/users/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -503,7 +504,7 @@ async function submitAddManual() {
         showToast('已建立會員：' + name, 'success');
         loadUsers();
     } else {
-        alert(d.error || '建立失敗');
+        showToast(d.error || '建立失敗', 'error');
     }
 }
 
@@ -540,20 +541,21 @@ async function searchLineAccounts(q) {
     `).join('');
 }
 async function confirmMerge(lineUserId, lineName) {
-    if (!confirm(`確定將「${lineName}」的 LINE 帳號整合進去？整合後 LINE 帳號將被刪除，所有紀錄移轉。`)) return;
-    const r = await fetch(`/admin/api/users/${_mergeTargetId}/merge-line`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ line_user_id: lineUserId })
+    openConfirm(`確定將「${lineName}」的 LINE 帳號整合進去？整合後 LINE 帳號將被刪除，所有紀錄移轉。`, async () => {
+        const r = await fetch(`/admin/api/users/${_mergeTargetId}/merge-line`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ line_user_id: lineUserId })
+        });
+        const d = await r.json();
+        if (d.success) {
+            document.getElementById('merge-modal').style.display = 'none';
+            showToast('整合成功', 'success');
+            loadUsers();
+        } else {
+            showToast(d.error || '整合失敗', 'error');
+        }
     });
-    const d = await r.json();
-    if (d.success) {
-        document.getElementById('merge-modal').style.display = 'none';
-        showToast('整合成功', 'success');
-        loadUsers();
-    } else {
-        alert(d.error || '整合失敗');
-    }
 }
 </script>
 

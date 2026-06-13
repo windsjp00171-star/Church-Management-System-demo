@@ -267,16 +267,17 @@ function editRow(d, book, range) {
 }
 
 function deleteRow(d) {
-  if (!confirm(`確定刪除 ${d} 的進度？`)) return;
-  fetch('/diary/admin/plan/delete', {
-    method:'POST',
-    headers:{'Content-Type':'application/json','X-CSRF-Token':_CSRF},
-    body: JSON.stringify({date:d})
-  }).then(r=>r.json()).then(data => {
-    if (data.success) {
-      const row = document.getElementById('row-' + d);
-      if (row) row.remove();
-    } else { showToast(data.error||'刪除失敗', 'error'); }
+  openConfirm(`確定刪除 ${d} 的進度？`, () => {
+    fetch('/diary/admin/plan/delete', {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRF-Token':_CSRF},
+      body: JSON.stringify({date:d})
+    }).then(r=>r.json()).then(data => {
+      if (data.success) {
+        const row = document.getElementById('row-' + d);
+        if (row) row.remove();
+      } else { showToast(data.error||'刪除失敗', 'error'); }
+    });
   });
 }
 

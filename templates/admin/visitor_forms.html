@@ -56,14 +56,15 @@
 
 <script>
 async function deleteForm(id, btn) {
-    if (!confirm('確定刪除這筆留名單？')) return;
-    btn.disabled = true;
-    const r = await fetch(`/admin/visitor-forms/${id}/delete`, {
-        method: 'POST',
-        headers: { 'X-CSRF-Token': '{{ csrf_token() }}' }
+    openConfirm('確定刪除這筆留名單？', async () => {
+        btn.disabled = true;
+        const r = await fetch(`/admin/visitor-forms/${id}/delete`, {
+            method: 'POST',
+            headers: { 'X-CSRF-Token': '{{ csrf_token() }}' }
+        });
+        if ((await r.json()).success) btn.closest('[style]').remove();
+        else { showToast('刪除失敗', 'error'); btn.disabled = false; }
     });
-    if ((await r.json()).success) btn.closest('[style]').remove();
-    else { showToast('刪除失敗', 'error'); btn.disabled = false; }
 }
 </script>
 {% endblock %}

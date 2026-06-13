@@ -174,12 +174,13 @@ function saveEdit(id) {
     });
 }
 function deleteLog(id) {
-    if (!confirm('確定刪除這筆更新記錄？')) return;
-    fetch(`/admin/changelogs/${id}/delete`, { method: 'POST' })
-        .then(r => r.json()).then(d => {
-            if (d.success) location.reload();
-            else showToast(d.error || '刪除失敗', 'error');
-        });
+    openConfirm('確定刪除這筆更新記錄？', () => {
+        fetch(`/admin/changelogs/${id}/delete`, { method: 'POST' })
+            .then(r => r.json()).then(d => {
+                if (d.success) location.reload();
+                else showToast(d.error || '刪除失敗', 'error');
+            });
+    });
 }
 </script>
 {% endblock %}

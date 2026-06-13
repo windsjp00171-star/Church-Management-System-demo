@@ -159,6 +159,31 @@ def create_app():
             except Exception:
                 pass
 
+    # 伺服器端 callback 路徑豁免（ECPay/LinePay 由金流平台直接 POST）
+    _CSRF_EXEMPT_PREFIXES = (
+        '/payment/ecpay/return',
+        '/payment/linepay/',
+        '/auth/callback',
+        '/auth/liff-login',
+        '/auth/contact',
+    )
+
+    @app.before_request
+    def global_csrf_protect():
+        if request.method not in ('POST', 'PUT', 'DELETE', 'PATCH'):
+            return
+        if not session.get('user_id'):
+            return  # 公開端點（外部報名、金流回呼等）不強制 CSRF
+        path = request.path
+        if any(path.startswith(p) for p in _CSRF_EXEMPT_PREFIXES):
+            return
+        token = request.headers.get('X-CSRF-Token') or request.form.get('_csrf_token')
+        expected = session.get('_csrf_token')
+        if not expected or not token or not hmac.compare_digest(str(token), str(expected)):
+            if request.is_json or request.path.startswith('/api/'):
+                return jsonify({'error': 'CSRF token 驗證失敗，請重新整理頁面'}), 403
+            return redirect(request.referrer or '/')
+
     @app.before_request
     def force_profile_setup():
         if not session.get('user_id'):
@@ -182,31 +207,6 @@ def create_app():
         if session.get('real_name'):
             return
         return redirect(url_for('profile.setup'))
-    # ──────────────────────────────────────────────────────────
-
-    # ── 全站 CSRF 保護（涵蓋所有 blueprint 的狀態變更請求）────
-    # 未登入請求不檢查：外部報名表、金流回調等無 session 可挾持。
-    CSRF_EXEMPT_ENDPOINTS = {
-        'gospel.inquiry',   # 公開福音詢問表單（登入與否皆可填）
-    }
-    CSRF_EXEMPT_PREFIXES = (
-        'checkin.',   # 簽到頁以活動專屬 token（QR Code 內）作為授權
-        'payment.',   # 金流閘道回調（跨站 POST，無法帶 token）
-    )
-
-    @app.before_request
-    def csrf_protect_global():
-        if request.method not in ('POST', 'PUT', 'DELETE', 'PATCH'):
-            return
-        if not session.get('user_id'):
-            return
-        endpoint = request.endpoint or ''
-        if endpoint in CSRF_EXEMPT_ENDPOINTS or endpoint.startswith(CSRF_EXEMPT_PREFIXES):
-            return
-        token = request.headers.get('X-CSRF-Token') or request.form.get('_csrf_token')
-        expected = session.get('_csrf_token')
-        if not expected or not token or not hmac.compare_digest(token, expected):
-            return jsonify({'error': 'CSRF token 驗證失敗，請重新整理頁面'}), 403
     # ──────────────────────────────────────────────────────────
 
     # ── Jinja2 全域：CSRF token ───────────────────────────────

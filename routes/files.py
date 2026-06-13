@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 import uuid
 import os
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify, abort, g, current_app, Response
@@ -294,7 +295,8 @@ def upload():
     password = request.form.get('password', '')
 
     file_key = f'files/{uuid.uuid4()}{ext}'
-    content_type = f.content_type or 'application/octet-stream'
+    # 由副檔名推斷 MIME，不信任客戶端傳來的 Content-Type
+    content_type = mimetypes.guess_type(safe_name)[0] or 'application/octet-stream'
 
     try:
         upload_file(f, file_key, content_type)

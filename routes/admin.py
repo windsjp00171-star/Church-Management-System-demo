@@ -946,6 +946,9 @@ def event_new():
     if request.method == 'POST':
         data = request.get_json()
 
+        if data.get('checkin_mode') == 'open' and (data.get('whitelist_enabled') or data.get('waitlist_enabled')):
+            return jsonify({'error': '開放型簽到不能與「限定報名名單」或「候補名單」同時啟用'}), 400
+
         # 建立活動主體
         checkin_enabled = data.get('checkin_enabled', False)
         event_data = {
@@ -1016,6 +1019,9 @@ def event_edit(event_id):
 
     if request.method == 'POST':
         data = request.get_json()
+
+        if data.get('checkin_mode') == 'open' and (data.get('whitelist_enabled') or data.get('waitlist_enabled')):
+            return jsonify({'error': '開放型簽到不能與「限定報名名單」或「候補名單」同時啟用'}), 400
 
         checkin_enabled = data.get('checkin_enabled', False)
 

@@ -925,3 +925,11 @@ ALTER TABLE registrations
 
 -- 重新載入 PostgREST schema 快取（讓 API 立即看到新欄位）
 NOTIFY pgrst, 'reload schema';
+
+-- 2026-06 devotional_registrations 新增 QR 簽收欄位（migration 009）
+ALTER TABLE devotional_registrations
+    ADD COLUMN IF NOT EXISTS confirmed_at  TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS confirmed_by  UUID REFERENCES users(id),
+    ADD COLUMN IF NOT EXISTS pickup_note   TEXT;
+
+NOTIFY pgrst, 'reload schema';

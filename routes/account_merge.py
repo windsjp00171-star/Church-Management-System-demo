@@ -28,6 +28,7 @@ ALT_COLUMNS = [
     ('courses', 'created_by'),
     ('devotional_registration_logs', 'changed_by'),
     ('devotional_registrations', 'registered_by'),
+    ('devotional_registrations', 'confirmed_by'),
     ('events', 'created_by'),
     ('files', 'owner_id'),
     ('folders', 'created_by'),

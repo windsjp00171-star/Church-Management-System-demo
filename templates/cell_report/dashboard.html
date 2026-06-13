@@ -15,12 +15,12 @@
 
   <!-- 週次導航 -->
   <div style="display:flex; align-items:center; gap:16px; margin-bottom:20px; flex-wrap:wrap;">
-    <a href="?week={{ prev_week }}" style="color:#06C755; text-decoration:none; font-size:1.2rem;">←</a>
+    <a href="?week={{ prev_week }}" style="color:#06C755; text-decoration:none; font-size:1.2rem; display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px;">←</a>
     <span style="font-weight:600;">
       {{ week_start.strftime('%m/%d') }}（一）～ {{ week_end.strftime('%m/%d') }}（日）
     </span>
     {% if not is_current_week %}
-      <a href="?week={{ next_week }}" style="color:#06C755; text-decoration:none; font-size:1.2rem;">→</a>
+      <a href="?week={{ next_week }}" style="color:#06C755; text-decoration:none; font-size:1.2rem; display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px;">→</a>
     {% endif %}
     {% if not is_current_week %}
       <a href="?" style="margin-left:8px; padding:4px 12px; border:1px solid #06C755; color:#06C755;
@@ -33,7 +33,7 @@
     {% if not module_cfg or module_cfg.get('show_adult_sunday', True) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#06C755;">{{ adult }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+      <div style="font-size:0.9rem; color:#555; margin-top:4px;">
         {{ meeting_cfg.adult_sunday.label if meeting_cfg else '成人主日' }}（{{ sunday_date.strftime('%m/%d') }}）
       </div>
       {% if (meeting_cfg.adult_sunday.service_count if meeting_cfg else 2) >= 2 %}
@@ -44,7 +44,7 @@
     {% if not module_cfg or module_cfg.get('show_children_sunday', True) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#4a90d9;">{{ children }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+      <div style="font-size:0.9rem; color:#555; margin-top:4px;">
         {{ meeting_cfg.children_sunday.label if meeting_cfg else '兒童主日' }}
       </div>
     </div>
@@ -52,7 +52,7 @@
     {% if not module_cfg or module_cfg.get('show_prayer', True) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#9c6de8;">{{ prayer }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+      <div style="font-size:0.9rem; color:#555; margin-top:4px;">
         {{ meeting_cfg.prayer.label if meeting_cfg else '禱告會' }}（{{ prayer_date.strftime('%m/%d') }}）
       </div>
     </div>
@@ -60,7 +60,7 @@
     {% if not module_cfg or module_cfg.get('show_morning_prayer', True) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#e8a83e;">{{ morning_prayer }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+      <div style="font-size:0.9rem; color:#555; margin-top:4px;">
         {{ meeting_cfg.morning_prayer.label if meeting_cfg else '晨禱' }}（{{ morning_prayer_date.strftime('%m/%d') }}）
       </div>
     </div>
@@ -68,7 +68,7 @@
     {% for cm in (custom_meetings or []) %}
     <div style="padding:16px; background:#fff; border-radius:12px; box-shadow:0 1px 4px rgba(0,0,0,.08); text-align:center;">
       <div style="font-size:2.4rem; font-weight:800; color:#555;">{{ cm.count }}</div>
-      <div style="font-size:0.85rem; color:#666; margin-top:4px;">
+      <div style="font-size:0.9rem; color:#555; margin-top:4px;">
         {{ cm.emoji }} {{ cm.label }}（{{ cm.date.strftime('%m/%d') }}）
       </div>
     </div>
@@ -108,6 +108,11 @@
         {% endif %}
       </div>
     </div>
+    {% else %}
+    <div style="text-align:center; padding:40px 24px; color:#9ca3af;">
+      <div style="font-size:2rem; margin-bottom:8px;">📋</div>
+      <p style="font-size:0.95rem;">本週尚無小組資料</p>
+    </div>
     {% endfor %}
   </div>
 
@@ -117,31 +122,31 @@
     <div style="display:flex; gap:10px; flex-wrap:wrap;">
       {% if not module_cfg or module_cfg.get('show_adult_sunday', True) %}
       <a href="{{ url_for('cell_report.sunday') }}"
-         style="padding:10px 16px; background:#06C755; color:#fff; border-radius:8px; text-decoration:none;">
+         style="padding:10px 16px; background:#06C755; color:#fff; border-radius:8px; text-decoration:none; min-height:44px; display:inline-flex; align-items:center;">
         主日報告
       </a>
       {% endif %}
       {% if not module_cfg or module_cfg.get('show_children_sunday', True) %}
       <a href="{{ url_for('cell_report.children') }}"
-         style="padding:10px 16px; background:#4a90d9; color:#fff; border-radius:8px; text-decoration:none;">
+         style="padding:10px 16px; background:#4a90d9; color:#fff; border-radius:8px; text-decoration:none; min-height:44px; display:inline-flex; align-items:center;">
         兒童主日
       </a>
       {% endif %}
       {% if not module_cfg or module_cfg.get('show_prayer', True) %}
       <a href="{{ url_for('cell_report.prayer') }}"
-         style="padding:10px 16px; background:#9c6de8; color:#fff; border-radius:8px; text-decoration:none;">
+         style="padding:10px 16px; background:#9c6de8; color:#fff; border-radius:8px; text-decoration:none; min-height:44px; display:inline-flex; align-items:center;">
         禱告會
       </a>
       {% endif %}
       {% if not module_cfg or module_cfg.get('show_morning_prayer', True) %}
       <a href="{{ url_for('cell_report.morning_prayer') }}"
-         style="padding:10px 16px; background:#e8a83e; color:#fff; border-radius:8px; text-decoration:none;">
+         style="padding:10px 16px; background:#e8a83e; color:#fff; border-radius:8px; text-decoration:none; min-height:44px; display:inline-flex; align-items:center;">
         晨禱
       </a>
       {% endif %}
       {% for cm in (custom_meetings or []) %}
       <a href="{{ url_for('cell_report.custom_meeting', meeting_key=cm.key) }}"
-         style="padding:10px 16px; background:#607d8b; color:#fff; border-radius:8px; text-decoration:none;">
+         style="padding:10px 16px; background:#607d8b; color:#fff; border-radius:8px; text-decoration:none; min-height:44px; display:inline-flex; align-items:center;">
         {{ cm.emoji }} {{ cm.label }}
       </a>
       {% endfor %}

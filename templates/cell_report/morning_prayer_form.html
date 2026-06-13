@@ -28,8 +28,8 @@
 </div>
 <script>
 const EXISTING = {{ existing }};
-async function submitReport() {
-  if (EXISTING > 0 && !confirm(`本週已填報 ${EXISTING} 人，確定要覆蓋嗎？`)) return;
+function submitReport() {
+  const _do = async () => {
   const btn = document.getElementById('submit-btn');
   btn.disabled = true; btn.textContent = '送出中…';
   try {
@@ -42,6 +42,9 @@ async function submitReport() {
       document.getElementById('result').style.display = 'block';
     } else { showToast('儲存失敗', 'error'); btn.disabled = false; btn.textContent = '送出'; }
   } catch(e) { showToast('網路錯誤', 'error'); btn.disabled = false; btn.textContent = '送出'; }
+  };
+  if (EXISTING > 0) { openConfirm(`本週已填報 ${EXISTING} 人，確定要覆蓋嗎？`, _do); return; }
+  _do();
 }
 </script>
 {% endblock %}

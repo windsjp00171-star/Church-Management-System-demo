@@ -391,9 +391,10 @@ function saveLinkEdit(id) {
     }).then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else showToast(d.error||'儲存失敗','error'); });
 }
 function deleteLink(id, name) {
-    if (!confirm(`確定刪除「${name}」？`)) return;
-    fetch(`/admin/portal-links/${id}/delete`, {method:'POST'})
-        .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else showToast(d.error||'刪除失敗','error'); });
+    openConfirm(`確定刪除「${name}」？`, () => {
+        fetch(`/admin/portal-links/${id}/delete`, {method:'POST'})
+            .then(r=>r.json()).then(d=>{ if(d.success) location.reload(); else showToast(d.error||'刪除失敗','error'); });
+    });
 }
 
 // 快捷連結也支援拖拉排序
