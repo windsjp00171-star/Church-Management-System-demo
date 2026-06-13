@@ -1,9 +1,32 @@
+import logging
 # 會員個人資料路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, current_app, flash
 from db import supabase
 from routes.decorators import login_required
 
 profile_bp = Blueprint('profile', __name__)
+
+
+def _find_merge_candidate(real_name, group_tags, current_user_id):
+    """找「姓名相同、至少一個小組相符」的既有帳號（自助合併偵測用）。
+
+    回傳候選帳號 row 或 None。候選若已綁 LINE 則由呼叫端引導聯繫管理員。
+    """
+    if not real_name or not group_tags:
+        return None
+    try:
+        candidates = supabase.table('users')\
+            .select('id, real_name, line_user_id, group_tags')\
+            .eq('real_name', real_name)\
+            .neq('id', current_user_id)\
+            .execute().data or []
+    except Exception:
+        logging.getLogger(__name__).warning('合併候選查詢失敗', exc_info=True)
+        return None
+    for c in candidates:
+        if set(c.get('group_tags') or []) & set(group_tags):
+            return c
+    return None
 
 
 @profile_bp.route('/onboarding', methods=['GET', 'POST'])
@@ -25,6 +48,20 @@ def onboarding():
             member_type = 'member'
 
         tags = [t for t in data.get('group_tags', []) if t] if member_type == 'member' else []
+
+        # 自助合併偵測：管理員先手動建檔（同名＋同小組、無 LINE）的情境
+        if member_type == 'member' and not data.get('merge_confirmed'):
+            candidate = _find_merge_candidate(real_name, tags, session['user_id'])
+            if candidate:
+                if candidate.get('line_user_id'):
+                    return jsonify({'needs_contact_admin': True})
+                return jsonify({
+                    'needs_merge': True,
+                    'candidate_id': candidate['id'],
+                    'candidate_name': candidate['real_name'],
+                    'candidate_tags': candidate.get('group_tags') or [],
+                })
+
         supabase.table('users').update({
             'real_name': real_name,
             'group_tags': tags,
@@ -44,6 +81,73 @@ def onboarding():
     return render_template('onboarding.html', groups=groups, church_name=church_name)
 
 
+@profile_bp.route('/profile/merge-confirm', methods=['POST'])
+@login_required
+def merge_confirm():
+    """會友自助合併：把新 LINE 帳號的身份移入既有手動帳號，刪除新帳號。"""
+    data = request.get_json() or {}
+    old_id = (data.get('candidate_id') or '').strip()   # 手動帳號（保留方）
+    if not old_id:
+        return jsonify({'error': '缺少目標帳號 ID'}), 400
+    new_id = session['user_id']                          # 新 LINE 帳號（刪除方）
+    if old_id == new_id:
+        return jsonify({'error': '不能與自己合併'}), 400
+
+    old_rows = supabase.table('users').select('*').eq('id', old_id).execute().data
+    if not old_rows:
+        return jsonify({'error': '找不到目標帳號'}), 404
+    old_user = old_rows[0]
+    if old_user.get('line_user_id'):
+        return jsonify({'error': '該帳號已綁定其他 LINE，請聯繫管理員'}), 400
+
+    new_rows = supabase.table('users').select('*').eq('id', new_id).execute().data
+    if not new_rows:
+        return jsonify({'error': '找不到目前帳號'}), 404
+    new_user = new_rows[0]
+
+    saved_line_user_id = new_user.get('line_user_id')
+    saved_display_name = new_user.get('display_name')
+    saved_picture_url  = new_user.get('picture_url')
+
+    # ① 先清除新帳號的 line_user_id（UNIQUE 約束，必須先釋放）
+    supabase.table('users').update({'line_user_id': None}).eq('id', new_id).execute()
+    # ② 複製 LINE 身份到既有帳號
+    try:
+        supabase.table('users').update({
+            'line_user_id': saved_line_user_id,
+            'display_name': saved_display_name,
+            'picture_url':  saved_picture_url,
+        }).eq('id', old_id).execute()
+    except Exception as e:
+        # 還原，避免卡在中間狀態
+        supabase.table('users').update({'line_user_id': saved_line_user_id}).eq('id', new_id).execute()
+        return jsonify({'error': f'合併失敗：{e}'}), 500
+
+    # ③ 移轉新帳號名下的關聯紀錄 → 既有帳號
+    from routes.account_merge import transfer_user_records
+    failed = transfer_user_records(new_id, old_id)
+
+    # ④ 刪除新帳號
+    try:
+        supabase.table('users').delete().eq('id', new_id).execute()
+    except Exception:
+        logging.getLogger(__name__).warning('自助合併：刪除新帳號失敗', exc_info=True)
+
+    # ⑤ session 改指向保留帳號（重新載入全部角色旗標）
+    merged = supabase.table('users').select('*').eq('id', old_id).execute().data[0]
+    from routes.auth import _populate_session
+    _populate_session(merged)
+
+    from routes.audit import log_action
+    log_action('user.merge_line_self', 'user', old_id, {
+        'merged_from': new_id, 'line_user_id': saved_line_user_id,
+        'failed_tables': failed or None,
+    })
+
+    next_url = session.pop('next_url', None) or url_for('event.portal')
+    return jsonify({'success': True, 'next': next_url})
+
+
 @profile_bp.route('/profile/setup', methods=['GET', 'POST'])
 @login_required
 def setup():
@@ -59,6 +163,20 @@ def setup():
             member_type = 'member'
 
         tags = [t for t in data.get('group_tags', []) if t] if member_type == 'member' else []
+
+        # 自助合併偵測（與 onboarding 相同邏輯）
+        if member_type == 'member' and not data.get('merge_confirmed'):
+            candidate = _find_merge_candidate(real_name, tags, session['user_id'])
+            if candidate:
+                if candidate.get('line_user_id'):
+                    return jsonify({'needs_contact_admin': True})
+                return jsonify({
+                    'needs_merge': True,
+                    'candidate_id': candidate['id'],
+                    'candidate_name': candidate['real_name'],
+                    'candidate_tags': candidate.get('group_tags') or [],
+                })
+
         supabase.table('users').update({
             'real_name': real_name,
             'group_tags': tags,
@@ -194,7 +312,7 @@ def edit():
             my_cell_group_id = my_cell[0]['group_id']
             my_cell_confirmed = my_cell[0]['is_confirmed']
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     pastors = []
     granted_map = {}
@@ -204,7 +322,7 @@ def edit():
         granted_ids = sb_get_owner_grants(session.get('line_id', ''))
         granted_map = {pid: True for pid in granted_ids}
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return render_template('profile/edit.html',
         user=user, groups=groups,
@@ -277,7 +395,7 @@ def homepage_settings():
                     hidden_keys = group_hidden_keys
                     break
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # Sort cards by user order
     if order:

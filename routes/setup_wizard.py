@@ -1,3 +1,4 @@
+import logging
 import os
 from flask import Blueprint, render_template, session, redirect, url_for, jsonify
 from config import Config
@@ -317,7 +318,7 @@ def _check_db_tables():
             if r.data is not None:
                 rpc_ok = True
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
         for tbl in _CORE_TABLES:
             try:
@@ -329,7 +330,7 @@ def _check_db_tables():
                     supabase.table(tbl).select('*').limit(0).execute()
                     existing.add(tbl)
             except Exception:
-                pass
+                logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
         return {t: (t in existing) for t in _CORE_TABLES}
     except Exception:
@@ -338,11 +339,12 @@ def _check_db_tables():
 
 @setup_wizard_bp.get('/setup-wizard')
 def index():
-    # Allow access if: system not configured (Supabase missing) OR user is admin
+    # Allow access if: system not configured (Supabase missing) OR user is super admin
+    # 部署精靈會顯示環境變數設定狀態，僅限超管檢視
     if Config.SUPABASE_URL and Config.SUPABASE_KEY:
         if not session.get('user_id'):
             return redirect(url_for('auth.login_page'))
-        if not (session.get('is_admin') or session.get('is_pastor') or session.get('is_super_admin')):
+        if not session.get('is_super_admin'):
             return redirect(url_for('event.portal'))
 
     env_vars = _check_env_vars()
@@ -377,7 +379,7 @@ def index():
         with open(schema_path, 'r', encoding='utf-8') as f:
             schema_sql = f.read()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return render_template(
         'setup_wizard/index.html',
@@ -398,7 +400,7 @@ def index():
 @setup_wizard_bp.get('/setup-wizard/db-status')
 def db_status():
     """AJAX: return DB table check results."""
-    if not (session.get('is_admin') or session.get('is_pastor') or session.get('is_super_admin')):
+    if not session.get('is_super_admin'):
         return jsonify({'error': 'unauthorized'}), 403
     tables = _check_db_tables()
     if tables is None:

@@ -175,8 +175,10 @@ def index():
         folders_q = folders_q.is_('parent_id', 'null')
 
     if role != 'admin':
+        # user_id 先驗證為合法 UUID，避免插入 PostgREST 過濾字串時造成注入
+        safe_uid = str(uuid.UUID(str(session['user_id'])))
         folders_q = folders_q.or_(
-            f'visibility.eq.public,visibility.eq.management,allowed_roles.cs.{{"{role}"}},created_by.eq.{session["user_id"]}'
+            f'visibility.eq.public,visibility.eq.management,allowed_roles.cs.{{"{role}"}},created_by.eq.{safe_uid}'
         )
     folders = folders_q.order('name').execute().data or []
 
@@ -328,7 +330,7 @@ def upload():
         try:
             delete_file(file_key)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         return jsonify({'error': '資料庫寫入失敗，請稍後再試'}), 500
 
     # 上傳後通知指定對象（失敗不影響上傳結果）
@@ -336,7 +338,7 @@ def upload():
         try:
             _notify_file_shared(file_id, safe_name, visibility, allowed_users, allowed_groups)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         logger.info('上傳成功 file=%s size=%d user=%s', safe_name, file_size, session.get('user_id', '')[:8])
 
     return jsonify({'success': True, 'file_id': file_id})

@@ -1,8 +1,9 @@
 # Flask 主程式 — 整合型教會行政系統
-from flask import Flask, session, request, redirect, url_for, jsonify
+from flask import Flask, session, request, redirect, url_for, jsonify, g
 import hmac
 import secrets
 import time
+import uuid
 from config import Config
 
 # 門戶卡片名稱快取（60 秒 TTL，跨請求共用）
@@ -123,10 +124,13 @@ def create_app():
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',
+        'profile.onboarding',      # 首次登入引導頁（auth 登入後的導向目標）
+        'profile.merge_confirm',   # 自助帳號合併（發生在 real_name 尚未寫入前）
         'auth.login',
         'auth.callback',
         'auth.logout',
         'auth.login_page',
+        'auth.force_relogin',  # session 自救，避免重導死循環
         'static',
         'event.event_detail',
         'event.event_external_form',
@@ -143,6 +147,17 @@ def create_app():
         'setup_wizard.index',
         'setup_wizard.db_status',
     }
+
+    # ── 請求追蹤代碼（錯誤頁／log／Sentry 三方對應）──────────
+    @app.before_request
+    def assign_request_id():
+        g.request_id = uuid.uuid4().hex[:8]
+        if Config.SENTRY_DSN:
+            try:
+                import sentry_sdk
+                sentry_sdk.set_tag('error_code', g.request_id)
+            except Exception:
+                pass
 
     # 伺服器端 callback 路徑豁免（ECPay/LinePay 由金流平台直接 POST）
     _CSRF_EXEMPT_PREFIXES = (
@@ -173,10 +188,23 @@ def create_app():
     def force_profile_setup():
         if not session.get('user_id'):
             return
-        if session.get('real_name'):
-            return
         endpoint = request.endpoint or ''
         if endpoint in SKIP_FORCE_SETUP or endpoint.startswith('static'):
+            return
+        # 帳號被刪除／合併後 session 殘留 → 導向自助重登
+        # _user_verified 旗標讓 DB 檢查每個 session 只跑一次
+        if not session.get('_user_verified'):
+            try:
+                from db import supabase as _sb
+                row = _sb.table('users').select('id')\
+                    .eq('id', session['user_id']).execute().data
+            except Exception:
+                row = [True]  # DB 暫時無法連線時不誤殺 session
+            if not row:
+                session.clear()
+                return redirect(url_for('auth.force_relogin'))
+            session['_user_verified'] = True
+        if session.get('real_name'):
             return
         return redirect(url_for('profile.setup'))
     # ──────────────────────────────────────────────────────────
@@ -252,7 +280,18 @@ def create_app():
     @app.errorhandler(500)
     def server_error(e):
         from flask import render_template as _rt
-        return _rt('errors/500.html'), 500
+        code = getattr(g, 'request_id', '')
+        # 把錯誤代碼與完整 traceback 一起寫入 log，方便用代碼直接搜尋
+        app.logger.error(
+            '[500] 錯誤代碼=%s path=%s method=%s',
+            code, request.path, request.method, exc_info=True,
+        )
+        return _rt('errors/500.html', error_code=code), 500
+
+    # ── 健康檢查（供 Render / 監控使用）──────────────────────
+    @app.route('/health')
+    def health():
+        return jsonify({'status': 'ok'})
 
     # ── PWA manifest ─────────────────────────────────────────
     @app.route('/manifest.json')

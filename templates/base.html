@@ -123,9 +123,15 @@
     {% block content %}{% endblock %}
 </main>
 
+{% if session.get('user_id') %}
+<div style="text-align:center; padding:8px 16px 4px; font-size:0.72rem; color:var(--color-text-muted);">
+    登入異常？<a href="/auth/force-relogin" style="color:var(--color-text-light); text-decoration:underline;">點此重新登入</a>
+</div>
+{% endif %}
+
 <!-- ══ Help Button ══ -->
 <div id="help-bubble" class="help-bubble" style="display:none;{% if config.DEMO_MODE or config.CONTACT_EMAIL %}bottom:76px;{% endif %}">👆 點我看使用說明</div>
-<a href="/manual" id="help-btn" class="help-btn"
+<a href="/manual?from={{ request.path }}" id="help-btn" class="help-btn"
    {% if config.DEMO_MODE or config.CONTACT_EMAIL %}style="bottom:68px;"{% endif %}>？</a>
 
 {% if config.DEMO_MODE or config.CONTACT_EMAIL %}
@@ -279,6 +285,31 @@ const _LINE_LIFF_ID = "{{ config.LINE_LIFF_ID or '' }}";
             return Promise.reject(err);
         });
     };
+
+    // XHR（檔案上傳進度條等）也自動帶 CSRF token（僅同源請求）
+    const _open = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function(method, url) {
+        this._csrfNeeded = method && method.toUpperCase() !== 'GET' &&
+            (typeof url !== 'string' || url.charAt(0) === '/' || url.indexOf(location.origin) === 0);
+        return _open.apply(this, arguments);
+    };
+    const _send = XMLHttpRequest.prototype.send;
+    XMLHttpRequest.prototype.send = function() {
+        if (this._csrfNeeded) { try { this.setRequestHeader('X-CSRF-Token', _CSRF_TOKEN); } catch(e){} }
+        return _send.apply(this, arguments);
+    };
+
+    // 傳統表單 POST 自動補上 hidden token（僅同源 action）
+    document.addEventListener('submit', function(e) {
+        var f = e.target;
+        if (!f || (f.method || '').toLowerCase() !== 'post') return;
+        if (f.action && f.action.indexOf(location.origin) !== 0) return;
+        if (!f.querySelector('input[name="_csrf_token"]')) {
+            var i = document.createElement('input');
+            i.type = 'hidden'; i.name = '_csrf_token'; i.value = _CSRF_TOKEN;
+            f.appendChild(i);
+        }
+    }, true);
 })();
 
 function toggleDrawer() {

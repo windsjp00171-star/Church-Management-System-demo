@@ -1,3 +1,4 @@
+import logging
 """
 天父日記 Blueprint
 整合自 tianfu-diary/app.py，以 Blueprint 模組化方式掛入整合系統。
@@ -171,7 +172,7 @@ def load_plan_map() -> Dict[str, Dict[str, str]]:
                 _PLAN_CACHE_TS = now
                 return _PLAN_CACHE
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 2. Fallback: 讀 xlsx（DB 是空的時候）
     if not os.path.exists(PLAN_PATH):
@@ -1214,7 +1215,7 @@ def _get_ai_clients():
             from groq import Groq
             groq_client = Groq(api_key=groq_key)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 永遠嘗試初始化 Gemini，讓 runtime 錯誤時仍能備援
     gemini_key = os.environ.get('GEMINI_API_KEY', '')
@@ -1224,7 +1225,7 @@ def _get_ai_clients():
             genai.configure(api_key=gemini_key)
             gemini_model = genai.GenerativeModel('gemini-2.0-flash')
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('Gemini 初始化失敗', exc_info=True)
 
     return groq_client, gemini_model
 

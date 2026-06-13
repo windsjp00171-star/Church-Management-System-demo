@@ -61,6 +61,8 @@ scripture/
 migrations/             # Supabase SQL migration 腳本
   007_devotional.sql    # 禱讀本訂購三張表
   008_diary_admin_whitelist.sql  # 天父日記後台白名單表
+  009_devotional_pickup.sql  # 禱讀本 QR 簽收欄位
+  010_audit_logs.sql    # 稽核日誌表
 ```
 
 ## Blueprint 路由前綴
@@ -224,6 +226,8 @@ python app.py      # debug=True, port 5000
 | 001～006 | （既有 migrations） | 基礎資料表 |
 | 007 | `migrations/007_devotional.sql` | 禱讀本訂購三張表 |
 | 008 | `migrations/008_diary_admin_whitelist.sql` | 天父日記後台白名單 |
+| 009 | `migrations/009_devotional_pickup.sql` | 禱讀本 QR 簽收欄位 |
+| 010 | `migrations/010_audit_logs.sql` | 稽核日誌表 |
 
 ## 多教會部署架構與開發者權限原則
 

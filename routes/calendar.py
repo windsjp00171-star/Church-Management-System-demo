@@ -1,3 +1,4 @@
+import logging
 # 教會行事曆路由
 from flask import Blueprint, session, request, jsonify, redirect, render_template, url_for
 from routes.decorators import login_required
@@ -202,5 +203,5 @@ def personal_event_edit(item_id):
             .eq('ref_type', 'personal_event')\
             .eq('ref_id', item_id).execute()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return jsonify({'success': True})
