@@ -18,6 +18,43 @@
 </head>
 <body>
 
+{# ══ 展示模式控制列（僅 DEMO_MODE 顯示，一鍵切換角色 + 直達後台）══ #}
+{% if config.DEMO_MODE and (session.user_id or session.line_id) %}
+{% set _demo_role = 'pastor' if session.is_super_admin else ('admin' if session.is_admin else ('leader' if session.cell_group_ids else 'member')) %}
+<div class="demo-bar">
+    <span class="demo-bar-tag">🎭 展示模式</span>
+    <span class="demo-bar-label">切換角色：</span>
+    <a href="/auth/demo-login/pastor" class="demo-chip {% if _demo_role=='pastor' %}on{% endif %}">🧑‍💼 牧師</a>
+    <a href="/auth/demo-login/admin"  class="demo-chip {% if _demo_role=='admin'  %}on{% endif %}">📝 同工</a>
+    <a href="/auth/demo-login/leader" class="demo-chip {% if _demo_role=='leader' %}on{% endif %}">🤝 小組長</a>
+    <a href="/auth/demo-login/member" class="demo-chip {% if _demo_role=='member' %}on{% endif %}">👤 會友</a>
+    {% if session.is_admin or session.is_super_admin %}
+    <a href="/admin" class="demo-chip demo-admin">⚙️ 後台</a>
+    {% endif %}
+    <a href="{{ url_for('auth.logout') }}" class="demo-chip demo-exit">⏻ 離開</a>
+</div>
+<style>
+    .demo-bar {
+        position: fixed; left: 0; right: 0; bottom: 0; z-index: 2000;
+        display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; overflow-x: auto;
+        padding: 8px 12px; background: #0f2027; color: #fff;
+        box-shadow: 0 -2px 12px rgba(0,0,0,.25); -webkit-overflow-scrolling: touch;
+    }
+    .demo-bar-tag   { font-weight: 800; font-size: .8rem; color: #ffd479; white-space: nowrap; }
+    .demo-bar-label { font-size: .78rem; color: #9fb3c8; white-space: nowrap; }
+    .demo-chip {
+        flex-shrink: 0; text-decoration: none; font-size: .82rem; font-weight: 700;
+        color: #e6edf3; background: rgba(255,255,255,.1); padding: 6px 12px; border-radius: 99px;
+        border: 1px solid transparent; white-space: nowrap;
+    }
+    .demo-chip:hover { background: rgba(255,255,255,.2); }
+    .demo-chip.on    { background: #06C755; color: #fff; }
+    .demo-admin      { background: rgba(125,177,255,.22); }
+    .demo-exit       { background: rgba(255,120,120,.18); margin-left: auto; }
+    body { padding-bottom: 56px; }   /* 避免控制列蓋住內容 */
+</style>
+{% endif %}
+
 <!-- ══ Navbar ══ -->
 <nav class="navbar">
     <a href="/" class="navbar-brand">
