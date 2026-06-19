@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}資料備份中心{% endblock %}
+{% block content %}
+<div class="container" style="max-width:780px; margin:40px auto 80px; padding:0 16px;">
+
+  <a href="{{ url_for('admin.index') }}" style="display:inline-flex; align-items:center; gap:6px;
+     color:#06C755; text-decoration:none; font-size:.9rem; margin-bottom:20px;">← 返回後台</a>
+
+  <h1 style="font-size:1.4rem; font-weight:700; margin:0 0 6px;">🗄 資料備份中心</h1>
+  <p style="color:#666; font-size:.9rem; margin:0 0 20px;">
+    數位遺囑備份模塊：即使系統停擺，負責同工也能在此取出所有核心資料並理解系統架構。
+  </p>
+
+  <div style="padding:14px 16px; background:#fff8e1; border-left:4px solid #f59e0b;
+              border-radius:8px; margin-bottom:24px; font-size:.88rem; color:#78350f;">
+    ⚠️ 此功能限<strong>管理員</strong>使用。匯出檔案可能包含個人資料（姓名、電話、LINE ID），
+    請妥善保管，不得外流。系統交接說明請參閱專案根目錄的 <code>HANDOVER.md</code>。
+  </div>
+
+  <!-- 全部打包 -->
+  <div style="background:linear-gradient(135deg,#0f2027,#203a43); border-radius:14px;
+              padding:22px 20px; color:#fff; margin-bottom:28px;">
+    <div style="font-size:1.05rem; font-weight:700; margin-bottom:4px;">📦 全部打包下載</div>
+    <div style="font-size:.84rem; color:rgba(255,255,255,.7); margin-bottom:16px;">
+      將所有已啟用模組打包成單一 ZIP（各模組獨立 CSV，含 README 清單）。
+    </div>
+    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+      <a href="{{ url_for('backup.export_all') }}"
+         style="display:inline-block; padding:11px 18px; background:#06C755; color:#fff;
+                font-weight:700; border-radius:10px; text-decoration:none; font-size:.92rem;">
+        ⬇ 下載 church-admin-backup ZIP
+      </a>
+      <a href="{{ url_for('backup.offline_html') }}"
+         style="display:inline-block; padding:11px 18px; background:rgba(255,255,255,.12);
+                color:#fff; font-weight:700; border-radius:10px; text-decoration:none; font-size:.92rem;
+                border:1px solid rgba(255,255,255,.25);">
+        🖥 下載 HTML 離線閱讀器
+      </a>
+    </div>
+  </div>
+
+  <!-- 分類匯出 -->
+  <h2 style="font-size:1rem; font-weight:700; margin:0 0 12px;">分類匯出（各自獨立 CSV）</h2>
+  <div style="display:flex; flex-direction:column; gap:10px;">
+    {% for item in overview %}
+    <div style="display:flex; align-items:center; gap:14px; padding:14px 16px; background:#fff;
+                border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,.07);">
+      <div style="font-size:1.4rem; width:36px; text-align:center;">{{ item.icon }}</div>
+      <div style="flex:1;">
+        <div style="font-weight:600; font-size:.95rem;">{{ item.label }}</div>
+        <div style="font-size:.8rem; color:#888; margin-top:2px;">
+          {% if item.available %}
+            目前 {{ item.count }} 筆資料
+          {% else %}
+            <span style="color:#9ca3af; background:#f3f4f6; padding:1px 8px; border-radius:6px;">尚未啟用</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if item.available %}
+      <a href="{{ url_for('backup.export_category', category=item.key) }}"
+         style="padding:8px 14px; background:#06C755; color:#fff; border-radius:8px;
+                text-decoration:none; font-size:.85rem; font-weight:600; white-space:nowrap;">
+        匯出 CSV
+      </a>
+      {% else %}
+      <span style="padding:8px 14px; background:#f3f4f6; color:#bbb; border-radius:8px;
+                   font-size:.85rem; font-weight:600; white-space:nowrap;">無資料</span>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+</div>
+{% endblock %}
