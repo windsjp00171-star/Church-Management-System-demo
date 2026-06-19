@@ -2,7 +2,7 @@ import logging
 import secrets
 import requests
 from urllib.parse import urlparse
-from flask import Blueprint, redirect, request, session, url_for, render_template, jsonify
+from flask import Blueprint, redirect, request, session, url_for, render_template, jsonify, abort
 from config import Config
 from db import supabase
 from extensions import limiter
@@ -252,7 +252,70 @@ def login_page():
     if session.get('user_id'):
         return redirect(next_url or url_for('event.portal'))
     _remember_next_url(next_url)
-    return render_template('auth/login.html', next_url=next_url)
+    return render_template('auth/login.html', next_url=next_url, demo_mode=Config.DEMO_MODE)
+
+
+# ── 展示廳沙盒登入（僅 DEMO_MODE 啟用時存在）─────────────────────────────────
+# 安全規範：所有假登入邏輯都被 Config.DEMO_MODE 閘門包住。
+# 正式環境（DEMO_MODE 未設或為 false）這些路由一律回 404，完全走原本 LINE 登入。
+
+# 角色 → 對應的 seed_demo.py 預設帳號（line_user_id 是固定值，可穩定撈出）。
+# 若該專案尚未跑 seed_demo.py，則以 fallback 動態建立基本展示帳號。
+_DEMO_ACCOUNTS = {
+    'pastor': {
+        'line_user_id': 'Udemo00000001',
+        'fallback': {'display_name': '林建志牧師', 'real_name': '林建志', 'member_type': 'member',
+                     'is_admin': True, 'is_super_admin': True, 'is_pastor': True, 'role': 'approved'},
+    },
+    'admin': {
+        'line_user_id': 'Udemo00000002',
+        'fallback': {'display_name': '陳美玲同工', 'real_name': '陳美玲', 'member_type': 'member',
+                     'is_admin': True, 'is_staff': True, 'role': 'approved'},
+    },
+    'leader': {
+        'line_user_id': 'Udemo00000008',
+        'fallback': {'display_name': '劉思穎', 'real_name': '劉思穎', 'member_type': 'member', 'role': 'approved'},
+        'is_leader': True,
+    },
+    'member': {
+        'line_user_id': 'Udemo00000004',
+        'fallback': {'display_name': '李靜宜', 'real_name': '李靜宜', 'member_type': 'member', 'role': 'approved'},
+    },
+}
+
+
+def _ensure_demo_leader_group(user_id):
+    """確保展示用小組長至少帶領一個小組（沒有任何小組時建一個展示小組）。"""
+    grp = supabase.table('cell_groups').select('id').eq('is_active', True).limit(1).execute().data
+    gid = grp[0]['id'] if grp else supabase.table('cell_groups').insert(
+        {'name': '展示小組', 'weekly_gather_day': '三', 'is_active': True}).execute().data[0]['id']
+    exists = supabase.table('cell_group_leaders').select('id')\
+        .eq('user_id', user_id).eq('group_id', gid).execute().data
+    if not exists:
+        supabase.table('cell_group_leaders').insert({'user_id': user_id, 'group_id': gid}).execute()
+
+
+@auth_bp.route('/demo-login/<role>')
+def demo_login(role):
+    """點擊角色按鈕直接模擬登入：撈出（或建立）該角色的展示帳號並寫入 session。"""
+    if not Config.DEMO_MODE:
+        abort(404)
+    spec = _DEMO_ACCOUNTS.get(role)
+    if not spec:
+        abort(404)
+
+    res = supabase.table('users').select('*').eq('line_user_id', spec['line_user_id']).execute()
+    if res.data:
+        user = res.data[0]
+    else:
+        # 後備：未跑 seed_demo.py 時，動態建立基本展示帳號
+        payload = dict(spec['fallback'], line_user_id=spec['line_user_id'])
+        user = supabase.table('users').insert(payload).execute().data[0]
+        if spec.get('is_leader'):
+            _ensure_demo_leader_group(user['id'])
+
+    _populate_session(user)
+    return redirect(url_for('event.portal'))
 
 
 @auth_bp.route('/contact', methods=['POST'])
