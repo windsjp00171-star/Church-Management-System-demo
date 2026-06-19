@@ -115,6 +115,10 @@ def create_app():
     from routes.backup import backup_bp
     app.register_blueprint(backup_bp)
 
+    # ── 聚焦式功能導覽 ─────────────────────────────────────────
+    from routes.guide import guide_bp
+    app.register_blueprint(guide_bp)
+
     # ── 禱讀本訂購 ─────────────────────────────────────────────
     from routes.devotional import devotional_bp
     app.register_blueprint(devotional_bp)
