@@ -100,6 +100,19 @@
 
 </div>
 
+<div class="section-label">系統備份 / 交接</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+
+    <a href="{{ url_for('backup.index') }}" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#0f2027; color:#fff;">🗄</div>
+            <div class="admin-card-name">資料備份中心</div>
+            <div class="admin-card-desc">分類 CSV、打包 ZIP、HTML 離線閱讀器</div>
+        </div>
+    </a>
+
+</div>
+
 {% if has_finance_access %}
 <div class="section-label">財務管理</div>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">

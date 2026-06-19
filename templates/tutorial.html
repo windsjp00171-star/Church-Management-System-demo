@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}互動式教學{% endblock %}
+{% block content %}
+<div class="tut-wrap">
+
+  <!-- 選單 -->
+  <div id="tut-picker">
+    <div class="tut-head">
+      <h1>🎓 互動式教學</h1>
+      <p>選一個功能，系統會帶你一步一步操作。隨時可「前往實際操作」。</p>
+    </div>
+
+    {% for sec in sections %}
+    <div class="tut-section-label">
+      {{ '📱 前台功能' if sec.name == '前台' else '🔧 後台管理' }}
+      <span>{{ sec.mods|length }} 項</span>
+    </div>
+    <div class="tut-grid">
+      {% for l in sec.mods %}
+      <button class="tut-card" data-open="{{ l.key }}">
+        <span class="tut-card-icon">{{ l.icon }}</span>
+        <span class="tut-card-body">
+          <span class="tut-card-name">{{ card_names.get(l.key, l.name) }}</span>
+          <span class="tut-card-aud">{{ l.audience }}</span>
+        </span>
+        <span class="tut-card-arrow">›</span>
+      </button>
+      {% endfor %}
+    </div>
+    {% endfor %}
+
+    <div class="tut-foot">
+      <a href="/">← 回首頁</a>
+      <a href="/guide">只想快速看功能總覽？開啟導覽</a>
+    </div>
+  </div>
+
+  <!-- 各模組教學（預設隱藏） -->
+  {% for l in lessons %}
+  <section class="lesson" id="lesson-{{ l.key }}" data-key="{{ l.key }}" hidden>
+    <button class="lesson-back" data-back>← 回教學選單</button>
+
+    <div class="lesson-top">
+      <div class="lesson-icon">{{ l.icon }}</div>
+      <div>
+        <div class="lesson-aud">{{ l.audience }}</div>
+        <h2>{{ card_names.get(l.key, l.name) }}</h2>
+      </div>
+    </div>
+    <p class="lesson-intro">{{ l.intro }}</p>
+
+    <div class="lesson-steps">
+      {% for st in l.steps %}
+      <div class="lesson-step" {% if not loop.first %}hidden{% endif %}>
+        <div class="lesson-step-no">步驟 {{ loop.index }} / {{ l.steps|length }}</div>
+        <div class="lesson-step-title">{{ st.t }}</div>
+        <div class="lesson-step-detail">{{ st.d }}</div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <div class="lesson-nav">
+      <div class="lesson-progress"><span class="lp-fill"></span></div>
+      <div class="lesson-btns">
+        <button class="l-btn l-ghost" data-act="prev">← 上一步</button>
+        <button class="l-btn l-primary" data-act="next">下一步 →</button>
+      </div>
+    </div>
+
+    <a class="lesson-go" href="{{ l.url }}">前往實際操作 →</a>
+  </section>
+  {% endfor %}
+
+</div>
+
+<style>
+  .tut-wrap { max-width: 640px; margin: 28px auto 80px; padding: 0 16px; }
+  .tut-head h1 { font-size: 1.5rem; font-weight: 800; margin: 0 0 6px; }
+  .tut-head p { color: #667085; font-size: .9rem; margin: 0 0 18px; }
+
+  .tut-section-label { display: flex; align-items: center; gap: 8px; font-size: .8rem;
+                       font-weight: 800; color: #475467; margin: 22px 0 10px; }
+  .tut-section-label span { font-weight: 600; color: #98a2b3; background: #f2f4f7;
+                            padding: 1px 8px; border-radius: 99px; font-size: .72rem; }
+
+  .tut-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 10px; }
+  .tut-card { display: flex; align-items: center; gap: 12px; text-align: left; cursor: pointer;
+              background: #fff; border: 1px solid #eef0f3; border-radius: 14px; padding: 13px 14px;
+              box-shadow: 0 1px 3px rgba(16,24,40,.05); transition: transform .15s, box-shadow .15s; }
+  .tut-card:hover { transform: translateY(-2px); box-shadow: 0 6px 18px rgba(16,24,40,.09); }
+  .tut-card-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .tut-card-body { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .tut-card-name { font-weight: 700; font-size: .92rem; color: #1a1a1a; }
+  .tut-card-aud { font-size: .74rem; color: #98a2b3; margin-top: 1px; }
+  .tut-card-arrow { color: #cbd5e0; font-size: 1.3rem; line-height: 1; }
+
+  .tut-foot { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px;
+              font-size: .85rem; margin-top: 28px; }
+  .tut-foot a { color: #06C755; text-decoration: none; }
+
+  /* 教學內容 */
+  .lesson { background: #fff; border: 1px solid #eef0f3; border-radius: 20px;
+            padding: 22px 22px 26px; box-shadow: 0 6px 24px rgba(16,24,40,.06); }
+  .lesson-back { background: none; border: none; color: #06C755; font-size: .88rem;
+                 cursor: pointer; padding: 0; margin-bottom: 16px; }
+  .lesson-top { display: flex; align-items: center; gap: 14px; }
+  .lesson-icon { font-size: 2.6rem; line-height: 1; }
+  .lesson-aud { display: inline-block; font-size: .72rem; font-weight: 700; color: #06934a;
+                background: #e7f8ee; padding: 2px 9px; border-radius: 99px; margin-bottom: 4px; }
+  .lesson-top h2 { font-size: 1.3rem; font-weight: 800; margin: 0; }
+  .lesson-intro { color: #667085; font-size: .9rem; margin: 12px 0 18px; }
+
+  .lesson-step { animation: tfade .25s ease; }
+  @keyframes tfade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .lesson-step-no { font-size: .76rem; font-weight: 700; color: #06C755; letter-spacing: .03em; }
+  .lesson-step-title { font-size: 1.15rem; font-weight: 800; margin: 6px 0 8px; }
+  .lesson-step-detail { color: #344054; font-size: .98rem; line-height: 1.75; min-height: 3.2em; }
+
+  .lesson-nav { margin: 18px 0 14px; }
+  .lesson-progress { height: 7px; background: #edf0f3; border-radius: 99px; overflow: hidden; margin-bottom: 12px; }
+  .lp-fill { display: block; height: 100%; width: 0; background: #06C755; border-radius: 99px; transition: width .3s; }
+  .lesson-btns { display: flex; gap: 10px; }
+  .l-btn { flex: 1; padding: 12px; border-radius: 12px; font-weight: 700; font-size: .93rem;
+           cursor: pointer; border: 1px solid transparent; }
+  .l-primary { background: #1a1a1a; color: #fff; }
+  .l-ghost { background: #fff; color: #475467; border-color: #d0d5dd; }
+  .l-btn:disabled { opacity: .4; cursor: default; }
+
+  .lesson-go { display: block; text-align: center; background: #06C755; color: #fff;
+               font-weight: 700; padding: 12px; border-radius: 12px; text-decoration: none; font-size: .95rem; }
+</style>
+
+<script>
+(function () {
+  var picker = document.getElementById('tut-picker');
+  var lessons = {};
+  Array.prototype.forEach.call(document.querySelectorAll('.lesson'), function (el) {
+    lessons[el.dataset.key] = {
+      el: el,
+      steps: Array.prototype.slice.call(el.querySelectorAll('.lesson-step')),
+      idx: 0
+    };
+  });
+
+  function render(l) {
+    l.steps.forEach(function (s, i) { s.hidden = (i !== l.idx); });
+    var nav = l.el.querySelector('.lesson-nav');
+    nav.querySelector('[data-act="prev"]').disabled = (l.idx === 0);
+    var nextBtn = nav.querySelector('[data-act="next"]');
+    nextBtn.textContent = (l.idx === l.steps.length - 1) ? '完成 ✓' : '下一步 →';
+    nav.querySelector('.lp-fill').style.width = ((l.idx + 1) / l.steps.length * 100) + '%';
+  }
+
+  function open(key) {
+    picker.hidden = true;
+    Object.keys(lessons).forEach(function (k) { lessons[k].el.hidden = true; });
+    var l = lessons[key];
+    l.idx = 0; l.el.hidden = false; render(l);
+    window.scrollTo(0, 0);
+  }
+  function back() {
+    Object.keys(lessons).forEach(function (k) { lessons[k].el.hidden = true; });
+    picker.hidden = false;
+    window.scrollTo(0, 0);
+  }
+
+  document.addEventListener('click', function (e) {
+    var openBtn = e.target.closest('[data-open]');
+    if (openBtn) { open(openBtn.dataset.open); return; }
+    if (e.target.closest('[data-back]')) { back(); return; }
+    var act = e.target.closest('[data-act]');
+    if (act) {
+      var l = lessons[act.closest('.lesson').dataset.key];
+      if (act.dataset.act === 'prev') {
+        l.idx = Math.max(0, l.idx - 1);
+      } else {
+        if (l.idx === l.steps.length - 1) { back(); return; }
+        l.idx += 1;
+      }
+      render(l);
+    }
+  });
+})();
+</script>
+{% endblock %}
