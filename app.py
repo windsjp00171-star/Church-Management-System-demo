@@ -119,6 +119,10 @@ def create_app():
     from routes.guide import guide_bp
     app.register_blueprint(guide_bp)
 
+    # ── 互動式教學 ─────────────────────────────────────────────
+    from routes.tutorial import tutorial_bp
+    app.register_blueprint(tutorial_bp)
+
     # ── 禱讀本訂購 ─────────────────────────────────────────────
     from routes.devotional import devotional_bp
     app.register_blueprint(devotional_bp)
