@@ -256,6 +256,11 @@ def create_app():
             ],
         })
 
+    # ── 健康檢查端點（UptimeRobot 保活 / 監控用，不查資料庫）──────
+    @app.route('/healthz')
+    def healthz():
+        return jsonify({'status': 'ok'}), 200
+
     return app
 
 
