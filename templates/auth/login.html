@@ -90,6 +90,26 @@
             margin-top: 14px;
             line-height: 1.6;
         }
+        /* 展示廳沙盒模式 */
+        .demo-banner {
+            font-size: 0.8rem; font-weight: 800; color: #b45309;
+            background: #fff4e5; display: inline-block;
+            padding: 4px 14px; border-radius: 99px; margin-bottom: 10px;
+        }
+        .demo-hint { font-size: 0.82rem; color: #9ca3af; margin-bottom: 22px; line-height: 1.5; }
+        .demo-roles { display: flex; flex-direction: column; gap: 10px; }
+        .demo-btn {
+            display: flex; align-items: center; gap: 12px; text-align: left; text-decoration: none;
+            padding: 14px 16px; border-radius: 12px; border: 1px solid #e5e7eb; background: #fff;
+            transition: transform .12s, box-shadow .12s, border-color .12s;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .demo-btn:hover  { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,.08); border-color: #06C755; }
+        .demo-btn:active { transform: scale(.99); }
+        .demo-emoji { font-size: 1.7rem; flex-shrink: 0; width: 34px; text-align: center; }
+        .demo-text  { display: flex; flex-direction: column; }
+        .demo-text b     { font-size: 0.98rem; color: #111; }
+        .demo-text small { font-size: 0.76rem; color: #9ca3af; margin-top: 1px; }
     </style>
 </head>
 <body>
@@ -98,6 +118,29 @@
         <div class="church-name">{{ church_name }}</div>
         <div class="church-sub">會員服務入口</div>
 
+        {% if demo_mode %}
+        <!-- ── 展示廳沙盒模式：免登入，點角色直接體驗 ── -->
+        <div class="demo-banner">🎭 展示體驗模式</div>
+        <p class="demo-hint">選擇一個身分，立即免登入體驗系統<br>（畫面資料皆為展示用途）</p>
+        <div class="demo-roles">
+            <a class="demo-btn" href="{{ url_for('auth.demo_login', role='pastor') }}">
+                <span class="demo-emoji">🧑‍💼</span>
+                <span class="demo-text"><b>體驗主任牧師視角</b><small>最高管理權限・總表與儀表板</small></span>
+            </a>
+            <a class="demo-btn" href="{{ url_for('auth.demo_login', role='admin') }}">
+                <span class="demo-emoji">📝</span>
+                <span class="demo-text"><b>體驗行政同工視角</b><small>報名後台・各項管理操作</small></span>
+            </a>
+            <a class="demo-btn" href="{{ url_for('auth.demo_login', role='leader') }}">
+                <span class="demo-emoji">🤝</span>
+                <span class="demo-text"><b>體驗小組長視角</b><small>本小組回報・代禱麥田</small></span>
+            </a>
+            <a class="demo-btn" href="{{ url_for('auth.demo_login', role='member') }}">
+                <span class="demo-emoji">👤</span>
+                <span class="demo-text"><b>體驗一般會友視角</b><small>活動報名・個人資料</small></span>
+            </a>
+        </div>
+        {% else %}
         <!-- 初始狀態：嘗試 LIFF 時顯示 spinner（非 LINE 環境幾乎立刻消失） -->
         <div class="loading-msg" id="loading-msg">
             <div class="spinner"></div>
@@ -117,6 +160,7 @@
         <div class="explain" id="explain" style="display:none;">
             點擊後會跳轉到 LINE 授權頁面<br>授權後自動回到本系統
         </div>
+        {% endif %}
     </div>
 
     {% if privacy_policy_url %}
@@ -126,6 +170,7 @@
     </p>
     {% endif %}
 
+    {% if not demo_mode %}
     {% if line_liff_id %}
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     {% endif %}
@@ -181,5 +226,6 @@
     showBtn();
     {% endif %}
     </script>
+    {% endif %}
 </body>
 </html>
