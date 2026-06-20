@@ -2,6 +2,7 @@ import logging
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
+from config import Config
 from routes.audit import log_action
 from routes.decorators import admin_required, super_admin_required, staff_required
 import secrets
@@ -16,6 +17,25 @@ from datetime import datetime, timezone, timedelta
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 _TW = timezone(timedelta(hours=8))
+
+
+def _is_protected_owner_target(user_id):
+    """目標是否為系統擁有者（line_user_id 在 ADMIN_LINE_USER_IDS），且操作者無權更動。
+    用途：防止展示帳號（或非擁有者超管）把系統擁有者降權 / 封鎖 / 刪除。
+    操作者本身就是真實擁有者時放行（擁有者可彼此管理）。
+    """
+    owner_ids = Config.ADMIN_LINE_USER_IDS
+    if not owner_ids:
+        return False
+    row = supabase.table('users').select('line_user_id').eq('id', user_id).execute().data
+    if not row:
+        return False
+    target_luid = row[0].get('line_user_id') or ''
+    if target_luid not in owner_ids:
+        return False
+    actor_luid = session.get('line_id') or ''
+    actor_is_owner = (not session.get('is_demo')) and actor_luid in owner_ids
+    return not actor_is_owner
 
 def _tw_to_utc(s):
     """datetime-local 表單值（台灣時間，無時區）→ UTC ISO 字串"""
@@ -320,6 +340,12 @@ def merge_line_account(user_id):
     if not line_user_id:
         return jsonify({'error': '請指定 LINE 帳號 ID'}), 400
 
+    # 保護系統擁有者：展示帳號 / 非擁有者不得整合（進而刪除）擁有者帳號
+    actor_luid = session.get('line_id') or ''
+    actor_is_owner = (not session.get('is_demo')) and actor_luid in Config.ADMIN_LINE_USER_IDS
+    if line_user_id in Config.ADMIN_LINE_USER_IDS and not actor_is_owner:
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
+
     # 查目標帳號（手動帳號）
     target_res = supabase.table('users').select('*').eq('id', user_id).execute()
     if not target_res.data:
@@ -583,6 +609,8 @@ def toggle_admin(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能修改自己的權限'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_admin, is_super_admin, display_name')\
@@ -618,6 +646,8 @@ def toggle_super_admin(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能修改自己的權限'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_admin, is_super_admin, display_name')\
@@ -653,6 +683,8 @@ def toggle_block_user(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能封鎖自己'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_blocked, display_name')\
@@ -864,6 +896,8 @@ def search_users_for_cell():
 def toggle_pastor(user_id):
     if not session.get('is_super_admin'):
         return jsonify({'error': '僅超級管理員可操作'}), 403
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
     result = supabase.table('users').select('is_pastor, display_name').eq('id', user_id).execute()
     if not result.data:
         return jsonify({'error': '找不到此用戶'}), 404
@@ -879,6 +913,8 @@ def toggle_pastor(user_id):
 def toggle_staff(user_id):
     if not session.get('is_super_admin'):
         return jsonify({'error': '僅超級管理員可操作'}), 403
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
     result = supabase.table('users').select('is_staff, display_name').eq('id', user_id).execute()
     if not result.data:
         return jsonify({'error': '找不到此用戶'}), 404
