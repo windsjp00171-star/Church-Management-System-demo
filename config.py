@@ -50,6 +50,11 @@ class Config:
     # ── 管理員 LINE User IDs（逗號分隔字串 → list）──────────────────
     _admin_ids_raw  = os.getenv('ADMIN_LINE_USER_IDS', '')
     ADMIN_LINE_USER_IDS = [x.strip() for x in _admin_ids_raw.split(',') if x.strip()]
+    # Demo 站便利預設：僅在 DEMO_MODE 啟用、且未自行設定名單時，預設展示站擁有者為超管。
+    # 正式教會部署（DEMO_MODE=false）一律不套用，開發者不會成為教會超管（符合多教會治理原則）。
+    # 教會自行於 Render 設定 ADMIN_LINE_USER_IDS 時，此預設不生效。
+    if not ADMIN_LINE_USER_IDS and os.getenv('DEMO_MODE', 'false').lower() == 'true':
+        ADMIN_LINE_USER_IDS = ['Ue4b748edb6ec7d80d4c8a15138ae4b3b']
 
     # ── 功能模組開關（設為 'false' 停用）────────────────────────────
     ENABLE_PRAYER        = os.getenv('ENABLE_PRAYER',        'true').lower() != 'false'
