@@ -999,4 +999,24 @@ function autoResize(el) {
 }
 </script>
 
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'prayer_index';
+window.PAGE_TOUR_STEPS = [
+    { sel: '.wheat-page-title, h1',
+      title: '代禱麥田',
+      body: '這是教會的<strong>代禱麥田</strong>。會友可以提交代禱需求，其他人可以為彼此代禱。' },
+    { sel: '.wheat-tabs, [class*="tab"]',
+      title: '篩選代禱',
+      body: '可以切換查看<strong>進行中</strong>、<strong>已蒙應允</strong>的代禱事項，或查看全部。' },
+    { sel: '.wheat-new-btn, button[onclick*="openNewPrayer"]',
+      title: '提交代禱',
+      body: '點這個按鈕可以<strong>提交新的代禱需求</strong>。填入代禱事項後，其他會友就能看到並為您禱告。' },
+    { sel: '.wheat-card, .wheat-grid',
+      title: '代禱卡片',
+      body: '每張卡片是一個<strong>代禱需求</strong>。點卡片可以查看詳情、留言回應，或標記為「已蒙應允」。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

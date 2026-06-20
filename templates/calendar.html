@@ -546,4 +546,21 @@ async function deleteChurch(id, ev) {
 }
 </script>
 
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'calendar';
+window.PAGE_TOUR_STEPS = [
+    { sel: '#cal-grid, .calendar-grid, [id*="cal"]',
+      title: '行事曆',
+      body: '這是教會的<strong>每月行事曆</strong>，顯示所有已安排的聚會和活動。點任一天可以查看當日詳情。' },
+    { sel: 'button[onclick*="prev"], button[onclick*="next"], [class*="cal-nav"]',
+      title: '切換月份',
+      body: '點左右箭頭可以<strong>切換月份</strong>，查看不同月份的活動安排。' },
+    { sel: '[onclick*="addEvent"], button[class*="add"]',
+      title: '新增活動',
+      body: '管理員可以點此<strong>新增行事曆活動</strong>，填入日期、時間和說明後確認即可。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

@@ -62,4 +62,21 @@
     {% endif %}
 </div>
 
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'events_list';
+window.PAGE_TOUR_STEPS = [
+    { sel: 'h2',
+      title: '活動列表',
+      body: '這裡列出所有教會活動。<strong>綠色邊框</strong>的是現正開放報名的活動。' },
+    { sel: 'a[href^="/event/"]',
+      title: '點入活動',
+      body: '點任一活動卡片，可以查看活動詳情並線上報名。' },
+    { sel: '[style*="16a34a"]',
+      title: '現正開放',
+      body: '綠色標示的活動目前在報名期間內，可以直接報名參加。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

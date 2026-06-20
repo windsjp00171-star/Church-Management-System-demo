@@ -206,4 +206,22 @@ function requestCellGroup() {
     });
 }
 </script>
+
+<script>
+window.PAGE_TOUR_KEY   = 'profile_edit';
+window.PAGE_TOUR_STEPS = [
+    { sel: '#f-name',
+      title: '真實姓名',
+      body: '請填寫您的<strong>真實中文姓名</strong>，這會顯示在報名名單、小組回報等所有紀錄中，方便同工辨識。' },
+    { sel: '[name="group_tag"]',
+      title: '小組標籤',
+      body: '勾選您所屬的<strong>小組</strong>。可多選，同工可以用標籤篩選找到您。' },
+    { sel: '#cell-group-select',
+      title: '門訓小組',
+      body: '選擇您目前參加的<strong>門訓小組</strong>，小組長可以在小組回報中記錄您的出席狀況。' },
+    { sel: 'button[type="submit"], [name="action"]',
+      title: '儲存資料',
+      body: '資料填完後，點<strong>「儲存」</strong>按鈕確認更改。更改後您的姓名和標籤會立即更新。' }
+];
+</script>
 {% endblock %}

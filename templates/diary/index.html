@@ -268,4 +268,28 @@ function loadGuide() {
 
 
 <p style="text-align:center; margin-top:12px; font-size:0.85rem; color:#9a9186;">查閱授權設定請至 <a href="/profile" style="color:#b8956a;">個人資料頁</a></p>
+
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'diary_index';
+window.PAGE_TOUR_STEPS = [
+    { sel: '.scripture-card',
+      title: '今日讀經',
+      body: '這裡顯示<strong>今日的讀經進度</strong>，包含書卷背景介紹和完整的章節經文。認真閱讀後再寫下您的反思。' },
+    { sel: '.scripture-ref',
+      title: '經文段落',
+      body: '顯示今日要閱讀的<strong>經文書卷和章節</strong>，點擊可以查看完整經文內容。' },
+    { sel: '#guide-btn',
+      title: 'AI 反思引導',
+      body: '點這個按鈕，AI 會根據今天的經文，產生幾個<strong>引導反思的問題</strong>，幫助您更深入默想神的話語。' },
+    { sel: '.diary-card, .diary-textarea',
+      title: '寫下日記',
+      body: '在這裡<strong>寫下您今日的靈修感想</strong>。記錄您從神話語中的領受、感謝、或代禱。<br>儲存後就無法再修改，請好好珍惜每一篇日記。' },
+    { sel: 'a[href*="history"]',
+      title: '書卷瀏覽',
+      body: '點這裡可以查閱您過去的所有<strong>靈修日記歷史紀錄</strong>，按書卷整理方便複習。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}
