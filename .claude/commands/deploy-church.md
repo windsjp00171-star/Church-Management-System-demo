@@ -96,6 +96,10 @@ RENDER=true
 5. 點 **Deploy**，等待部署完成
 6. 記下 Render 提供的域名（如 `xxx-church.onrender.com`）
 
+> 🚨 **正式站務必不要設定 `DEMO_MODE`（或設為 `false`）。**
+> 若誤設 `DEMO_MODE=true`，登入頁會變成「免登入沙盒」，任何人都能一鍵當超級管理員 —— 等同門戶大開。
+> 上面的環境變數清單**刻意不含 `DEMO_MODE`**，請保持如此。
+
 **部署完成後，回到 Step 2 更新 LINE Login 的 Callback URL。**
 
 ---
@@ -121,6 +125,10 @@ RENDER=true
 2. 前往 `/admin` 確認可以進入後台
 3. 在「會員管理」將自己的帳號設為超級管理員
 
+**最終安全確認（上線前必查）：**
+- 🚨 登入頁是「使用 LINE 登入」按鈕，**不是**四顆角色體驗按鈕（若是，代表 `DEMO_MODE` 誤開，立刻移除）。
+- 確認 Render 環境變數中**沒有 `DEMO_MODE=true`**。
+
 **完成！** 列出部署摘要：
 - 教會名稱
 - 系統網址
@@ -131,6 +139,7 @@ RENDER=true
 
 ## 注意事項
 
+- 🚨 **正式教會站絕不可開啟 `DEMO_MODE`**（不設定即可，預設為關）。開啟＝沙盒免登入模式，任何人可當超管。
 - Render 免費方案 15 分鐘無流量會休眠，首次載入較慢（約 30–60 秒）
 - `FLASK_SECRET_KEY` 一旦設定不要修改，否則所有用戶 session 會失效
 - LINE Redirect URI 必須完全符合，包含 https 與路徑
