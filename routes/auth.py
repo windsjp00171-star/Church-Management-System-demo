@@ -1,4 +1,5 @@
 import logging
+import os
 import secrets
 import requests
 from urllib.parse import urlparse
@@ -43,6 +44,12 @@ def _populate_session(user):
     session['is_staff']      = bool(user.get('is_staff'))
     session['is_blocked']    = bool(user.get('is_blocked'))
     session['cell_group_ids']= cell_group_ids
+    # 環境變數定義的超管（ADMIN_LINE_USER_IDS）一律具備超管權限（與 CLAUDE.md 設計一致）
+    _luid = user.get('line_user_id') or ''
+    if _luid and _luid in Config.ADMIN_LINE_USER_IDS:
+        session['is_admin'] = True
+        session['is_super_admin'] = True
+    session['is_demo']       = False  # 真實登入預設非展示帳號（demo_login 會覆寫為 True）
     session['_user_verified']= True  # 剛從 DB 讀出，免去 before_request 再驗證
 
 
@@ -315,7 +322,55 @@ def demo_login(role):
             _ensure_demo_leader_group(user['id'])
 
     _populate_session(user)
+    session['is_demo'] = True   # 標記為展示帳號（純體驗；資料每日重置）
     return redirect(url_for('event.portal'))
+
+
+def _run_demo_reseed():
+    """背景執行：清除並重新灌入展示假資料。"""
+    try:
+        import seed_demo
+        seed_demo.clear()
+        seed_demo.seed()
+        logging.info('demo reseed completed')
+    except Exception as e:
+        logging.warning('demo reseed failed: %s', e)
+
+
+@auth_bp.route('/demo-reset')
+def demo_reset():
+    """每日重置展示資料。授權方式二擇一：
+      1. 帶 ?token=<DEMO_RESET_TOKEN>（供外部排程 / UptimeRobot 每日呼叫）
+      2. 擁有者本人（真實登入的超管，非展示帳號）—— 供現場手動重置
+    內建「每日只重置一次」防護：頻繁呼叫不會重複重灌（owner 可帶 ?force=1 強制）。
+    """
+    if not Config.DEMO_MODE:
+        abort(404)
+    import threading
+    import settings_store as ss
+    from datetime import date
+
+    token    = request.args.get('token', '')
+    expected = os.environ.get('DEMO_RESET_TOKEN', '')
+    is_owner = bool(session.get('is_super_admin')) and not session.get('is_demo')
+    if not (is_owner or (expected and token == expected)):
+        abort(403)
+
+    today = date.today().isoformat()
+    force = request.args.get('force') == '1' or is_owner
+    try:
+        last = ss.get('demo_last_reset')
+    except Exception:
+        last = None
+    if last == today and not force:
+        return jsonify({'status': 'skipped', 'reason': 'already reset today', 'date': today})
+
+    try:
+        ss.set('demo_last_reset', today)
+    except Exception:
+        pass
+    threading.Thread(target=_run_demo_reseed, daemon=True).start()
+    return jsonify({'status': 'started', 'date': today})
 
 
 @auth_bp.route('/contact', methods=['POST'])

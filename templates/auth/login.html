@@ -110,6 +110,9 @@
         .demo-text  { display: flex; flex-direction: column; }
         .demo-text b     { font-size: 0.98rem; color: #111; }
         .demo-text small { font-size: 0.76rem; color: #9ca3af; margin-top: 1px; }
+        .demo-owner-link { display: inline-block; margin-top: 22px; font-size: 0.76rem;
+                           color: #c0c0c0; text-decoration: none; }
+        .demo-owner-link:hover { color: #06C755; text-decoration: underline; }
     </style>
 </head>
 <body>
@@ -140,6 +143,7 @@
                 <span class="demo-text"><b>體驗一般會友視角</b><small>活動報名・個人資料</small></span>
             </a>
         </div>
+        <a class="demo-owner-link" href="{{ url_for('auth.login') }}">管理者登入</a>
         {% else %}
         <!-- 初始狀態：嘗試 LIFF 時顯示 spinner（非 LINE 環境幾乎立刻消失） -->
         <div class="loading-msg" id="loading-msg">

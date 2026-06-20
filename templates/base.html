@@ -31,6 +31,10 @@
     {% if session.is_admin or session.is_super_admin %}
     <a href="/admin" class="demo-chip demo-admin">⚙️ 後台</a>
     {% endif %}
+    {% if session.is_super_admin and not session.is_demo %}
+    <a href="{{ url_for('auth.demo_reset', force=1) }}" class="demo-chip demo-reset"
+       onclick="return confirm('確定重置展示資料？將清除並重新灌入展示用假資料。')">🔄 重置展示</a>
+    {% endif %}
     <a href="{{ url_for('auth.logout') }}" class="demo-chip demo-exit">⏻ 離開</a>
 </div>
 <style>
@@ -50,6 +54,7 @@
     .demo-chip:hover { background: rgba(255,255,255,.2); }
     .demo-chip.on    { background: #06C755; color: #fff; }
     .demo-admin      { background: rgba(125,177,255,.22); }
+    .demo-reset      { background: rgba(255,212,121,.22); }
     .demo-exit       { background: rgba(255,120,120,.18); margin-left: auto; }
     body { padding-bottom: 56px; }   /* 避免控制列蓋住內容 */
 </style>
