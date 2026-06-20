@@ -394,6 +394,7 @@ def index():
         church_name=Config.CHURCH_NAME,
         line_redirect_uri=Config.LINE_REDIRECT_URI or '',
         schema_sql=schema_sql,
+        demo_mode_on=Config.DEMO_MODE,
     )
 
 

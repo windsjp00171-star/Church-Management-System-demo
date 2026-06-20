@@ -97,6 +97,18 @@
     <p>逐步檢查設定，讓你的教會管理系統順利上線。</p>
   </div>
 
+  {% if demo_mode_on %}
+  <div style="background:#fee2e2; border:2px solid #dc2626; border-radius:12px;
+              padding:16px 18px; margin-bottom:24px; color:#991b1b;">
+    <div style="font-weight:800; font-size:1rem; margin-bottom:4px;">🚨 目前是「展示模式」（DEMO_MODE 已開啟）</div>
+    <div style="font-size:.9rem; line-height:1.6;">
+      登入頁會變成<strong>免登入沙盒</strong>，任何人都能一鍵登入為各種角色。
+      <strong>正式教會站請務必移除環境變數 <code>DEMO_MODE</code>（或設為 <code>false</code>）後重新部署</strong>，
+      否則等同門戶大開。若這裡就是展示站，可忽略此提醒。
+    </div>
+  </div>
+  {% endif %}
+
   <!-- ── 總狀態列 ───────────────────────────────────────── -->
   {% if all_required_ok and (db_tables is none or missing_tables|length == 0) %}
   <div class="summary-bar bar-ok">
