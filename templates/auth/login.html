@@ -1,275 +1,333 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>登入 - {{ church_name }}</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        :root{ --green:#06C755; --green-d:#05a648; --ink:#0f172a; --muted:#8a94a6; }
-        html,body{ min-height:100%; }
-        body {
-            display:flex; flex-direction:column; align-items:center;
-            min-height:100vh; padding:28px 16px;
-            font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;
-            color:var(--ink);
-            background:linear-gradient(160deg,#0b3b2e 0%,#0f5132 30%,#0d6e4f 60%,#0a4a6b 100%);
-            position:relative; overflow-x:hidden;
-        }
-        /* 動態光暈 */
-        .blob{ position:fixed; border-radius:50%; filter:blur(70px); opacity:.55; z-index:0; pointer-events:none; }
-        .blob.b1{ width:50vw;height:50vw; left:-12vw; top:-14vw; background:radial-gradient(circle,#22e39a,transparent 64%); animation:fl1 16s ease-in-out infinite; }
-        .blob.b2{ width:44vw;height:44vw; right:-14vw; top:18vh; background:radial-gradient(circle,#38bdf8,transparent 64%); animation:fl2 20s ease-in-out infinite; }
-        .blob.b3{ width:42vw;height:42vw; left:24vw; bottom:-18vw; background:radial-gradient(circle,#fbbf24,transparent 66%); animation:fl1 24s ease-in-out infinite; }
-        @keyframes fl1{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(5%,6%)} }
-        @keyframes fl2{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(-6%,5%)} }
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>登入 · {{ church_name }}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&family=Noto+Sans+TC:wght@400;500;700&family=Noto+Serif+TC:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-2: #131a26;
+    --card: rgba(255, 255, 255, 0.045);
+    --card-hover: rgba(255, 255, 255, 0.075);
+    --txt: #f4f1ea;
+    --txt-2: #9aa6b6;
+    --txt-3: #6c7889;
+    --stroke: rgba(255, 255, 255, 0.09);
+    --stroke-hover: rgba(255, 255, 255, 0.16);
+    --brand: #f5a623;
+    --brand-line: rgba(245, 166, 35, 0.4);
+    --radius: 18px;
+    --shadow: 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+    --shadow-hover: 0 24px 48px -20px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(255, 255, 255, 0.04);
+    --ease: cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: var(--bg); color: var(--txt);
+    font-family: "Noto Sans TC", -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+    -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  }
+  body {
+    min-height: 100dvh; display: flex; justify-content: center;
+    background:
+      radial-gradient(760px 520px at 82% -8%, rgba(245, 166, 35, 0.16), transparent 58%),
+      radial-gradient(620px 480px at 4% 6%, rgba(245, 166, 35, 0.05), transparent 60%),
+      radial-gradient(900px 700px at 50% 122%, rgba(245, 166, 35, 0.07), transparent 60%),
+      linear-gradient(180deg, var(--bg-2) 0%, var(--bg) 44%);
+  }
+  body::before {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+    background-size: 44px 44px;
+    -webkit-mask-image: radial-gradient(120% 90% at 50% 18%, #000 35%, transparent 78%);
+    mask-image: radial-gradient(120% 90% at 50% 18%, #000 35%, transparent 78%);
+  }
+  body::after {
+    content: ""; position: fixed; inset: 0; pointer-events: none; z-index: 0;
+    background: radial-gradient(120% 90% at 50% 30%, transparent 58%, rgba(0, 0, 0, 0.5) 100%);
+  }
+  .wrap {
+    position: relative; z-index: 1; width: 100%; max-width: 430px;
+    padding: 40px 22px calc(28px + env(safe-area-inset-bottom));
+    display: flex; flex-direction: column; gap: 20px;
+  }
+  .rise { opacity: 0; transform: translateY(16px); animation: rise 0.7s var(--ease) forwards; }
+  @keyframes rise { to { opacity: 1; transform: translateY(0); } }
+  .d1 { animation-delay: 0.04s; } .d2 { animation-delay: 0.14s; } .d3 { animation-delay: 0.23s; }
+  .d4 { animation-delay: 0.32s; } .d5 { animation-delay: 0.41s; } .d6 { animation-delay: 0.50s; }
+  .d7 { animation-delay: 0.59s; } .d8 { animation-delay: 0.68s; } .d9 { animation-delay: 0.77s; }
 
-        /* shell：margin auto 置中，內容過高時自動可捲不裁切 */
-        .shell{ position:relative; z-index:2; margin:auto; width:min(100%,400px);
-                display:flex; flex-direction:column; align-items:center; gap:16px; padding:8px 0; }
+  header { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 13px; }
+  .crest {
+    width: 72px; height: 72px; border-radius: 22px; display: grid; place-items: center;
+    font-size: 36px; line-height: 1;
+    background: linear-gradient(155deg, #1c2433, #11161f);
+    border: 1px solid var(--stroke-hover);
+    box-shadow: 0 0 0 1px rgba(245, 166, 35, 0.12), 0 16px 34px -14px rgba(245, 166, 35, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    position: relative;
+  }
+  .crest::after {
+    content: ""; position: absolute; inset: -1px; border-radius: 22px;
+    background: radial-gradient(60% 50% at 50% 0%, rgba(245, 166, 35, 0.25), transparent 70%); pointer-events: none;
+  }
+  .church-name { margin: 0; font-family: "Noto Serif TC", "Songti TC", serif; font-size: 30px; font-weight: 900; letter-spacing: 1.5px; }
+  .church-sub { margin: 0; font-size: 13.5px; font-weight: 500; color: var(--txt-2); letter-spacing: 0.3px; }
 
-        .card {
-            width:100%; background:#ffffff; padding:34px 26px 26px; border-radius:26px;
-            box-shadow:0 30px 70px rgba(0,0,0,.35), 0 2px 10px rgba(0,0,0,.18);
-            text-align:center;
-            animation:cardIn .6s cubic-bezier(.2,.8,.2,1) both;
-        }
-        @keyframes cardIn{ from{opacity:0; transform:translateY(22px) scale(.97)} to{opacity:1; transform:none} }
+  .demo-badge {
+    align-self: center; display: inline-flex; align-items: center; gap: 9px;
+    padding: 9px 17px; border-radius: 999px; font-size: 13px; font-weight: 700; color: var(--brand);
+    background: rgba(245, 166, 35, 0.06); border: 1px solid var(--brand-line);
+    box-shadow: 0 0 22px -6px rgba(245, 166, 35, 0.4), inset 0 0 18px -10px rgba(245, 166, 35, 0.6); letter-spacing: 0.3px;
+  }
+  .demo-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--brand); animation: pulse 2.4s infinite var(--ease); }
+  @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0.55); } 70% { box-shadow: 0 0 0 8px rgba(245, 166, 35, 0); } 100% { box-shadow: 0 0 0 0 rgba(245, 166, 35, 0); } }
+  .demo-badge .mono { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; padding: 2px 6px; border-radius: 5px; background: rgba(245, 166, 35, 0.14); }
 
-        .logo-badge{
-            width:74px; height:74px; margin:0 auto 14px; position:relative;
-            display:flex; align-items:center; justify-content:center; font-size:2.4rem; border-radius:22px;
-            background:linear-gradient(135deg,#06C755,#10b981);
-            box-shadow:0 12px 26px rgba(6,199,85,.45);
-            animation:pop .6s .1s cubic-bezier(.2,1.5,.4,1) both;
-        }
-        .logo-badge::after{ content:""; position:absolute; inset:-6px; border-radius:26px;
-            border:2px solid rgba(6,199,85,.35); animation:ring 2.4s ease-out infinite; }
-        @keyframes ring{ 0%{transform:scale(1); opacity:.7} 100%{transform:scale(1.25); opacity:0} }
-        @keyframes pop{ from{transform:scale(.5); opacity:0} to{transform:scale(1); opacity:1} }
+  .lead { text-align: center; margin: -2px 0 2px; font-size: 14.5px; line-height: 1.7; color: var(--txt-2); text-wrap: pretty; }
 
-        .church-name { font-size:1.5rem; font-weight:900; letter-spacing:.01em; }
-        .church-sub { font-size:.85rem; color:var(--muted); margin-top:6px; }
+  .roles { display: flex; flex-direction: column; gap: 12px; }
+  .role {
+    display: flex; align-items: center; gap: 15px; padding: 16px 17px; border-radius: var(--radius);
+    background: var(--card); border: 1px solid var(--stroke); text-decoration: none; color: inherit;
+    position: relative; overflow: hidden; box-shadow: var(--shadow);
+    transition: transform 0.38s var(--ease), border-color 0.38s var(--ease), background 0.38s var(--ease), box-shadow 0.38s var(--ease);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .role::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: var(--accent, var(--brand)); transform: scaleY(0); transition: transform 0.38s var(--ease); }
+  .role:hover, .role:focus-visible { transform: translateY(-3px); background: var(--card-hover); border-color: var(--stroke-hover); box-shadow: var(--shadow-hover); outline: none; }
+  .role:hover::before, .role:focus-visible::before { transform: scaleY(1); }
+  .role:active { transform: translateY(-1px) scale(0.992); }
+  .role-icon {
+    flex: 0 0 auto; width: 50px; height: 50px; border-radius: 14px; display: grid; place-items: center;
+    font-size: 25px; line-height: 1; background: var(--icon-bg); border: 1px solid var(--icon-stroke); transition: transform 0.38s var(--ease);
+  }
+  .role:hover .role-icon { transform: scale(1.06) rotate(-2deg); }
+  .role-text { flex: 1 1 auto; min-width: 0; }
+  .role-title { display: block; font-size: 17px; font-weight: 700; letter-spacing: 0.3px; margin-bottom: 3px; }
+  .role-desc { display: block; font-size: 13px; color: var(--txt-2); letter-spacing: 0.2px; }
+  .role-arrow { flex: 0 0 auto; color: var(--txt-3); transition: transform 0.38s var(--ease), color 0.38s var(--ease); display: grid; place-items: center; }
+  .role:hover .role-arrow { color: var(--accent, var(--brand)); transform: translateX(4px); }
+  .r-pastor { --accent: #f5a623; --icon-bg: linear-gradient(150deg, rgba(245,166,35,0.22), rgba(245,166,35,0.06)); --icon-stroke: rgba(245,166,35,0.3); }
+  .r-admin  { --accent: #5aa7f0; --icon-bg: linear-gradient(150deg, rgba(90,167,240,0.2), rgba(90,167,240,0.05)); --icon-stroke: rgba(90,167,240,0.28); }
+  .r-leader { --accent: #4fc28a; --icon-bg: linear-gradient(150deg, rgba(79,194,138,0.2), rgba(79,194,138,0.05)); --icon-stroke: rgba(79,194,138,0.28); }
+  .r-member { --accent: #b48af0; --icon-bg: linear-gradient(150deg, rgba(180,138,240,0.2), rgba(180,138,240,0.05)); --icon-stroke: rgba(180,138,240,0.28); }
 
-        .demo-pill {
-            position:relative; overflow:hidden;
-            font-size:.78rem; font-weight:800; color:#b45309;
-            background:linear-gradient(135deg,#fff4e0,#ffe7c2);
-            display:inline-flex; align-items:center; gap:6px;
-            padding:7px 18px; border-radius:99px; margin:22px 0 8px; border:1px solid #fcd29a;
-        }
-        .demo-pill::after{ content:""; position:absolute; top:0; left:-120%; width:60%; height:100%;
-            background:linear-gradient(100deg,transparent,rgba(255,255,255,.85),transparent);
-            transform:skewX(-18deg); animation:shine 3.2s ease-in-out infinite; }
-        @keyframes shine{ 0%{left:-120%} 55%,100%{left:140%} }
-        .demo-hint { font-size:.82rem; color:var(--muted); margin-bottom:20px; line-height:1.6; }
+  .admin-link { text-align: center; margin: 1px 0; }
+  .admin-link a { font-size: 13px; color: var(--txt-3); text-decoration: none; border-bottom: 1px solid transparent; padding-bottom: 1px; transition: color 0.3s var(--ease), border-color 0.3s var(--ease); }
+  .admin-link a:hover { color: var(--txt); border-color: var(--stroke-hover); }
 
-        .demo-roles { display:flex; flex-direction:column; gap:11px; text-align:left; }
-        .demo-btn {
-            --accent:#06C755; position:relative; overflow:hidden;
-            display:flex; align-items:center; gap:14px; text-decoration:none;
-            padding:15px 16px; border-radius:16px; border:1px solid #eceff3; background:#fff;
-            transition:transform .16s, box-shadow .16s, border-color .16s;
-            -webkit-tap-highlight-color:transparent;
-            opacity:0; animation:rowIn .5s cubic-bezier(.2,.8,.2,1) forwards;
-        }
-        /* 左側彩色條 */
-        .demo-btn::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--accent);
-            transform:scaleY(.4); transform-origin:center; opacity:.5; transition:transform .2s, opacity .2s; }
-        /* hover 掃光 */
-        .demo-btn::after{ content:""; position:absolute; top:0; left:-130%; width:55%; height:100%;
-            background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);
-            transform:skewX(-18deg); transition:none; }
-        .demo-btn:hover::after{ animation:sweep .7s ease; }
-        @keyframes sweep{ from{left:-130%} to{left:150%} }
-        .demo-btn:nth-child(1){animation-delay:.16s} .demo-btn:nth-child(2){animation-delay:.24s}
-        .demo-btn:nth-child(3){animation-delay:.32s} .demo-btn:nth-child(4){animation-delay:.40s}
-        @keyframes rowIn{ from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
-        .demo-btn:hover { transform:translateY(-3px); box-shadow:0 14px 28px rgba(15,23,42,.14); border-color:var(--accent); }
-        .demo-btn:hover::before{ transform:scaleY(1); opacity:1; }
-        .demo-btn:active { transform:scale(.99); }
-        .demo-emoji { font-size:1.5rem; flex-shrink:0; width:46px; height:46px;
-            display:flex; align-items:center; justify-content:center; border-radius:13px;
-            background:color-mix(in srgb, var(--accent) 15%, white); }
-        .demo-text { display:flex; flex-direction:column; flex:1; min-width:0; }
-        .demo-text b { font-size:1rem; font-weight:800; color:var(--ink); }
-        .demo-text small { font-size:.76rem; color:var(--muted); margin-top:2px; }
-        .demo-arrow{ color:var(--accent); font-size:1.15rem; flex-shrink:0; opacity:.6; transition:transform .16s,opacity .16s; }
-        .demo-btn:hover .demo-arrow{ transform:translateX(4px); opacity:1; }
+  .portfolio {
+    display: flex; align-items: center; gap: 11px; padding: 15px 18px; border-radius: var(--radius);
+    text-decoration: none; color: #2a1a05; font-weight: 700; font-size: 13.5px; line-height: 1.5;
+    background: linear-gradient(135deg, #ffc560, #f5a623 55%, #e8941a);
+    box-shadow: 0 16px 36px -14px rgba(245, 166, 35, 0.65); position: relative; overflow: hidden;
+    transition: transform 0.38s var(--ease), box-shadow 0.38s var(--ease);
+  }
+  .portfolio::after { content: ""; position: absolute; top: 0; left: -60%; width: 50%; height: 100%; background: linear-gradient(100deg, transparent, rgba(255,255,255,0.45), transparent); transform: skewX(-18deg); animation: sheen 4.5s var(--ease) infinite; }
+  @keyframes sheen { 0%, 65% { left: -60%; } 100% { left: 130%; } }
+  .portfolio:hover { transform: translateY(-3px); box-shadow: 0 22px 44px -14px rgba(245, 166, 35, 0.8); }
+  .portfolio:active { transform: translateY(-1px) scale(0.992); }
+  .portfolio .pf-emoji { font-size: 19px; }
+  .portfolio .pf-body { flex: 1 1 auto; }
+  .portfolio .pf-meta { display: block; font-size: 11.5px; font-weight: 600; opacity: 0.78; margin-top: 2px; }
+  .portfolio .pf-go { font-size: 18px; transition: transform 0.38s var(--ease); }
+  .portfolio:hover .pf-go { transform: translateX(4px); }
 
-        .owner-link { display:inline-block; margin-top:22px; font-size:.78rem; color:#b8c0cc; text-decoration:none; }
-        .owner-link:hover { color:var(--green); text-decoration:underline; }
+  /* ── LINE 登入（正式教會部署，非展示模式）── */
+  .line-btn {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    background: #06C755; color: #fff; text-decoration: none; padding: 16px 24px;
+    border-radius: var(--radius); font-size: 16px; font-weight: 700; border: none; cursor: pointer;
+    box-shadow: 0 16px 36px -14px rgba(6,199,85,0.6); transition: transform 0.3s var(--ease), filter 0.3s var(--ease);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .line-btn:hover { transform: translateY(-2px); filter: brightness(1.05); }
+  .line-btn:active { transform: translateY(0) scale(0.99); }
+  .loading-msg { display: flex; align-items: center; justify-content: center; gap: 9px; color: var(--txt-2); font-size: 14px; padding: 6px 0; }
+  .spinner { width: 18px; height: 18px; border: 2px solid var(--stroke); border-top-color: var(--brand); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .explain { text-align: center; font-size: 12.5px; color: var(--txt-3); line-height: 1.6; }
 
-        /* LINE 登入（非 demo） */
-        .line-btn { display:flex; align-items:center; justify-content:center; gap:10px;
-            background:var(--green); color:#fff; text-decoration:none; padding:16px 24px; border-radius:14px;
-            font-size:1.05rem; font-weight:700; width:100%; border:none; cursor:pointer; margin-top:26px;
-            transition:background .15s, transform .15s; -webkit-tap-highlight-color:transparent; }
-        .line-btn:hover{ background:var(--green-d); transform:translateY(-2px); }
-        .line-btn:active { transform:scale(.98); }
-        .loading-msg { font-size:.9rem; color:var(--muted); margin-top:26px;
-            display:flex; align-items:center; justify-content:center; gap:8px; }
-        .spinner { width:18px;height:18px; border:2px solid #e5e7eb; border-top-color:var(--green);
-            border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .explain { font-size:.8rem; color:var(--muted); margin-top:14px; line-height:1.6; }
+  .foot { text-align: center; font-size: 11.5px; color: var(--txt-3); line-height: 1.6; margin-top: 2px; }
+  .foot a { color: var(--txt-2); text-decoration: none; border-bottom: 1px solid var(--stroke); }
+  .foot a:hover { color: var(--txt); }
 
-        /* 作品集橫幅 */
-        .portfolio-ribbon{ position:relative; overflow:hidden; width:100%;
-            display:flex; align-items:center; gap:12px; padding:14px 18px; border-radius:18px; text-decoration:none;
-            background:linear-gradient(120deg,#f5a623,#ef6c3a); color:#0f1117; font-weight:800;
-            box-shadow:0 16px 32px rgba(245,166,35,.36);
-            animation:cardIn .6s .5s both; transition:transform .16s; }
-        .portfolio-ribbon:hover{ transform:translateY(-2px); }
-        .portfolio-ribbon::after{ content:""; position:absolute; top:0; left:-120%; width:55%; height:100%;
-            background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);
-            transform:skewX(-18deg); animation:shine 3.6s 1s ease-in-out infinite; }
-        .portfolio-ribbon .pr-emoji{ font-size:1.5rem; }
-        .portfolio-ribbon .pr-main{ flex:1; line-height:1.35; }
-        .portfolio-ribbon .pr-sub{ display:block; font-weight:500; font-size:.78rem; opacity:.84; margin-top:2px; }
-
-        .privacy-note { font-size:.78rem; color:rgba(255,255,255,.7); text-align:center; }
-        .privacy-note a { color:#fff; text-decoration:underline; }
-
-        @media (prefers-reduced-motion: reduce){
-            .blob,.card,.logo-badge,.logo-badge::after,.demo-btn,.portfolio-ribbon,
-            .demo-pill::after,.portfolio-ribbon::after{ animation:none !important; }
-            .demo-btn{ opacity:1; }
-        }
-    </style>
+  @media (min-width: 640px) { body { align-items: center; padding: 32px 0; } .wrap { padding-top: 30px; padding-bottom: 30px; } }
+  @media (prefers-reduced-motion: reduce) {
+    .rise { opacity: 1; transform: none; animation: none; }
+    .demo-badge .dot { animation: none; }
+    .portfolio::after { animation: none; display: none; }
+    * { transition-duration: 0.001ms !important; }
+  }
+</style>
 </head>
+
 <body>
-    <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
+  <main class="wrap">
 
-    <div class="shell">
-      <div class="card">
-        <div class="logo-badge">⛪</div>
-        <div class="church-name">{{ church_name }}</div>
-        <div class="church-sub">教會行政整合系統 · 一站式服務入口</div>
+    <header class="rise d1">
+      <div class="crest">⛪</div>
+      <h1 class="church-name">{{ church_name }}</h1>
+      <p class="church-sub">教會行政整合系統 · 一站式服務入口</p>
+    </header>
 
-        {% if demo_mode %}
-        <!-- ── 展示廳沙盒模式：免登入，點角色直接體驗 ── -->
-        <div class="demo-pill">🎭 展示體驗模式 · 免登入</div>
-        <p class="demo-hint">選一個身分，立即進入體驗系統<br>（畫面資料皆為展示用途）</p>
-        <div class="demo-roles">
-            <a class="demo-btn" style="--accent:#7c6cf0" href="{{ url_for('auth.demo_login', role='pastor') }}">
-                <span class="demo-emoji">🧑‍💼</span>
-                <span class="demo-text"><b>主任牧師視角</b><small>最高管理權限・總表與儀表板</small></span>
-                <span class="demo-arrow">→</span>
-            </a>
-            <a class="demo-btn" style="--accent:#3aa0ef" href="{{ url_for('auth.demo_login', role='admin') }}">
-                <span class="demo-emoji">📝</span>
-                <span class="demo-text"><b>行政同工視角</b><small>報名後台・各項管理操作</small></span>
-                <span class="demo-arrow">→</span>
-            </a>
-            <a class="demo-btn" style="--accent:#06C755" href="{{ url_for('auth.demo_login', role='leader') }}">
-                <span class="demo-emoji">🤝</span>
-                <span class="demo-text"><b>小組長視角</b><small>小組回報・代禱麥田</small></span>
-                <span class="demo-arrow">→</span>
-            </a>
-            <a class="demo-btn" style="--accent:#ef6c3a" href="{{ url_for('auth.demo_login', role='member') }}">
-                <span class="demo-emoji">👤</span>
-                <span class="demo-text"><b>一般會友視角</b><small>活動報名・個人資料</small></span>
-                <span class="demo-arrow">→</span>
-            </a>
-        </div>
-        <a class="owner-link" href="{{ url_for('auth.login') }}">管理者登入</a>
-        {% else %}
-        <!-- 初始狀態：嘗試 LIFF 時顯示 spinner（非 LINE 環境幾乎立刻消失） -->
-        <div class="loading-msg" id="loading-msg">
-            <div class="spinner"></div>
-            <span>準備登入中…</span>
-        </div>
-
-        <!-- LINE 登入按鈕（預設隱藏，ready 後顯示） -->
-        <a href="{{ url_for('auth.login') }}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}"
-           class="line-btn" id="login-btn" style="display:none;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="24" height="24" rx="5" fill="white" fill-opacity="0.2"/>
-                <path d="M20 10.6C20 6.94 16.42 4 12 4C7.58 4 4 6.94 4 10.6C4 13.87 6.88 16.6 10.84 17.12C11.12 17.18 11.5 17.31 11.6 17.54C11.69 17.75 11.66 18.07 11.64 18.28C11.64 18.28 11.52 19.07 11.5 19.18C11.46 19.39 11.32 20.01 12 19.72C12.68 19.43 15.96 17.33 17.44 15.64C18.47 14.53 20 12.71 20 10.6Z" fill="white"/>
-            </svg>
-            使用 LINE 登入
-        </a>
-
-        <div class="explain" id="explain" style="display:none;">
-            點擊後會跳轉到 LINE 授權頁面<br>授權後自動回到本系統
-        </div>
-        {% endif %}
-      </div>
-
-      {% if demo_mode %}
-      <a class="portfolio-ribbon" href="https://windsjp00171-star.github.io/CLAUDE-DESIGN/" target="_blank" rel="noopener">
-        <span class="pr-emoji">🌿</span>
-        <span class="pr-main">這是 EMMARK 的作品 Demo
-            <span class="pr-sub">點此查看完整作品集 · 9 個上線專案 →</span>
-        </span>
-      </a>
-      {% endif %}
-
-      {% if privacy_policy_url %}
-      <p class="privacy-note">
-          使用本系統即表示您同意
-          <a href="{{ privacy_policy_url }}" target="_blank" rel="noopener">隱私權政策</a>
-      </p>
-      {% endif %}
+    {% if demo_mode %}
+    <div class="demo-badge rise d2">
+      <span class="dot"></span>
+      <span class="mono">DEMO</span>
+      🎭 展示體驗模式 · 免登入
     </div>
 
-    {% if not demo_mode %}
-    {% if line_liff_id %}
-    <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-    {% endif %}
-    <script>
-    var nextUrl = new URLSearchParams(window.location.search).get('next') || '';
+    <p class="lead rise d3">選一個身分，立即進入體驗系統<br>（畫面資料皆為展示用途）</p>
 
-    function showBtn() {
-        document.getElementById('loading-msg').style.display = 'none';
-        document.getElementById('login-btn').style.display  = 'flex';
-        document.getElementById('explain').style.display    = 'block';
-    }
+    <nav class="roles">
+      <a class="role r-pastor rise d4" href="{{ url_for('auth.demo_login', role='pastor') }}">
+        <span class="role-icon">🧑‍💼</span>
+        <span class="role-text">
+          <span class="role-title">主任牧師視角</span>
+          <span class="role-desc">最高管理權限・總表與儀表板</span>
+        </span>
+        <span class="role-arrow" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+        </span>
+      </a>
 
-    {% if line_liff_id %}
-    // 非 LINE 瀏覽器：user agent 快速判斷，不等 LIFF init
-    if (!/Line\//i.test(navigator.userAgent)) {
-        showBtn();
-    } else {
-        // LINE 內建瀏覽器：跑 LIFF 自動登入
-        var liffTimer = setTimeout(showBtn, 4000);
+      <a class="role r-admin rise d5" href="{{ url_for('auth.demo_login', role='admin') }}">
+        <span class="role-icon">📝</span>
+        <span class="role-text">
+          <span class="role-title">行政同工視角</span>
+          <span class="role-desc">報名後台・各項管理操作</span>
+        </span>
+        <span class="role-arrow" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+        </span>
+      </a>
 
-        liff.init({ liffId: "{{ line_liff_id }}" })
-            .then(function() {
-                clearTimeout(liffTimer);
-                if (!liff.isInClient()) { showBtn(); return; }
-                if (!liff.isLoggedIn()) {
-                    var base = window.location.origin + window.location.pathname;
-                    liff.login({ redirectUri: nextUrl ? base + '?next=' + encodeURIComponent(nextUrl) : base });
-                    return;
-                }
-                doLiffLogin();
-            })
-            .catch(function() { clearTimeout(liffTimer); showBtn(); });
+      <a class="role r-leader rise d6" href="{{ url_for('auth.demo_login', role='leader') }}">
+        <span class="role-icon">🤝</span>
+        <span class="role-text">
+          <span class="role-title">小組長視角</span>
+          <span class="role-desc">小組回報・代禱麥田</span>
+        </span>
+        <span class="role-arrow" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+        </span>
+      </a>
 
-        function doLiffLogin() {
-            var idToken = liff.getIDToken();
-            if (!idToken) { showBtn(); return; }
-            document.getElementById('loading-msg').querySelector('span').textContent = '登入中，請稍候…';
-            fetch('/auth/liff-login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ id_token: idToken, next_url: nextUrl })
-            })
-            .then(function(r) { return r.json(); })
-            .then(function(d) {
-                if (d.redirect) { window.location.href = d.redirect; }
-                else { showBtn(); }
-            })
-            .catch(showBtn);
-        }
-    }
+      <a class="role r-member rise d7" href="{{ url_for('auth.demo_login', role='member') }}">
+        <span class="role-icon">👤</span>
+        <span class="role-text">
+          <span class="role-title">一般會友視角</span>
+          <span class="role-desc">活動報名・個人資料</span>
+        </span>
+        <span class="role-arrow" aria-hidden="true">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"></path><path d="m13 6 6 6-6 6"></path></svg>
+        </span>
+      </a>
+    </nav>
+
+    <div class="admin-link rise d8">
+      <a href="{{ url_for('auth.login') }}">管理者登入</a>
+    </div>
+
+    <a class="portfolio rise d8" href="https://windsjp00171-star.github.io/CLAUDE-DESIGN/" target="_blank" rel="noopener">
+      <span class="pf-emoji">🌿</span>
+      <span class="pf-body">
+        這是 EMMARK 的作品 Demo · 點此查看完整作品集
+        <span class="pf-meta">9 個上線專案 →</span>
+      </span>
+      <span class="pf-go" aria-hidden="true">→</span>
+    </a>
     {% else %}
-    // 沒有設定 LIFF ID：直接顯示按鈕
-    showBtn();
+    <p class="lead rise d2">歡迎使用會員服務入口<br>請以 LINE 登入以繼續</p>
+
+    <div class="rise d3">
+      <div class="loading-msg" id="loading-msg">
+        <div class="spinner"></div>
+        <span>準備登入中…</span>
+      </div>
+
+      <a href="{{ url_for('auth.login') }}{% if next_url %}?next={{ next_url|urlencode }}{% endif %}"
+         class="line-btn" id="login-btn" style="display:none;">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="24" height="24" rx="5" fill="white" fill-opacity="0.2"/>
+          <path d="M20 10.6C20 6.94 16.42 4 12 4C7.58 4 4 6.94 4 10.6C4 13.87 6.88 16.6 10.84 17.12C11.12 17.18 11.5 17.31 11.6 17.54C11.69 17.75 11.66 18.07 11.64 18.28C11.64 18.28 11.52 19.07 11.5 19.18C11.46 19.39 11.32 20.01 12 19.72C12.68 19.43 15.96 17.33 17.44 15.64C18.47 14.53 20 12.71 20 10.6Z" fill="white"/>
+        </svg>
+        使用 LINE 登入
+      </a>
+
+      <div class="explain" id="explain" style="display:none; margin-top:14px;">
+        點擊後會跳轉到 LINE 授權頁面<br>授權後自動回到本系統
+      </div>
+    </div>
     {% endif %}
-    </script>
+
+    {% if privacy_policy_url %}
+    <p class="foot rise d9">使用本系統即表示您同意 <a href="{{ privacy_policy_url }}" target="_blank" rel="noopener">隱私權政策</a></p>
     {% endif %}
+
+  </main>
+
+  {% if not demo_mode %}
+  {% if line_liff_id %}
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  {% endif %}
+  <script>
+  var nextUrl = new URLSearchParams(window.location.search).get('next') || '';
+
+  function showBtn() {
+      document.getElementById('loading-msg').style.display = 'none';
+      document.getElementById('login-btn').style.display  = 'flex';
+      document.getElementById('explain').style.display    = 'block';
+  }
+
+  {% if line_liff_id %}
+  if (!/Line\//i.test(navigator.userAgent)) {
+      showBtn();
+  } else {
+      var liffTimer = setTimeout(showBtn, 4000);
+      liff.init({ liffId: "{{ line_liff_id }}" })
+          .then(function() {
+              clearTimeout(liffTimer);
+              if (!liff.isInClient()) { showBtn(); return; }
+              if (!liff.isLoggedIn()) {
+                  var base = window.location.origin + window.location.pathname;
+                  liff.login({ redirectUri: nextUrl ? base + '?next=' + encodeURIComponent(nextUrl) : base });
+                  return;
+              }
+              doLiffLogin();
+          })
+          .catch(function() { clearTimeout(liffTimer); showBtn(); });
+
+      function doLiffLogin() {
+          var idToken = liff.getIDToken();
+          if (!idToken) { showBtn(); return; }
+          document.getElementById('loading-msg').querySelector('span').textContent = '登入中，請稍候…';
+          fetch('/auth/liff-login', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id_token: idToken, next_url: nextUrl })
+          })
+          .then(function(r) { return r.json(); })
+          .then(function(d) {
+              if (d.redirect) { window.location.href = d.redirect; }
+              else { showBtn(); }
+          })
+          .catch(showBtn);
+      }
+  }
+  {% else %}
+  showBtn();
+  {% endif %}
+  </script>
+  {% endif %}
+
 </body>
 </html>
