@@ -229,8 +229,11 @@ def create_app():
 
     app.jinja_env.globals['csrf_token']        = get_csrf_token
     app.jinja_env.globals['line_liff_id']      = Config.LINE_LIFF_ID
-    app.jinja_env.globals['church_name']       = Config.CHURCH_NAME
-    app.jinja_env.globals['church_short_name'] = Config.CHURCH_SHORT_NAME or Config.CHURCH_NAME
+    # 展示站：用品牌示範名稱，避免顯示佔位字「您的教會名稱」
+    _DEMO_CHURCH_NAME = '以馬內利教會'
+    _DEMO_CHURCH_SHORT = '以馬內利'
+    app.jinja_env.globals['church_name']       = _DEMO_CHURCH_NAME if Config.DEMO_MODE else Config.CHURCH_NAME
+    app.jinja_env.globals['church_short_name'] = _DEMO_CHURCH_SHORT if Config.DEMO_MODE else (Config.CHURCH_SHORT_NAME or Config.CHURCH_NAME)
     app.jinja_env.globals['privacy_policy_url'] = Config.PRIVACY_POLICY_URL
 
     # ── Context processor：門戶卡片名稱（全域可用） ───────────
