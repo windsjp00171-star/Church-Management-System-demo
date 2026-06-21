@@ -6,131 +6,134 @@
     <title>登入 - {{ church_name }}</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        :root{
-            --green:#06C755; --green-d:#05a648;
-            --ink:#0f172a; --muted:#94a3b8;
-        }
-        html,body{ height:100%; }
+        :root{ --green:#06C755; --green-d:#05a648; --ink:#0f172a; --muted:#8a94a6; }
+        html,body{ min-height:100%; }
         body {
-            display: flex; flex-direction: column;
-            justify-content: center; align-items: center;
-            min-height: 100vh; padding: 32px 16px;
-            font-family: -apple-system, BlinkMacSystemFont, "Noto Sans TC", sans-serif;
-            color: var(--ink);
-            background: radial-gradient(1200px 600px at 50% -10%, #e9fbf0 0%, #f3faf6 40%, #eef2f7 100%);
-            position: relative; overflow-x: hidden;
+            display:flex; flex-direction:column; align-items:center;
+            min-height:100vh; padding:28px 16px;
+            font-family:-apple-system,BlinkMacSystemFont,"Noto Sans TC",sans-serif;
+            color:var(--ink);
+            background:linear-gradient(160deg,#0b3b2e 0%,#0f5132 30%,#0d6e4f 60%,#0a4a6b 100%);
+            position:relative; overflow-x:hidden;
         }
-        /* 漂浮光暈背景 */
-        .blob{ position:fixed; border-radius:50%; filter:blur(60px); opacity:.5; z-index:0; pointer-events:none; }
-        .blob.b1{ width:46vw;height:46vw; left:-10vw; top:-12vw; background:radial-gradient(circle,#06C75588,transparent 65%); animation:float1 14s ease-in-out infinite; }
-        .blob.b2{ width:40vw;height:40vw; right:-12vw; top:8vh; background:radial-gradient(circle,#38bdf877,transparent 65%); animation:float2 18s ease-in-out infinite; }
-        .blob.b3{ width:38vw;height:38vw; left:18vw; bottom:-16vw; background:radial-gradient(circle,#fbbf2466,transparent 65%); animation:float1 20s ease-in-out infinite; }
-        @keyframes float1{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(4%,5%)} }
-        @keyframes float2{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(-5%,4%)} }
+        /* 動態光暈 */
+        .blob{ position:fixed; border-radius:50%; filter:blur(70px); opacity:.55; z-index:0; pointer-events:none; }
+        .blob.b1{ width:50vw;height:50vw; left:-12vw; top:-14vw; background:radial-gradient(circle,#22e39a,transparent 64%); animation:fl1 16s ease-in-out infinite; }
+        .blob.b2{ width:44vw;height:44vw; right:-14vw; top:18vh; background:radial-gradient(circle,#38bdf8,transparent 64%); animation:fl2 20s ease-in-out infinite; }
+        .blob.b3{ width:42vw;height:42vw; left:24vw; bottom:-18vw; background:radial-gradient(circle,#fbbf24,transparent 66%); animation:fl1 24s ease-in-out infinite; }
+        @keyframes fl1{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(5%,6%)} }
+        @keyframes fl2{ 0%,100%{transform:translate(0,0)} 50%{transform:translate(-6%,5%)} }
+
+        /* shell：margin auto 置中，內容過高時自動可捲不裁切 */
+        .shell{ position:relative; z-index:2; margin:auto; width:min(100%,400px);
+                display:flex; flex-direction:column; align-items:center; gap:16px; padding:8px 0; }
 
         .card {
-            position: relative; z-index: 2;
-            background: rgba(255,255,255,.82);
-            backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-            padding: 36px 28px 28px;
-            border-radius: 24px;
-            box-shadow: 0 20px 60px rgba(6,40,30,.14), 0 2px 8px rgba(0,0,0,.04);
-            border: 1px solid rgba(255,255,255,.7);
-            text-align: center; width: min(100%, 400px);
-            animation: cardIn .6s cubic-bezier(.2,.8,.2,1) both;
+            width:100%; background:#ffffff; padding:34px 26px 26px; border-radius:26px;
+            box-shadow:0 30px 70px rgba(0,0,0,.35), 0 2px 10px rgba(0,0,0,.18);
+            text-align:center;
+            animation:cardIn .6s cubic-bezier(.2,.8,.2,1) both;
         }
-        @keyframes cardIn{ from{opacity:0; transform:translateY(20px) scale(.98)} to{opacity:1; transform:none} }
+        @keyframes cardIn{ from{opacity:0; transform:translateY(22px) scale(.97)} to{opacity:1; transform:none} }
 
         .logo-badge{
-            width:72px; height:72px; margin:0 auto 14px;
-            display:flex; align-items:center; justify-content:center;
-            font-size:2.4rem; border-radius:20px;
+            width:74px; height:74px; margin:0 auto 14px; position:relative;
+            display:flex; align-items:center; justify-content:center; font-size:2.4rem; border-radius:22px;
             background:linear-gradient(135deg,#06C755,#10b981);
-            box-shadow:0 10px 24px rgba(6,199,85,.35);
-            animation: pop .6s .1s cubic-bezier(.2,1.4,.4,1) both;
+            box-shadow:0 12px 26px rgba(6,199,85,.45);
+            animation:pop .6s .1s cubic-bezier(.2,1.5,.4,1) both;
         }
+        .logo-badge::after{ content:""; position:absolute; inset:-6px; border-radius:26px;
+            border:2px solid rgba(6,199,85,.35); animation:ring 2.4s ease-out infinite; }
+        @keyframes ring{ 0%{transform:scale(1); opacity:.7} 100%{transform:scale(1.25); opacity:0} }
         @keyframes pop{ from{transform:scale(.5); opacity:0} to{transform:scale(1); opacity:1} }
-        .church-name { font-size: 1.5rem; font-weight: 900; letter-spacing:.01em; }
-        .church-sub { font-size: 0.86rem; color: var(--muted); margin-top:6px; }
 
-        /* 展示模式 */
+        .church-name { font-size:1.5rem; font-weight:900; letter-spacing:.01em; }
+        .church-sub { font-size:.85rem; color:var(--muted); margin-top:6px; }
+
         .demo-pill {
-            font-size: 0.78rem; font-weight: 800; color:#b45309;
-            background: linear-gradient(135deg,#fff4e0,#ffe9c7);
+            position:relative; overflow:hidden;
+            font-size:.78rem; font-weight:800; color:#b45309;
+            background:linear-gradient(135deg,#fff4e0,#ffe7c2);
             display:inline-flex; align-items:center; gap:6px;
-            padding: 6px 16px; border-radius: 99px; margin: 22px 0 8px;
-            border:1px solid #fcd9a3;
+            padding:7px 18px; border-radius:99px; margin:22px 0 8px; border:1px solid #fcd29a;
         }
-        .demo-hint { font-size: 0.82rem; color: var(--muted); margin-bottom: 20px; line-height: 1.6; }
+        .demo-pill::after{ content:""; position:absolute; top:0; left:-120%; width:60%; height:100%;
+            background:linear-gradient(100deg,transparent,rgba(255,255,255,.85),transparent);
+            transform:skewX(-18deg); animation:shine 3.2s ease-in-out infinite; }
+        @keyframes shine{ 0%{left:-120%} 55%,100%{left:140%} }
+        .demo-hint { font-size:.82rem; color:var(--muted); margin-bottom:20px; line-height:1.6; }
 
-        .demo-roles { display: flex; flex-direction: column; gap: 11px; text-align:left; }
+        .demo-roles { display:flex; flex-direction:column; gap:11px; text-align:left; }
         .demo-btn {
-            --accent:#06C755;
-            display: flex; align-items: center; gap: 14px; text-decoration: none;
-            padding: 15px 16px; border-radius: 16px;
-            border: 1px solid #eceff3; background: #fff;
-            transition: transform .16s, box-shadow .16s, border-color .16s;
-            -webkit-tap-highlight-color: transparent;
-            opacity:0; animation: rowIn .5s cubic-bezier(.2,.8,.2,1) forwards;
+            --accent:#06C755; position:relative; overflow:hidden;
+            display:flex; align-items:center; gap:14px; text-decoration:none;
+            padding:15px 16px; border-radius:16px; border:1px solid #eceff3; background:#fff;
+            transition:transform .16s, box-shadow .16s, border-color .16s;
+            -webkit-tap-highlight-color:transparent;
+            opacity:0; animation:rowIn .5s cubic-bezier(.2,.8,.2,1) forwards;
         }
-        .demo-btn:nth-child(1){ animation-delay:.18s } .demo-btn:nth-child(2){ animation-delay:.26s }
-        .demo-btn:nth-child(3){ animation-delay:.34s } .demo-btn:nth-child(4){ animation-delay:.42s }
+        /* 左側彩色條 */
+        .demo-btn::before{ content:""; position:absolute; left:0; top:0; bottom:0; width:4px; background:var(--accent);
+            transform:scaleY(.4); transform-origin:center; opacity:.5; transition:transform .2s, opacity .2s; }
+        /* hover 掃光 */
+        .demo-btn::after{ content:""; position:absolute; top:0; left:-130%; width:55%; height:100%;
+            background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent);
+            transform:skewX(-18deg); transition:none; }
+        .demo-btn:hover::after{ animation:sweep .7s ease; }
+        @keyframes sweep{ from{left:-130%} to{left:150%} }
+        .demo-btn:nth-child(1){animation-delay:.16s} .demo-btn:nth-child(2){animation-delay:.24s}
+        .demo-btn:nth-child(3){animation-delay:.32s} .demo-btn:nth-child(4){animation-delay:.40s}
         @keyframes rowIn{ from{opacity:0; transform:translateY(10px)} to{opacity:1; transform:none} }
-        .demo-btn:hover  { transform: translateY(-3px); box-shadow: 0 12px 24px rgba(15,23,42,.10); border-color: var(--accent); }
-        .demo-btn:active { transform: scale(.99); }
-        .demo-emoji {
-            font-size: 1.5rem; flex-shrink: 0; width: 46px; height:46px;
+        .demo-btn:hover { transform:translateY(-3px); box-shadow:0 14px 28px rgba(15,23,42,.14); border-color:var(--accent); }
+        .demo-btn:hover::before{ transform:scaleY(1); opacity:1; }
+        .demo-btn:active { transform:scale(.99); }
+        .demo-emoji { font-size:1.5rem; flex-shrink:0; width:46px; height:46px;
             display:flex; align-items:center; justify-content:center; border-radius:13px;
-            background: color-mix(in srgb, var(--accent) 14%, white);
-        }
-        .demo-text  { display: flex; flex-direction: column; flex:1; min-width:0; }
-        .demo-text b     { font-size: 1rem; font-weight:800; color: var(--ink); }
-        .demo-text small { font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
-        .demo-arrow{ color:var(--accent); font-size:1.1rem; flex-shrink:0; opacity:.55; transition:transform .16s,opacity .16s; }
-        .demo-btn:hover .demo-arrow{ transform:translateX(3px); opacity:1; }
+            background:color-mix(in srgb, var(--accent) 15%, white); }
+        .demo-text { display:flex; flex-direction:column; flex:1; min-width:0; }
+        .demo-text b { font-size:1rem; font-weight:800; color:var(--ink); }
+        .demo-text small { font-size:.76rem; color:var(--muted); margin-top:2px; }
+        .demo-arrow{ color:var(--accent); font-size:1.15rem; flex-shrink:0; opacity:.6; transition:transform .16s,opacity .16s; }
+        .demo-btn:hover .demo-arrow{ transform:translateX(4px); opacity:1; }
 
-        .owner-link { display:inline-block; margin-top: 22px; font-size: 0.78rem;
-                      color:#b8c0cc; text-decoration:none; }
-        .owner-link:hover { color: var(--green); text-decoration: underline; }
+        .owner-link { display:inline-block; margin-top:22px; font-size:.78rem; color:#b8c0cc; text-decoration:none; }
+        .owner-link:hover { color:var(--green); text-decoration:underline; }
 
         /* LINE 登入（非 demo） */
-        .line-btn {
-            display:flex; align-items:center; justify-content:center; gap:10px;
-            background: var(--green); color:#fff; text-decoration:none;
-            padding: 16px 24px; border-radius: 14px; font-size:1.05rem; font-weight:700;
-            width:100%; border:none; cursor:pointer; margin-top:26px;
-            transition: background .15s, transform .15s; -webkit-tap-highlight-color: transparent;
-        }
+        .line-btn { display:flex; align-items:center; justify-content:center; gap:10px;
+            background:var(--green); color:#fff; text-decoration:none; padding:16px 24px; border-radius:14px;
+            font-size:1.05rem; font-weight:700; width:100%; border:none; cursor:pointer; margin-top:26px;
+            transition:background .15s, transform .15s; -webkit-tap-highlight-color:transparent; }
         .line-btn:hover{ background:var(--green-d); transform:translateY(-2px); }
         .line-btn:active { transform:scale(.98); }
         .loading-msg { font-size:.9rem; color:var(--muted); margin-top:26px;
-                       display:flex; align-items:center; justify-content:center; gap:8px; }
+            display:flex; align-items:center; justify-content:center; gap:8px; }
         .spinner { width:18px;height:18px; border:2px solid #e5e7eb; border-top-color:var(--green);
-                   border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
+            border-radius:50%; animation:spin .7s linear infinite; flex-shrink:0; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .explain { font-size:.8rem; color:var(--muted); margin-top:14px; line-height:1.6; }
 
-        /* 作品集回串橫幅 */
-        .portfolio-ribbon{
-            position: relative; z-index:2;
-            display:flex; align-items:center; gap:12px;
-            width:min(100%,400px); margin-top:18px;
-            padding:14px 18px; border-radius:16px; text-decoration:none;
-            background:linear-gradient(120deg,#f5a623,#ef6c3a);
-            color:#0f1117; font-weight:800;
-            box-shadow:0 12px 28px rgba(245,166,35,.32);
-            animation: cardIn .6s .5s both;
-        }
+        /* 作品集橫幅 */
+        .portfolio-ribbon{ position:relative; overflow:hidden; width:100%;
+            display:flex; align-items:center; gap:12px; padding:14px 18px; border-radius:18px; text-decoration:none;
+            background:linear-gradient(120deg,#f5a623,#ef6c3a); color:#0f1117; font-weight:800;
+            box-shadow:0 16px 32px rgba(245,166,35,.36);
+            animation:cardIn .6s .5s both; transition:transform .16s; }
         .portfolio-ribbon:hover{ transform:translateY(-2px); }
+        .portfolio-ribbon::after{ content:""; position:absolute; top:0; left:-120%; width:55%; height:100%;
+            background:linear-gradient(100deg,transparent,rgba(255,255,255,.6),transparent);
+            transform:skewX(-18deg); animation:shine 3.6s 1s ease-in-out infinite; }
         .portfolio-ribbon .pr-emoji{ font-size:1.5rem; }
         .portfolio-ribbon .pr-main{ flex:1; line-height:1.35; }
-        .portfolio-ribbon .pr-sub{ display:block; font-weight:500; font-size:.78rem; opacity:.82; margin-top:2px; }
+        .portfolio-ribbon .pr-sub{ display:block; font-weight:500; font-size:.78rem; opacity:.84; margin-top:2px; }
 
-        .privacy-note { position:relative; z-index:2; margin-top:18px; font-size:.78rem; color:#aeb6c2; }
-        .privacy-note a { color: var(--green); text-decoration:none; }
+        .privacy-note { font-size:.78rem; color:rgba(255,255,255,.7); text-align:center; }
+        .privacy-note a { color:#fff; text-decoration:underline; }
 
         @media (prefers-reduced-motion: reduce){
-            .blob,.card,.logo-badge,.demo-btn,.portfolio-ribbon{ animation:none !important; }
+            .blob,.card,.logo-badge,.logo-badge::after,.demo-btn,.portfolio-ribbon,
+            .demo-pill::after,.portfolio-ribbon::after{ animation:none !important; }
             .demo-btn{ opacity:1; }
         }
     </style>
@@ -138,7 +141,8 @@
 <body>
     <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div>
 
-    <div class="card">
+    <div class="shell">
+      <div class="card">
         <div class="logo-badge">⛪</div>
         <div class="church-name">{{ church_name }}</div>
         <div class="church-sub">教會行政整合系統 · 一站式服務入口</div>
@@ -191,23 +195,24 @@
             點擊後會跳轉到 LINE 授權頁面<br>授權後自動回到本系統
         </div>
         {% endif %}
-    </div>
+      </div>
 
-    {% if demo_mode %}
-    <a class="portfolio-ribbon" href="https://windsjp00171-star.github.io/CLAUDE-DESIGN/" target="_blank" rel="noopener">
+      {% if demo_mode %}
+      <a class="portfolio-ribbon" href="https://windsjp00171-star.github.io/CLAUDE-DESIGN/" target="_blank" rel="noopener">
         <span class="pr-emoji">🌿</span>
         <span class="pr-main">這是 EMMARK 的作品 Demo
             <span class="pr-sub">點此查看完整作品集 · 9 個上線專案 →</span>
         </span>
-    </a>
-    {% endif %}
+      </a>
+      {% endif %}
 
-    {% if privacy_policy_url %}
-    <p class="privacy-note">
-        使用本系統即表示您同意
-        <a href="{{ privacy_policy_url }}" target="_blank" rel="noopener">隱私權政策</a>
-    </p>
-    {% endif %}
+      {% if privacy_policy_url %}
+      <p class="privacy-note">
+          使用本系統即表示您同意
+          <a href="{{ privacy_policy_url }}" target="_blank" rel="noopener">隱私權政策</a>
+      </p>
+      {% endif %}
+    </div>
 
     {% if not demo_mode %}
     {% if line_liff_id %}
