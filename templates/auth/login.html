@@ -119,6 +119,20 @@
         </div>
     </div>
 
+    {% if config.DEMO_MODE %}
+    <a href="https://windsjp00171-star.github.io/CLAUDE-DESIGN/" target="_blank" rel="noopener"
+       style="display:flex;align-items:center;gap:12px;width:min(100%,360px);margin-top:18px;
+              padding:14px 18px;border-radius:14px;text-decoration:none;
+              background:linear-gradient(120deg,#f5a623,#ef6c3a);color:#0f1117;
+              box-shadow:0 8px 24px rgba(245,166,35,.30);font-weight:700;">
+        <span style="font-size:1.5rem;">🌿</span>
+        <span style="flex:1;line-height:1.4;">這是 EMMARK 的作品 Demo
+            <span style="display:block;font-weight:500;font-size:0.8rem;opacity:.85;margin-top:2px;">點此查看完整作品集 · 9 個上線專案</span>
+        </span>
+        <span style="font-size:1.15rem;">→</span>
+    </a>
+    {% endif %}
+
     {% if privacy_policy_url %}
     <p class="privacy-note" style="margin-top:20px;">
         使用本系統即表示您同意
