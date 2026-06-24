@@ -229,6 +229,8 @@ python app.py      # debug=True, port 5000
 | 009 | `migrations/009_devotional_pickup.sql` | 禱讀本 QR 簽收欄位 |
 | 010 | `migrations/010_audit_logs.sql` | 稽核日誌表 |
 | 011 | `migrations/011_files_folders_groups.sql` | files.allowed_groups、folders.allowed_users / allowed_groups 補欄位 |
+| 012 | `migrations/012_portal_cards.sql` | 首頁功能磚 portal_cards 表（缺表時後台編輯卡片會 500） |
+| 013 | `migrations/013_contact_leads.sql` | Demo 洽詢留言表（正式教會部署可略過） |
 
 ## 多教會部署架構與開發者權限原則
 

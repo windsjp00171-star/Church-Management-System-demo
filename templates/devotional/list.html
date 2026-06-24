@@ -63,4 +63,22 @@
   </div>
   {% endif %}
 </div>
+
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'devotional_list';
+window.PAGE_TOUR_STEPS = [
+    { sel: 'h1, h2, [class*="dv-title"]',
+      title: '禱讀本訂購',
+      body: '這裡是<strong>禱讀本訂購</strong>頁面。教會同工可以在這裡訂購靈修材料，管理員負責統計並訂購。' },
+    { sel: '.dv-card, a[href*="/devotional/"]',
+      title: '訂購期次',
+      body: '每張卡片代表一個<strong>訂購期次</strong>，點入後可以填寫您所在小組的需要本數。' },
+    { sel: '.badge-open, .badge-closed',
+      title: '訂購狀態',
+      body: '顯示目前是否在<strong>登記期間</strong>內。「登記中」才能填寫需求，「已截止」代表已無法更改。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

@@ -609,4 +609,30 @@ async function confirmMerge(lineUserId, lineName) {
     </div>
 </div>
 
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'admin_users';
+window.PAGE_TOUR_STEPS = [
+    { sel: '#searchInput',
+      title: '搜尋會員',
+      body: '在搜尋框輸入姓名或 LINE 暱稱，即時篩選符合的會友。' },
+    { sel: '[onclick*="member"], [onclick*="visitor"], [data-type]',
+      title: '篩選類型',
+      body: '可以切換只顯示<strong>正式會友</strong>或<strong>訪客</strong>。' },
+    { sel: '[class*="user-card"], [class*="member-row"]',
+      title: '會員卡片',
+      body: '每張卡片代表一位會友。可以看到姓名、角色標籤（管理員／小組長等）。' },
+    { sel: '[onclick*="toggle_admin"], [onclick*="toggleAdmin"]',
+      title: '設定管理員',
+      body: '點此可授予或取消<strong>管理員</strong>權限。管理員可以進入後台操作大部分功能。' },
+    { sel: '[onclick*="super_admin"], [onclick*="superAdmin"]',
+      title: '設定超級管理員',
+      body: '<strong>超級管理員</strong>擁有最高權限，包含用戶管理、系統設定等。<br>通常只有牧師或主責行政才需要此角色。' },
+    { sel: '[onclick*="block"]',
+      title: '封鎖帳號',
+      body: '封鎖後該用戶將無法再登入系統。可用於處理不當行為或離開教會的會友。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

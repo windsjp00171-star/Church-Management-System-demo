@@ -117,14 +117,32 @@ const qrFull = new QRCode(document.getElementById('qrcode-fullscreen'), {
     correctLevel: QRCode.CorrectLevel.H
 });
 
-// 下載 QR Code 圖片
+// 下載 QR Code 圖片（Blob + objectURL，相容 iOS / LINE 內建瀏覽器）
 function downloadQR() {
     const canvas = document.querySelector('#qrcode canvas');
-    if (!canvas) { showToast('QR Code 尚未產生，請稍後再試', 'error'); return; }
-    const link = document.createElement('a');
-    link.download = '簽到QRCode_{{ event.title }}.png';
-    link.href = canvas.toDataURL('image/png');
-    link.click();
+    const imgSrc = !canvas && document.querySelector('#qrcode img');
+    const safeTitle = {{ event.title | tojson }}.replace(/[\\/:*?"<>|]/g, '_');
+    const filename = '簽到QRCode_' + safeTitle + '.png';
+
+    if (canvas) {
+        canvas.toBlob(function (blob) {
+            if (!blob) { showToast('QR Code 產生失敗，請重新整理', 'error'); return; }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = filename;
+            if (typeof a.download !== 'undefined' && !navigator.userAgent.match(/iPhone|iPad/i)) {
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            } else {
+                window.open(url, '_blank');
+            }
+            setTimeout(function () { URL.revokeObjectURL(url); }, 3000);
+        }, 'image/png');
+    } else if (imgSrc) {
+        window.open(imgSrc.src, '_blank');
+        showToast('請長按圖片儲存 QR Code', 'info');
+    } else {
+        showToast('QR Code 尚未產生，請稍後再試', 'error');
+    }
 }
 
 // 複製連結

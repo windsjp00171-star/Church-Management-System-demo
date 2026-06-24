@@ -1068,4 +1068,51 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 });
 </script>
+<script>
+window.PAGE_TOUR_KEY   = 'admin_event_form';
+window.PAGE_TOUR_STEPS = [
+    { sel: '#poster-area',
+      title: '活動海報',
+      body: '點此上傳<strong>活動海報</strong>圖片。海報會顯示在報名頁頂部，吸引會友注意。支援 iOS 直接選取照片。' },
+    { sel: '#title',
+      title: '活動名稱',
+      body: '填寫<strong>活動名稱</strong>，這是最重要的欄位，會顯示在活動卡片和報名頁標題。' },
+    { sel: '#location',
+      title: '地點',
+      body: '填寫活動舉辦地點，例如「教會大廳」、「禱告室」等。會友報名前可以看到地點資訊。' },
+    { sel: '#description',
+      title: '活動說明',
+      body: '輸入活動的詳細說明，可以介紹活動目的、注意事項、攜帶物品等。' },
+    { sel: '#event_start',
+      title: '活動時間',
+      body: '<strong>活動開始時間</strong>是必填欄位。點擊日曆圖示選取日期與時間。如果活動橫跨多天，可另外填結束時間。' },
+    { sel: '#reg_start',
+      title: '報名期間',
+      body: '設定<strong>報名開始與截止時間</strong>。在此區間外，會友將無法線上報名。<br>若不填，隨時都可以報名。' },
+    { sel: '#capacity',
+      title: '報名人數上限',
+      body: '設定活動的<strong>最多報名人數</strong>。額滿後系統自動關閉報名。<br>若不填則無限制。' },
+    { sel: '#fee',
+      title: '活動費用',
+      body: '填入費用金額（台幣）。填了費用後，<strong>繳費提醒功能</strong>才會啟用，系統可以提醒未繳費的報名者。<br>免費活動請填 0 或留空。' },
+    { sel: '#waitlist_enabled',
+      title: '候補名單',
+      body: '勾選後，額滿時系統會開放<strong>候補報名</strong>。有人取消時，候補者可遞補上來。' },
+    { sel: '#allow_external_reg',
+      title: '開放外部報名',
+      body: '勾選後，<strong>不需 LINE 帳號</strong>的外部朋友也能用姓名直接報名。適合對外開放的佈道活動。' },
+    { sel: '#checkin_enabled',
+      title: '啟用電子簽到',
+      body: '勾選後，活動當天可用<strong>掃描 QR Code</strong>進行電子簽到。<br>要注意：勾選後才會出現下方的「簽到對象」設定。' },
+    { sel: 'input[name="checkin_mode"]',
+      title: '簽到對象',
+      body: '選「僅限已報名者」適合嚴格出席管理；選「全開放」任何人掃碼都能簽到，適合彈性大的聚會。' },
+    { sel: '#allow_open_checkin',
+      title: '掃碼即簽到',
+      body: '若選全開放並勾選此項，出席者掃碼後<strong>不需再確認</strong>，直接完成簽到。適合人多快速入場。' },
+    { sel: '#fieldList, button[onclick*="addField"]',
+      title: '自訂表單欄位',
+      body: '可以新增<strong>額外的報名欄位</strong>，例如「T-shirt 尺寸」、「飲食限制」、「緊急聯絡人」等。<br>支援文字、下拉選單、勾選項等類型。' }
+];
+</script>
 {% endblock %}

@@ -1589,4 +1589,36 @@ fetch('/api/notifications/check-reminders', { method: 'POST' }).catch(function()
 
 </div>{# /max-width container #}
 
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'portal';
+window.PAGE_TOUR_STEPS = [
+    { sel: '.hero-section, .portal-hero, h1, [class*="hero"]',
+      title: '首頁',
+      body: '這裡是教會系統的<strong>首頁</strong>。所有功能都從這裡出發。' },
+    { sel: '.portal-cards, .cards-grid, [class*="card-grid"], .features-section',
+      title: '功能卡片',
+      body: '這些<strong>卡片</strong>代表不同功能模組，點任一張即可進入對應功能。' },
+    { sel: 'a[href="/events"]',
+      title: '活動報名',
+      body: '點這裡可以查看並報名教會舉辦的各種活動。' },
+    { sel: 'a[href="/diary"]',
+      title: '天父日記',
+      body: '每日靈修日記，記錄您與神的對話。支援 AI 引導反思。' },
+    { sel: 'a[href="/bulletin"], a[href="/bulletins"]',
+      title: '週報',
+      body: '查看每週教會週報，掌握最新事工消息。' },
+    { sel: 'a[href="/prayer"]',
+      title: '代禱麥田',
+      body: '提交代禱需求、或為他人的需求禱告。' },
+    { sel: 'a[href="/calendar"]',
+      title: '行事曆',
+      body: '查看教會整月的活動與事件行程。' },
+    { sel: '#help-btn',
+      title: '使用說明',
+      body: '遇到問題？點右下角的「？」按鈕隨時查看操作說明。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

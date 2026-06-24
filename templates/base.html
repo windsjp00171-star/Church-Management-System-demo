@@ -176,6 +176,31 @@
 <a href="/manual?from={{ request.path }}" id="help-btn" class="help-btn"
    {% if config.DEMO_MODE or config.CONTACT_EMAIL %}style="bottom:68px;"{% endif %}>？</a>
 
+<!-- ══ Tour Launcher ══ -->
+<div id="tour-hint" style="display:none;position:fixed;right:12px;z-index:8900;background:#1a202c;color:#fff;
+     font-size:.78rem;padding:8px 14px;border-radius:10px;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.3);
+     {% if config.DEMO_MODE or config.CONTACT_EMAIL %}bottom:124px;{% else %}bottom:76px;{% endif %}">
+    ✨ 點我開始互動教學！
+    <button onclick="document.getElementById('tour-hint').style.display='none'"
+        style="background:none;border:none;color:rgba(255,255,255,.6);cursor:pointer;font-size:.9rem;margin-left:6px;vertical-align:middle;">×</button>
+    <div style="position:absolute;bottom:-6px;right:18px;width:0;height:0;
+         border-left:6px solid transparent;border-right:6px solid transparent;border-top:6px solid #1a202c;"></div>
+</div>
+<button id="tour-btn" onclick="launchPageTour()"
+    style="display:none;position:fixed;right:12px;z-index:8901;background:#06C755;color:#fff;border:none;
+           border-radius:50px;padding:9px 18px;font-size:.82rem;font-weight:700;cursor:pointer;
+           align-items:center;gap:6px;box-shadow:0 4px 16px rgba(6,199,85,.4);
+           {% if config.DEMO_MODE or config.CONTACT_EMAIL %}bottom:76px;{% else %}bottom:20px;{% endif %}">
+    📚 教學導覽
+</button>
+<style>
+@keyframes tour-pulse {
+    0%,100% { box-shadow:0 4px 16px rgba(6,199,85,.4); }
+    50%      { box-shadow:0 4px 28px rgba(6,199,85,.75),0 0 0 6px rgba(6,199,85,.2); }
+}
+.tour-pulse { animation:tour-pulse 1.8s ease-in-out infinite; }
+</style>
+
 {% if config.DEMO_MODE or config.CONTACT_EMAIL %}
 <!-- ══ Demo 洽詢浮動列 ══ -->
 <div id="demo-contact-bar" style="position:fixed;bottom:0;left:0;right:0;z-index:9000;
@@ -422,6 +447,78 @@ function openExternalBrowser() {
         btn.classList.remove('help-pulse');
     });
 })();
+</script>
+
+<!-- ══ SpotlightTour Engine ══ -->
+<script src="/static/js/tour.js"></script>
+<script>
+(function () {
+    // 確認該頁有定義 PAGE_TOUR_STEPS 才顯示教學導覽按鈕
+    function _initTourLauncher() {
+        var steps = window.PAGE_TOUR_STEPS;
+        var key   = window.PAGE_TOUR_KEY;
+        if (!steps || !steps.length) return;
+
+        var btn  = document.getElementById('tour-btn');
+        var hint = document.getElementById('tour-hint');
+        if (!btn) return;
+
+        // 確認至少有一個可見目標
+        var hasVisible = steps.some(function (s) {
+            if (!s.sel) return true; // 置中卡永遠算
+            var el = document.querySelector(s.sel);
+            if (!el) return false;
+            return el.getClientRects().length > 0;
+        });
+        if (!hasVisible) return;
+
+        btn.style.display = 'flex';
+
+        var seen = key ? localStorage.getItem('st_opened_' + key) : null;
+        if (!seen) {
+            btn.classList.add('tour-pulse');
+            // 自動顯示邀請氣泡（3 秒後消）
+            setTimeout(function () {
+                if (hint) {
+                    hint.style.display = 'block';
+                    setTimeout(function () { hint.style.display = 'none'; }, 5000);
+                }
+            }, 1200);
+        }
+    }
+
+    // 等頁面渲染完再偵測（有些元素是 JS 渲染的）
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function () {
+            setTimeout(_initTourLauncher, 400);
+        });
+    } else {
+        setTimeout(_initTourLauncher, 400);
+    }
+})();
+
+function launchPageTour() {
+    var steps = window.PAGE_TOUR_STEPS;
+    var key   = window.PAGE_TOUR_KEY || 'page_' + location.pathname.replace(/\//g, '_');
+    if (!steps || !steps.length) return;
+
+    var churchName = {{ config.CHURCH_NAME | tojson }};
+
+    var welcome = {
+        sel: '',
+        body: '歡迎使用<strong>' + churchName + '</strong>系統！<br>' +
+              '本頁互動導覽將帶您認識這個頁面的功能。<br>' +
+              '<span style="color:#06C755;font-weight:600;">點「下一步」開始，或隨時點「略過導覽」結束。</span>'
+    };
+    var closing = {
+        sel: '',
+        body: '導覽結束！🎉<br>日後想重新觀看，只要點右下角的<strong>「📚 教學導覽」</strong>按鈕即可重新開始。<br>' +
+              '<span style="color:#9ca3af;font-size:.85em;">系統有問題？點右下角「？」查看說明。</span>'
+    };
+
+    var fullSteps = [welcome].concat(steps).concat([closing]);
+    SpotlightTour.start(fullSteps, { key: key });
+}
 </script>
 
 {% block extra_js %}{% endblock %}

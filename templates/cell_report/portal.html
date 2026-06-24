@@ -95,4 +95,25 @@
   {% endif %}
 
 </div>
+
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'cell_report_portal';
+window.PAGE_TOUR_STEPS = [
+    { sel: 'h1, h2, [class*="title"]',
+      title: '小組回報',
+      body: '這是<strong>小組週回報</strong>的入口。每週小組長在此填報本週小組的出席和靈命關顧情況。' },
+    { sel: 'a[href*="section1"], a[href*="report"], .btn-primary, .btn-accent',
+      title: '開始填報',
+      body: '點此進入回報表單，填寫本週<strong>小組聚會、主日出席、禱告會</strong>等各項數據。' },
+    { sel: 'a[href*="dashboard"], a[href*="staff"]',
+      title: '查閱總覽',
+      body: '牧者和同工可以點此<strong>查看各小組的回報統計</strong>，一覽全教會各組的靈命狀況。' },
+    { sel: 'a[href*="meeting_settings"]',
+      title: '聚會設定',
+      body: '管理員可在這裡<strong>設定各種聚會的回報開關</strong>，例如晨禱、禱告會、主日等。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

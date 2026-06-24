@@ -146,4 +146,18 @@ function filterYear(year) {
 }
 </script>
 
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'bulletins';
+window.PAGE_TOUR_STEPS = [
+    { sel: 'h1, h2, .page-title',
+      title: '每週週報',
+      body: '這裡存放教會的<strong>每週週報</strong>，點任一份週報可以直接線上閱讀或下載。' },
+    { sel: '.bulletin-item, [class*="bulletin"]',
+      title: '週報列表',
+      body: '每個項目是一份週報，標記了日期和年份。<strong>最新的週報</strong>會排在最上面。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}

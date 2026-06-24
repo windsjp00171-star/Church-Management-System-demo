@@ -328,4 +328,31 @@
     color: var(--text-3);
 }
 </style>
+
+<script>
+window.PAGE_TOUR_KEY   = 'admin_index';
+window.PAGE_TOUR_STEPS = [
+    { sel: 'h2, [class*="page-title"], .admin-greeting',
+      title: '後台管理首頁',
+      body: '歡迎來到後台！這裡是系統管理中心，同工和管理員在這裡處理各項行政事務。' },
+    { sel: 'a[href="/admin/events"] .admin-card',
+      title: '活動管理',
+      body: '在這裡<strong>建立、編輯、刪除</strong>教會活動，設定報名人數上限、截止日期、費用等。' },
+    { sel: 'a[href="/admin/events/registrations"] .admin-card, a[href^="/admin/events/"] .admin-card',
+      title: '報名管理',
+      body: '查看所有活動的報名名單，匯出 Excel，管理報名狀態。' },
+    { sel: 'a[href="/admin/users"] .admin-card',
+      title: '會員管理',
+      body: '查看所有會友帳號，設定管理員權限、小組長、牧者等角色，以及封鎖帳號。' },
+    { sel: 'a[href="/admin/courses"] .admin-card',
+      title: '門訓課程',
+      body: '建立學程分類、堂次、管理學員出席紀錄。' },
+    { sel: 'a[href="/admin/bulletin"] .admin-card, a[href="/admin/bulletins"] .admin-card',
+      title: '週報管理',
+      body: '上傳並發布每週週報，供會友在前台查閱。' },
+    { sel: 'a[href="/admin/backup"] .admin-card, a[href="/admin/export"] .admin-card',
+      title: '資料備份',
+      body: '匯出所有資料的 ZIP 或離線 HTML，即使系統停擺也能查閱記錄。<strong>建議定期備份！</strong>' }
+];
+</script>
 {% endblock %}

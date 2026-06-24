@@ -1107,5 +1107,24 @@ document.addEventListener('drop', (e) => {
     openBatchModal(files);
   }
 });
+
+window.PAGE_TOUR_KEY   = 'files_index';
+window.PAGE_TOUR_STEPS = [
+    { sel: '.page-header, h1',
+      title: '檔案分享',
+      body: '這裡是教會的<strong>資料交換中心</strong>，同工可以上傳並分享文件、音訊、圖片等各種格式的檔案。' },
+    { sel: 'button[onclick*="folderModal"]',
+      title: '新增資料夾',
+      body: '點此建立<strong>新的資料夾</strong>，將檔案按類別整理，例如「禮拜音檔」、「課程教材」等。' },
+    { sel: 'button[onclick*="uploadModal"]',
+      title: '上傳檔案',
+      body: '點此<strong>上傳檔案</strong>到目前的資料夾。支援拖放，也支援多檔批次上傳。' },
+    { sel: '.folder-grid, .folder-card',
+      title: '資料夾',
+      body: '點資料夾可以進入查看裡面的檔案。資料夾可以設定<strong>密碼</strong>或<strong>訪問權限</strong>限制特定人員。' },
+    { sel: '.search-wrap, .search-input',
+      title: '搜尋檔案',
+      body: '在搜尋框輸入關鍵字，可以快速找到特定<strong>檔案名稱</strong>。' }
+];
 </script>
 {% endblock %}

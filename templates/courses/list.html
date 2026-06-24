@@ -64,4 +64,18 @@
 </div>
 {% endif %}
 
+{% block extra_js %}
+<script>
+window.PAGE_TOUR_KEY   = 'courses_list';
+window.PAGE_TOUR_STEPS = [
+    { sel: 'h1, h2, .page-title',
+      title: '門訓學程',
+      body: '這裡列出所有<strong>門訓課程</strong>。教會用這裡管理小組學習、培訓課程和出席紀錄。' },
+    { sel: 'a[href^="/courses/"]',
+      title: '進入課程',
+      body: '點任一課程卡片，可以查看該課程的<strong>堂次列表、出席紀錄</strong>，以及用 QR Code 簽到。' }
+];
+</script>
+{% endblock %}
+
 {% endblock %}
