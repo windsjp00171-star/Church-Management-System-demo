@@ -252,3 +252,11 @@ python app.py      # debug=True, port 5000
 - 獨立的 Supabase project（不共用）
 - 獨立的 LINE Login Channel（`LINE_CHANNEL_ID` / `LINE_CHANNEL_SECRET`）
 - 獨立的 Cloudflare R2 bucket（若需要檔案分享功能）
+
+## 跨專案總覽
+
+12 個專案的清冊（用途、部署平台、正式網址、共通地雷）在 **CLAUDE-DESIGN** repo 的
+`PROJECTS.md`：https://github.com/windsjp00171-star/CLAUDE-DESIGN/blob/main/PROJECTS.md
+
+需要「其他專案跑在哪、網址是什麼」時去查那份，不要憑印象。
+換部署平台或網址時記得回去更新它。
