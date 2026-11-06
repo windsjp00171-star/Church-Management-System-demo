@@ -106,8 +106,12 @@ def create_app():
     app.register_blueprint(changelog_bp)
 
     # ── 差勤系統 ──────────────────────────────────────────────
-    from routes.attendance import attendance_bp
-    app.register_blueprint(attendance_bp)
+    from routes.staff_leave import staff_leave_bp
+    app.register_blueprint(staff_leave_bp)
+
+    # ── 聚會點名（與使用者帳號脫鉤）────────────────────────────
+    from routes.roll_call import roll_call_bp
+    app.register_blueprint(roll_call_bp)
 
     # ── 資料匯出 / 匯入 ────────────────────────────────────────
     from routes.data_transfer import data_transfer_bp
@@ -307,6 +311,17 @@ def create_app():
     @app.route('/health')
     def health():
         return jsonify({'status': 'ok'})
+
+    # ── 健康檢查（保溫用，不查 DB / 不打 API）─────────────────
+    @app.route('/ping')
+    def ping():
+        return 'ok', 200
+
+    # ── robots.txt（私有系統，全站禁止爬蟲索引）────────────────
+    @app.route('/robots.txt')
+    def robots_txt():
+        from flask import Response
+        return Response('User-agent: *\nDisallow: /\n', mimetype='text/plain')
 
     # ── PWA manifest ─────────────────────────────────────────
     @app.route('/manifest.json')

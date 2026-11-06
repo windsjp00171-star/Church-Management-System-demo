@@ -82,8 +82,15 @@ EXPORT_MODULES = {
         'tables': ['settings', 'portal_card_settings', 'portal_links'],
         'description': '聚會設定、門戶卡片、快捷連結',
     },
-    'attendance_mgmt': {
-        'label': '🕐 差勤管理',
+    'roll_call': {
+        'label': '📝 聚會點名',
+        'tables': ['rc_meeting_types', 'rc_members', 'rc_sessions', 'rc_records',
+                   'rc_guest_counts', 'rc_rate_rules', 'rc_audit'],
+        'description': '點名名冊、場次、個人出席、出席率規則與稽核（稽核只能匯入空資料庫，不可覆寫）',
+        'warning': True,
+    },
+    'staff_leave_mgmt': {
+        'label': '🕐 全職同工差勤',
         'tables': ['staff_profiles', 'leave_requests', 'overtime_records',
                    'materials', 'material_stock', 'material_transactions'],
         'description': '全職同工差勤、特休、物資管理',

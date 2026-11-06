@@ -18,18 +18,18 @@
       {% if service_count == 1 %}
       <div>
         <label style="display:block; font-weight:600; margin-bottom:8px;">出席人數</label>
-        <input type="number" id="first" min="0" value="{{ report.get('first_service_count', 0) or 0 }}"
+        <input type="number" id="first" min="0" placeholder="請輸入人數" inputmode="numeric" value="{{ report.get('first_service_count') if report.get('first_service_count') is not none else '' }}"
                style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1.1rem; text-align:center;">
       </div>
       {% else %}
       <div>
         <label style="display:block; font-weight:600; margin-bottom:8px;">第一堂人數</label>
-        <input type="number" id="first" min="0" value="{{ report.get('first_service_count', 0) or 0 }}"
+        <input type="number" id="first" min="0" placeholder="請輸入人數" inputmode="numeric" value="{{ report.get('first_service_count') if report.get('first_service_count') is not none else '' }}"
                style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1.1rem; text-align:center;">
       </div>
       <div>
         <label style="display:block; font-weight:600; margin-bottom:8px;">第二堂人數</label>
-        <input type="number" id="second" min="0" value="{{ report.get('second_service_count', 0) or 0 }}"
+        <input type="number" id="second" min="0" placeholder="請輸入人數" inputmode="numeric" value="{{ report.get('second_service_count') if report.get('second_service_count') is not none else '' }}"
                style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1.1rem; text-align:center;">
       </div>
       <div style="padding:12px; background:#f9f9f9; border-radius:8px; text-align:center;">
@@ -68,8 +68,9 @@ if (first) first.oninput = updateTotal;
 if (second) second.oninput = updateTotal;
 
 function submitReport() {
-  const f = parseInt(first.value) || 0;
-  const s = second ? (parseInt(second.value) || 0) : 0;
+  const f = first.value.trim();
+  const s = second ? second.value.trim() : '0';
+  if (f === '' || s === '') { showToast('請填寫每一堂的人數（沒有人也請明確填 0）', 'error'); return; }
   const _do = async () => {
     const btn = document.getElementById('submit-btn');
     btn.disabled = true; btn.textContent = '送出中…';
@@ -80,11 +81,12 @@ function submitReport() {
       const res = await fetch(window.location.href, {
         method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
       });
-      if ((await res.json()).success) {
+      const j = await res.json();
+      if (j.success) {
         btn.style.display = 'none';
         document.getElementById('result').style.display = 'block';
       } else {
-        showToast('儲存失敗，請再試', 'error');
+        showToast(j.error || '儲存失敗，請再試', 'error');
         btn.disabled = false; btn.textContent = '送出';
       }
     } catch(e) {

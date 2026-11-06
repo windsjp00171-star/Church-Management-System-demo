@@ -47,6 +47,8 @@ routes/                 # Blueprint 模組
   diary.py              # 天父日記（tianfu-diary）
   cell_report.py        # 小組回報（cell_reporter）
   devotional.py         # 禱讀本訂購（devotional_bp）
+  staff_leave.py        # 全職同工差勤（請假／加班，原 attendance）
+  roll_call.py          # 聚會點名（與使用者帳號脫鉤）
 templates/              # Jinja2 模板
   base.html             # 共用基底模板
   diary/                # 天父日記模板（extends base.html）
@@ -97,6 +99,14 @@ from db import supabase
 | `is_staff` | 同工旗標（小組回報用） |
 | `picture_url` | 大頭貼 URL |
 | `member_type` | `'member'` / `'visitor'` |
+
+### 聚會點名（roll_call_bp）
+- **與使用者帳號脫鉤**：被點名的是 `rc_members`（點名名冊），不引用 `users.id`；點名模組不得查 `users`（有測試守衛）。操作者只存 id＋姓名快照，不設外鍵。
+- 點名寫入一律走資料庫函式 `rc_save_record` / `rc_lock_session` / `rc_set_count`（同交易寫紀錄＋稽核）；不得直接寫 `rc_records`。
+- `rc_audit` 只許追加（觸發器擋 UPDATE／DELETE／TRUNCATE）；修改必須附原因；人數空白一律退回、不得當 0。
+- 出席率規則是資料（`rc_rate_rules`，不可改、同名新增即新版本），請假／遲到／中途加入的算法沒有預設值，由教會決定；計算在伺服器端（`roll_call_logic.py`）。
+- 測試：`tests/`（`pytest`；`test_roll_call_db.py` 需要 root＋Postgres 16，否則略過）。
+- 網址：同工 `/roll-call`；後台 `/admin/roll-call`、`/admin/roll-call/rates`。API 回傳 `{"status", "data", "error"}`。
 
 ### 天父日記 session 相容
 diary.py 的 `_get_user()` 從整合系統 session 讀取（`line_id`、`real_name`），相容 event-registration- 格式。
@@ -229,6 +239,10 @@ python app.py      # debug=True, port 5000
 | 009 | `migrations/009_devotional_pickup.sql` | 禱讀本 QR 簽收欄位 |
 | 010 | `migrations/010_audit_logs.sql` | 稽核日誌表 |
 | 011 | `migrations/011_files_folders_groups.sql` | files.allowed_groups、folders.allowed_users / allowed_groups 補欄位 |
+| 012 | `migrations/012_roll_call.sql` | 聚會點名（8 張 rc_* 表、稽核觸發器、寫入函式、RLS） |
+| 013 | `migrations/013_security_hardening.sql` | 所有表開 RLS（不設政策）、函式不給公開角色。**僅限伺服器用服務端金鑰的專案**，詳見 `docs/SUPABASE_SETUP.md` |
+
+新專案只需執行整份 `schema.sql`（已含 012、013）。
 
 ## 多教會部署架構與開發者權限原則
 
