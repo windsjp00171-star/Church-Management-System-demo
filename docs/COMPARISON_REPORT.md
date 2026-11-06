@@ -133,3 +133,9 @@ cell_reporter 的 CLAUDE.md 有一節「Things that are deliberately the way the
 - **新增欄位層級的 schema 守衛**：程式寫入的每個欄位，`schema.sql` 都要有。第一次掃就抓到 19 個缺口，這次補了 10 個（聚會回報的 `submitted_by`／`updated_at`、`visitor_forms.uploaded_by`，migration 015），**還剩 9 個已登記為已知缺口**（只准減少）：`devotional_registrations.paid_at／paid_quantity`、`diary_plan.date`、`materials.cover_url`、`prayer_comments.is_anonymous`、`prayers.answered_at／archived_at`、`users.provider／provider_user_id`。這些要逐一確認型別與用途後補，建議下一個 PR 處理。
 - 結構守衛基準：`users` 直接查詢 113 → 110（admin −4、profile −4、新增 `user_merge` +5）；刪除 `users` 列的路徑收斂為 `user_merge` 一條。
 - 仍待處理：備份登記制（階段 C 最後一項）；上述 9 個 schema 缺口。
+
+### 階段 C（續）：schema 欄位缺口已清空（2026-11-06）
+- migration 016 補上最後 9 個缺口，「程式寫入的每個欄位 `schema.sql` 都要有」的守衛現在是**零例外**（`KNOWN_MISSING_COLUMNS` 為空集合；之後新增寫入欄位卻沒補 schema 就會紅）。
+- `diary_plan` 的日期欄位：程式與 CLAUDE.md 都用 `date`，schema 原本寫成 `plan_date`（新專案的天父日記讀經進度會整個讀不到）；已改成 `date`，並在 migration 內把舊資料庫的 `plan_date` 改名（有測試在真實 Postgres 上驗證改名與可重複執行）。
+- 這一批的欄位型別是依程式用法與天父日記原專案的 schema 決定的（`provider`／`provider_user_id` 沿用原專案型別）；**未在真實 Supabase 驗證**。
+- 仍待處理：備份登記制（階段 C 最後一項）。
