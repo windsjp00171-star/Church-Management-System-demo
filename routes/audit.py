@@ -10,6 +10,8 @@ ACTION_LABELS = {
     'user.create':           '新增手動帳號',
     'user.merge_line_admin': '管理員整合 LINE',
     'user.merge_line_self':  '會友自助合併 LINE',
+    'user.merge_line_admin_failed': '管理員整合 LINE 失敗（已還原）',
+    'user.merge_line_self_failed':  '會友自助合併失敗（已還原）',
     'user.block':            '封鎖帳號',
     'user.unblock':          '解封帳號',
     'user.set_admin':        '設為管理員',

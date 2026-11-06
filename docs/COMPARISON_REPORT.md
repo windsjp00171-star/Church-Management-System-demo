@@ -126,3 +126,10 @@ cell_reporter 的 CLAUDE.md 有一節「Things that are deliberately the way the
 - `refresh_session_permissions()`（成熟版機制，針對本系統調整）：每 5 分鐘重算；登入與重算共用 `_permission_fields()`；失敗維持原狀；不碰 `is_demo`。
 - **結構守衛基準刻意上調 1 次**：`routes/auth.py` 直接查 `users` 15 → 16（重算必須讀 users 那一列）。這是唯一一次「增加」，已在 `tests/structure_baseline.json` 的差異裡可見。
 - 仍待移植：`user_merge`（帳號合併，沿用成熟版）、備份登記制。
+
+### 階段 C（續）：帳號合併已移植（2026-11-06）
+- 沿用成熟版 `user_merge`（兩個入口共用、失敗全部還原、搬完確認才刪）；清單改以本系統 `schema.sql` 為準，並擴充測試（每個欄位真的會搬、任一步失敗都還原、唯一限制衝突的處置、兩個入口的端對端）。
+- **查出並修正的舊問題**：舊清單把 `session_attendance` 寫成不存在的 `course_attendance`（門訓出席沒被搬）、漏了 `audit_logs.actor_id`、`material_transactions.created_by` 是不存在的欄位；舊流程失敗時照樣刪帳號。
+- **新增欄位層級的 schema 守衛**：程式寫入的每個欄位，`schema.sql` 都要有。第一次掃就抓到 19 個缺口，這次補了 10 個（聚會回報的 `submitted_by`／`updated_at`、`visitor_forms.uploaded_by`，migration 015），**還剩 9 個已登記為已知缺口**（只准減少）：`devotional_registrations.paid_at／paid_quantity`、`diary_plan.date`、`materials.cover_url`、`prayer_comments.is_anonymous`、`prayers.answered_at／archived_at`、`users.provider／provider_user_id`。這些要逐一確認型別與用途後補，建議下一個 PR 處理。
+- 結構守衛基準：`users` 直接查詢 113 → 110（admin −4、profile −4、新增 `user_merge` +5）；刪除 `users` 列的路徑收斂為 `user_merge` 一條。
+- 仍待處理：備份登記制（階段 C 最後一項）；上述 9 個 schema 缺口。

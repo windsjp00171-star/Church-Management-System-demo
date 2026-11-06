@@ -105,33 +105,21 @@ def merge_confirm():
         return jsonify({'error': '找不到目前帳號'}), 404
     new_user = new_rows[0]
 
+    # 搬移、失敗還原、刪帳號都在 user_merge（兩個合併流程共用同一份清單）
+    from routes.user_merge import merge_users, MergeError
+    identity_cols = ('line_user_id', 'display_name', 'picture_url')
     saved_line_user_id = new_user.get('line_user_id')
-    saved_display_name = new_user.get('display_name')
-    saved_picture_url  = new_user.get('picture_url')
-
-    # ① 先清除新帳號的 line_user_id（UNIQUE 約束，必須先釋放）
-    supabase.table('users').update({'line_user_id': None}).eq('id', new_id).execute()
-    # ② 複製 LINE 身份到既有帳號
     try:
-        supabase.table('users').update({
-            'line_user_id': saved_line_user_id,
-            'display_name': saved_display_name,
-            'picture_url':  saved_picture_url,
-        }).eq('id', old_id).execute()
-    except Exception as e:
-        # 還原，避免卡在中間狀態
-        supabase.table('users').update({'line_user_id': saved_line_user_id}).eq('id', new_id).execute()
-        return jsonify({'error': f'合併失敗：{e}'}), 500
-
-    # ③ 移轉新帳號名下的關聯紀錄 → 既有帳號
-    from routes.account_merge import transfer_user_records
-    failed = transfer_user_records(new_id, old_id)
-
-    # ④ 刪除新帳號
-    try:
-        supabase.table('users').delete().eq('id', new_id).execute()
-    except Exception:
-        logging.getLogger(__name__).warning('自助合併：刪除新帳號失敗', exc_info=True)
+        summary = merge_users(
+            keep_id=old_id, drop_id=new_id,
+            keep_before={c: old_user.get(c) for c in identity_cols},
+            drop_before={c: new_user.get(c) for c in identity_cols},
+            new_identity={c: new_user.get(c) for c in identity_cols})
+    except MergeError as e:
+        from routes.audit import log_action
+        log_action('user.merge_line_self_failed', 'user', old_id,
+                   {'merged_from': new_id, 'error': e.message, 'rolled_back': e.rolled_back})
+        return jsonify({'error': e.message, 'rolled_back': e.rolled_back}), 500
 
     # ⑤ session 改指向保留帳號（重新載入全部角色旗標）
     merged = supabase.table('users').select('*').eq('id', old_id).execute().data[0]
@@ -141,7 +129,7 @@ def merge_confirm():
     from routes.audit import log_action
     log_action('user.merge_line_self', 'user', old_id, {
         'merged_from': new_id, 'line_user_id': saved_line_user_id,
-        'failed_tables': failed or None,
+        'moved': summary['moved'], 'duplicates_dropped': summary['duplicates_dropped'] or None,
     })
 
     next_url = session.pop('next_url', None) or url_for('event.portal')
