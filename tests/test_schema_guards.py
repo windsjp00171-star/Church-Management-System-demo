@@ -148,3 +148,43 @@ def test_migration_016_renames_an_old_plan_date_column_and_is_repeatable():
         assert 'date' in cols.split(',') and 'plan_date' not in cols.split(',')
     finally:
         stop()
+
+
+# ── 沒有 LINE 帳號的人：users.line_user_id 必須可以是空的 ──────────────────
+ROLES = 'create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;'
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_a_person_without_a_line_account_can_exist_on_a_fresh_schema():
+    """手動建立的會員、帳號合併後被清掉 LINE 身分的那一列，line_user_id 都是空的。
+    schema 原本寫 NOT NULL —— 新專案上這兩個功能會直接失敗；UNIQUE 允許多個空值。"""
+    psql, stop = pg_helper.start(55437)
+    try:
+        psql(ROLES)
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        for name in ('甲', '乙'):                                    # 兩個沒有 LINE 的人（建立）
+            r = psql(f"insert into users (real_name, display_name, member_type) values ('{name}','{name}','member')")
+            assert r.returncode == 0, r.stderr
+        assert psql("insert into users (line_user_id, real_name) values ('U1','丙')").returncode == 0
+        assert psql("update users set line_user_id = NULL where real_name='丙'").returncode == 0   # 合併清掉身分
+        dup = psql("insert into users (line_user_id) values ('U2'), ('U2')")                       # 有值的仍然唯一
+        assert dup.returncode != 0
+    finally:
+        stop()
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_migration_017_relaxes_an_old_database_and_is_repeatable():
+    psql, stop = pg_helper.start(55438)
+    try:
+        psql(ROLES)
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        assert psql('ALTER TABLE users ALTER COLUMN line_user_id SET NOT NULL').returncode == 0    # 模擬舊資料庫
+        assert psql("insert into users (real_name) values ('x')").returncode != 0
+        mig = str(ROOT / 'migrations' / '017_users_line_user_id_nullable.sql')
+        for _ in range(2):
+            r = psql(file=mig)
+            assert r.returncode == 0, r.stderr
+        assert psql("insert into users (real_name) values ('x')").returncode == 0
+    finally:
+        stop()

@@ -325,18 +325,18 @@ def create_manual_user():
     if not session.get('is_super_admin'):
         return jsonify({'error': '無權限'}), 403
     data = request.get_json() or {}
-    name = (data.get('real_name') or '').strip()
-    if not name:
-        return jsonify({'error': '請輸入姓名'}), 400
-    result = supabase.table('users').insert({
-        'real_name': name,
-        'display_name': name,
-        'member_type': data.get('member_type', 'member'),
-    }).execute()
-    if not result.data:
+    from routes.person import create_person
+    try:
+        kind, payload = create_person(data.get('real_name'), data.get('member_type', 'member'),
+                                      force=bool(data.get('force')))
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception:
         return jsonify({'error': '建立失敗'}), 500
-    log_action('user.create', 'user', result.data[0]['id'], {'name': name})
-    return jsonify({'success': True, 'id': result.data[0]['id']})
+    if kind == 'duplicates':
+        return jsonify({'error': '系統裡已有疑似同一個人，請先確認', 'duplicates': payload}), 409
+    log_action('user.create', 'user', payload['id'], {'name': payload['real_name'], 'forced': bool(data.get('force')) or None})
+    return jsonify({'success': True, 'id': payload['id']})
 
 
 @admin_bp.route('/api/users/<user_id>/merge-line', methods=['POST'])

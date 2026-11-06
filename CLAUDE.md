@@ -140,6 +140,11 @@ from db import supabase
 - 目前刻意不備份：`diary_entries`／`diary_share_grants`（隱私，**已決定**：超管匯出不含日記內容；個人可在 `/diary/export` 匯出自己的；災難還原需靠 Supabase 層級備份）、`notifications`（暫時性）、`contact_leads`（展示站專用）。檔案本體（R2）與留名單照片（Storage）不在資料庫匯出內，需另外備份。
 - 可讀的 CSV 備份中心（`routes/backup.py`）：讀取失敗（`BackupReadError`）與資料表不存在是兩件事，前者顯示「讀取失敗」，不可顯示成「尚未啟用」。
 
+### 「人」的建立（`routes/person.py`）
+- 手動建立沒有 LINE 的會員一律走 `create_person()`：建立前 `find_possible_duplicates()`（姓名相同／差一個字／LINE 暱稱相同），有疑似重複回 409 讓管理員確認，`force` 才強制建立。比對用的正規化與「差一個字」判定與點名名冊共用（`roll_call_logic.norm_name`／`within_one_edit`）。
+- 綁定 LINE 的唯一入口是「整合 LINE」（`user_merge`）：LINE 帳號必須自己登入過，不接受貼上 LINE ID 直接綁定（避免冒用）。
+- 其餘 `users` 寫入（登入、個人資料、權限開關）維持原位，由結構守衛的棘輪凍結；`routes/person.py` 是新增的合法入口（基準 2 次）。
+
 ### 結構守衛（`tests/test_structure_guards.py`，棘輪式）
 - 基準在 `tests/structure_baseline.json`：直接查 `users` 的次數（17 個檔案）、`date.today()` 等依伺服器時區的寫法、`or 0`、沒掛 `admin_required` 的 `/admin` 路由。**只准減少，不准增加**；減少時測試也會紅，提醒你執行 `python tests/structure_scan.py` 把基準往下調。
 - 新模組（點名）不得查 `users`、不得用 `date.today()`；每個 `/admin` 路由必須有閘門（裝飾器或函式開頭手寫的管理員檢查）；刪除 `users` 列的路徑只有 `routes/user_merge.py` 一條。
@@ -284,7 +289,9 @@ python app.py      # debug=True, port 5000
 | 015 | `migrations/015_report_submitter_columns.sql` | 聚會人數回報的 `submitted_by`／`updated_at`、`visitor_forms.uploaded_by`（程式一直在寫，schema 原本沒有） |
 | 016 | `migrations/016_missing_columns.sql` | 補上程式一直在讀寫、schema 原本沒有的欄位（禱讀本收費、教材封面、代禱匿名／蒙應允／封存、日記登入寫入）；`diary_plan.plan_date` 改名為程式用的 `date`（只在舊欄位存在時） |
 
-新專案只需執行整份 `schema.sql`（已含 012～016）。**程式寫入的每個欄位 `schema.sql` 都必須有**（`tests/test_schema_guards.py` 掃 AST 守著；新增欄位要同時補 schema 與 migration）。
+| 017 | `migrations/017_users_line_user_id_nullable.sql` | `users.line_user_id` 允許為空（手動建立的會員、合併後清空 LINE 身分的列；舊 schema 寫成 NOT NULL 會讓兩者失敗） |
+
+新專案只需執行整份 `schema.sql`（已含 012～017）。**程式寫入的每個欄位 `schema.sql` 都必須有**（`tests/test_schema_guards.py` 掃 AST 守著；新增欄位要同時補 schema 與 migration）。
 
 ## 多教會部署架構與開發者權限原則
 

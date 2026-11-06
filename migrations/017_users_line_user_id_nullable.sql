@@ -1,0 +1,12 @@
+-- 017：users.line_user_id 允許為空
+--
+-- 為什麼：程式有兩處需要「沒有 LINE 帳號的人」——
+--   1. 管理員手動建立會員（尚未註冊 LINE 的家人，先建一個空容器）
+--   2. 帳號合併時，被合併的那一列會先把 line_user_id 清成空，再把 LINE 身分寫到保留的那一列
+-- 舊 schema 寫成 NOT NULL，兩處在全新專案上都會失敗。
+--
+-- 影響：只放寬限制，既有資料列不變；UNIQUE 仍在（Postgres 的 UNIQUE 允許多個空值，有值的仍然唯一）。
+-- 可重複執行。
+-- 還原：要先確認沒有 line_user_id 為空的列，再執行
+--   ALTER TABLE users ALTER COLUMN line_user_id SET NOT NULL;
+ALTER TABLE users ALTER COLUMN line_user_id DROP NOT NULL;
