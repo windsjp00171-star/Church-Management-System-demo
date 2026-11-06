@@ -125,6 +125,10 @@ class _Query:
         self._filters.append(('ilike', col, pattern))
         return self
 
+    def is_(self, col, val):
+        self._filters.append(('is', col, val))
+        return self
+
     def order(self, col, desc=False):
         self._order = (col, desc)
         return self
@@ -162,6 +166,9 @@ class _Query:
                 return False
             if op == 'lt' and not (got is not None and got < val):
                 return False
+            if op == 'is':
+                if (val == 'null') != (got is None):
+                    return False
             if op == 'ilike':
                 needle = val.strip('%').lower()
                 if needle not in (got or '').lower():
