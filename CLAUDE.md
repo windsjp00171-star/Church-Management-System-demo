@@ -131,6 +131,13 @@ from db import supabase
 - 唯一限制衝突：只有登記 `dedupe` 的表（小組長、小組成員、禱告回應、每日經文、白名單）取聯集；其餘（出席、報名、認證、同工資料）一律中止，不替人決定留哪一邊。
 - 聚會點名（`rc_*`）刻意不在清單裡；天父日記以 `line_user_id` 為鍵，隨 LINE 身分自動跟隨。
 
+### 備份登記表（`backup_registry.py`）— 備份哪些表只有一份判定
+- `TABLES`（外鍵安全的匯入順序＋upsert 衝突欄位＝真實主鍵＋所屬匯出模組）／`EXCLUDED`（刻意不備份，**必須寫理由**）／`VIEWS`（檢視表，不匯出）。**`schema.sql` 的每張表都必須在其中一處**，`tests/test_backup_registry.py` 掃 schema 守著；父表必須排在子表前面；衝突欄位對照 schema 的 PRIMARY KEY。
+- 新增資料表時：同時補 `schema.sql` 與登記表，否則測試會紅。
+- 超管匯出／匯入（`routes/data_transfer.py`）：匯出任何一張表讀取失敗就**整個中止**（不產出殘缺 ZIP）；資料表不存在（`reg.is_missing_table`）才記成「尚未建立」；匯入只寫登記表內的表，其餘略過並回報。匯出／匯入都寫稽核。
+- 目前刻意不備份：`diary_entries`／`diary_share_grants`（隱私，超管匯出不含日記內容，災難還原需靠 Supabase 層級備份——**待使用者決定**）、`notifications`（暫時性）、`contact_leads`（展示站專用）。檔案本體（R2）與留名單照片（Storage）不在資料庫匯出內，需另外備份。
+- 可讀的 CSV 備份中心（`routes/backup.py`）：讀取失敗（`BackupReadError`）與資料表不存在是兩件事，前者顯示「讀取失敗」，不可顯示成「尚未啟用」。
+
 ### 結構守衛（`tests/test_structure_guards.py`，棘輪式）
 - 基準在 `tests/structure_baseline.json`：直接查 `users` 的次數（17 個檔案）、`date.today()` 等依伺服器時區的寫法、`or 0`、沒掛 `admin_required` 的 `/admin` 路由。**只准減少，不准增加**；減少時測試也會紅，提醒你執行 `python tests/structure_scan.py` 把基準往下調。
 - 新模組（點名）不得查 `users`、不得用 `date.today()`；每個 `/admin` 路由必須有閘門（裝飾器或函式開頭手寫的管理員檢查）；刪除 `users` 列的路徑只有 `routes/user_merge.py` 一條。

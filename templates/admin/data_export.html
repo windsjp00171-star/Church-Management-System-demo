@@ -59,6 +59,14 @@
   </form>
 
   <!-- 分隔線 -->
+  <div style="margin:28px 0 0; padding:14px 16px; background:#f9fafb; border-radius:10px; font-size:.85rem; color:#4b5563; line-height:1.7;">
+    <strong>這份匯出「不包含」的資料（以及原因）</strong>
+    <ul style="margin:6px 0 0; padding-left:20px;">
+      {% for table, why in excluded.items() %}<li><code>{{ table }}</code>：{{ why }}</li>{% endfor %}
+      <li>檔案本體（R2）與留名單照片（Supabase Storage）：匯出只有資料列，檔案本體要另外備份。</li>
+    </ul>
+  </div>
+
   <div style="margin:40px 0 0; padding-top:28px; border-top:1px solid #eee;">
     <p style="font-size:.85rem; color:#999; text-align:center;">
       需要匯入資料？前往

@@ -24,6 +24,7 @@ from urllib.parse import quote
 
 from flask import Blueprint, render_template, Response, send_file
 
+import backup_registry as reg
 from db import supabase
 from routes.decorators import admin_required
 
@@ -34,9 +35,14 @@ _TW = timezone(timedelta(hours=8))
 
 # ── 共用輔助 ──────────────────────────────────────────────────────────────────
 
+class BackupReadError(Exception):
+    """讀取資料庫失敗（不是「資料表不存在」）。備份寧可明講失敗，也不要顯示成「尚未啟用」。"""
+
+
 def _fetch(table: str):
     """分頁讀取整張表。
-    回傳 list（可能為空）。若資料表不存在或查詢失敗 → 回傳 None（代表「尚未啟用」）。
+    回傳 list（可能為空）。資料表不存在 → 回傳 None（代表「尚未啟用」）。
+    其他任何失敗（網路、權限）→ 丟 BackupReadError：資料庫暫時連不上，看起來不可以跟「沒有這個功能」一樣。
     """
     rows = []
     page = 1000
@@ -51,8 +57,18 @@ def _fetch(table: str):
                 break
             offset += page
         return rows
-    except Exception:
-        return None
+    except Exception as e:
+        if reg.is_missing_table(e):
+            return None
+        raise BackupReadError(f'讀取 {table} 失敗：{str(e)[:120]}') from e
+
+
+def _run(meta) -> dict:
+    """執行一個分類的建構器；讀取失敗回 {'available': False, 'failed': True, 'error': ...}。"""
+    try:
+        return meta['builder']()
+    except BackupReadError as e:
+        return {'available': False, 'failed': True, 'error': str(e)}
 
 
 def _users_map() -> dict:
@@ -327,11 +343,12 @@ def index():
     """統一匯出中心頁面。先探測各模組是否啟用、各有幾筆。"""
     overview = []
     for key, meta in CATEGORIES.items():
-        result = meta['builder']()
+        result = _run(meta)
         overview.append({
             'key': key,
             'label': meta['label'],
             'icon': meta['icon'],
+            'failed': bool(result.get('failed')),
             'available': result.get('available', False),
             'count': len(result.get('rows', [])) if result.get('available') else 0,
         })
@@ -345,7 +362,9 @@ def export_category(category):
     meta = CATEGORIES.get(category)
     if not meta:
         return '未知的匯出分類', 404
-    result = meta['builder']()
+    result = _run(meta)
+    if result.get('failed'):
+        return f"「{meta['label']}」讀取失敗（資料庫暫時連不上？），沒有產生檔案。請稍後再試——這不是「尚未啟用」。", 503
     if not result.get('available'):
         return f"「{meta['label']}」模組尚未啟用，無資料可匯出。", 404
     data = _csv_bytes(result['headers'], result['rows'])
@@ -365,14 +384,22 @@ def export_all():
         '',
     ]
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
+        failed = []
         for key, meta in CATEGORIES.items():
-            result = meta['builder']()
+            result = _run(meta)
+            if result.get('failed'):
+                failed.append(meta['label'])
+                summary_lines.append(f'  ✗ {meta["label"]}：讀取失敗，這份備份「沒有」包含它（{result.get("error", "")}）')
+                continue
             if not result.get('available'):
                 summary_lines.append(f'  ✗ {meta["label"]}：尚未啟用（略過）')
                 continue
             data = _csv_bytes(result['headers'], result['rows'])
             zf.writestr(meta['filename'], data)
             summary_lines.append(f'  ✓ {meta["label"]}：{len(result["rows"])} 筆 → {meta["filename"]}')
+        if failed:
+            summary_lines[3:3] = ['', f'⚠️ 這份備份「不完整」：{len(failed)} 個分類讀取失敗（{"、".join(failed)}）。'
+                                     '請稍後重新匯出，不要把這一份當成完整備份保存。']
         summary_lines += [
             '',
             '若需可離線閱讀的完整快照，請於後台「資料備份中心」下載 HTML 離線閱讀器。',
@@ -389,6 +416,9 @@ def export_all():
 # ── HTML 離線閱讀器 ───────────────────────────────────────────────────────────
 
 def _render_table_html(result) -> str:
+    if result.get('failed'):
+        return ('<div class="notice" style="background:#fef2f2;color:#b91c1c;">⚠️ 讀取失敗（資料庫暫時連不上？），'
+                '這一頁「沒有」資料——不是尚未啟用。請稍後重新產生這份快照。</div>')
     if not result.get('available'):
         return ('<div class="notice">⚠️ 此模組尚未啟用（對應資料表尚未建立），無資料快照。</div>')
     headers = result['headers']
@@ -416,9 +446,11 @@ def _build_offline_html() -> str:
     radios, labels, panels = [], [], []
     for i, key in enumerate(keys):
         meta = CATEGORIES[key]
-        result = meta['builder']()
+        result = _run(meta)
         checked = ' checked' if i == 0 else ''
-        status_dot = '' if result.get('available') else ' <span class="off">尚未啟用</span>'
+        status_dot = ('' if result.get('available') else
+                      ' <span class="off" style="background:#dc2626;">讀取失敗</span>' if result.get('failed')
+                      else ' <span class="off">尚未啟用</span>')
         radios.append(f'<input type="radio" name="tabs" id="tab-{key}"{checked}>')
         labels.append(
             f'<label for="tab-{key}" class="tab-label">'
