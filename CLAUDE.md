@@ -156,6 +156,8 @@ diary.py 的 `_get_user()` 從整合系統 session 讀取（`line_id`、`real_na
 ### AI 客戶端
 diary blueprint 在每次 API 呼叫時動態建立 AI 客戶端（`_get_ai_clients()`），不在啟動時強制依賴。優先使用 Groq，備援 Gemini。
 
+**聚會人數回報**（`/cell-report/sunday`、`children`、`prayer`、`morning-prayer`）需要同工／牧者／管理員登入（`@staff_required`）；原 cell_reporter 的「免登入提交」已刻意取消。
+
 ### Supabase 資料表（小組回報）
 | 資料表 | 說明 |
 |--------|------|
