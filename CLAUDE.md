@@ -108,6 +108,12 @@ from db import supabase
 - 測試：`tests/`（`pytest`；`test_roll_call_db.py` 需要 root＋Postgres 16，否則略過）。
 - 網址：同工 `/roll-call`；後台 `/admin/roll-call`、`/admin/roll-call/rates`。API 回傳 `{"status", "data", "error"}`。
 
+### 後台權限矩陣（`routes/permissions.py`，移植自 event-registration-）
+- Y 軸＝後台功能模塊（`ADMIN_MODULES`，**新增後台路由要到這裡登記前綴**，否則有測試會紅）；X 軸＝副標籤群組；權限存 `groups.admin_modules`；只有超管能在 `/admin/permissions` 編輯。
+- 超管／`is_admin` 全部放行；其他人＝其副標籤授權模塊的聯集。**判定只有一份**：`module_allows_path()`，`admin_required` 與測試都走它。
+- **與成熟版的差異（fail closed）**：沒登記的 `/admin` 路徑、後台以外的路徑，對副標籤成員一律拒絕；金流（`/admin/payments`、`/admin/settings/payment`）刻意不交給矩陣；session 裡的 `'*'` 只有「現在仍是管理員」才算數。
+- 已知限制：權限在**登入時**算一次存進 session，調整矩陣或降權後需重新登入才生效（成熟版有 `refresh_session_permissions` 定期重算，尚未移植）。
+
 ### 結構守衛（`tests/test_structure_guards.py`，棘輪式）
 - 基準在 `tests/structure_baseline.json`：直接查 `users` 的次數（17 個檔案）、`date.today()` 等依伺服器時區的寫法、`or 0`、沒掛 `admin_required` 的 `/admin` 路由。**只准減少，不准增加**；減少時測試也會紅，提醒你執行 `python tests/structure_scan.py` 把基準往下調。
 - 新模組（點名）不得查 `users`、不得用 `date.today()`；每個 `/admin` 路由必須有閘門（裝飾器或函式開頭手寫的管理員檢查）；除帳號合併的兩個入口外，不得新增刪除 `users` 列的路徑。
@@ -246,8 +252,9 @@ python app.py      # debug=True, port 5000
 | 011 | `migrations/011_files_folders_groups.sql` | files.allowed_groups、folders.allowed_users / allowed_groups 補欄位 |
 | 012 | `migrations/012_roll_call.sql` | 聚會點名（8 張 rc_* 表、稽核觸發器、寫入函式、RLS） |
 | 013 | `migrations/013_security_hardening.sql` | 所有表開 RLS（不設政策）、函式不給公開角色。**僅限伺服器用服務端金鑰的專案**，詳見 `docs/SUPABASE_SETUP.md` |
+| 014 | `migrations/014_permission_matrix.sql` | `groups.admin_modules`（後台權限矩陣；預設空陣列＝沒有授權，既有功能不受影響） |
 
-新專案只需執行整份 `schema.sql`（已含 012、013）。
+新專案只需執行整份 `schema.sql`（已含 012、013、014）。
 
 ## 多教會部署架構與開發者權限原則
 

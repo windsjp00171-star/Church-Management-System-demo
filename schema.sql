@@ -20,8 +20,11 @@ CREATE TABLE IF NOT EXISTS groups (
     is_primary  BOOLEAN NOT NULL DEFAULT false,
     is_staff    BOOLEAN NOT NULL DEFAULT false,
     sort_order  INTEGER NOT NULL DEFAULT 0,
+    -- 後台權限矩陣：此副標籤可進入的後台功能模塊 key 陣列（migration 014）
+    admin_modules JSONB NOT NULL DEFAULT '[]'::jsonb,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+ALTER TABLE groups ADD COLUMN IF NOT EXISTS admin_modules JSONB NOT NULL DEFAULT '[]'::jsonb;
 
 CREATE TABLE IF NOT EXISTS portal_links (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),

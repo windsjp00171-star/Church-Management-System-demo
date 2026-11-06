@@ -32,16 +32,7 @@
     "routes/admin.py::payment_settings",
     "routes/admin.py::proxy_checkin",
     "routes/admin.py::registrations",
-    "routes/admin.py::toggle_checkin",
-    "routes/gospel.py::admin_card_create",
-    "routes/gospel.py::admin_card_update",
-    "routes/gospel.py::admin_cards",
-    "routes/gospel.py::admin_delete",
-    "routes/gospel.py::admin_form_questions",
-    "routes/gospel.py::admin_form_questions_save",
-    "routes/gospel.py::admin_index",
-    "routes/gospel.py::admin_update",
-    "routes/profile.py::admin_edit_profile"
+    "routes/admin.py::toggle_checkin"
   ],
   "users_table_hits": {
     "app.py": 1,

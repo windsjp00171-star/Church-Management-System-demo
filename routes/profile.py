@@ -2,7 +2,7 @@ import logging
 # 會員個人資料路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, current_app, flash
 from db import supabase
-from routes.decorators import login_required
+from routes.decorators import login_required, admin_required
 
 profile_bp = Blueprint('profile', __name__)
 
@@ -422,11 +422,9 @@ def homepage_settings_reset():
 
 
 @profile_bp.route('/admin/api/users/<user_id>/profile', methods=['POST'])
-@login_required
+@admin_required
 def admin_edit_profile(user_id):
-    """後台管理員修改任意用戶資料"""
-    if not session.get('is_admin'):
-        return jsonify({'error': '權限不足'}), 403
+    """後台管理員（或被授權「會友管理」的副標籤）修改任意用戶資料"""
     data = request.get_json() or {}
     member_type = data.get('member_type', 'member')
     if member_type not in ('member', 'visitor'):

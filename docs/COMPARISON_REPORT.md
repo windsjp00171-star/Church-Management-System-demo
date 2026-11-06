@@ -115,3 +115,9 @@ cell_reporter 的 CLAUDE.md 有一節「Things that are deliberately the way the
 - **盤點出 19 個沒掛 `admin_required` 的 `/admin` 路由**：7 個是同工簽到（掛 `staff_required`，刻意開放給同工）、12 個是函式開頭手寫檢查（金流 3、福音探索 8、個人資料 1）。**沒有發現完全沒設防的路由。** 這 19 個列入基準，之後遷移成統一裝飾器只會減少。
 - 帳號合併有兩個入口會刪除 `users` 列（`admin.py` 管理員合併、`profile.py` 自助合併），已記為已知。
 - 下一步（階段 C）：搬入 event-registration- 的權限矩陣（`permissions.py`）與 `user_merge`，備份改登記驅動。
+
+### 階段 C（部分）：權限矩陣已移植（2026-11-06）
+- 已移植 event-registration- 的後台權限矩陣：`routes/permissions.py`（22 個模塊）、`/admin/permissions` 編輯頁（僅超管）、`groups.admin_modules`（migration 014）、後台首頁卡片依權限顯示。
+- 與成熟版的差異：**沒登記的後台路徑對副標籤成員一律拒絕（fail closed）**；金流刻意不交給矩陣；session 的 `'*'` 只有現在仍是管理員才算數。
+- 順手把福音探索後台 8 個、會友資料編輯 1 個手寫權限檢查改成統一裝飾器；沒掛 `admin_required` 的 `/admin` 路由基準 19 → 10（7 個同工簽到＋3 個金流）。
+- **尚未移植**：`refresh_session_permissions`（定期重算，讓降權／矩陣調整不用重新登入）、`user_merge`、備份登記制。其中 `refresh_session_permissions` 影響「撤銷是否立即生效」，建議下一步優先做。

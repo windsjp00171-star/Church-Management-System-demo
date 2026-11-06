@@ -20,6 +20,8 @@ ACTION_LABELS = {
     'user.remove_pastor':    '移除牧者',
     'user.set_staff':        '設為同工',
     'user.remove_staff':     '移除同工',
+    # 權限
+    'permission.update':     '調整後台權限矩陣',
     # 活動
     'event.delete':          '刪除活動',
 }
