@@ -141,9 +141,12 @@ def can_manage_event(event):
 def index():
     """後台首頁：卡片依權限矩陣（模塊）顯示"""
     from routes.permissions import visible_index_modules, module_for_path
+    from routes.modules import module_on
     visible = visible_index_modules(session)
 
     def can_see(path):
+        if not module_on(path):               # 這間教會沒開這個功能
+            return False
         mod = module_for_path(path)
         return mod is None or mod in visible
 

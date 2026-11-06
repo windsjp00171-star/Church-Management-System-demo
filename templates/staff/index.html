@@ -111,16 +111,16 @@
 
         <div class="ev-actions">
           {% if ev.checkin_enabled and ev.checkin_token %}
-          <a href="/checkin/{{ ev.id }}/{{ ev.checkin_token }}"
+          {% if module_on('/checkin/x/x') %}<a href="/checkin/{{ ev.id }}/{{ ev.checkin_token }}"
              class="btn-checkin-main">
             🔍 開始門口簽到
-          </a>
+          </a>{% endif %}
           {% else %}
           <div class="btn-checkin-disabled">簽到尚未開啟</div>
           {% endif %}
-          <a href="/admin/events/{{ ev.id }}/registrations" class="btn-secondary">名單</a>
+          {% if module_on('/admin/events/x/registrations') %}<a href="/admin/events/{{ ev.id }}/registrations" class="btn-secondary">名單</a>{% endif %}
           {% if ev.checkin_enabled and ev.checkin_token %}
-          <a href="/admin/events/{{ ev.id }}/qrcode" class="btn-secondary">QR</a>
+          {% if module_on('/admin/events/x/qrcode') %}<a href="/admin/events/{{ ev.id }}/qrcode" class="btn-secondary">QR</a>{% endif %}
           {% endif %}
         </div>
       </div>
@@ -142,9 +142,9 @@
         <div class="ev-count-pill pill-reg">📋 已報名 {{ ev.reg_count }} 人</div>
       </div>
       <div class="ev-actions">
-        <a href="/admin/events/{{ ev.id }}/registrations" class="btn-secondary">查看報名名單</a>
+        {% if module_on('/admin/events/x/registrations') %}<a href="/admin/events/{{ ev.id }}/registrations" class="btn-secondary">查看報名名單</a>{% endif %}
         {% if ev.checkin_enabled and ev.checkin_token %}
-        <a href="/admin/events/{{ ev.id }}/qrcode" class="btn-secondary">簽到 QR Code</a>
+        {% if module_on('/admin/events/x/qrcode') %}<a href="/admin/events/{{ ev.id }}/qrcode" class="btn-secondary">簽到 QR Code</a>{% endif %}
         {% endif %}
       </div>
     </div>
@@ -155,21 +155,21 @@
   <!-- ── 快速入口 ─────────────────────────────── -->
   <div class="sw-section-label" style="margin-top:32px; margin-bottom:10px;">快速入口</div>
   <div class="quick-grid">
-    <a href="/cell-report/staff-dashboard" class="quick-card">
+    {% if module_on('/cell-report/staff-dashboard') %}<a href="/cell-report/staff-dashboard" class="quick-card">
       <div class="quick-icon">📊</div>
       <div class="quick-name">小組回報總覽</div>
       <div class="quick-desc">本週各組回報狀況</div>
-    </a>
-    <a href="/admin/visitor-forms" class="quick-card">
+    </a>{% endif %}
+    {% if module_on('/admin/visitor-forms') %}<a href="/admin/visitor-forms" class="quick-card">
       <div class="quick-icon">📋</div>
       <div class="quick-name">留名單</div>
       <div class="quick-desc">新朋友留名單管理</div>
-    </a>
-    <a href="/events" class="quick-card">
+    </a>{% endif %}
+    {% if module_on('/events') %}<a href="/events" class="quick-card">
       <div class="quick-icon">🎉</div>
       <div class="quick-name">所有活動</div>
       <div class="quick-desc">查看與報名活動</div>
-    </a>
+    </a>{% endif %}
     <a href="/" class="quick-card">
       <div class="quick-icon">🏠</div>
       <div class="quick-name">回首頁</div>

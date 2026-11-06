@@ -109,6 +109,12 @@ def create_app():
     from routes.staff_leave import staff_leave_bp
     app.register_blueprint(staff_leave_bp)
 
+    # ── 功能模組登記表（各教會自己選要用哪些功能）──────────────────
+    from routes.modules import modules_bp, enforce_modules, module_on
+    app.register_blueprint(modules_bp)
+    app.before_request(enforce_modules)          # 關掉的模組，網址一律 404
+    app.jinja_env.globals['module_on'] = module_on
+
     # ── 後台權限矩陣（副標籤 × 模塊）────────────────────────────
     from routes.permissions import permissions_bp
     app.register_blueprint(permissions_bp)

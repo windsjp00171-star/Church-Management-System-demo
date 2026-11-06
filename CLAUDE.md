@@ -108,6 +108,14 @@ from db import supabase
 - 測試：`tests/`（`pytest`；`test_roll_call_db.py` 需要 root＋Postgres 16，否則略過）。
 - 網址：同工 `/roll-call`；後台 `/admin/roll-call`、`/admin/roll-call/rates`。API 回傳 `{"status", "data", "error"}`。
 
+### 功能模組登記表（`routes/modules.py`）— 各教會自己選要用哪些功能
+- **核心永遠開著**（人、登入、權限、稽核、通知、備份、首頁與後台外殼、說明）；**選配模組**可由超管在 `/admin/modules` 開關，狀態存在 `settings` 表（`modules_state`，沒寫的預設為開，所以既有部署行為不變）。
+- **關掉＝整塊消失**：網址一律 404（`enforce_modules`，全站 `before_request`）、首頁卡片與連結（模板的 `module_on()`）、後台卡片（`can_see()`）、權限矩陣欄位。**關掉不刪資料**，備份與匯出照常包含（資料安全優先）。
+- **依賴**：關掉被依賴的模組，依賴它的跟著不存在（例如金流依賴活動報名）；儲存時會檢查，依賴沒滿足不能開啟。
+- **展示站專用**（`demo`：展示帳號登入、洽詢、洽詢紀錄）只在 `DEMO_MODE` 為真時存在，不靠資料庫開關；正式教會部署不會有。
+- **新增功能時**：把網址前綴登記進 `MODULES`（`*` 可代表任一段），或明確列為核心。`tests/test_modules.py` 掃所有路由，沒歸屬的會紅；`portal.html`／`staff/index.html`／`admin/index.html` 裡指向選配模組的連結一律要有 `module_on()`／`can_see()` 守著。
+- 判定只有一份（`classify()` / `is_enabled()`）；讀不到開關時維持預設（開）。
+
 ### 後台權限矩陣（`routes/permissions.py`，移植自 event-registration-）
 - Y 軸＝後台功能模塊（`ADMIN_MODULES`，**新增後台路由要到這裡登記前綴**，否則有測試會紅）；X 軸＝副標籤群組；權限存 `groups.admin_modules`；只有超管能在 `/admin/permissions` 編輯。
 - 超管／`is_admin` 全部放行；其他人＝其副標籤授權模塊的聯集。**判定只有一份**：`module_allows_path()`，`admin_required` 與測試都走它。

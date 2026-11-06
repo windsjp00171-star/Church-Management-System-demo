@@ -32,6 +32,10 @@ class FakeQuery:
         self.op, self.payload = 'update', payload
         return self
 
+    def upsert(self, payload, **_kw):
+        self.op, self.payload = 'upsert', payload
+        return self
+
     def execute(self):
         if self.op == 'select':
             return FakeResult(list(self.db.tables.get(self.name, [])))
