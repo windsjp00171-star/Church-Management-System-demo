@@ -47,7 +47,10 @@
 | `staff_bp` | `routes/staff.py` | — | 同工首頁 |
 | `setup_wizard_bp` | `routes/setup_wizard.py` | `/setup-wizard` | 部署精靈（環境 / 資料表狀態） |
 | `changelog_bp` | `routes/changelog.py` | — | 更新日誌 |
-| `attendance_bp` | `routes/attendance.py` | — | 差勤系統（同工請假 / 加班） |
+| `staff_leave_bp` | `routes/staff_leave.py` | `/staff-leave` | 全職同工差勤（請假 / 加班 / 特休補休） |
+| `roll_call_bp` | `routes/roll_call.py` | `/roll-call`、`/admin/roll-call` | 聚會點名（與會員帳號脫鉤）、出席率、名冊匯入 |
+| `modules_bp` | `routes/modules.py` | `/admin/modules` | **功能模組開關**（各教會自己選要用哪些功能） |
+| `permissions_bp` | `routes/permissions.py` | `/admin/permissions` | **後台權限矩陣**（副標籤 × 後台功能） |
 | `data_transfer_bp` | `routes/data_transfer.py` | `/admin/data-export`, `/admin/data-import` | 全庫 JSON ZIP 匯出 / 還原（遷移用） |
 | `backup_bp` | `routes/backup.py` | `/admin/backup` | **數位遺囑備份模塊**（CSV / HTML 交接快照） |
 | `devotional_bp` | `routes/devotional.py` | `/devotional` | 禱讀本訂購 |
@@ -93,6 +96,18 @@
 
 若是要把整個系統搬到新環境，請改用 `/admin/data-export`（超級管理員限定，輸出完整 JSON ZIP），
 並於新環境用 `/admin/data-import` 還原。
+
+**這份匯出『不包含』的東西**（匯出頁面也會列出來）：
+
+| 不包含 | 原因 | 怎麼備份 |
+|---|---|---|
+| 天父日記內容與分享授權 | 隱私：教會超管不應能一鍵取走所有人的靈修日記 | 每個人可在「天父日記 → 按書卷瀏覽」下載**自己的**日記（文字檔）；整庫災難還原要靠 Supabase 專案本身的備份 |
+| 站內通知 | 暫時性資料 | 不需要 |
+| 展示站洽詢紀錄 | 只有展示站才有 | 不需要 |
+| 檔案本體（Cloudflare R2）、留名單照片 | 不在資料庫裡 | 在 R2／Supabase Storage 另外備份 |
+
+匯出任何一張表讀取失敗時，系統會**整個中止**並告知原因，不會給你一份缺資料的 ZIP。
+新環境匯入時，只會寫入系統登記過的資料表；新專案請先執行整份 `schema.sql`。
 
 ---
 
@@ -162,7 +177,9 @@
 | `files` / `folders` | 檔案分享 |
 | `weekly_bulletins` | 每週週報 |
 | `notifications` | 站內通知 |
-| `settings` / `portal_card_settings` / `portal_links` | 系統 / 首頁設定 |
+| `settings` / `portal_card_settings` / `portal_links` | 系統 / 首頁設定（功能模組開關存在 `settings` 的 `modules_state`） |
+| `rc_members` / `rc_meeting_types` / `rc_sessions` / `rc_records` / `rc_guest_counts` / `rc_rate_rules` / `rc_audit` | 聚會點名（名冊、聚會類型、場次、紀錄、訪客人數、出席率規則、**只能追加**的稽核） |
+| `audit_logs` | 操作稽核（誰在何時做了什麼） |
 
 ---
 
@@ -317,3 +334,20 @@ Render 免費 web service 閒置 15 分鐘會休眠，下次喚醒冷啟動約 3
 
 > **若以上均無法處理，請聯絡 ____________________________**
 > （請填入：系統維護方姓名 / 信箱 / 電話 / LINE）
+
+---
+
+## 九、2026-11 新增的管理功能（接手必讀）
+
+| 想做的事 | 去哪裡 | 說明 |
+|---|---|---|
+| 這間教會不需要某個功能 | `/admin/modules`（超管） | 關掉＝網址 404、首頁與後台入口、說明文件都消失；**資料不刪**，備份照常包含。新教會部署流程見 `docs/NEW_CHURCH_SETUP.md` |
+| 讓某個服事身份能進某些後台功能 | `/admin/permissions`（超管） | 副標籤 × 後台功能的勾選表；沒登記的後台網址一律拒絕。調整後最久 5 分鐘生效，不必對方重新登入 |
+| 同一個人有兩個帳號 | 後台使用者頁的「整合 LINE」 | 失敗會全部還原、不會刪帳號。手動建立會員時系統會先提醒疑似同一個人 |
+| 匯入點名名冊 | `/admin/roll-call` | 先預覽，疑似重複要你逐筆確認，同名一律略過 |
+| 查誰改了什麼 | 後台「操作紀錄」 | 匯出、匯入、權限、模組、合併、點名名冊匯入都有記錄 |
+
+**資料庫升級**：新版程式碼有時需要先在 Supabase > SQL Editor 執行 `migrations/` 裡新的檔案（編號 012～017 都是這一輪新增的；新專案直接執行整份 `schema.sql` 即可）。
+特別是 **017**（`users.line_user_id` 允許為空）：舊資料庫不執行的話，「手動建立會員」與「帳號合併」會失敗。
+
+**完整還原演練**（強烈建議在正式上線前做一次）：新建一個空的 Supabase 專案 → 執行 `schema.sql` → 用 `/admin/data-import` 匯入先前匯出的 ZIP → 比對各表筆數。目前測試只在替身資料庫上驗證過這個流程。
