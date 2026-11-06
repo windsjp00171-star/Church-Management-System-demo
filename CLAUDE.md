@@ -114,9 +114,16 @@ from db import supabase
 - **與成熟版的差異（fail closed）**：沒登記的 `/admin` 路徑、後台以外的路徑，對副標籤成員一律拒絕；金流（`/admin/payments`、`/admin/settings/payment`）刻意不交給矩陣；session 裡的 `'*'` 只有「現在仍是管理員」才算數。
 - **撤銷立即生效**：`routes/auth.py` 的 `refresh_session_permissions()` 每 5 分鐘（`PERM_RECHECK_SECONDS`）回資料庫重算 session 的權限（降權、封鎖、帳號被刪、矩陣調整都會生效，不必重新登入）；登入與重算共用 `_permission_fields()`，權限旗標只准在那裡寫一份。連不上資料庫時**維持原狀**（不登出、不推進時間戳）；只更新權限格，不碰 `is_demo` 等其他 session 內容。
 
+### 帳號合併（`routes/user_merge.py`，移植自 event-registration-）
+- 兩個入口（管理員 `admin.merge_line_account`、本人 `profile.merge_confirm`）共用 `merge_users()`；舊的 `account_merge.transfer_user_records`（每步 `except` 只記 log、失敗照樣刪帳號）已移除，有測試擋它復活。
+- `REFS` 是唯一的引用清單（`schema.sql` 所有指向 `users` 的欄位＋`audit_logs.actor_id`）；測試掃 schema，漏一個或寫了不存在的欄位就紅。
+- **失敗不吞掉**：任何一步失敗就中止、還原已搬的（含被刪掉的重複列）、不刪帳號、丟 `MergeError`；全部搬完且確認沒有殘留才刪被合併者的 `users` 列（已決定沿用成熟版，規格守衛 22 因此只對合併放寬）。
+- 唯一限制衝突：只有登記 `dedupe` 的表（小組長、小組成員、禱告回應、每日經文、白名單）取聯集；其餘（出席、報名、認證、同工資料）一律中止，不替人決定留哪一邊。
+- 聚會點名（`rc_*`）刻意不在清單裡；天父日記以 `line_user_id` 為鍵，隨 LINE 身分自動跟隨。
+
 ### 結構守衛（`tests/test_structure_guards.py`，棘輪式）
 - 基準在 `tests/structure_baseline.json`：直接查 `users` 的次數（17 個檔案）、`date.today()` 等依伺服器時區的寫法、`or 0`、沒掛 `admin_required` 的 `/admin` 路由。**只准減少，不准增加**；減少時測試也會紅，提醒你執行 `python tests/structure_scan.py` 把基準往下調。
-- 新模組（點名）不得查 `users`、不得用 `date.today()`；每個 `/admin` 路由必須有閘門（裝飾器或函式開頭手寫的管理員檢查）；除帳號合併的兩個入口外，不得新增刪除 `users` 列的路徑。
+- 新模組（點名）不得查 `users`、不得用 `date.today()`；每個 `/admin` 路由必須有閘門（裝飾器或函式開頭手寫的管理員檢查）；刪除 `users` 列的路徑只有 `routes/user_merge.py` 一條。
 - 掃描工具 `tests/structure_scan.py` 讀 AST／去掉註解後的原始碼，不執行程式。
 
 ### 天父日記 session 相容
@@ -253,8 +260,9 @@ python app.py      # debug=True, port 5000
 | 012 | `migrations/012_roll_call.sql` | 聚會點名（8 張 rc_* 表、稽核觸發器、寫入函式、RLS） |
 | 013 | `migrations/013_security_hardening.sql` | 所有表開 RLS（不設政策）、函式不給公開角色。**僅限伺服器用服務端金鑰的專案**，詳見 `docs/SUPABASE_SETUP.md` |
 | 014 | `migrations/014_permission_matrix.sql` | `groups.admin_modules`（後台權限矩陣；預設空陣列＝沒有授權，既有功能不受影響） |
+| 015 | `migrations/015_report_submitter_columns.sql` | 聚會人數回報的 `submitted_by`／`updated_at`、`visitor_forms.uploaded_by`（程式一直在寫，schema 原本沒有） |
 
-新專案只需執行整份 `schema.sql`（已含 012、013、014）。
+新專案只需執行整份 `schema.sql`（已含 012～015）。
 
 ## 多教會部署架構與開發者權限原則
 

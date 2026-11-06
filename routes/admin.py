@@ -339,7 +339,7 @@ def create_manual_user():
 @admin_bp.route('/api/users/<user_id>/merge-line', methods=['POST'])
 @admin_required
 def merge_line_account(user_id):
-    """將 LINE 帳號整合到手動建立的帳號：複製 LINE 資料、移轉關聯紀錄、刪除舊帳號"""
+    """將 LINE 帳號整合到手動建立的帳號：複製 LINE 資料、移轉關聯紀錄、刪除舊帳號（失敗全部還原）"""
     if not session.get('is_super_admin'):
         return jsonify({'error': '無權限'}), 403
     data = request.get_json() or {}
@@ -371,35 +371,27 @@ def merge_line_account(user_id):
     if old_id == user_id:
         return jsonify({'error': '不能與自己整合'}), 400
 
-    # ① 先清除舊 LINE 帳號的 line_user_id（line_user_id 有 UNIQUE 約束，
-    #    必須先釋放才能複製到手動帳號，否則會 UNIQUE 衝突）
-    supabase.table('users').update({'line_user_id': None}).eq('id', old_id).execute()
-
-    # ② 複製 LINE 資訊到手動帳號
+    # 搬移、失敗還原、刪帳號都在 user_merge（兩個合併流程共用同一份清單）
+    from routes.user_merge import merge_users, MergeError
+    identity_cols = ('line_user_id', 'display_name', 'picture_url')
     try:
-        supabase.table('users').update({
-            'line_user_id': line_user_id,
-            'display_name': line_acct.get('display_name') or target.get('display_name'),
-            'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
-        }).eq('id', user_id).execute()
-    except Exception as e:
-        # 還原舊帳號的 LINE 身份，避免卡在中間狀態
-        supabase.table('users').update({'line_user_id': line_user_id}).eq('id', old_id).execute()
-        return jsonify({'error': f'更新手動帳號失敗：{e}'}), 500
-
-    # ③ 移轉所有關聯紀錄（清單與 schema.sql 同步維護）
-    from routes.account_merge import transfer_user_records
-    failed = transfer_user_records(old_id, user_id)
-
-    # ④ 刪除舊 LINE 帳號
-    try:
-        supabase.table('users').delete().eq('id', old_id).execute()
-    except Exception as e:
-        return jsonify({'error': f'刪除舊帳號失敗（可能仍有未移轉的關聯資料）：{e}'}), 500
+        summary = merge_users(
+            keep_id=user_id, drop_id=old_id,
+            keep_before={c: target.get(c) for c in identity_cols},
+            drop_before={c: line_acct.get(c) for c in identity_cols},
+            new_identity={
+                'line_user_id': line_user_id,
+                'display_name': line_acct.get('display_name') or target.get('display_name'),
+                'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
+            })
+    except MergeError as e:
+        log_action('user.merge_line_admin_failed', 'user', user_id,
+                   {'merged_from': old_id, 'error': e.message, 'rolled_back': e.rolled_back})
+        return jsonify({'error': e.message, 'rolled_back': e.rolled_back}), 500
 
     log_action('user.merge_line_admin', 'user', user_id, {
         'merged_from': old_id, 'line_user_id': line_user_id,
-        'failed_tables': failed or None,
+        'moved': summary['moved'], 'duplicates_dropped': summary['duplicates_dropped'] or None,
     })
     return jsonify({'success': True})
 

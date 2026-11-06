@@ -74,3 +74,63 @@ def test_schema_runs_on_empty_postgres_and_every_table_has_rls():
             assert psql(f"select has_function_privilege('service_role','{fn}','execute')").stdout.strip() == 't'
     finally:
         stop()
+
+
+# ── 程式寫入的每個欄位，schema.sql 都要有（守衛 13 的欄位層級）────────────
+def _schema_columns():
+    cols = {}
+    for m in re.finditer(r'CREATE TABLE(?: IF NOT EXISTS)?\s+(?:public\.)?(\w+)\s*\((.*?)\n\);', SCHEMA_CODE, re.S | re.I):
+        t, body = m.groups()
+        cols.setdefault(t, set())
+        for line in body.split('\n'):
+            c = re.match(r'\s*(\w+)\s+[A-Za-z]', line)
+            if c and c.group(1).upper() not in ('PRIMARY', 'UNIQUE', 'CHECK', 'FOREIGN', 'CONSTRAINT'):
+                cols[t].add(c.group(1))
+    for m in re.finditer(r'ALTER TABLE\s+(?:public\.)?(\w+)\s+(.*?);', SCHEMA_CODE, re.S | re.I):
+        for c in re.findall(r'ADD COLUMN(?: IF NOT EXISTS)?\s+(\w+)', m.group(2)):
+            cols.setdefault(m.group(1), set()).add(c)
+    return cols
+
+
+def _written_columns():
+    import ast
+    out = {}
+    files = list((ROOT / 'routes').glob('*.py')) + [ROOT / 'settings_store.py']
+    for f in files:
+        for node in ast.walk(ast.parse(f.read_text(encoding='utf-8'))):
+            if not (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                    and node.func.attr in ('insert', 'update', 'upsert') and node.args):
+                continue
+            cur, table = node.func.value, None
+            while isinstance(cur, (ast.Call, ast.Attribute)):
+                if (isinstance(cur, ast.Call) and isinstance(cur.func, ast.Attribute) and cur.func.attr == 'table'
+                        and cur.args and isinstance(cur.args[0], ast.Constant)):
+                    table = cur.args[0].value
+                    break
+                cur = cur.func.value if isinstance(cur, ast.Call) else cur.value
+            if not table:
+                continue
+            for p in (node.args[0].elts if isinstance(node.args[0], ast.List) else [node.args[0]]):
+                if isinstance(p, ast.Dict):
+                    for k in p.keys:
+                        if isinstance(k, ast.Constant) and isinstance(k.value, str):
+                            out.setdefault((table, k.value), set()).add(f.name)
+    return out
+
+
+#  已知程式會寫、schema.sql 還沒有的欄位（新專案只跑 schema.sql 時，這些寫入會失敗）。
+#  ★ 只准減少：補上欄位後要把它從這裡拿掉；新增的不在清單裡就紅。
+KNOWN_MISSING_COLUMNS = {
+    ('devotional_registrations', 'paid_at'), ('devotional_registrations', 'paid_quantity'),
+    ('diary_plan', 'date'), ('materials', 'cover_url'), ('prayer_comments', 'is_anonymous'),
+    ('prayers', 'answered_at'), ('prayers', 'archived_at'),
+    ('users', 'provider'), ('users', 'provider_user_id'),
+}
+
+
+def test_every_column_the_code_writes_exists_in_schema_except_the_known_gaps():
+    cols = _schema_columns()
+    assert len(cols) >= 40 and len(_written_columns()) >= 100       # 掃描器自己壞掉不能安靜地變成空集合
+    missing = {(t, c) for (t, c) in _written_columns() if t in cols and c not in cols[t]}
+    assert missing <= KNOWN_MISSING_COLUMNS, f'程式會寫、schema.sql 沒有的新欄位：{sorted(missing - KNOWN_MISSING_COLUMNS)}'
+    assert missing == KNOWN_MISSING_COLUMNS, f'這些欄位已補上，請從 KNOWN_MISSING_COLUMNS 拿掉：{sorted(KNOWN_MISSING_COLUMNS - missing)}'

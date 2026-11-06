@@ -30,15 +30,14 @@ def test_new_modules_never_touch_the_users_table():
         assert f not in hits, f'{f} 不得直接查 users（點名與使用者帳號脫鉤）'
 
 
-def test_users_rows_are_only_deleted_where_we_already_knew():
-    """目前只有兩個帳號合併入口會刪 users 列（admin.py 管理員合併、profile.py 自助合併）。
-    已決定沿用成熟版的合併做法（全部搬完才刪），所以這兩處是已知的；其他地方出現就是新的刪除路徑。"""
+def test_users_rows_are_only_deleted_by_the_shared_merge():
+    """刪除 users 列的路徑只有一條：帳號合併（routes/user_merge.py，全部搬完才刪、失敗全部還原）。
+    已決定沿用成熟版的合併做法，所以規格守衛 22（不得刪除 users 列）只對合併放寬。"""
     import re
-    allowed = {'routes/admin.py', 'routes/profile.py'}
     for f in scan.py_files():
         src = scan.strip_py(f.read_text(encoding='utf-8'))
         if re.search(r"table\(\s*['\"]users['\"]\s*\)\s*\.\s*delete\(", src):
-            assert scan.rel(f) in allowed, f'{scan.rel(f)} 新增了刪除 users 列的路徑'
+            assert scan.rel(f) == 'routes/user_merge.py', f'{scan.rel(f)} 新增了刪除 users 列的路徑'
 
 
 # ── 時間：不依賴伺服器時區 ───────────────────────────────────
