@@ -121,3 +121,8 @@ cell_reporter 的 CLAUDE.md 有一節「Things that are deliberately the way the
 - 與成熟版的差異：**沒登記的後台路徑對副標籤成員一律拒絕（fail closed）**；金流刻意不交給矩陣；session 的 `'*'` 只有現在仍是管理員才算數。
 - 順手把福音探索後台 8 個、會友資料編輯 1 個手寫權限檢查改成統一裝飾器；沒掛 `admin_required` 的 `/admin` 路由基準 19 → 10（7 個同工簽到＋3 個金流）。
 - **尚未移植**：`refresh_session_permissions`（定期重算，讓降權／矩陣調整不用重新登入）、`user_merge`、備份登記制。其中 `refresh_session_permissions` 影響「撤銷是否立即生效」，建議下一步優先做。
+
+### 階段 C（續）：權限撤銷立即生效已移植（2026-11-06）
+- `refresh_session_permissions()`（成熟版機制，針對本系統調整）：每 5 分鐘重算；登入與重算共用 `_permission_fields()`；失敗維持原狀；不碰 `is_demo`。
+- **結構守衛基準刻意上調 1 次**：`routes/auth.py` 直接查 `users` 15 → 16（重算必須讀 users 那一列）。這是唯一一次「增加」，已在 `tests/structure_baseline.json` 的差異裡可見。
+- 仍待移植：`user_merge`（帳號合併，沿用成熟版）、備份登記制。

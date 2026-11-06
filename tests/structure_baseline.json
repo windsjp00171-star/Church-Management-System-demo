@@ -37,7 +37,7 @@
   "users_table_hits": {
     "app.py": 1,
     "routes/admin.py": 42,
-    "routes/auth.py": 15,
+    "routes/auth.py": 16,
     "routes/cell_report.py": 1,
     "routes/changelog.py": 1,
     "routes/checkin.py": 3,
