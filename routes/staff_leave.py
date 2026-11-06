@@ -107,6 +107,7 @@ def legacy_my():
 
 
 @staff_leave_bp.route('/admin/attendance')
+@admin_required
 def legacy_admin():
     return redirect('/admin/staff-leave', code=301)
 

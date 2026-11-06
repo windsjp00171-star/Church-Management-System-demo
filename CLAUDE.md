@@ -108,6 +108,11 @@ from db import supabase
 - 測試：`tests/`（`pytest`；`test_roll_call_db.py` 需要 root＋Postgres 16，否則略過）。
 - 網址：同工 `/roll-call`；後台 `/admin/roll-call`、`/admin/roll-call/rates`。API 回傳 `{"status", "data", "error"}`。
 
+### 結構守衛（`tests/test_structure_guards.py`，棘輪式）
+- 基準在 `tests/structure_baseline.json`：直接查 `users` 的次數（17 個檔案）、`date.today()` 等依伺服器時區的寫法、`or 0`、沒掛 `admin_required` 的 `/admin` 路由。**只准減少，不准增加**；減少時測試也會紅，提醒你執行 `python tests/structure_scan.py` 把基準往下調。
+- 新模組（點名）不得查 `users`、不得用 `date.today()`；每個 `/admin` 路由必須有閘門（裝飾器或函式開頭手寫的管理員檢查）；除帳號合併的兩個入口外，不得新增刪除 `users` 列的路徑。
+- 掃描工具 `tests/structure_scan.py` 讀 AST／去掉註解後的原始碼，不執行程式。
+
 ### 天父日記 session 相容
 diary.py 的 `_get_user()` 從整合系統 session 讀取（`line_id`、`real_name`），相容 event-registration- 格式。
 
