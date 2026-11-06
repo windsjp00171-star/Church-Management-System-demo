@@ -51,6 +51,8 @@
         <div style="font-size:.8rem; color:#888; margin-top:2px;">
           {% if item.available %}
             目前 {{ item.count }} 筆資料
+          {% elif item.failed %}
+            <span style="color:#b91c1c; background:#fef2f2; padding:1px 8px; border-radius:6px;">讀取失敗（資料庫暫時連不上？請稍後再試）</span>
           {% else %}
             <span style="color:#9ca3af; background:#f3f4f6; padding:1px 8px; border-radius:6px;">尚未啟用</span>
           {% endif %}

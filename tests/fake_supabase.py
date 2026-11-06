@@ -88,6 +88,10 @@ class _Query:
         self._op = 'delete'
         return self
 
+    def upsert(self, payload, on_conflict='id', **_kw):
+        self._op, self._payload, self._conflict = 'upsert', payload, [c.strip() for c in on_conflict.split(',')]
+        return self
+
     # ── 篩選 ──────────────────────────
     def eq(self, col, val):
         self._filters.append(('eq', col, val))
@@ -179,6 +183,26 @@ class _Query:
                 rows.append(row)
                 made.append(dict(row))
             self.db.log.append(('insert', self.table_name, made))
+            return _Result(made)
+
+        if self._op == 'upsert':
+            payloads = (self._payload if isinstance(self._payload, list) else [self._payload])
+            made = []
+            for p in payloads:
+                cols = self._conflict
+                if any(c not in p for c in cols):
+                    raise AssertionError(f'upsert 的衝突欄位 {cols} 不在資料列裡：{sorted(p)}')
+                same = next((r for r in rows if all(r.get(c) == p[c] for c in cols)), None)
+                if same is not None:
+                    same.update(p)
+                    made.append(dict(same))
+                else:
+                    row = dict(p)
+                    if 'id' in cols:
+                        row.setdefault('id', self.db.new_id(self.table_name[:3]))
+                    rows.append(row)
+                    made.append(dict(row))
+            self.db.log.append(('upsert', self.table_name, made))
             return _Result(made)
 
         hit = [r for r in rows if self._match(r)]

@@ -22,6 +22,10 @@ ACTION_LABELS = {
     'user.remove_pastor':    '移除牧者',
     'user.set_staff':        '設為同工',
     'user.remove_staff':     '移除同工',
+    # 資料匯出入／功能模組
+    'data.export':           '匯出資料',
+    'data.import':           '匯入資料（還原）',
+    'module.update':         '調整選用功能模組',
     # 權限
     'permission.update':     '調整後台權限矩陣',
     # 活動

@@ -2,6 +2,8 @@
 資料匯出 / 匯入 Blueprint
 超級管理員功能：將整個教會資料庫打包成 ZIP（JSON 格式），或由 ZIP 還原。
 路由前綴：/admin/data
+
+備份哪些表、匯入的順序、upsert 的衝突欄位，全部由 `backup_registry.py` 決定（單一來源）。
 """
 import io
 import json
@@ -10,105 +12,36 @@ from datetime import datetime, timezone, timedelta
 
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    session, flash, send_file, jsonify
+    flash, send_file, jsonify
 )
 
+import backup_registry as reg
 from db import supabase
+from routes.audit import log_action
 from routes.decorators import super_admin_required
 
 data_transfer_bp = Blueprint('data_transfer', __name__)
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
-EXPORT_VERSION = '1.0'
+EXPORT_VERSION = '1.1'
 
-# ── 模組定義 ─────────────────────────────────────────────────────────────────
+# 匯出頁面用的模組清單（由登記表產生；順序＝匯入順序）
+EXPORT_MODULES = reg.export_modules()
+EXCLUDED_TABLES = set(reg.EXCLUDED) | set(reg.VIEWS)
 
-EXPORT_MODULES = {
-    'members': {
-        'label': '👥 會友資料',
-        'tables': ['users', 'user_groups', 'groups', 'group_members'],
-        'description': '會友基本資料、分組歸屬（含 LINE ID，建議謹慎保管）',
-        'warning': True,
-    },
-    'cell_groups': {
-        'label': '🏠 小組牧養',
-        'tables': ['cell_groups', 'cell_members', 'cell_group_leaders',
-                   'cell_reports', 'cell_attendance'],
-        'description': '小組、成員、組長、每週回報單、出席記錄',
-    },
-    'events': {
-        'label': '📅 活動報名',
-        'tables': ['events', 'event_fields', 'registrations',
-                   'registration_answers', 'registration_whitelist'],
-        'description': '活動、自訂欄位、報名紀錄',
-    },
-    'courses': {
-        'label': '📚 門訓課程',
-        'tables': ['course_categories', 'courses', 'course_sessions',
-                   'course_enrollments', 'course_certifications',
-                   'course_certificates', 'session_attendance'],
-        'description': '課程分類、課程、場次、報名、認證記錄',
-    },
-    'prayer': {
-        'label': '🙏 代禱麥田',
-        'tables': ['prayers', 'prayer_comments', 'prayer_reactions'],
-        'description': '代禱事項、回應、回饋',
-    },
-    'calendar': {
-        'label': '🗓 教會行事曆',
-        'tables': ['church_events', 'personal_events'],
-        'description': '公共行事、個人私人事項',
-        'warning': True,
-    },
-    'bulletin': {
-        'label': '📰 每週週報',
-        'tables': ['weekly_bulletins'],
-        'description': '週報記錄（不含 PDF 檔案本體）',
-    },
-    'gospel': {
-        'label': '✝️ 福音探索',
-        'tables': ['gospel_cards', 'gospel_form_questions', 'gospel_inquiries'],
-        'description': '福音卡、問卷題目、詢問記錄',
-    },
-    'meeting_reports': {
-        'label': '📊 聚會人數',
-        'tables': ['sunday_reports', 'children_sunday_reports',
-                   'prayer_reports', 'morning_prayer_reports',
-                   'custom_meeting_reports'],
-        'description': '各場聚會出席人數歷史統計',
-    },
-    'settings': {
-        'label': '⚙️ 系統設定',
-        'tables': ['settings', 'portal_card_settings', 'portal_links'],
-        'description': '聚會設定、門戶卡片、快捷連結',
-    },
-    'roll_call': {
-        'label': '📝 聚會點名',
-        'tables': ['rc_meeting_types', 'rc_members', 'rc_sessions', 'rc_records',
-                   'rc_guest_counts', 'rc_rate_rules', 'rc_audit'],
-        'description': '點名名冊、場次、個人出席、出席率規則與稽核（稽核只能匯入空資料庫，不可覆寫）',
-        'warning': True,
-    },
-    'staff_leave_mgmt': {
-        'label': '🕐 全職同工差勤',
-        'tables': ['staff_profiles', 'leave_requests', 'overtime_records',
-                   'materials', 'material_stock', 'material_transactions'],
-        'description': '全職同工差勤、特休、物資管理',
-    },
-}
 
-# 不開放匯出的私密資料表
-EXCLUDED_TABLES = {
-    'diary_entries', 'diary_plan', 'diary_share_grants',
-    'verse_custom_themes', 'daily_verse_draws', 'daily_verses',
-    'notifications', 'visitor_forms', 'files', 'folders',
-}
+class ExportError(Exception):
+    """匯出中止（資料庫讀取失敗）。寧可明講失敗，也不要產出一份「看起來完整」的殘缺備份。"""
 
 
 # ── 輔助函式 ──────────────────────────────────────────────────────────────────
 
 def _fetch_all(table_name: str) -> list:
-    """分頁讀取整張表（Supabase 每次最多 1000 筆）。"""
+    """分頁讀取整張表（Supabase 每次最多 1000 筆）。
+
+    資料表不存在 → 回傳 None（呼叫端記成「尚未建立」）；
+    其他任何失敗（網路、權限）→ 丟 ExportError，**不可以靜靜回傳讀到一半的資料**。
+    """
     rows = []
     page_size = 1000
     offset = 0
@@ -116,26 +49,28 @@ def _fetch_all(table_name: str) -> list:
         try:
             res = supabase.table(table_name).select('*')\
                 .range(offset, offset + page_size - 1).execute()
-            batch = res.data or []
-            rows.extend(batch)
-            if len(batch) < page_size:
-                break
-            offset += page_size
-        except Exception:
-            break
-    return rows
+        except Exception as e:
+            if reg.is_missing_table(e):
+                return None
+            raise ExportError(f'讀取 {table_name} 失敗：{str(e)[:160]}') from e
+        batch = res.data or []
+        rows.extend(batch)
+        if len(batch) < page_size:
+            return rows
+        offset += page_size
 
 
 def _upsert_batch(table_name: str, records: list) -> tuple[int, str | None]:
-    """批次 upsert，每批 200 筆，回傳 (成功筆數, 錯誤訊息)。"""
+    """批次 upsert，每批 200 筆，回傳 (成功筆數, 錯誤訊息)。衝突欄位以登記表為準。"""
     if not records:
         return 0, None
     total = 0
     chunk_size = 200
+    conflict = reg.CONFLICT[table_name]
     for i in range(0, len(records), chunk_size):
         chunk = records[i:i + chunk_size]
         try:
-            supabase.table(table_name).upsert(chunk, on_conflict='id').execute()
+            supabase.table(table_name).upsert(chunk, on_conflict=conflict).execute()
             total += len(chunk)
         except Exception as e:
             return total, str(e)
@@ -148,42 +83,25 @@ def _json_default(obj):
     raise TypeError(f'Not serializable: {type(obj)}')
 
 
-# ── 匯出 ──────────────────────────────────────────────────────────────────────
-
-@data_transfer_bp.get('/admin/data-export')
-@super_admin_required
-def data_export():
-    return render_template('admin/data_export.html', modules=EXPORT_MODULES)
-
-
-@data_transfer_bp.post('/admin/data-export/download')
-@super_admin_required
-def data_export_download():
-    selected = request.form.getlist('modules')
-    if not selected:
-        flash('請至少選擇一個模組', 'error')
-        return redirect(url_for('data_transfer.data_export'))
-
-    # 驗證選取模組合法
+def build_export(selected: list, fetch=None):
+    """把選取的模組打包成 ZIP。回傳 (zip 位元組, meta)。讀取失敗丟 ExportError。"""
+    fetch = fetch or _fetch_all
     selected = [m for m in selected if m in EXPORT_MODULES]
-
     buf = io.BytesIO()
-    table_stats = {}
+    table_stats, not_available = {}, []
 
     with zipfile.ZipFile(buf, 'w', zipfile.ZIP_DEFLATED) as zf:
-        exported_tables = set()
-
         for module_key in selected:
             for table in EXPORT_MODULES[module_key]['tables']:
-                if table in exported_tables or table in EXCLUDED_TABLES:
+                if table in table_stats or table in not_available:
                     continue
-                rows = _fetch_all(table)
+                rows = fetch(table)
+                if rows is None:
+                    not_available.append(table)
+                    continue
                 table_stats[table] = len(rows)
-                zf.writestr(
-                    f'{table}.json',
-                    json.dumps(rows, ensure_ascii=False, indent=2, default=_json_default)
-                )
-                exported_tables.add(table)
+                zf.writestr(f'{table}.json',
+                            json.dumps(rows, ensure_ascii=False, indent=2, default=_json_default))
 
         meta = {
             'version': EXPORT_VERSION,
@@ -191,20 +109,60 @@ def data_export_download():
             'church_name': '',
             'modules': selected,
             'tables': table_stats,
+            'not_available': not_available,       # 資料表還不存在（那個模組的 migration 沒跑）
+            'excluded': reg.EXCLUDED,             # 刻意不備份的表與理由
             'note': '使用本系統 /admin/data-import 還原。僅適用於全新 Supabase 專案。',
         }
-        zf.writestr('export_meta.json',
-                    json.dumps(meta, ensure_ascii=False, indent=2))
+        zf.writestr('export_meta.json', json.dumps(meta, ensure_ascii=False, indent=2))
+    return buf.getvalue(), meta
 
-    buf.seek(0)
+
+def import_bundle(zf, upsert=None):
+    """依登記表的順序匯入。只匯入登記表裡的資料表；其餘檔案一律略過並回報（不信任 ZIP 裡的檔名）。"""
+    upsert = upsert or _upsert_batch
+    names = zf.namelist()
+    file_map = {n[:-5]: n for n in names if n.endswith('.json') and n != 'export_meta.json'}
+    results = []
+    for table in reg.TABLE_NAMES:                       # 登記表的順序＝外鍵安全的順序
+        if table not in file_map:
+            continue
+        records = json.loads(zf.read(file_map[table]))
+        count, err = upsert(table, records)
+        results.append({'table': table, 'total': len(records), 'imported': count, 'error': err})
+    for table in file_map:
+        if table not in reg.CONFLICT:
+            why = reg.EXCLUDED.get(table) or ('檢視表，不匯入' if table in reg.VIEWS else '不在備份登記表裡')
+            results.append({'table': table, 'total': 0, 'imported': 0, 'error': None, 'skipped': why})
+    return results
+
+
+# ── 匯出 ──────────────────────────────────────────────────────────────────────
+
+@data_transfer_bp.get('/admin/data-export')
+@super_admin_required
+def data_export():
+    return render_template('admin/data_export.html', modules=EXPORT_MODULES, excluded=reg.EXCLUDED)
+
+
+@data_transfer_bp.post('/admin/data-export/download')
+@super_admin_required
+def data_export_download():
+    selected = [m for m in request.form.getlist('modules') if m in EXPORT_MODULES]
+    if not selected:
+        flash('請至少選擇一個模組', 'error')
+        return redirect(url_for('data_transfer.data_export'))
+
+    try:
+        data, meta = build_export(selected)
+    except ExportError as e:
+        flash(f'匯出失敗，沒有產生任何檔案：{e}', 'error')
+        return redirect(url_for('data_transfer.data_export'))
+
+    log_action('data.export', target_type='data_export', detail={
+        'modules': selected, 'tables': len(meta['tables']), 'not_available': meta['not_available'] or None})
     ts = datetime.now(TAIPEI_TZ).strftime('%Y%m%d_%H%M')
-    filename = f'church_export_{ts}.zip'
-    return send_file(
-        buf,
-        mimetype='application/zip',
-        as_attachment=True,
-        download_name=filename,
-    )
+    return send_file(io.BytesIO(data), mimetype='application/zip', as_attachment=True,
+                     download_name=f'church_export_{ts}.zip')
 
 
 # ── 匯入 ──────────────────────────────────────────────────────────────────────
@@ -236,7 +194,7 @@ def data_import_preview():
                 if name == 'export_meta.json':
                     continue
                 table = name.replace('.json', '')
-                if table in EXCLUDED_TABLES:
+                if table not in reg.CONFLICT:           # 不在登記表（含排除的、檢視表）的不會被匯入
                     continue
                 try:
                     records = json.loads(zf.read(name))
@@ -247,8 +205,8 @@ def data_import_preview():
         return jsonify({'meta': meta, 'tables': tables_preview})
     except zipfile.BadZipFile:
         return jsonify({'error': '無效的 ZIP 檔案'}), 400
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+    except Exception:
+        return jsonify({'error': '預覽失敗，請確認檔案是由本系統匯出的'}), 500
 
 
 @data_transfer_bp.post('/admin/data-import/execute')
@@ -260,63 +218,22 @@ def data_import_execute():
         return jsonify({'error': '請上傳 .zip 檔案'}), 400
 
     # 二次確認
-    confirm = request.form.get('confirm')
-    if confirm != 'IMPORT':
+    if request.form.get('confirm') != 'IMPORT':
         return jsonify({'error': '請輸入確認字串 IMPORT'}), 400
 
     results = []
     try:
         with zipfile.ZipFile(f, 'r') as zf:
-            names = zf.namelist()
-            if 'export_meta.json' not in names:
+            if 'export_meta.json' not in zf.namelist():
                 return jsonify({'error': '檔案格式不符'}), 400
-
             meta = json.loads(zf.read('export_meta.json'))
-
-            # 依照外鍵相依順序處理
-            TABLE_ORDER = [
-                'users', 'user_groups', 'groups', 'group_members',
-                'settings', 'portal_card_settings', 'portal_links',
-                'events', 'event_fields', 'registrations',
-                'registration_answers', 'registration_whitelist',
-                'course_categories', 'courses', 'course_sessions',
-                'course_enrollments', 'course_certifications',
-                'course_certificates', 'session_attendance',
-                'cell_groups', 'cell_members', 'cell_group_leaders',
-                'cell_reports', 'cell_attendance',
-                'prayers', 'prayer_comments', 'prayer_reactions',
-                'church_events', 'personal_events',
-                'weekly_bulletins',
-                'gospel_cards', 'gospel_form_questions', 'gospel_inquiries',
-                'sunday_reports', 'children_sunday_reports',
-                'prayer_reports', 'morning_prayer_reports',
-                'custom_meeting_reports',
-                'staff_profiles', 'leave_requests', 'overtime_records',
-                'materials', 'material_stock', 'material_transactions',
-            ]
-
-            file_map = {n.replace('.json', ''): n
-                        for n in names if n.endswith('.json') and n != 'export_meta.json'}
-
-            # 先按 TABLE_ORDER 插入，剩餘未列的按檔名順序
-            ordered = [t for t in TABLE_ORDER if t in file_map]
-            remaining = [t for t in file_map if t not in ordered]
-            process_order = ordered + remaining
-
-            for table in process_order:
-                if table in EXCLUDED_TABLES:
-                    continue
-                records = json.loads(zf.read(file_map[table]))
-                count, err = _upsert_batch(table, records)
-                results.append({
-                    'table': table,
-                    'total': len(records),
-                    'imported': count,
-                    'error': err,
-                })
-
-        return jsonify({'success': True, 'meta': meta, 'results': results})
+            results = import_bundle(zf)
     except zipfile.BadZipFile:
         return jsonify({'error': '無效的 ZIP 檔案'}), 400
-    except Exception as e:
-        return jsonify({'error': str(e), 'results': results}), 500
+    except Exception:
+        return jsonify({'error': '匯入中斷，請確認檔案是由本系統匯出的', 'results': results}), 500
+
+    log_action('data.import', target_type='data_import', detail={
+        'tables': len([r for r in results if not r.get('skipped')]),
+        'errors': [r['table'] for r in results if r.get('error')] or None})
+    return jsonify({'success': True, 'meta': meta, 'results': results})
