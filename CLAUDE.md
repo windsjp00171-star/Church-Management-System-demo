@@ -135,7 +135,7 @@ from db import supabase
 - `TABLES`（外鍵安全的匯入順序＋upsert 衝突欄位＝真實主鍵＋所屬匯出模組）／`EXCLUDED`（刻意不備份，**必須寫理由**）／`VIEWS`（檢視表，不匯出）。**`schema.sql` 的每張表都必須在其中一處**，`tests/test_backup_registry.py` 掃 schema 守著；父表必須排在子表前面；衝突欄位對照 schema 的 PRIMARY KEY。
 - 新增資料表時：同時補 `schema.sql` 與登記表，否則測試會紅。
 - 超管匯出／匯入（`routes/data_transfer.py`）：匯出任何一張表讀取失敗就**整個中止**（不產出殘缺 ZIP）；資料表不存在（`reg.is_missing_table`）才記成「尚未建立」；匯入只寫登記表內的表，其餘略過並回報。匯出／匯入都寫稽核。
-- 目前刻意不備份：`diary_entries`／`diary_share_grants`（隱私，超管匯出不含日記內容，災難還原需靠 Supabase 層級備份——**待使用者決定**）、`notifications`（暫時性）、`contact_leads`（展示站專用）。檔案本體（R2）與留名單照片（Storage）不在資料庫匯出內，需另外備份。
+- 目前刻意不備份：`diary_entries`／`diary_share_grants`（隱私，**已決定**：超管匯出不含日記內容；個人可在 `/diary/export` 匯出自己的；災難還原需靠 Supabase 層級備份）、`notifications`（暫時性）、`contact_leads`（展示站專用）。檔案本體（R2）與留名單照片（Storage）不在資料庫匯出內，需另外備份。
 - 可讀的 CSV 備份中心（`routes/backup.py`）：讀取失敗（`BackupReadError`）與資料表不存在是兩件事，前者顯示「讀取失敗」，不可顯示成「尚未啟用」。
 
 ### 結構守衛（`tests/test_structure_guards.py`，棘輪式）
@@ -198,6 +198,7 @@ migration 腳本：`migrations/008_diary_admin_whitelist.sql`
 - 逐節經文支援逗號分隔多段範圍，如 `6:28-29,31:3`（去重保序）
 - 日記後台管理員三層驗證：`session.is_admin` → 環境變數 `ADMIN_LINE_USER_IDS` → `admin_whitelist` 資料表（TTL 2 分鐘快取）
 - 後台可管理讀經進度（逐筆 key-in 或批次匯入 xlsx）、牧者白名單、日記後台白名單
+- 個人匯出 `/diary/export`：只匯出登入者自己的日記（鍵為 session 的 `line_id`，不接受參數）；讀取失敗不給檔案；稽核 `diary.export_self` 只記篇數
 
 ### 檔案分享（files_bp）
 - 支援音訊預覽（`.mp3`, `.m4a`, `.wav`, `.ogg`, `.aac`）：直接顯示 `<audio>` 播放器
