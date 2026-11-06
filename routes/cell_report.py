@@ -938,6 +938,7 @@ def staff_dashboard():
 
 
 @cell_report_bp.route('/cell-report/sunday', methods=['GET', 'POST'])
+@staff_required
 def sunday():
     cfg = _get_meeting_settings()['adult_sunday']
     date_obj = _get_last_weekday_date(cfg['weekday'])
@@ -980,6 +981,7 @@ def sunday():
 
 
 @cell_report_bp.route('/cell-report/children', methods=['GET', 'POST'])
+@staff_required
 def children():
     cfg = _get_meeting_settings()['children_sunday']
     date_obj = _get_last_weekday_date(cfg['weekday'])
@@ -1016,6 +1018,7 @@ def children():
 
 
 @cell_report_bp.route('/cell-report/prayer', methods=['GET', 'POST'])
+@staff_required
 def prayer():
     cfg = _get_meeting_settings()['prayer']
     date_obj = _get_last_weekday_date(cfg['weekday'])
@@ -1052,6 +1055,7 @@ def prayer():
 
 
 @cell_report_bp.route('/cell-report/morning-prayer', methods=['GET', 'POST'])
+@staff_required
 def morning_prayer():
     cfg = _get_meeting_settings()['morning_prayer']
     date_obj = _get_last_weekday_date(cfg['weekday'])
