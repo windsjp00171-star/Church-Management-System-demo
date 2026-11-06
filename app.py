@@ -104,8 +104,8 @@ def create_app():
     app.register_blueprint(changelog_bp)
 
     # ── 差勤系統 ──────────────────────────────────────────────
-    from routes.attendance import attendance_bp
-    app.register_blueprint(attendance_bp)
+    from routes.staff_leave import staff_leave_bp
+    app.register_blueprint(staff_leave_bp)
 
     # ── 資料匯出 / 匯入 ────────────────────────────────────────
     from routes.data_transfer import data_transfer_bp

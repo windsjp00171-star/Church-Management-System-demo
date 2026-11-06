@@ -3,7 +3,7 @@ from db import supabase
 from routes.decorators import login_required, admin_required
 from datetime import date, datetime, timezone
 
-attendance_bp = Blueprint('attendance', __name__)
+staff_leave_bp = Blueprint('staff_leave', __name__)
 
 LEAVE_LABELS = {
     'annual':   '特休',
@@ -100,14 +100,25 @@ def _comp_balance(user_id: str, initial: float) -> float:
     return initial + sum(float(r['hours']) for r in earned) - sum(float(r['hours']) for r in used)
 
 
+# ── 舊網址轉址（通知連結、書籤沿用）──────────────────
+@staff_leave_bp.route('/attendance')
+def legacy_my():
+    return redirect('/staff-leave', code=301)
+
+
+@staff_leave_bp.route('/admin/attendance')
+def legacy_admin():
+    return redirect('/admin/staff-leave', code=301)
+
+
 # ── 同工個人頁面 ──────────────────────────────────────
-@attendance_bp.route('/attendance')
+@staff_leave_bp.route('/staff-leave')
 @login_required
-def my_attendance():
+def my_leave():
     uid = session['user_id']
     profile = supabase.table('staff_profiles').select('*').eq('user_id', uid).execute().data
     if not profile:
-        return render_template('attendance/not_enrolled.html')
+        return render_template('staff_leave/not_enrolled.html')
     p = profile[0]
     hire_date = date.fromisoformat(p['hire_date'])
 
@@ -121,7 +132,7 @@ def my_attendance():
     overtimes = supabase.table('overtime_records').select('*')\
         .eq('user_id', uid).order('date', desc=True).limit(20).execute().data or []
 
-    return render_template('attendance/my.html',
+    return render_template('staff_leave/my.html',
         profile=p,
         hire_date=hire_date,
         entitlement=entitlement,
@@ -133,7 +144,7 @@ def my_attendance():
     )
 
 
-@attendance_bp.route('/attendance/request', methods=['POST'])
+@staff_leave_bp.route('/staff-leave/request', methods=['POST'])
 @login_required
 def submit_leave():
     uid = session['user_id']
@@ -185,7 +196,7 @@ def submit_leave():
                 title=f'📋 請假申請 — {name}',
                 body=f'{LEAVE_LABELS[leave_type]} {hours}小時，請至差勤管理確認。',
                 type='attendance',
-                link='/admin/attendance',
+                link='/admin/staff-leave',
             )
     except Exception as e:
         print(f'[attendance] notify error: {e}')
@@ -193,7 +204,7 @@ def submit_leave():
     return jsonify({'success': True})
 
 
-@attendance_bp.route('/attendance/overtime', methods=['POST'])
+@staff_leave_bp.route('/staff-leave/overtime', methods=['POST'])
 @login_required
 def submit_overtime():
     uid = session['user_id']
@@ -221,7 +232,7 @@ def submit_overtime():
                 title=f'⏰ 加班登錄 — {name}',
                 body=f'{data.get("date")} 加班 {hours}小時，請至差勤管理確認。',
                 type='attendance',
-                link='/admin/attendance',
+                link='/admin/staff-leave',
             )
     except Exception as e:
         print(f'[attendance] notify error: {e}')
@@ -230,9 +241,9 @@ def submit_overtime():
 
 
 # ── 管理員頁面 ────────────────────────────────────────
-@attendance_bp.route('/admin/attendance')
+@staff_leave_bp.route('/admin/staff-leave')
 @admin_required
-def admin_attendance():
+def admin_leave():
     db_ok = True
     pending_leaves = []
     pending_ot = []
@@ -258,7 +269,7 @@ def admin_attendance():
         print(f'[attendance admin] DB error: {e}')
         db_ok = False
 
-    return render_template('attendance/admin.html',
+    return render_template('staff_leave/admin.html',
         pending_leaves=pending_leaves,
         pending_ot=pending_ot,
         profiles=profiles,
@@ -267,7 +278,7 @@ def admin_attendance():
     )
 
 
-@attendance_bp.route('/admin/attendance/review/<rec_type>/<rec_id>', methods=['POST'])
+@staff_leave_bp.route('/admin/staff-leave/review/<rec_type>/<rec_id>', methods=['POST'])
 @admin_required
 def review(rec_type, rec_id):
     data = request.get_json() or {}
@@ -285,7 +296,7 @@ def review(rec_type, rec_id):
     return jsonify({'success': True})
 
 
-@attendance_bp.route('/admin/attendance/staff/new', methods=['POST'])
+@staff_leave_bp.route('/admin/staff-leave/staff/new', methods=['POST'])
 @admin_required
 def add_staff():
     data = request.get_json() or {}

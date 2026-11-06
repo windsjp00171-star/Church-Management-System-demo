@@ -127,7 +127,7 @@
             <span style="font-weight:bold;">{{ p._user.get('real_name') or p._user.get('display_name') or '（未知）' }}</span>
             <span style="font-size:0.82rem; color:#888; margin-left:10px;">入職 {{ p.hire_date }} · {{ '週年制' if p.leave_cycle == 'anniversary' else '曆年制' }}</span>
         </div>
-        <a href="/admin/attendance/staff/{{ p.user_id }}"
+        <a href="/admin/staff-leave/staff/{{ p.user_id }}"
             style="font-size:0.82rem; color:#3b82f6; text-decoration:none;">查看明細 →</a>
     </div>
     {% endfor %}
@@ -172,7 +172,7 @@ async function submitAddStaff() {
     const userId = document.getElementById('s-user-id').value;
     const hire   = document.getElementById('s-hire').value;
     if (!userId || !hire) { showToast('請選擇帳號並填入職日期', 'error'); return; }
-    const r = await fetch('/admin/attendance/staff/new', {
+    const r = await fetch('/admin/staff-leave/staff/new', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
             user_id: userId,
@@ -188,7 +188,7 @@ async function submitAddStaff() {
 }
 async function review(type, id, action) {
     const noteEl = document.getElementById(`note-${type === 'leave' ? 'l' : 'ot'}-${id}`);
-    const r = await fetch(`/admin/attendance/review/${type}/${id}`, {
+    const r = await fetch(`/admin/staff-leave/review/${type}/${id}`, {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ action, note: noteEl ? noteEl.value.trim() : '' })
     });

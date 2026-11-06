@@ -82,8 +82,8 @@ EXPORT_MODULES = {
         'tables': ['settings', 'portal_card_settings', 'portal_links'],
         'description': '聚會設定、門戶卡片、快捷連結',
     },
-    'attendance_mgmt': {
-        'label': '🕐 差勤管理',
+    'staff_leave_mgmt': {
+        'label': '🕐 全職同工差勤',
         'tables': ['staff_profiles', 'leave_requests', 'overtime_records',
                    'materials', 'material_stock', 'material_transactions'],
         'description': '全職同工差勤、特休、物資管理',
