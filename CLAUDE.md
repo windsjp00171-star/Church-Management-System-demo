@@ -261,8 +261,9 @@ python app.py      # debug=True, port 5000
 | 013 | `migrations/013_security_hardening.sql` | 所有表開 RLS（不設政策）、函式不給公開角色。**僅限伺服器用服務端金鑰的專案**，詳見 `docs/SUPABASE_SETUP.md` |
 | 014 | `migrations/014_permission_matrix.sql` | `groups.admin_modules`（後台權限矩陣；預設空陣列＝沒有授權，既有功能不受影響） |
 | 015 | `migrations/015_report_submitter_columns.sql` | 聚會人數回報的 `submitted_by`／`updated_at`、`visitor_forms.uploaded_by`（程式一直在寫，schema 原本沒有） |
+| 016 | `migrations/016_missing_columns.sql` | 補上程式一直在讀寫、schema 原本沒有的欄位（禱讀本收費、教材封面、代禱匿名／蒙應允／封存、日記登入寫入）；`diary_plan.plan_date` 改名為程式用的 `date`（只在舊欄位存在時） |
 
-新專案只需執行整份 `schema.sql`（已含 012～015）。
+新專案只需執行整份 `schema.sql`（已含 012～016）。**程式寫入的每個欄位 `schema.sql` 都必須有**（`tests/test_schema_guards.py` 掃 AST 守著；新增欄位要同時補 schema 與 migration）。
 
 ## 多教會部署架構與開發者權限原則
 

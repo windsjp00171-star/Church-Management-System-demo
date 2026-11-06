@@ -119,18 +119,32 @@ def _written_columns():
 
 
 #  已知程式會寫、schema.sql 還沒有的欄位（新專案只跑 schema.sql 時，這些寫入會失敗）。
-#  ★ 只准減少：補上欄位後要把它從這裡拿掉；新增的不在清單裡就紅。
-KNOWN_MISSING_COLUMNS = {
-    ('devotional_registrations', 'paid_at'), ('devotional_registrations', 'paid_quantity'),
-    ('diary_plan', 'date'), ('materials', 'cover_url'), ('prayer_comments', 'is_anonymous'),
-    ('prayers', 'answered_at'), ('prayers', 'archived_at'),
-    ('users', 'provider'), ('users', 'provider_user_id'),
-}
+#  ★ 只准減少；目前已經清空。之後若程式新增了寫入的欄位，要同時補進 schema.sql（和 migration）。
+KNOWN_MISSING_COLUMNS = set()
 
 
-def test_every_column_the_code_writes_exists_in_schema_except_the_known_gaps():
+def test_every_column_the_code_writes_exists_in_schema():
     cols = _schema_columns()
     assert len(cols) >= 40 and len(_written_columns()) >= 100       # 掃描器自己壞掉不能安靜地變成空集合
     missing = {(t, c) for (t, c) in _written_columns() if t in cols and c not in cols[t]}
     assert missing <= KNOWN_MISSING_COLUMNS, f'程式會寫、schema.sql 沒有的新欄位：{sorted(missing - KNOWN_MISSING_COLUMNS)}'
     assert missing == KNOWN_MISSING_COLUMNS, f'這些欄位已補上，請從 KNOWN_MISSING_COLUMNS 拿掉：{sorted(KNOWN_MISSING_COLUMNS - missing)}'
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_migration_016_renames_an_old_plan_date_column_and_is_repeatable():
+    """舊的資料庫（用過舊版 schema.sql）diary_plan 的欄位叫 plan_date；migration 016 要把它改成程式用的 date。"""
+    psql, stop = pg_helper.start(55436)
+    try:
+        psql('create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;')
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        assert psql('ALTER TABLE diary_plan RENAME COLUMN date TO plan_date').returncode == 0   # 模擬舊資料庫
+        mig = str(ROOT / 'migrations' / '016_missing_columns.sql')
+        for _ in range(2):                                                                       # 可重複執行
+            r = psql(file=mig)
+            assert r.returncode == 0, r.stderr
+        cols = psql("select string_agg(column_name, ',') from information_schema.columns "
+                    "where table_name='diary_plan'").stdout
+        assert 'date' in cols.split(',') and 'plan_date' not in cols.split(',')
+    finally:
+        stop()
