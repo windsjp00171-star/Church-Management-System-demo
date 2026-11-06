@@ -201,10 +201,13 @@ def ecpay_return():
     """ECPay server-to-server callback (background notify)"""
     data = request.form.to_dict()
     cfg = _get_gateway_settings()
+    # 沒設金鑰就不接受回呼：金鑰是空字串時，任何人都算得出同一個簽章，等於沒有驗證
+    if not cfg['ecpay_hash_key'] or not cfg['ecpay_hash_iv']:
+        return '0|Error', 200
     received_mac = data.pop('CheckMacValue', '')
     expected_mac = _ecpay_checksum(data, cfg['ecpay_hash_key'], cfg['ecpay_hash_iv'])
 
-    if received_mac.upper() != expected_mac.upper():
+    if not hmac.compare_digest(received_mac.upper(), expected_mac.upper()):
         return '0|Error', 200
 
     trade_no = data.get('MerchantTradeNo', '')
