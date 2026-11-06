@@ -5,7 +5,8 @@
 附「前往體驗」連結。
 
 呈現規則：
-  - 前台模組：依功能模組登記表（routes/modules.py）與 R2 設定過濾未啟用者。
+  - 前台模組：依功能模組登記表（routes/modules.py）與 R2 設定過濾未啟用者；
+    每一步另外依自己的網址歸屬再判一次（is_path_enabled），新增步驟忘了寫條件也不會漏。
   - 後台模組：依登入者角色（管理員 / 超級管理員 / 財務）顯示對應步驟。
 未啟用或無權限的模組自動不出現於導覽中。
 
@@ -13,7 +14,7 @@
 """
 from flask import Blueprint, render_template, session, redirect, url_for
 from config import Config
-from routes.modules import is_enabled
+from routes.modules import is_enabled, is_path_enabled
 
 guide_bp = Blueprint('guide', __name__)
 
@@ -49,7 +50,7 @@ def _front_steps():
     return [
         {'section': '前台', 'key': k, 'icon': icon, 'name': name,
          'audience': aud, 'desc': desc, 'url': url}
-        for enabled, k, icon, name, aud, desc, url in raw if enabled
+        for enabled, k, icon, name, aud, desc, url in raw if enabled and is_path_enabled(url)
     ]
 
 
@@ -117,7 +118,7 @@ def _admin_steps():
     return [
         {'section': '後台', 'key': k, 'icon': icon, 'name': name,
          'audience': aud, 'desc': desc, 'url': url}
-        for cond, k, icon, name, aud, desc, url in raw if cond
+        for cond, k, icon, name, aud, desc, url in raw if cond and is_path_enabled(url)
     ]
 
 
