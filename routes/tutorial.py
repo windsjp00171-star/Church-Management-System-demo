@@ -12,7 +12,7 @@
 """
 from flask import Blueprint, render_template, session, redirect, url_for
 from config import Config
-from routes.modules import is_enabled
+from routes.modules import is_enabled, is_path_enabled
 
 tutorial_bp = Blueprint('tutorial', __name__)
 
@@ -25,7 +25,7 @@ def _build_lessons():
     lessons = []
 
     def add(cond, section, key, icon, name, audience, intro, url, steps):
-        if cond:
+        if cond and is_path_enabled(url):
             lessons.append({
                 'section': section, 'key': key, 'icon': icon, 'name': name,
                 'audience': audience, 'intro': intro, 'url': url, 'steps': steps,
