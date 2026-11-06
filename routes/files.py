@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 import uuid
 import os
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify, abort, g, current_app, Response
@@ -174,8 +175,10 @@ def index():
         folders_q = folders_q.is_('parent_id', 'null')
 
     if role != 'admin':
+        # user_id 先驗證為合法 UUID，避免插入 PostgREST 過濾字串時造成注入
+        safe_uid = str(uuid.UUID(str(session['user_id'])))
         folders_q = folders_q.or_(
-            f'visibility.eq.public,visibility.eq.management,allowed_roles.cs.{{"{role}"}},created_by.eq.{session["user_id"]}'
+            f'visibility.eq.public,visibility.eq.management,allowed_roles.cs.{{"{role}"}},created_by.eq.{safe_uid}'
         )
     folders = folders_q.order('name').execute().data or []
 
@@ -192,7 +195,7 @@ def index():
     files = [f for f in all_files if _can_access_file(f)]
 
     # 批次取上傳者姓名
-    uploader_ids = list({f['uploaded_by'] for f in files if f.get('uploaded_by')})
+    uploader_ids = list({f['owner_id'] for f in files if f.get('owner_id')})
     uploader_map = {}
     if uploader_ids:
         up_users = supabase.table('users').select('id, display_name')\
@@ -204,7 +207,7 @@ def index():
         ext = os.path.splitext(f['name'])[1].lower()
         f['thumb_url'] = get_presigned_url(f['file_key'], expires=3600) if ext in IMAGE_EXTS else None
         f['size_label'] = _format_size(f.get('file_size'))
-        f['uploader'] = uploader_map.get(f.get('uploaded_by'), '')
+        f['uploader'] = uploader_map.get(f.get('owner_id'), '')
 
     current_folder = None
     if folder_id:
@@ -246,6 +249,23 @@ def index():
                            is_admin=session.get('is_admin'),
                            user_role=role,
                            storage_info=storage_info)
+
+
+def _r2_error_hint(exc) -> str:
+    """把 boto3 / R2 的例外轉成可行動的中文提示（給超管看，協助排查設定）。"""
+    from botocore.exceptions import ClientError, EndpointConnectionError
+    if isinstance(exc, EndpointConnectionError):
+        return ('無法連線到 R2_ENDPOINT。請確認端點格式為 '
+                'https://<帳號ID>.r2.cloudflarestorage.com（不要包含 bucket 名稱）。')
+    if isinstance(exc, ClientError):
+        code = (exc.response.get('Error', {}) or {}).get('Code', '')
+        if code in ('AccessDenied', 'SignatureDoesNotMatch', 'InvalidAccessKeyId', '403'):
+            return ('R2 認證失敗（%s）。請檢查 R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY，'
+                    '並確認該 API Token 具有「物件讀寫（Object Read & Write）」權限。' % code)
+        if code in ('NoSuchBucket', '404'):
+            return 'R2 找不到指定的 Bucket。請檢查 R2_BUCKET_NAME 是否正確。'
+        return 'R2 回報錯誤代碼：%s。' % (code or '未知')
+    return ''
 
 
 @files_bp.route('/files/upload', methods=['POST'])
@@ -292,13 +312,19 @@ def upload():
     password = request.form.get('password', '')
 
     file_key = f'files/{uuid.uuid4()}{ext}'
-    content_type = f.content_type or 'application/octet-stream'
+    # 由副檔名推斷 MIME，不信任客戶端傳來的 Content-Type
+    content_type = mimetypes.guess_type(safe_name)[0] or 'application/octet-stream'
 
     try:
         upload_file(f, file_key, content_type)
-    except Exception:
+    except Exception as exc:
         logger.exception('R2 upload failed: %s', safe_name)
-        return jsonify({'error': '檔案上傳至儲存空間失敗，請稍後再試'}), 500
+        msg = '檔案上傳至儲存空間失敗，請稍後再試'
+        if session.get('is_super_admin'):
+            hint = _r2_error_hint(exc)
+            if hint:
+                msg = '檔案上傳失敗 — ' + hint
+        return jsonify({'error': msg}), 500
 
     password_hash = None
     if protection == 'password' and password:
@@ -326,7 +352,7 @@ def upload():
         try:
             delete_file(file_key)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         return jsonify({'error': '資料庫寫入失敗，請稍後再試'}), 500
 
     # 上傳後通知指定對象（失敗不影響上傳結果）
@@ -334,7 +360,7 @@ def upload():
         try:
             _notify_file_shared(file_id, safe_name, visibility, allowed_users, allowed_groups)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         logger.info('上傳成功 file=%s size=%d user=%s', safe_name, file_size, session.get('user_id', '')[:8])
 
     return jsonify({'success': True, 'file_id': file_id})
@@ -594,17 +620,21 @@ def create_folder():
     if protection == 'password' and password:
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-    supabase.table('folders').insert({
-        'name': name,
-        'parent_id': parent_id,
-        'created_by': session['user_id'],
-        'visibility': visibility,
-        'allowed_roles': allowed_roles if allowed_roles else None,
-        'allowed_users': allowed_users if allowed_users else None,
-        'allowed_groups': allowed_groups if allowed_groups else None,
-        'protection': protection,
-        'password_hash': password_hash,
-    }).execute()
+    try:
+        supabase.table('folders').insert({
+            'name': name,
+            'parent_id': parent_id,
+            'created_by': session['user_id'],
+            'visibility': visibility,
+            'allowed_roles': allowed_roles if allowed_roles else None,
+            'allowed_users': allowed_users if allowed_users else None,
+            'allowed_groups': allowed_groups if allowed_groups else None,
+            'protection': protection,
+            'password_hash': password_hash,
+        }).execute()
+    except Exception:
+        logger.exception('建立資料夾失敗 name=%s', name)
+        return jsonify({'error': '資料庫寫入失敗，請稍後再試'}), 500
     return jsonify({'success': True})
 
 

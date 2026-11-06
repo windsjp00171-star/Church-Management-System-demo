@@ -218,10 +218,9 @@ def ecpay_return():
 
 @payment_bp.route('/payment/ecpay/result/<event_id>/<reg_id>')
 def ecpay_result(event_id, reg_id):
-    """ECPay redirect back to user after payment"""
-    rtn = request.args.get('RtnCode') or request.form.get('RtnCode', '')
-    if rtn == '1':
-        supabase.table('registrations').update({'payment_status': 'paid'}).eq('id', reg_id).execute()
+    """ECPay 付款後的瀏覽器導回頁面。
+    不在此更新付款狀態 — 付款確認已由 HMAC 驗證的 ecpay_return 伺服器回呼處理。
+    """
     return redirect(url_for('event.event_detail', event_id=event_id))
 
 

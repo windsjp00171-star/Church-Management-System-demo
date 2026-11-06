@@ -108,7 +108,7 @@
 
 ## 7. 進度紀錄（2026-11-06）
 
-- 已完成：員工差勤改名；**聚會點名模塊第一版**（`routes/roll_call.py`、`roll_call_logic.py`、`migrations/009_roll_call.sql`、`templates/roll_call/`、`tests/`，65 條測試，守衛皆經 mutation 驗證、資料庫函式已在真實 Postgres 16 驗證）。
+- 已完成：員工差勤改名；**聚會點名模塊第一版**（`routes/roll_call.py`、`roll_call_logic.py`、`migrations/012_roll_call.sql`、`templates/roll_call/`、`tests/`，65 條測試，守衛皆經 mutation 驗證、資料庫函式已在真實 Postgres 16 驗證）。
 - 與使用者帳號脫鉤：點名表不引用 `users`，無 FK；點名者暫不做「指派負責人」（同工皆可點開放場次，鎖定後僅管理員且須附原因），待與教會討論。
 - 出席率規則沒有預設值（請假、遲到、中途加入由教會選），問卷回收後才能定案。
 - 尚未做：名冊匯入預覽（目前為貼上姓名、同名略過）、查看者／匯出者授權矩陣（目前：管理員可看、超管可匯出）、保存期限（待法規確認）。

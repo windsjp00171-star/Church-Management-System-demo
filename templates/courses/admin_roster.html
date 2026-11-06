@@ -482,56 +482,59 @@ function toggleComplete(courseId, enrollId, btn) {
         .then(d => { if (d.success) location.reload(); else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; } });
 }
 function forceComplete(courseId, enrollId, btn) {
-    if (!confirm('缺勤已超標，確定強制完訓嗎？')) return;
-    toggleComplete(courseId, enrollId, btn);
+    openConfirm('缺勤已超標，確定強制完訓嗎？', () => toggleComplete(courseId, enrollId, btn));
 }
 
 // ── 取消完訓（completed → enrolled）──────────────────────────
 function cancelComplete(courseId, enrollId, btn) {
-    if (!confirm('確定取消完訓，將此紀錄退回「報名中」？')) return;
-    btn.disabled = true;
-    fetch(`/admin/courses/${courseId}/roster/${enrollId}/toggle-complete`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; } });
+    openConfirm('確定取消完訓，將此紀錄退回「報名中」？', () => {
+        btn.disabled = true;
+        fetch(`/admin/courses/${courseId}/roster/${enrollId}/toggle-complete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { if (d.success) location.reload(); else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; } });
+    });
 }
 
 // ── 標記缺勤未通過 ──────────────────────────
 function markAbsent(courseId, enrollId, btn) {
-    if (!confirm('將此學員標記為「缺勤未通過」？\n（可在「缺勤未通過」Tab 中還原）')) return;
-    btn.disabled = true; btn.textContent = '處理中...';
-    fetch(`/admin/courses/${courseId}/roster/${enrollId}/mark-absent`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) location.reload();
-            else { btn.disabled = false; btn.textContent = '⚠️ 缺勤未通過'; showToast(d.error || '操作失敗', 'error'); }
-        });
+    openConfirm('將此學員標記為「缺勤未通過」？（可在「缺勤未通過」Tab 中還原）', () => {
+        btn.disabled = true; btn.textContent = '處理中...';
+        fetch(`/admin/courses/${courseId}/roster/${enrollId}/mark-absent`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) location.reload();
+                else { btn.disabled = false; btn.textContent = '⚠️ 缺勤未通過'; showToast(d.error || '操作失敗', 'error'); }
+            });
+    });
 }
 
 // ── 還原報名 ──────────────────────────
 function restoreEnrollment(courseId, enrollId, btn) {
-    if (!confirm('還原為「報名中」狀態？')) return;
-    btn.disabled = true; btn.textContent = '處理中...';
-    fetch(`/admin/courses/${courseId}/roster/${enrollId}/restore`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) location.reload();
-            else { btn.disabled = false; btn.textContent = '↩ 還原報名'; showToast(d.error || '操作失敗', 'error'); }
-        });
+    openConfirm('還原為「報名中」狀態？', () => {
+        btn.disabled = true; btn.textContent = '處理中...';
+        fetch(`/admin/courses/${courseId}/roster/${enrollId}/restore`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) location.reload();
+                else { btn.disabled = false; btn.textContent = '↩ 還原報名'; showToast(d.error || '操作失敗', 'error'); }
+            });
+    });
 }
 
 // ── 取消報名 ──────────────────────────
 function cancelEnrollment(courseId, enrollId, btn) {
-    if (!confirm('確定取消此學員的報名嗎？')) return;
-    btn.disabled = true;
-    fetch(`/admin/courses/${courseId}/roster/${enrollId}/cancel`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) {
-                const row = btn.closest('tr');
-                row.style.opacity = '0'; row.style.transition = 'opacity 0.3s';
-                setTimeout(() => location.reload(), 350);
-            } else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; }
-        });
+    openConfirm('確定取消此學員的報名嗎？', () => {
+        btn.disabled = true;
+        fetch(`/admin/courses/${courseId}/roster/${enrollId}/cancel`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) {
+                    const row = btn.closest('tr');
+                    row.style.opacity = '0'; row.style.transition = 'opacity 0.3s';
+                    setTimeout(() => location.reload(), 350);
+                } else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; }
+            });
+    });
 }
 
 // ── 教材切換 ──────────────────────────
@@ -622,13 +625,14 @@ document.addEventListener('keydown', function(e) {
 
 // ── 一鍵完訓達標者 ──────────────────────────
 function batchComplete() {
-    if (!confirm('將所有達標且尚未完訓的學員一次標記完訓，確定嗎？')) return;
-    fetch(`/admin/courses/{{ course.id }}/roster/batch-complete`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) { showToast(`已完訓 ${d.count} 位學員 ✓`, 'success'); location.reload(); }
-            else showToast(d.error || '操作失敗', 'error');
-        });
+    openConfirm('將所有達標且尚未完訓的學員一次標記完訓，確定嗎？', () => {
+        fetch(`/admin/courses/{{ course.id }}/roster/batch-complete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) { showToast(`已完訓 ${d.count} 位學員 ✓`, 'success'); location.reload(); }
+                else showToast(d.error || '操作失敗', 'error');
+            });
+    });
 }
 </script>
 

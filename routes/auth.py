@@ -1,9 +1,12 @@
+import logging
+import os
 import secrets
 import requests
 from urllib.parse import urlparse
-from flask import Blueprint, redirect, request, session, url_for, render_template, jsonify
+from flask import Blueprint, redirect, request, session, url_for, render_template, jsonify, abort
 from config import Config
 from db import supabase
+from extensions import limiter
 from datetime import datetime, timedelta, timezone
 
 auth_bp = Blueprint('auth', __name__, url_prefix='/auth')
@@ -39,7 +42,15 @@ def _populate_session(user):
     session['is_super_admin']= bool(user.get('is_super_admin'))
     session['is_pastor']     = bool(user.get('is_pastor'))
     session['is_staff']      = bool(user.get('is_staff'))
+    session['is_blocked']    = bool(user.get('is_blocked'))
     session['cell_group_ids']= cell_group_ids
+    # 環境變數定義的超管（ADMIN_LINE_USER_IDS）一律具備超管權限（與 CLAUDE.md 設計一致）
+    _luid = user.get('line_user_id') or ''
+    if _luid and _luid in Config.ADMIN_LINE_USER_IDS:
+        session['is_admin'] = True
+        session['is_super_admin'] = True
+    session['is_demo']       = False  # 真實登入預設非展示帳號（demo_login 會覆寫為 True）
+    session['_user_verified']= True  # 剛從 DB 讀出，免去 before_request 再驗證
 
 
 def _safe_next_url(value):
@@ -89,6 +100,7 @@ def login():
 
 
 @auth_bp.route('/callback')
+@limiter.limit('20 per minute')
 def callback():
     # 驗證 state 防止 CSRF 攻擊
     received_state = request.args.get('state')
@@ -162,6 +174,7 @@ def callback():
 
 
 @auth_bp.route('/liff-login', methods=['POST'])
+@limiter.limit('20 per minute')
 def liff_login():
     """LIFF 登入：前端送來 ID Token，驗證後建立 session"""
     data = request.get_json() or {}
@@ -230,16 +243,138 @@ def logout():
     return redirect(url_for('auth.login_page'))
 
 
+@auth_bp.route('/force-relogin')
+def force_relogin():
+    """清除 session 後直接發起 LINE 登入。
+
+    用於帳號被刪除／合併後瀏覽器仍殘留舊 session 導致卡死的自助恢復。
+    """
+    session.clear()
+    return redirect(url_for('auth.login'))
+
+
 @auth_bp.route('/')
 def login_page():
     next_url = _safe_next_url(request.args.get('next'))
     if session.get('user_id'):
         return redirect(next_url or url_for('event.portal'))
     _remember_next_url(next_url)
-    return render_template('auth/login.html', next_url=next_url)
+    return render_template('auth/login.html', next_url=next_url, demo_mode=Config.DEMO_MODE)
+
+
+# ── 展示廳沙盒登入（僅 DEMO_MODE 啟用時存在）─────────────────────────────────
+# 安全規範：所有假登入邏輯都被 Config.DEMO_MODE 閘門包住。
+# 正式環境（DEMO_MODE 未設或為 false）這些路由一律回 404，完全走原本 LINE 登入。
+
+# 角色 → 對應的 seed_demo.py 預設帳號（line_user_id 是固定值，可穩定撈出）。
+# 若該專案尚未跑 seed_demo.py，則以 fallback 動態建立基本展示帳號。
+_DEMO_ACCOUNTS = {
+    'pastor': {
+        'line_user_id': 'Udemo00000001',
+        'fallback': {'display_name': '林建志牧師', 'real_name': '林建志', 'member_type': 'member',
+                     'is_admin': True, 'is_super_admin': True, 'is_pastor': True, 'role': 'approved'},
+    },
+    'admin': {
+        'line_user_id': 'Udemo00000002',
+        'fallback': {'display_name': '陳美玲同工', 'real_name': '陳美玲', 'member_type': 'member',
+                     'is_admin': True, 'is_staff': True, 'role': 'approved'},
+    },
+    'leader': {
+        'line_user_id': 'Udemo00000008',
+        'fallback': {'display_name': '劉思穎', 'real_name': '劉思穎', 'member_type': 'member', 'role': 'approved'},
+        'is_leader': True,
+    },
+    'member': {
+        'line_user_id': 'Udemo00000004',
+        'fallback': {'display_name': '李靜宜', 'real_name': '李靜宜', 'member_type': 'member', 'role': 'approved'},
+    },
+}
+
+
+def _ensure_demo_leader_group(user_id):
+    """確保展示用小組長至少帶領一個小組（沒有任何小組時建一個展示小組）。"""
+    grp = supabase.table('cell_groups').select('id').eq('is_active', True).limit(1).execute().data
+    gid = grp[0]['id'] if grp else supabase.table('cell_groups').insert(
+        {'name': '展示小組', 'weekly_gather_day': '三', 'is_active': True}).execute().data[0]['id']
+    exists = supabase.table('cell_group_leaders').select('id')\
+        .eq('user_id', user_id).eq('group_id', gid).execute().data
+    if not exists:
+        supabase.table('cell_group_leaders').insert({'user_id': user_id, 'group_id': gid}).execute()
+
+
+@auth_bp.route('/demo-login/<role>')
+def demo_login(role):
+    """點擊角色按鈕直接模擬登入：撈出（或建立）該角色的展示帳號並寫入 session。"""
+    if not Config.DEMO_MODE:
+        abort(404)
+    spec = _DEMO_ACCOUNTS.get(role)
+    if not spec:
+        abort(404)
+
+    res = supabase.table('users').select('*').eq('line_user_id', spec['line_user_id']).execute()
+    if res.data:
+        user = res.data[0]
+    else:
+        # 後備：未跑 seed_demo.py 時，動態建立基本展示帳號
+        payload = dict(spec['fallback'], line_user_id=spec['line_user_id'])
+        user = supabase.table('users').insert(payload).execute().data[0]
+        if spec.get('is_leader'):
+            _ensure_demo_leader_group(user['id'])
+
+    _populate_session(user)
+    session['is_demo'] = True   # 標記為展示帳號（純體驗；資料每日重置）
+    return redirect(url_for('event.portal'))
+
+
+def _run_demo_reseed():
+    """背景執行：清除並重新灌入展示假資料。"""
+    try:
+        import seed_demo
+        seed_demo.clear()
+        seed_demo.seed()
+        logging.info('demo reseed completed')
+    except Exception as e:
+        logging.warning('demo reseed failed: %s', e)
+
+
+@auth_bp.route('/demo-reset')
+def demo_reset():
+    """每日重置展示資料。授權方式二擇一：
+      1. 帶 ?token=<DEMO_RESET_TOKEN>（供外部排程 / UptimeRobot 每日呼叫）
+      2. 擁有者本人（真實登入的超管，非展示帳號）—— 供現場手動重置
+    內建「每日只重置一次」防護：頻繁呼叫不會重複重灌（owner 可帶 ?force=1 強制）。
+    """
+    if not Config.DEMO_MODE:
+        abort(404)
+    import threading
+    import settings_store as ss
+    from datetime import date
+
+    token    = request.args.get('token', '')
+    expected = os.environ.get('DEMO_RESET_TOKEN', '')
+    is_owner = bool(session.get('is_super_admin')) and not session.get('is_demo')
+    if not (is_owner or (expected and token == expected)):
+        abort(403)
+
+    today = date.today().isoformat()
+    force = request.args.get('force') == '1' or is_owner
+    try:
+        last = ss.get('demo_last_reset')
+    except Exception:
+        last = None
+    if last == today and not force:
+        return jsonify({'status': 'skipped', 'reason': 'already reset today', 'date': today})
+
+    try:
+        ss.set('demo_last_reset', today)
+    except Exception:
+        pass
+    threading.Thread(target=_run_demo_reseed, daemon=True).start()
+    return jsonify({'status': 'started', 'date': today})
 
 
 @auth_bp.route('/contact', methods=['POST'])
+@limiter.limit('5 per minute')
 def contact_submit():
     """Demo 洽詢表單：將留言存入 DB 並通知所有管理員。"""
     data = request.get_json() or {}
@@ -263,7 +398,7 @@ def contact_submit():
             'submitted_at': datetime.now(timezone(timedelta(hours=8))).isoformat(),
         }).execute()
     except Exception:
-        pass  # 表不存在時靜默忽略
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 表不存在時靜默忽略
 
     # 通知所有管理員
     try:
@@ -281,7 +416,7 @@ def contact_submit():
             for i in range(0, len(rows), 100):
                 supabase.table('notifications').insert(rows[i:i+100]).execute()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return jsonify({'success': True})
 
@@ -295,10 +430,10 @@ def setup_admin():
     existing_admin = supabase.table('users').select('id')\
         .eq('is_admin', True).limit(1).execute().data
 
-    # 已有 super_admin → 完全關閉此頁（避免任意提權）
+    # 已有 super_admin → 只允許現有超管進入，任何非超管（含一般 admin）一律擋回
     existing_super = supabase.table('users').select('id')\
         .eq('is_super_admin', True).limit(1).execute().data
-    if existing_super and not session.get('is_admin'):
+    if existing_super and not session.get('is_super_admin'):
         return redirect(url_for('event.portal'))
 
     # 已是 admin 且已有 super_admin → 已設定完成，直接進後台

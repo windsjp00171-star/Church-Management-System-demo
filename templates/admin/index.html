@@ -5,7 +5,7 @@
 <div class="page-header">
     <div class="page-header-left">
         <div class="page-title">🛠 後台管理</div>
-        <div class="page-subtitle">{{ church_name }} 教會入口整合系統</div>
+        <div class="page-subtitle">{{ church_name or '教會' }} 入口整合系統</div>
     </div>
 </div>
 
@@ -100,6 +100,19 @@
 
 </div>
 
+<div class="section-label">系統備份 / 交接</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+
+    <a href="{{ url_for('backup.index') }}" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#0f2027; color:#fff;">🗄</div>
+            <div class="admin-card-name">資料備份中心</div>
+            <div class="admin-card-desc">分類 CSV、打包 ZIP、HTML 離線閱讀器</div>
+        </div>
+    </a>
+
+</div>
+
 {% if has_finance_access %}
 <div class="section-label">財務管理</div>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
@@ -133,6 +146,14 @@
             <div class="admin-card-icon" style="background:#fdf4ff; color:#9333ea;">👥</div>
             <div class="admin-card-name">會員管理</div>
             <div class="admin-card-desc">查看所有會員資料</div>
+        </div>
+    </a>
+
+    <a href="/admin/logs" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#166534;">📋</div>
+            <div class="admin-card-name">稽核日誌</div>
+            <div class="admin-card-desc">帳號整合、權限異動等操作記錄</div>
         </div>
     </a>
 

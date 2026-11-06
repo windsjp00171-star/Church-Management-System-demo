@@ -16,8 +16,8 @@ S_IND, S_HEAD = '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000
 @pytest.fixture(scope='module')
 def pg():
     psql, stop = pg_helper.start(55433)
-    assert psql(file=str(ROOT / 'migrations' / '009_roll_call.sql')).returncode == 0
-    assert psql(file=str(ROOT / 'migrations' / '009_roll_call.sql')).returncode == 0   # 可重複執行
+    assert psql(file=str(ROOT / 'migrations' / '012_roll_call.sql')).returncode == 0
+    assert psql(file=str(ROOT / 'migrations' / '012_roll_call.sql')).returncode == 0   # 可重複執行
     psql(f"""INSERT INTO rc_meeting_types(id,name,record_mode) VALUES ('{A_IND}','主日','individual'),('{A_HEAD}','禱告會','headcount');
     INSERT INTO rc_members(id,name) VALUES ('{M1}','甲'),('{M2}','乙');
     INSERT INTO rc_members(id,name,status) VALUES ('{M_LEFT}','丙','left');

@@ -182,14 +182,15 @@ function saveQ() {
 }
 
 function deleteQ(id) {
-    if (!window.confirm('確定要刪除這個問題嗎？')) return;
-    fetch('/admin/gospel/form-questions/save', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: 'delete', id })
-    }).then(r => r.json()).then(d => {
-        if (d.success) document.getElementById('q-row-' + id)?.remove();
-        else showToast(d.error || '刪除失敗', 'error');
+    openConfirm('確定要刪除這個問題嗎？', () => {
+        fetch('/admin/gospel/form-questions/save', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'delete', id })
+        }).then(r => r.json()).then(d => {
+            if (d.success) document.getElementById('q-row-' + id)?.remove();
+            else showToast(d.error || '刪除失敗', 'error');
+        });
     });
 }
 </script>

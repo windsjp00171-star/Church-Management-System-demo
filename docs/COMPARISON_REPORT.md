@@ -73,7 +73,7 @@ cell_reporter 的 CLAUDE.md 有一節「Things that are deliberately the way the
 2. **身分：規格的 `person_id` 單一底層 vs 你「點名脫鉤」。** cell_reporter 的組員本來就是只有姓名（脫鉤），展示站新增的 `user_id` 連結反而是偏離。建議：點名與小組回報的組員都維持名冊式脫鉤；`link_member_ajax`／`user_id`／`is_confirmed` 列為待清理（不立即刪）。
 3. **出席預設值：** cell_reporter 預設 `full`（組長加快填寫），規格要「預設全員未點」。兩者針對的場景不同（小組長週報 vs 執事個人點名）。建議各自保留，不強行統一，但「未點」必須在畫面與資料上可區分。
 4. **讀經兩套：** 報名系統 365 速讀 vs 日記進度。已確認要合為「一個讀經計畫模塊」，計畫由教會匯入（附錄 L-7）。**需要你決定用誰當底**（報名系統的計畫在 repo 內、日記的在資料庫 `diary_plan` 並有批次匯入）。
-5. **RLS：** 規格（附錄 J-4）要求每張表開 RLS 且不設政策。event-registration- 與本 repo 的 `schema.sql` 都是 0 條；tianfu-diary 自述 15 張表關閉並寫「**不要自動修**——開 RLS 而沒有 policy 會把表鎖死」。**這只在伺服器用「服務端金鑰」時才安全，我沒有驗證各系統實際用哪把金鑰（附錄 J 也寫了同樣的未驗證）。** 在確認前，我的 `009_roll_call.sql` 開了 RLS：若本系統用的是 anon 金鑰，**點名頁會讀不到資料**。需要你確認金鑰種類。
+5. **RLS：** 規格（附錄 J-4）要求每張表開 RLS 且不設政策。event-registration- 與本 repo 的 `schema.sql` 都是 0 條；tianfu-diary 自述 15 張表關閉並寫「**不要自動修**——開 RLS 而沒有 policy 會把表鎖死」。**這只在伺服器用「服務端金鑰」時才安全，我沒有驗證各系統實際用哪把金鑰（附錄 J 也寫了同樣的未驗證）。** 在確認前，我的 `012_roll_call.sql` 開了 RLS：若本系統用的是 anon 金鑰，**點名頁會讀不到資料**。需要你確認金鑰種類。
 6. **PR 流程差異：** event-registration- 規定開 PR 後立即退訂、不經確認直接 squash merge；本 session 的規則是建 PR 後訂閱事件。你的偏好（Rule 19）是測試通過就合併。建議本 repo 沿用 Rule 19，不另訂。
 
 ## 6. 建議的整合路線（在本 repo 就地重構）

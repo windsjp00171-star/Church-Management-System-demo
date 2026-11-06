@@ -5,7 +5,7 @@ from pathlib import Path
 import jinja2
 
 ROOT = Path(__file__).resolve().parent.parent
-SQL = (ROOT / 'migrations' / '009_roll_call.sql').read_text(encoding='utf-8')
+SQL = (ROOT / 'migrations' / '012_roll_call.sql').read_text(encoding='utf-8')
 ROUTE = (ROOT / 'routes' / 'roll_call.py').read_text(encoding='utf-8')
 LOGIC = (ROOT / 'roll_call_logic.py').read_text(encoding='utf-8')
 

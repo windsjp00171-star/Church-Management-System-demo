@@ -209,11 +209,12 @@ function addSession() {
 }
 
 function deleteSession(id, btn) {
-    if (!confirm('確定要刪除這堂次嗎？出席記錄也會一併刪除。')) return;
-    btn.disabled = true;
-    fetch(`/admin/courses/{{ course.id }}/sessions/${id}/delete`, { method: 'POST' })
-        .then(r => r.json())
-        .then(() => location.reload());
+    openConfirm('確定要刪除這堂次嗎？出席記錄也會一併刪除。', () => {
+        btn.disabled = true;
+        fetch(`/admin/courses/{{ course.id }}/sessions/${id}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(() => location.reload());
+    });
 }
 
 function toggleEditRow(id) {
@@ -475,7 +476,7 @@ let _sessionId = '';
 
 function showSessionQR(sessionId, token, label) {
     if (!token) {
-        alert('此堂次尚未產生 QR Code，請重新儲存堂次設定。');
+        showToast('此堂次尚未產生 QR Code，請重新儲存堂次設定。', 'error');
         return;
     }
     _sessionId = sessionId;

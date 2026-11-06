@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import session, redirect, url_for, request, jsonify, abort
+from flask import session, redirect, url_for, request, jsonify, abort, render_template
 from urllib.parse import quote
 
 
@@ -8,7 +8,7 @@ def _is_json():
 
 
 def login_required(f):
-    """未登入導向登入頁，並記住原始路徑。"""
+    """未登入導向登入頁，並記住原始路徑。已封鎖帳號立即擋回。"""
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get('user_id'):
@@ -19,6 +19,10 @@ def login_required(f):
             if _is_json():
                 return jsonify({'error': '請先登入'}), 401
             return redirect(url_for('auth.login_page') + '?next=' + quote(next_path, safe='/'))
+        if session.get('is_blocked'):
+            if _is_json():
+                return jsonify({'error': '此帳號已被封鎖'}), 403
+            return render_template('auth/blocked.html'), 403
         return f(*args, **kwargs)
     return decorated
 

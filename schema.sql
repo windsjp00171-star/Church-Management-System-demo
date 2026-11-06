@@ -130,6 +130,7 @@ CREATE TABLE IF NOT EXISTS registrations (
     guest_phone    TEXT,
     payment_status TEXT NOT NULL DEFAULT 'unpaid'
                        CHECK (payment_status IN ('unpaid','paid','waived')),
+    payment_note   TEXT,  -- 金流交易編號（ecpay:交易碼 / linepay:交易碼）
     source         TEXT NOT NULL DEFAULT 'line'
                        CHECK (source IN ('line','external','import','proxy')),
     meal_selections TEXT[],
@@ -420,6 +421,8 @@ CREATE TABLE IF NOT EXISTS folders (
     created_by    UUID REFERENCES users(id),
     visibility    TEXT NOT NULL DEFAULT 'private',
     allowed_roles TEXT[],
+    allowed_users UUID[],
+    allowed_groups UUID[],
     protection    TEXT NOT NULL DEFAULT 'none',
     password_hash TEXT,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -436,6 +439,7 @@ CREATE TABLE IF NOT EXISTS files (
     visibility    TEXT NOT NULL DEFAULT 'private',
     allowed_roles TEXT[],
     allowed_users UUID[],
+    allowed_groups UUID[],
     protection    TEXT NOT NULL DEFAULT 'none',
     password_hash TEXT,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -898,6 +902,22 @@ GRANT ALL ON leave_requests TO anon, authenticated;
 GRANT ALL ON overtime_records TO anon, authenticated;
 
 -- ============================================================
+-- ============================================================
+-- 稽核日誌（帳號整合、權限異動等關鍵操作記錄）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_id    UUID,          -- 操作者（不設 FK，帳號刪除後記錄仍保留）
+    actor_name  TEXT,
+    action      TEXT NOT NULL, -- 例：user.block / user.merge_line_admin
+    target_type TEXT,
+    target_id   TEXT,
+    detail      JSONB,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs (created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_audit_logs_action  ON audit_logs (action);
+
 -- Migrations（補欄位，安全可重複執行）
 -- 若資料庫是以舊版 schema.sql 建立，執行以下 ALTER TABLE 補上缺少的欄位。
 -- ============================================================
@@ -916,11 +936,21 @@ ALTER TABLE cell_members
 ALTER TABLE cell_members
   ADD COLUMN IF NOT EXISTS is_confirmed BOOLEAN NOT NULL DEFAULT true;
 
+-- 2026-06 registrations 新增 payment_note（金流交易編號，金流對帳報表使用）
+ALTER TABLE registrations
+  ADD COLUMN IF NOT EXISTS payment_note TEXT;
+
 -- 重新載入 PostgREST schema 快取（讓 API 立即看到新欄位）
 NOTIFY pgrst, 'reload schema';
 
+-- 2026-06 devotional_registrations 新增 QR 簽收欄位（migration 009）
+ALTER TABLE devotional_registrations
+    ADD COLUMN IF NOT EXISTS confirmed_at  TIMESTAMPTZ,
+    ADD COLUMN IF NOT EXISTS confirmed_by  UUID REFERENCES users(id),
+    ADD COLUMN IF NOT EXISTS pickup_note   TEXT;
+
 -- ════════════════════════════════════════════════════════
--- 聚會點名模塊（migrations/009_roll_call.sql 的完整內容）
+-- 聚會點名模塊（migrations/012_roll_call.sql 的完整內容）
 -- ════════════════════════════════════════════════════════
 -- 009 聚會點名模塊（roll_call）
 -- 設計原則：點名自成一塊，與 users / LINE 帳號完全脫鉤。
@@ -1211,7 +1241,7 @@ ALTER TABLE rc_rate_rules         ENABLE ROW LEVEL SECURITY;
 NOTIFY pgrst, 'reload schema';
 
 -- ════════════════════════════════════════════════════════
--- 安全強化（migrations/010_security_hardening.sql）：必須放在所有建表語句之後
+-- 安全強化（migrations/013_security_hardening.sql）：必須放在所有建表語句之後
 -- ════════════════════════════════════════════════════════
 -- 010 安全強化：每張表開 RLS（不設任何政策）、函式不開放給公開角色
 --

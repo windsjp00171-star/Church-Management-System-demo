@@ -114,31 +114,31 @@ async function sendAnnouncement() {
     const btn = document.getElementById('send-btn');
 
     if (!title) { showToast('請填寫公告標題', 'warning'); document.getElementById('ann-title').focus(); return; }
-    if (!confirm('確定廣播此公告給所有會員嗎？')) return;
-
-    btn.disabled = true; btn.style.opacity = '.6'; result.textContent = '發送中…';
-    try {
-        const r = await fetch('/admin/announcements/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ title, body, link: link || null })
-        });
-        const d = await r.json();
-        if (d.success) {
-            showToast(`✅ 已廣播給 ${d.count} 位會員`, 'success');
-            result.textContent = '';
-            document.getElementById('ann-title').value = '';
-            document.getElementById('ann-body').value  = '';
-            document.getElementById('ann-link').value  = '';
-            setTimeout(() => location.reload(), 1200);
-        } else {
-            result.textContent = '❌ ' + (d.error || '發送失敗');
-            result.style.color = '#ef4444';
+    openConfirm('確定廣播此公告給所有會員嗎？', async () => {
+        btn.disabled = true; btn.style.opacity = '.6'; result.textContent = '發送中…';
+        try {
+            const r = await fetch('/admin/announcements/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, body, link: link || null })
+            });
+            const d = await r.json();
+            if (d.success) {
+                showToast(`✅ 已廣播給 ${d.count} 位會員`, 'success');
+                result.textContent = '';
+                document.getElementById('ann-title').value = '';
+                document.getElementById('ann-body').value  = '';
+                document.getElementById('ann-link').value  = '';
+                setTimeout(() => location.reload(), 1200);
+            } else {
+                result.textContent = '❌ ' + (d.error || '發送失敗');
+                result.style.color = '#ef4444';
+            }
+        } catch(e) {
+            showToast('網路錯誤，請再試', 'error');
         }
-    } catch(e) {
-        showToast('網路錯誤，請再試', 'error');
-    }
-    btn.disabled = false; btn.style.opacity = '1';
+        btn.disabled = false; btn.style.opacity = '1';
+    });
 }
 </script>
 {% endblock %}

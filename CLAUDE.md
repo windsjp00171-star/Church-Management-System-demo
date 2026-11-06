@@ -63,6 +63,8 @@ scripture/
 migrations/             # Supabase SQL migration 腳本
   007_devotional.sql    # 禱讀本訂購三張表
   008_diary_admin_whitelist.sql  # 天父日記後台白名單表
+  009_devotional_pickup.sql  # 禱讀本 QR 簽收欄位
+  010_audit_logs.sql    # 稽核日誌表
 ```
 
 ## Blueprint 路由前綴
@@ -234,10 +236,13 @@ python app.py      # debug=True, port 5000
 | 001～006 | （既有 migrations） | 基礎資料表 |
 | 007 | `migrations/007_devotional.sql` | 禱讀本訂購三張表 |
 | 008 | `migrations/008_diary_admin_whitelist.sql` | 天父日記後台白名單 |
-| 009 | `migrations/009_roll_call.sql` | 聚會點名（8 張 rc_* 表、稽核觸發器、寫入函式、RLS） |
-| 010 | `migrations/010_security_hardening.sql` | 所有表開 RLS（不設政策）、函式不給公開角色。**僅限伺服器用服務端金鑰的專案**，詳見 `docs/SUPABASE_SETUP.md` |
+| 009 | `migrations/009_devotional_pickup.sql` | 禱讀本 QR 簽收欄位 |
+| 010 | `migrations/010_audit_logs.sql` | 稽核日誌表 |
+| 011 | `migrations/011_files_folders_groups.sql` | files.allowed_groups、folders.allowed_users / allowed_groups 補欄位 |
+| 012 | `migrations/012_roll_call.sql` | 聚會點名（8 張 rc_* 表、稽核觸發器、寫入函式、RLS） |
+| 013 | `migrations/013_security_hardening.sql` | 所有表開 RLS（不設政策）、函式不給公開角色。**僅限伺服器用服務端金鑰的專案**，詳見 `docs/SUPABASE_SETUP.md` |
 
-新專案只需執行整份 `schema.sql`（已含 009、010）。
+新專案只需執行整份 `schema.sql`（已含 012、013）。
 
 ## 多教會部署架構與開發者權限原則
 
