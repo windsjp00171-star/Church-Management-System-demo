@@ -109,3 +109,9 @@ cell_reporter 的 CLAUDE.md 有一節「Things that are deliberately the way the
 - 階段 0 已完成：修正小組回報三個回歸（空白當 0、GET 建資料列、聚會回報無法儲存）。
 - 階段 B 部分完成：`schema.sql` 補齊到「程式用到的每張表都有」、RLS 全開（本機 Postgres 驗證）。
 - 下一步：階段 A（`users` 凍結清單、`/admin/` 路由權限掃描、時間 AST 守衛），然後階段 C（權限矩陣、`user_merge`、備份登記制）。
+
+### 階段 A 完成（2026-11-06）
+- 結構守衛已上線（`tests/test_structure_guards.py`），基準：直接查 `users` **112 次／17 個檔案**、`date.today()` 類 **43 次**、`or 0` **46 次**（8 個檔案）。
+- **盤點出 19 個沒掛 `admin_required` 的 `/admin` 路由**：7 個是同工簽到（掛 `staff_required`，刻意開放給同工）、12 個是函式開頭手寫檢查（金流 3、福音探索 8、個人資料 1）。**沒有發現完全沒設防的路由。** 這 19 個列入基準，之後遷移成統一裝飾器只會減少。
+- 帳號合併有兩個入口會刪除 `users` 列（`admin.py` 管理員合併、`profile.py` 自助合併），已記為已知。
+- 下一步（階段 C）：搬入 event-registration- 的權限矩陣（`permissions.py`）與 `user_merge`，備份改登記驅動。
