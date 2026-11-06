@@ -252,7 +252,7 @@ def test_admin_required_delegates_to_the_single_implementation():
 
 
 def test_login_populates_admin_modules_and_app_registers_the_editor():
-    assert "session['admin_modules']" in _src('routes/auth.py')
+    assert "fields['admin_modules']" in _src('routes/auth.py')      # 登入與定期重算共用 _permission_fields
     assert 'permissions_bp' in _src('app.py')
 
 

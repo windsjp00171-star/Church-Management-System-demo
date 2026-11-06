@@ -204,6 +204,16 @@ def create_app():
                 return jsonify({'error': 'CSRF token 驗證失敗，請重新整理頁面'}), 403
             return redirect(request.referrer or '/')
 
+    # ── 權限撤銷立即生效（定期回資料庫重算 session 的權限）──────────
+    @app.before_request
+    def refresh_permissions():
+        if not session.get('user_id'):
+            return
+        if (request.endpoint or '').startswith('static'):
+            return
+        from routes.auth import refresh_session_permissions
+        refresh_session_permissions()      # 被清掉時交給後面的登入守衛處理
+
     @app.before_request
     def force_profile_setup():
         if not session.get('user_id'):

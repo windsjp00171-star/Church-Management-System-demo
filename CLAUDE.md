@@ -112,7 +112,7 @@ from db import supabase
 - Y 軸＝後台功能模塊（`ADMIN_MODULES`，**新增後台路由要到這裡登記前綴**，否則有測試會紅）；X 軸＝副標籤群組；權限存 `groups.admin_modules`；只有超管能在 `/admin/permissions` 編輯。
 - 超管／`is_admin` 全部放行；其他人＝其副標籤授權模塊的聯集。**判定只有一份**：`module_allows_path()`，`admin_required` 與測試都走它。
 - **與成熟版的差異（fail closed）**：沒登記的 `/admin` 路徑、後台以外的路徑，對副標籤成員一律拒絕；金流（`/admin/payments`、`/admin/settings/payment`）刻意不交給矩陣；session 裡的 `'*'` 只有「現在仍是管理員」才算數。
-- 已知限制：權限在**登入時**算一次存進 session，調整矩陣或降權後需重新登入才生效（成熟版有 `refresh_session_permissions` 定期重算，尚未移植）。
+- **撤銷立即生效**：`routes/auth.py` 的 `refresh_session_permissions()` 每 5 分鐘（`PERM_RECHECK_SECONDS`）回資料庫重算 session 的權限（降權、封鎖、帳號被刪、矩陣調整都會生效，不必重新登入）；登入與重算共用 `_permission_fields()`，權限旗標只准在那裡寫一份。連不上資料庫時**維持原狀**（不登出、不推進時間戳）；只更新權限格，不碰 `is_demo` 等其他 session 內容。
 
 ### 結構守衛（`tests/test_structure_guards.py`，棘輪式）
 - 基準在 `tests/structure_baseline.json`：直接查 `users` 的次數（17 個檔案）、`date.today()` 等依伺服器時區的寫法、`or 0`、沒掛 `admin_required` 的 `/admin` 路由。**只准減少，不准增加**；減少時測試也會紅，提醒你執行 `python tests/structure_scan.py` 把基準往下調。

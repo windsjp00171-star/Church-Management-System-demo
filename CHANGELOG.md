@@ -5,7 +5,8 @@
 ## [Unreleased]
 
 ### 新增
-- 後台權限矩陣（`/admin/permissions`，僅超管）：副標籤（服事身份）× 後台功能模塊，勾選即授權；`admin_required` 會依模塊放行被授權的副標籤成員，沒被授權、沒登記的後台路徑一律拒絕。需先在 Supabase 執行 `migrations/014_permission_matrix.sql`（`schema.sql` 已併入）；變更後受影響的人需重新登入才生效。後台首頁卡片依權限顯示。
+- 權限撤銷立即生效：登入後每 5 分鐘自動回資料庫重算權限。把某人的管理員／同工關掉、封鎖帳號、調整權限矩陣，不必等對方重新登入就會生效；資料庫暫時連不上時維持原狀（不會把大家登出）。
+- 後台權限矩陣（`/admin/permissions`，僅超管）：副標籤（服事身份）× 後台功能模塊，勾選即授權；`admin_required` 會依模塊放行被授權的副標籤成員，沒被授權、沒登記的後台路徑一律拒絕。需先在 Supabase 執行 `migrations/014_permission_matrix.sql`（`schema.sql` 已併入）；變更後受影響的人後台首頁卡片依權限顯示。
 - 結構守衛（`tests/test_structure_guards.py`）：直接查 `users`、依伺服器時區取日期、`or 0` 的次數與沒掛 `admin_required` 的 `/admin` 路由，現況記成基準，只准減少；每個 `/admin` 路由必須有權限閘門。
 - `docs/COMPARISON_REPORT.md`：與 event-registration-、tianfu-diary、cell_reporter 三個 repo 的整合比對報告（僅文件）。
 - 聚會點名模塊（`/roll-call`、`/admin/roll-call`）：點名名冊獨立於會員帳號，支援逐人點名（到／未到／請假／遲到）與只記人數、名冊外訪客人數、場次鎖定、鎖定後修改須附原因、紙本名冊列印與事後補登標記、所有操作寫入只追加的稽核。

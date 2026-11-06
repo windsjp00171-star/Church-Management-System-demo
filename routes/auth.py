@@ -17,44 +17,96 @@ def privacy():
     return render_template('auth/privacy.html')
 
 
-def _populate_session(user):
-    """把使用者所有角色旗標一次寫入 session，各模組不需要自己查 DB。"""
+def _permission_fields(user):
+    """「他是誰、他能做什麼」那幾格——只准有這一份實作。
+
+    先算好整包再回傳（可能丟例外），呼叫端才一次寫進 session：
+    算到一半失敗的話，session 不會停在「旗標是新的、模塊是舊的」的半套狀態。
+    """
     user_id = user['id']
-
-    # 查詢此使用者負責的小組 ID 清單
     leaders_res = supabase.table('cell_group_leaders')\
-        .select('group_id')\
-        .eq('user_id', user_id)\
-        .execute()
-    cell_group_ids = [r['group_id'] for r in (leaders_res.data or [])]
-
-    session.permanent        = True
-    session['user_id']       = user_id
-    session['line_id']       = user.get('line_user_id', '')
-    session['display_name']  = user.get('display_name', '')
-    session['picture_url']   = user.get('picture_url', '')
-    session['real_name']     = user.get('real_name') or ''
-    session['member_type']   = user.get('member_type') or 'member'
-    session['group_tags']    = user.get('group_tags') or []
-    session['role']          = user.get('role') or 'approved'
-    # 權限旗標（全部從 users 表讀取，統一管理）
-    session['is_admin']      = bool(user.get('is_admin'))
-    session['is_super_admin']= bool(user.get('is_super_admin'))
-    session['is_pastor']     = bool(user.get('is_pastor'))
-    session['is_staff']      = bool(user.get('is_staff'))
-    session['is_blocked']    = bool(user.get('is_blocked'))
-    session['cell_group_ids']= cell_group_ids
+        .select('group_id').eq('user_id', user_id).execute()
+    fields = {
+        'real_name':      user.get('real_name') or '',
+        'member_type':    user.get('member_type') or 'member',
+        'group_tags':     user.get('group_tags') or [],
+        'role':           user.get('role') or 'approved',
+        # 權限旗標（全部從 users 表讀取，統一管理）
+        'is_admin':       bool(user.get('is_admin')),
+        'is_super_admin': bool(user.get('is_super_admin')),
+        'is_pastor':      bool(user.get('is_pastor')),
+        'is_staff':       bool(user.get('is_staff')),
+        'is_blocked':     bool(user.get('is_blocked')),
+        'cell_group_ids': [r['group_id'] for r in (leaders_res.data or [])],
+    }
     # 環境變數定義的超管（ADMIN_LINE_USER_IDS）一律具備超管權限（與 CLAUDE.md 設計一致）
     _luid = user.get('line_user_id') or ''
     if _luid and _luid in Config.ADMIN_LINE_USER_IDS:
-        session['is_admin'] = True
-        session['is_super_admin'] = True
+        fields['is_admin'] = True
+        fields['is_super_admin'] = True
     # 後台模塊權限（副標籤 × 模塊矩陣）。超管／管理員為 '*'；其他人由其副標籤授權的模塊決定
     from routes.permissions import compute_admin_modules
-    _mods = compute_admin_modules(session['is_super_admin'], session['is_admin'], session['group_tags'])
-    session['admin_modules'] = '*' if _mods == '*' else sorted(_mods)
+    mods = compute_admin_modules(fields['is_super_admin'], fields['is_admin'], fields['group_tags'])
+    fields['admin_modules'] = '*' if mods == '*' else sorted(mods)
+    return fields
+
+
+def _now_ts():
+    return int(datetime.now(timezone.utc).timestamp())
+
+
+def _populate_session(user):
+    """登入時把使用者所有角色旗標一次寫入 session，各模組不需要自己查 DB。"""
+    fields = _permission_fields(user)
+    session.permanent        = True
+    session['user_id']       = user['id']
+    session['line_id']       = user.get('line_user_id', '')
+    session['display_name']  = user.get('display_name', '')
+    session['picture_url']   = user.get('picture_url', '')
+    session.update(fields)
     session['is_demo']       = False  # 真實登入預設非展示帳號（demo_login 會覆寫為 True）
     session['_user_verified']= True  # 剛從 DB 讀出，免去 before_request 再驗證
+    session['_perm_checked_at'] = _now_ts()
+
+
+# ── 權限撤銷要立即生效 ──────────────────────────
+#
+# session 很長（使用者族群有一半是長輩，常常重登會直接放棄）。代價是「登入時算一次」的東西
+# 會一直停在登入那一刻：把某人的管理員／同工關掉、封鎖帳號、調整權限矩陣，
+# 後台那顆開關確實變了，他的 session 卻照樣是舊的。這一類「按了有反應但實際沒生效」
+# 是最難發現的 bug。所以每隔 PERM_RECHECK_SECONDS 回資料庫重算一次（跟登入同一支）。
+PERM_RECHECK_SECONDS = 300      # 5 分鐘：夠即時，又不會每個請求都多查詢
+
+
+def refresh_session_permissions(force=False):
+    """定期回資料庫重算 session 裡的權限。回 True 代表這個 session 已被清掉。
+
+    ★ 查不到人（帳號被刪）或已封鎖 → 清掉 session。清掉之後**不自己決定導去哪**，
+      交給原本的守衛（頁面導登入頁、API 回 401），避免兩邊各有一份回應邏輯。
+    ★ 連不上資料庫、或重算失敗時**維持原狀**（fail open），而且**不更新時間戳**，下一個請求再試。
+      反過來做的話，Supabase 抖一下就把全教會登出，代價遠大於「撤銷晚五分鐘生效」。
+    ★ 只更新權限那幾格；不碰 is_demo 等其他 session 內容。
+    """
+    uid = session.get('user_id')
+    if not uid:
+        return False
+    if not force and _now_ts() - int(session.get('_perm_checked_at', 0)) < PERM_RECHECK_SECONDS:
+        return False
+    try:
+        rows = supabase.table('users').select('*').eq('id', uid).execute().data or []
+        if rows and not rows[0].get('is_blocked'):
+            fields = _permission_fields(rows[0])
+        else:
+            fields = None
+    except Exception:
+        logging.getLogger(__name__).warning('權限重算失敗，維持原狀', exc_info=True)
+        return False
+    if fields is None:
+        session.clear()
+        return True
+    session.update(fields)
+    session['_perm_checked_at'] = _now_ts()
+    return False
 
 
 def _safe_next_url(value):
