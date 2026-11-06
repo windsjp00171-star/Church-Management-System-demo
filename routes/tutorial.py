@@ -5,13 +5,14 @@
 可直接「前往實際操作」。涵蓋前台 + 後台全模組。
 
 呈現規則（同 /guide）：
-  - 前台：依 Config 的 ENABLE_* / R2 開關過濾。
+  - 前台：依功能模組登記表（routes/modules.py）與 R2 設定過濾。
   - 後台：依登入者角色（管理員 / 超管 / 財務）過濾。
 
 路由：/tutorial
 """
 from flask import Blueprint, render_template, session, redirect, url_for
 from config import Config
+from routes.modules import is_enabled
 
 tutorial_bp = Blueprint('tutorial', __name__)
 
@@ -45,7 +46,7 @@ def _build_lessons():
             _s('查看狀態', '看每筆的報名 / 候補 / 繳費 / 簽到狀態。'),
             _s('需要時調整', '可取消報名或查看繳費說明。'),
         ])
-    add(Config.ENABLE_PRAYER, '前台', 'prayer', '🙏', '代禱麥田', '全會友',
+    add(is_enabled('prayer'), '前台', 'prayer', '🙏', '代禱麥田', '全會友',
         '彼此代禱、互相扶持。', '/prayer', [
             _s('進入代禱麥田', '首頁點「代禱」。'),
             _s('發出代禱', '寫下代禱事項，可選分類、可選擇匿名。'),
@@ -60,7 +61,7 @@ def _build_lessons():
             _s('看 AI 反思引導', '送出後可看到 AI 提供的反思問題，幫助更深默想。'),
             _s('回顧歷史', '在歷史頁回看過去的日記與集星紀錄。'),
         ])
-    add(Config.ENABLE_GOSPEL, '前台', 'gospel', '✝️', '福音探索', '慕道朋友',
+    add(is_enabled('gospel'), '前台', 'gospel', '✝️', '福音探索', '慕道朋友',
         '認識信仰，留下聯絡讓同工關懷。', '/gospel', [
             _s('進入福音探索', '首頁點「福音探索」。'),
             _s('瀏覽 Q&A 卡片', '一張張看信仰常見問題與解答。'),
@@ -82,26 +83,26 @@ def _build_lessons():
             _s('填四面向', '記錄組員屬靈 / 家庭 / 工作 / 健康狀況與整體建議。'),
             _s('送出', '送出後牧者後台即可彙整查閱。'),
         ])
-    add(Config.ENABLE_CALENDAR, '前台', 'calendar', '📅', '教會行事曆', '全會友',
+    add(is_enabled('calendar'), '前台', 'calendar', '📅', '教會行事曆', '全會友',
         '一頁掌握所有安排。', '/calendar', [
             _s('進入行事曆', '首頁點「行事曆」。'),
             _s('切換月份', '上下切換查看不同月份。'),
             _s('查看事件', '點任一事件看活動 / 課程 / 教會行事詳情。'),
         ])
-    add(Config.ENABLE_COURSES, '前台', 'courses', '🎓', '門訓課程', '全會友',
+    add(is_enabled('courses'), '前台', 'courses', '🎓', '門訓課程', '全會友',
         '報名課程、追蹤出席與認證。', '/courses', [
             _s('進入門訓', '首頁點「門訓課程」。'),
             _s('選課程報名', '查看課程資訊並報名。'),
             _s('上課簽到', '每堂課掃碼簽到，系統自動記出席。'),
             _s('查看認證', '修完後可查看結業認證。'),
         ])
-    add(Config.ENABLE_BULLETIN, '前台', 'bulletin', '📰', '每週週報', '全會友',
+    add(is_enabled('bulletins'), '前台', 'bulletin', '📰', '每週週報', '全會友',
         '線上看週報。', '/bulletins', [
             _s('進入週報', '首頁點「每週週報」。'),
             _s('選日期', '選擇要看的那一週。'),
             _s('線上閱讀', '直接在線上閱讀週報 PDF。'),
         ])
-    add(bool(Config.R2_ENDPOINT), '前台', 'files', '🗄', '檔案分享', '同工 / 會友',
+    add((bool(Config.R2_ENDPOINT) and is_enabled('files')), '前台', 'files', '🗄', '檔案分享', '同工 / 會友',
         '教會檔案上傳與下載。', '/files', [
             _s('進入檔案分享', '首頁點「檔案分享」。'),
             _s('瀏覽資料夾', '進入有權限的資料夾。'),
@@ -134,33 +135,33 @@ def _build_lessons():
             _s('開啟簽到', '勾選啟用簽到，系統產生 QR Code。'),
             _s('現場與匯出', '用「即時簽到」看到場狀況，事後「匯出名單」成 Excel。'),
         ])
-    add(Config.ENABLE_CALENDAR, '後台', 'a_calendar', '📅', '行事曆管理', '管理員',
+    add(is_enabled('calendar'), '後台', 'a_calendar', '📅', '行事曆管理', '管理員',
         '建立教會行事與提醒。', '/admin/calendar', [
             _s('進入行事曆', '後台點「行事曆」。'),
             _s('新增教會行事', '填標題、日期、說明與顏色。'),
             _s('設定提醒', '可設提前幾天提醒，並選擇是否通知全體會友。'),
         ])
-    add(Config.ENABLE_GOSPEL, '後台', 'a_gospel', '✝️', '福音關懷後台', '管理員',
+    add(is_enabled('gospel'), '後台', 'a_gospel', '✝️', '福音關懷後台', '管理員',
         '跟進慕道朋友、維護問答。', '/admin/gospel', [
             _s('進入福音關懷', '後台點「福音關懷」。'),
             _s('查看詢問', '看慕道朋友留下的聯絡與問題。'),
             _s('指派與跟進', '指派負責人、更新狀態、加備註。'),
             _s('維護問題庫', '到「福音探索問題」編輯 Q&A 卡片內容。'),
         ])
-    add(Config.ENABLE_VISITOR_FORMS, '後台', 'a_visitor', '📋', '留名單管理', '管理員',
+    add(is_enabled('visitor_forms'), '後台', 'a_visitor', '📋', '留名單管理', '管理員',
         '管理新朋友留名單。', '/admin/visitor-forms', [
             _s('進入留名單', '後台點「留名單」。'),
             _s('查看資料', '瀏覽新朋友的留名單照片與資料。'),
             _s('後續處理', '對接關懷流程。'),
         ])
-    add(Config.ENABLE_COURSES, '後台', 'a_courses', '📚', '門訓課程管理', '管理員',
+    add(is_enabled('courses'), '後台', 'a_courses', '📚', '門訓課程管理', '管理員',
         '課程、出席、認證。', '/admin/courses', [
             _s('進入課程管理', '後台點「門訓課程」。'),
             _s('建立課程與堂次', '新增課程，設定堂數與各堂時間。'),
             _s('管理報名出席', '查看報名名單與每堂出席。'),
             _s('認證與總覽', '到「學程認證管理」補登認證；「小組總覽」看各組狀況。'),
         ])
-    add(Config.ENABLE_COURSES, '後台', 'a_materials', '📦', '教材庫存', '管理員',
+    add(is_enabled('courses'), '後台', 'a_materials', '📦', '教材庫存', '管理員',
         '教材進銷存。', '/admin/materials', [
             _s('進入教材庫存', '後台點「教材庫存」。'),
             _s('建立品項', '新增教材品項。'),
@@ -229,7 +230,7 @@ def _build_lessons():
             _s('快捷連結', '新增首頁快捷連結。'),
             _s('小組首頁預設', '到「小組首頁預設」設定各小組顯示內容。'),
         ])
-    add(Config.ENABLE_BULLETIN and is_super, '後台', 'a_bulletins', '📰', '週報管理', '超級管理員',
+    add(is_enabled('bulletins') and is_super, '後台', 'a_bulletins', '📰', '週報管理', '超級管理員',
         '上傳週報。', '/admin/bulletins', [
             _s('進入週報管理', '後台點「週報管理」。'),
             _s('上傳 PDF', '上傳當週週報並設定日期。'),

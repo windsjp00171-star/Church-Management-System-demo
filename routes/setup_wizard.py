@@ -381,8 +381,17 @@ def index():
     except Exception:
         logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
+    # 選用功能模組的現況（登記表：routes/modules.py）
+    from routes.modules import MODULES, NEEDS, is_on_in_state
+    try:
+        module_rows = [{'label': m.label, 'desc': m.desc, 'on': is_on_in_state(m.key),
+                        'needs': NEEDS.get(m.key, '')} for m in MODULES if m.kind == 'optional']
+    except Exception:
+        module_rows = []
+
     return render_template(
         'setup_wizard/index.html',
+        module_rows=module_rows,
         env_groups=env_groups,
         all_required_ok=all_required_ok,
         required_missing=required_missing,

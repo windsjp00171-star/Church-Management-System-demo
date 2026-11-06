@@ -12,6 +12,7 @@
 否則它會被當成核心而關不掉（有測試會掃所有路由，沒登記的選配前綴不會被發現，所以要記得）。
 """
 import json
+import os
 import time
 from collections import namedtuple
 
@@ -24,7 +25,7 @@ from routes.decorators import super_admin_required
 
 modules_bp = Blueprint('modules', __name__)
 
-Module = namedtuple('Module', 'key label kind requires prefixes desc', defaults=((), (), ''))
+Module = namedtuple('Module', 'key label kind requires prefixes desc needs', defaults=((), (), '', ''))
 
 #  kind：optional（教會自己選）／demo_only（只在 DEMO_MODE 才有）
 MODULES = [
@@ -67,6 +68,30 @@ MODULES = [
         '展示帳號登入、洽詢表單與紀錄（正式教會部署不會有）'),
 ]
 BY_KEY = {m.key: m for m in MODULES}
+
+#  舊的環境變數開關（ENABLE_*=false）只當作「這個模組的預設值」：還沒有人在 /admin/modules 表態過時才生效，
+#  已經在後台表態過的，以後台為準。這樣已經設過 ENABLE_* 的部署升級後行為不變，也不會有兩套互相打架。
+ENV_DEFAULTS = {
+    'courses': 'ENABLE_COURSES', 'calendar': 'ENABLE_CALENDAR', 'bulletins': 'ENABLE_BULLETIN',
+    'prayer': 'ENABLE_PRAYER', 'gospel': 'ENABLE_GOSPEL', 'visitor_forms': 'ENABLE_VISITOR_FORMS',
+}
+#  模組需要的外部設定（給部署精靈與後台頁面顯示；沒有就不顯示）
+NEEDS = {
+    'files': 'Cloudflare R2（R2_* 環境變數）',
+    'diary': 'AI 金鑰（GROQ_API_KEY，可選；沒有就沒有 AI 反思引導）',
+    'payments': '金流商帳號與設定（綠界／LINE Pay）',
+}
+
+
+def default_on(key):
+    var = ENV_DEFAULTS.get(key)
+    return not (var and os.getenv(var, 'true').strip().lower() == 'false')
+
+
+def is_on_in_state(key, state=None):
+    """後台有表態用後台；沒表態用預設（環境變數或「開」）。"""
+    state = _load_state() if state is None else state
+    return state.get(key, default_on(key))
 SETTINGS_KEY = 'modules_state'          # settings 表：JSON {模組 key: true/false}；沒寫的用預設（開）
 CACHE_TTL = 30                           # 秒；儲存時會立刻清掉
 _cache = {'at': 0.0, 'state': None}
@@ -122,7 +147,7 @@ def is_enabled(key):
         return True                      # 核心：永遠開著
     if m.kind == 'demo_only':
         return bool(Config.DEMO_MODE)
-    if not _load_state().get(key, True):
+    if not is_on_in_state(key):
         return False
     return all(is_enabled(r) for r in m.requires)     # 依賴關掉了，它也跟著不存在
 
@@ -161,7 +186,7 @@ def validate(new_state):
             errors.append(f'「{m.label}」由 DEMO_MODE 控制，不能在這裡開關')
     if errors:
         return errors
-    eff = {m.key: new_state.get(m.key, _load_state().get(m.key, True))
+    eff = {m.key: new_state.get(m.key, is_on_in_state(m.key))
            for m in MODULES if m.kind == 'optional'}
     for m in MODULES:
         if m.kind == 'optional' and eff[m.key]:
@@ -176,8 +201,8 @@ def validate(new_state):
 @super_admin_required
 def modules_page():
     state = _load_state()
-    rows = [{'m': m, 'on': state.get(m.key, True), 'requires': [BY_KEY[r].label for r in m.requires]}
-            for m in MODULES if m.kind == 'optional']
+    rows = [{'m': m, 'on': is_on_in_state(m.key, state), 'requires': [BY_KEY[r].label for r in m.requires],
+             'needs': NEEDS.get(m.key, '')} for m in MODULES if m.kind == 'optional']
     return render_template('admin/modules.html', rows=rows, demo_mode=bool(Config.DEMO_MODE))
 
 
@@ -191,7 +216,7 @@ def modules_save():
     errors = validate(new_state)
     if errors:
         return jsonify({'status': 400, 'data': {}, 'error': '；'.join(errors)}), 400
-    merged = {**_load_state(), **new_state}
+    merged = {**{m.key: is_on_in_state(m.key) for m in MODULES if m.kind == 'optional'}, **new_state}
     try:
         settings_store.set(SETTINGS_KEY, json.dumps(merged, ensure_ascii=False, sort_keys=True))
     except Exception:

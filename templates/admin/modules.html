@@ -25,6 +25,7 @@
         <strong style="font-size:1.05rem;">{{ r.m.label }}</strong>
         <span style="display:block; color:#6b7280; font-size:.92rem;">{{ r.m.desc }}</span>
         {% if r.requires %}<span style="display:block; color:#b45309; font-size:.85rem;">需要先開啟：{{ r.requires|join('、') }}</span>{% endif %}
+        {% if r.needs %}<span style="display:block; color:#6b7280; font-size:.85rem;">另外需要設定：{{ r.needs }}</span>{% endif %}
       </span>
     </label>
     {% endfor %}

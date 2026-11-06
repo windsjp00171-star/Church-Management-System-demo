@@ -54,30 +54,26 @@ def create_app():
     app.register_blueprint(profile_bp)
     app.register_blueprint(notifications_bp)
 
-    # ── 可選模組（透過環境變數控制）──────────────────────────
-    if Config.ENABLE_COURSES:
-        from routes.courses import courses_bp
-        app.register_blueprint(courses_bp)
+    # ── 可選模組：一律註冊；要不要開放由功能模組登記表在執行時決定（routes/modules.py）──
+    # （原本用 ENABLE_* 環境變數在啟動時決定要不要註冊，關掉之後模板裡的連結會指向不存在的網址；
+    #   現在 ENABLE_* 只當作登記表的預設值，見 modules.ENV_DEFAULTS）
+    from routes.courses import courses_bp
+    app.register_blueprint(courses_bp)
 
-    if Config.ENABLE_CALENDAR:
-        from routes.calendar import calendar_bp
-        app.register_blueprint(calendar_bp)
+    from routes.calendar import calendar_bp
+    app.register_blueprint(calendar_bp)
 
-    if Config.ENABLE_BULLETIN:
-        from routes.bulletin import bulletin_bp
-        app.register_blueprint(bulletin_bp)
+    from routes.bulletin import bulletin_bp
+    app.register_blueprint(bulletin_bp)
 
-    if Config.ENABLE_PRAYER:
-        from routes.prayer import prayer_bp
-        app.register_blueprint(prayer_bp)
+    from routes.prayer import prayer_bp
+    app.register_blueprint(prayer_bp)
 
-    if Config.ENABLE_GOSPEL:
-        from routes.gospel import gospel_bp
-        app.register_blueprint(gospel_bp)
+    from routes.gospel import gospel_bp
+    app.register_blueprint(gospel_bp)
 
-    if Config.ENABLE_VISITOR_FORMS:
-        from routes.visitor_forms import visitor_forms_bp
-        app.register_blueprint(visitor_forms_bp)
+    from routes.visitor_forms import visitor_forms_bp
+    app.register_blueprint(visitor_forms_bp)
 
     # ── 整合模組：檔案分享（church-data-hub）────────────────
     from routes.files import files_bp
