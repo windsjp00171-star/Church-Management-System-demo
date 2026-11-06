@@ -203,6 +203,7 @@ migration 腳本：`migrations/008_diary_admin_whitelist.sql`
 
 ### 檔案分享（files_bp）
 - 支援音訊預覽（`.mp3`, `.m4a`, `.wav`, `.ogg`, `.aac`）：直接顯示 `<audio>` 播放器
+- **密碼保護**：檔案／資料夾的密碼只有 `_password_matches`、`_folder_locked`、`_file_in_locked_folder` 三個判定；分享連結、搜尋、view／stream／download 都要過；解鎖端點限速且要先有存取權（`tests/test_files_password_guards.py`）。資料夾可見性只有 `_can_access_folder` 一份
 - 通知系統使用 `real_name`（整合系統 session key），非 `display_name`
 - User picker 過濾已封鎖使用者（`.eq('is_blocked', False)`）
 

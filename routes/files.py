@@ -136,6 +136,34 @@ def _can_access_folder(folder_record):
     return False
 
 
+def _password_matches(password: str, password_hash) -> bool:
+    """沒有雜湊值（資料不完整）一律視為不符，不可以讓 500 錯誤洩漏狀態。"""
+    if not password_hash:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode(), password_hash.encode())
+    except ValueError:
+        return False
+
+
+def _folder_locked(folder) -> bool:
+    """資料夾有密碼、本人不是建立者／管理員、而且這個 session 還沒解鎖。"""
+    if not folder or folder.get('protection') != 'password':
+        return False
+    if _get_role() == 'admin' or folder.get('created_by') == session.get('user_id'):
+        return False
+    return not session.get(f"folder_unlocked_{folder['id']}")
+
+
+def _file_in_locked_folder(file_record) -> bool:
+    """檔案放在一個還沒解鎖的密碼資料夾裡（搜尋、直接開網址都不能繞過資料夾密碼）。"""
+    fid = file_record.get('folder_id')
+    if not fid:
+        return False
+    rows = supabase.table('folders').select('*').eq('id', fid).execute().data or []
+    return bool(rows) and _folder_locked(rows[0])
+
+
 def _format_size(size_bytes):
     if size_bytes is None:
         return ''
@@ -174,13 +202,18 @@ def index():
     else:
         folders_q = folders_q.is_('parent_id', 'null')
 
-    if role != 'admin':
-        # user_id 先驗證為合法 UUID，避免插入 PostgREST 過濾字串時造成注入
-        safe_uid = str(uuid.UUID(str(session['user_id'])))
-        folders_q = folders_q.or_(
-            f'visibility.eq.public,visibility.eq.management,allowed_roles.cs.{{"{role}"}},created_by.eq.{safe_uid}'
-        )
-    folders = folders_q.order('name').execute().data or []
+    # 能不能看到哪個資料夾只有一份判定（_can_access_folder）；
+    # 以前在資料庫端另寫一份過濾，指定使用者／指定分組的資料夾永遠列不出來
+    folders = [f for f in (folders_q.order('name').execute().data or []) if _can_access_folder(f)]
+
+    if folder_id:
+        cur = supabase.table('folders').select('*').eq('id', folder_id).execute().data
+        if not cur:
+            abort(404)
+        if not _can_access_folder(cur[0]):
+            abort(403)
+        if _folder_locked(cur[0]):
+            return render_template('files/folder_password_prompt.html', folder=cur[0])
 
     if q:
         files_q = supabase.table('files').select('*').ilike('name', f'%{q}%')
@@ -193,6 +226,12 @@ def index():
             files_q = files_q.is_('folder_id', 'null')
     all_files = files_q.order('created_at', desc=True).execute().data or []
     files = [f for f in all_files if _can_access_file(f)]
+    if q:      # 搜尋會跨資料夾：還沒解鎖的密碼資料夾裡的檔案不能出現在結果裡
+        in_folders = list({f['folder_id'] for f in files if f.get('folder_id')})
+        if in_folders:
+            locked = {r['id'] for r in (supabase.table('folders').select('*').in_('id', in_folders)
+                                        .execute().data or []) if _folder_locked(r)}
+            files = [f for f in files if f.get('folder_id') not in locked]
 
     # 批次取上傳者姓名
     uploader_ids = list({f['owner_id'] for f in files if f.get('owner_id')})
@@ -414,6 +453,9 @@ def view_file(file_id):
     if not _can_access_file(file_record):
         abort(403)
 
+    if _file_in_locked_folder(file_record):
+        return redirect(url_for('files.index', folder_id=file_record['folder_id']))
+
     if file_record.get('protection') == 'password':
         verified = session.get(f'file_unlocked_{file_id}')
         if not verified:
@@ -445,14 +487,17 @@ def view_file(file_id):
 
 @files_bp.route('/files/<file_id>/unlock', methods=['POST'])
 @login_required
+@limiter.limit('10 per minute')
 def unlock_file(file_id):
     res = supabase.table('files').select('*').eq('id', file_id).execute()
     if not res.data:
         abort(404)
     file_record = res.data[0]
+    if not _can_access_file(file_record):
+        abort(403)
     password = request.form.get('password', '')
 
-    if bcrypt.checkpw(password.encode(), file_record['password_hash'].encode()):
+    if _password_matches(password, file_record.get('password_hash')):
         session[f'file_unlocked_{file_id}'] = True
         return redirect(url_for('files.view_file', file_id=file_id))
 
@@ -515,6 +560,12 @@ def share_link(file_id):
     if not _can_access_file(file_record):
         abort(403)
 
+    # 有密碼的檔案：沒解鎖就不能產生分享連結（連結本身不需要登入，等於把密碼繞過去，最長 7 天）
+    if file_record.get('protection') == 'password' and not session.get(f'file_unlocked_{file_id}'):
+        return jsonify({'error': '此檔案受密碼保護，請先輸入密碼解鎖'}), 403
+    if _file_in_locked_folder(file_record):
+        return jsonify({'error': '此檔案所在的資料夾受密碼保護，請先解鎖資料夾'}), 403
+
     expires_map = {'1h': 3600, '24h': 86400, '7d': 604800}
     expires_key = request.form.get('expires', '24h')
     expires_sec = expires_map.get(expires_key, 86400)
@@ -538,6 +589,8 @@ def stream_file(file_id):
     if file_record.get('protection') == 'password':
         if not session.get(f'file_unlocked_{file_id}'):
             abort(403)
+    if _file_in_locked_folder(file_record):
+        abort(403)
 
     url = get_presigned_url(file_record['file_key'], expires=300)
     r = http_requests.get(url, stream=True, timeout=30)
@@ -569,6 +622,8 @@ def download_file(file_id):
     if file_record.get('protection') == 'password':
         if not session.get(f'file_unlocked_{file_id}'):
             abort(403)
+    if _file_in_locked_folder(file_record):
+        abort(403)
 
     url = get_presigned_url(file_record['file_key'], expires=60)
     return redirect(url)
@@ -640,14 +695,17 @@ def create_folder():
 
 @files_bp.route('/folders/<folder_id>/unlock', methods=['POST'])
 @login_required
+@limiter.limit('10 per minute')
 def unlock_folder(folder_id):
     res = supabase.table('folders').select('*').eq('id', folder_id).execute()
     if not res.data:
         abort(404)
     folder = res.data[0]
+    if not _can_access_folder(folder):
+        abort(403)
     password = request.form.get('password', '')
 
-    if bcrypt.checkpw(password.encode(), folder['password_hash'].encode()):
+    if _password_matches(password, folder.get('password_hash')):
         session[f'folder_unlocked_{folder_id}'] = True
         return redirect(url_for('files.index', folder_id=folder_id))
 
