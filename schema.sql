@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS portal_card_settings (
 
 CREATE TABLE IF NOT EXISTS users (
     id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    line_user_id   TEXT UNIQUE NOT NULL,
+    line_user_id   TEXT UNIQUE,             -- 可為空：手動建立的會員、合併後被清掉 LINE 身分的列（UNIQUE 允許多個空值）
     display_name   TEXT,
     real_name      TEXT,
     picture_url    TEXT,

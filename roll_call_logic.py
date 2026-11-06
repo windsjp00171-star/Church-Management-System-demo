@@ -192,7 +192,7 @@ def norm_name(name):
     return ''.join(unicodedata.normalize('NFKC', name or '').split()).casefold()
 
 
-def _within_one_edit(a, b):
+def within_one_edit(a, b):
     if a == b:
         return True
     if abs(len(a) - len(b)) > 1:
@@ -249,8 +249,8 @@ def plan_import(raw_text, existing):
             continue
         sim = None
         if len(key) >= 3:
-            sim = next((k for k in known if len(k[0]) >= 3 and _within_one_edit(k[0], key)), None)
+            sim = next((k for k in known if len(k[0]) >= 3 and within_one_edit(k[0], key)), None)
             sim = sim or next(((None, v, None) for k, v in seen.items() if k != key and len(k) >= 3
-                               and _within_one_edit(k, key)), None)
+                               and within_one_edit(k, key)), None)
         rows.append({'name': name, 'status': 'similar' if sim else 'new', 'match': sim[1] if sim else None})
     return {'rows': rows, 'truncated': truncated}

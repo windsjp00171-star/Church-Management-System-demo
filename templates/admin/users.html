@@ -489,20 +489,24 @@ function openAddManualModal() {
     document.getElementById('add-manual-modal').style.display = 'flex';
     setTimeout(() => document.getElementById('am-name').focus(), 100);
 }
-async function submitAddManual() {
+async function submitAddManual(force) {
     const name = document.getElementById('am-name').value.trim();
     const type = document.getElementById('am-type').value;
     if (!name) { showToast('請輸入姓名', 'error'); return; }
     const r = await fetch('/admin/api/users/create', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ real_name: name, member_type: type })
+        body: JSON.stringify({ real_name: name, member_type: type, force: force === true })
     });
     const d = await r.json();
     if (d.success) {
         document.getElementById('add-manual-modal').style.display = 'none';
         showToast('已建立會員：' + name, 'success');
         loadUsers();
+    } else if (r.status === 409 && d.duplicates) {
+        // 疑似同一個人：攤給管理員看，由他決定（可能真的是同名的兩個人）
+        const lines = d.duplicates.map(x => '・' + (x.real_name || x.display_name || '（無姓名）') + '（' + x.reason + (x.has_line ? '，已有 LINE' : '，沒有 LINE') + '）').join('\n');
+        if (confirm('系統裡已有疑似同一個人：\n' + lines + '\n\n如果是同一個人，請取消，改用該帳號的「整合 LINE」。\n確定他們是不同的人，仍要新增嗎？')) submitAddManual(true);
     } else {
         showToast(d.error || '建立失敗', 'error');
     }
