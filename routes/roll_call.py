@@ -13,10 +13,11 @@ from flask import Blueprint, Response, abort, jsonify, render_template, request,
 
 from db import supabase
 from roll_call_logic import (
-    LATE_MODE_LABELS, LEAVE_MODE_LABELS, STATUS_LABELS, can_mark, compute_member_rate,
-    describe_rule, parse_count, taipei_input_to_utc_iso, to_taipei, validate_rule,
-    validate_status,
+    IMPORT_LABELS, LATE_MODE_LABELS, LEAVE_MODE_LABELS, STATUS_LABELS, can_mark, compute_member_rate,
+    describe_rule, names_from_upload, norm_name, parse_count, plan_import, taipei_input_to_utc_iso,
+    to_taipei, validate_rule, validate_status,
 )
+from routes.audit import log_action
 from routes.decorators import admin_required, staff_required, super_admin_required
 
 roll_call_bp = Blueprint('roll_call', __name__)
@@ -222,25 +223,59 @@ def api_add_type():
     return _ok(row[0] if row else {})
 
 
+def _import_text():
+    """貼上的文字，或上傳的 CSV／純文字檔（只取姓名那一欄）。"""
+    f = request.files.get('file')
+    if f:
+        raw = f.read(1_000_001)
+        if len(raw) > 1_000_000:
+            raise ValueError('檔案太大（上限 1 MB）')
+        return names_from_upload(raw)
+    data = request.get_json(silent=True) or {}
+    return data.get('names') or request.form.get('names') or ''
+
+
+def _existing_members():
+    return supabase.table('rc_members').select('name,status').execute().data or []
+
+
+@roll_call_bp.route('/api/admin/roll-call/members/preview', methods=['POST'])
+@admin_required
+def api_preview_members():
+    """名冊匯入第一步：只分類、不寫入。疑似重複與同名都攤開給管理員看。"""
+    try:
+        text = _import_text()
+    except ValueError as e:
+        return _err(str(e))
+    plan = plan_import(text, _existing_members())
+    if not plan['rows']:
+        return _err('沒有讀到任何姓名')
+    return _ok({**plan, 'labels': IMPORT_LABELS})
+
+
 @roll_call_bp.route('/api/admin/roll-call/members', methods=['POST'])
 @admin_required
 def api_add_members():
-    """名冊：每行一個姓名；與名冊內同名者略過（回報給管理員，不自動合併）。"""
+    """名冊匯入第二步：伺服器重新分類（不信任前端），『新增』的直接加；
+    『疑似重複』只有管理員明確勾選確認（confirm_similar）的才加；同名一律略過，不自動合併或恢復。"""
     data = request.get_json(silent=True) or {}
-    names = [n.strip() for n in (data.get('names') or '').splitlines() if n.strip()]
-    if not names:
+    confirmed = {norm_name(n) for n in (data.get('confirm_similar') or [])}
+    plan = plan_import(data.get('names') or '', _existing_members())
+    if not plan['rows']:
         return _err('請輸入至少一個姓名')
-    existing = {m['name'] for m in (supabase.table('rc_members').select('name').execute().data or [])}
+    many = len(plan['rows']) > 1
     added, skipped = [], []
-    for n in dict.fromkeys(names):          # 去除同批重複並保序
-        if n in existing:
-            skipped.append(n)
-        else:
-            added.append({'name': n, 'source': 'import' if len(names) > 1 else 'manual',
+    for r in plan['rows']:
+        if r['status'] == 'new' or (r['status'] == 'similar' and norm_name(r['name']) in confirmed):
+            added.append({'name': r['name'], 'source': 'import' if many else 'manual',
                           'joined_on': data.get('joined_on') or None})
+        else:
+            skipped.append({'name': r['name'], 'reason': IMPORT_LABELS[r['status']], 'match': r['match']})
     if added:
         supabase.table('rc_members').insert(added).execute()
-    return _ok({'added': len(added), 'skipped': skipped})
+    log_action('roll_call.members_import', target_type='rc_members',
+               detail={'added': len(added), 'skipped': len(skipped), 'truncated': plan['truncated'] or None})
+    return _ok({'added': len(added), 'skipped': skipped, 'truncated': plan['truncated']})
 
 
 @roll_call_bp.route('/api/admin/roll-call/members/<mid>/leave', methods=['POST'])

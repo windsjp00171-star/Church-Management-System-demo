@@ -46,8 +46,12 @@
 
   <section data-tour="members" style="border:1px solid #ddd; border-radius:12px; padding:14px; background:#fff;">
     <h3 style="margin-top:0;">3. 點名名冊（與會員帳號無關）</h3>
-    <textarea id="m-names" rows="4" placeholder="每行一個姓名，可一次貼上多筆；名冊內已有的同名者會略過" style="width:100%; padding:10px; box-sizing:border-box;"></textarea>
-    <button type="button" onclick="addMembers()" style="padding:10px 16px; margin:8px 0;">加入名冊</button>
+    <textarea id="m-names" rows="4" placeholder="每行一個姓名，可一次貼上多筆" style="width:100%; padding:10px; box-sizing:border-box;"></textarea>
+    <div style="margin:6px 0; font-size:.9rem; color:#555;">
+      或上傳 CSV／文字檔（只讀第一欄的姓名）：<input type="file" id="m-file" accept=".csv,.txt,text/csv,text/plain">
+    </div>
+    <button type="button" onclick="previewMembers()" style="padding:10px 16px; margin:8px 0;">先預覽（還不會寫入）</button>
+    <div id="m-preview" style="display:none; margin:8px 0; padding:10px; background:#f8fafc; border-radius:8px;"></div>
     {% for m in members %}
     <div style="display:flex; justify-content:space-between; padding:6px 0; border-top:1px solid #eee;">
       <span>{{ m.name }}{% if m.status == 'left' %}　<span style="color:#999;">（已離開）</span>{% endif %}</span>
@@ -71,13 +75,44 @@ async function run(fn) { try { await fn(); location.reload(); } catch (e) { say(
 const addType = () => run(() => post('/api/admin/roll-call/types', { name: document.getElementById('t-name').value, record_mode: document.getElementById('t-mode').value }));
 const addSession = () => run(() => post('/api/admin/roll-call/sessions', { type_id: document.getElementById('s-type').value, date: document.getElementById('s-date').value, time: document.getElementById('s-time').value }));
 const lockSession = id => confirm('鎖定後，一般同工不能再修改；管理員修改必須填原因。確定鎖定？') && run(() => post(`/api/admin/roll-call/sessions/${id}/lock`));
-const addMembers = () => run(async () => { const j = await post('/api/admin/roll-call/members', { names: document.getElementById('m-names').value }); if (j.data.skipped.length) alert('已略過同名：' + j.data.skipped.join('、')); });
+let importText = '';
+async function previewMembers() {
+  say('');
+  try {
+    const f = document.getElementById('m-file').files[0];
+    let r;
+    if (f) { const fd = new FormData(); fd.append('file', f); r = await fetch('/api/admin/roll-call/members/preview', { method: 'POST', body: fd }); }
+    else { r = await fetch('/api/admin/roll-call/members/preview', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ names: document.getElementById('m-names').value }) }); }
+    const j = await r.json().catch(() => ({ error: '連線失敗' }));
+    if (!r.ok || j.error) throw new Error(j.error || '預覽失敗');
+    importText = j.data.rows.map(x => x.name).join('\n');
+    renderPreview(j.data);
+  } catch (e) { say(e.message); }
+}
+function renderPreview(d) {
+  const box = document.getElementById('m-preview');
+  const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const n = k => d.rows.filter(x => x.status === k).length;
+  let h = `<div><b>預覽：</b>新增 ${n('new')} 人、疑似重複 ${n('similar')} 人、略過 ${d.rows.length - n('new') - n('similar')} 人${d.truncated ? '（超過 2000 筆，只處理前 2000 筆）' : ''}</div>`;
+  d.rows.forEach((x, i) => {
+    const note = x.match ? `　↔ ${esc(x.match)}` : '';
+    const box_ = x.status === 'similar' ? `<label><input type="checkbox" data-similar="${esc(x.name)}"> 確認這是不同的人，要加入</label>` : '';
+    h += `<div style="padding:6px 0; border-top:1px solid #e5e7eb;">${esc(x.name)}${note}　<span style="color:${x.status === 'new' ? '#15803d' : x.status === 'similar' ? '#b45309' : '#6b7280'};">${esc(d.labels[x.status])}</span> ${box_}</div>`;
+  });
+  h += '<button type="button" onclick="confirmImport()" style="padding:10px 16px; margin-top:8px;">確認匯入</button> <button type="button" onclick="document.getElementById(\'m-preview\').style.display=\'none\'" style="padding:10px 16px;">取消</button>';
+  box.innerHTML = h; box.style.display = 'block';
+}
+const confirmImport = () => run(async () => {
+  const sims = [...document.querySelectorAll('#m-preview [data-similar]:checked')].map(e => e.dataset.similar);
+  const j = await post('/api/admin/roll-call/members', { names: importText, confirm_similar: sims });
+  alert(`已加入 ${j.data.added} 人` + (j.data.skipped.length ? `；略過 ${j.data.skipped.length} 人：\n` + j.data.skipped.map(x => `${x.name}（${x.reason}）`).join('\n') : ''));
+});
 const leaveMember = id => confirm('標記離開後，歷史點名資料全部保留。確定？') && run(() => post(`/api/admin/roll-call/members/${id}/leave`));
 function startTour() {
   RollTour.start([
     { target: 'types', text: '先建立聚會類型，並選記錄方式：逐人點名，或只記人數。' },
     { target: 'sessions', text: '建立每次聚會的場次（時間用台北時間輸入）。結束後按「鎖定」。' },
-    { target: 'members', text: '點名名冊是獨立的，不需要對方有 LINE 帳號。每行貼一個姓名即可。' },
+    { target: 'members', text: '點名名冊是獨立的，不需要對方有 LINE 帳號。每行貼一個姓名即可（也能上傳 CSV）。先預覽，疑似重複的要你確認才會加入。' },
     { target: 'rates-link', text: '出席率在這裡設定規則並查看、匯出。' }
   ]);
 }

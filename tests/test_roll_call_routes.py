@@ -95,9 +95,10 @@ def test_rule_requires_every_choice(client_as):
 
 
 def test_members_dedupe_by_name(fake_db, client_as):
-    fake_db.tables['rc_members'] = [{'name': '王小明'}]
+    fake_db.tables['rc_members'] = [{'name': '王小明', 'status': 'active'}]
     r = post(client_as(is_admin=True), '/api/admin/roll-call/members', {'names': '王小明\n李小華\n李小華\n'})
-    assert r.get_json()['data'] == {'added': 1, 'skipped': ['王小明']}
+    d = r.get_json()['data']
+    assert d['added'] == 1 and [x['name'] for x in d['skipped']] == ['王小明', '李小華']
     assert [w for w in fake_db.writes if w[0] == 'rc_members'][0][2] == [
         {'name': '李小華', 'source': 'import', 'joined_on': None}]
 

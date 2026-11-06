@@ -6,6 +6,9 @@
 from datetime import date, datetime, timezone, timedelta
 from decimal import Decimal, ROUND_HALF_UP
 from fractions import Fraction
+import csv
+import io
+import unicodedata
 
 STATUSES = ('present', 'absent', 'leave', 'late')
 STATUS_LABELS = {'present': '到', 'absent': '未到', 'leave': '請假', 'late': '遲到'}
@@ -169,3 +172,85 @@ def can_mark(session_row, is_admin, is_staff):
     if is_admin:
         return True
     return bool(is_staff) and session_row.get('status') != 'locked'
+
+
+# ── 名冊匯入：預覽用的純邏輯（不寫資料庫） ─────────────────────────────
+
+MAX_IMPORT_NAMES = 2000
+HEADER_WORDS = {'姓名', '名字', 'name', '名稱'}
+IMPORT_LABELS = {
+    'new': '新增',
+    'similar': '疑似重複（請你確認）',
+    'same': '名冊內已有同名（略過）',
+    'same_left': '已離開名單中有同名（略過，不自動恢復）',
+    'dup_in_file': '這批裡重複（略過）',
+}
+
+
+def norm_name(name):
+    """比對用：全形半形統一、去掉所有空白、不分大小寫。只用來『比』，不改寫存進去的姓名。"""
+    return ''.join(unicodedata.normalize('NFKC', name or '').split()).casefold()
+
+
+def _within_one_edit(a, b):
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        return sum(x != y for x, y in zip(a, b)) == 1
+    short, long_ = (a, b) if len(a) < len(b) else (b, a)
+    return any(long_[:i] + long_[i + 1:] == short for i in range(len(long_)))
+
+
+def names_from_upload(raw: bytes) -> str:
+    """CSV／純文字上傳 → 每行一個姓名（取第一欄，第一列若是欄位標題就略過）。解不出編碼就丟 ValueError。"""
+    text = None
+    for enc in ('utf-8-sig', 'cp950', 'big5'):
+        try:
+            text = raw.decode(enc)
+            break
+        except UnicodeDecodeError:
+            continue
+    if text is None:
+        raise ValueError('檔案編碼無法辨識，請另存成 UTF-8 的 CSV 或純文字')
+    names = []
+    for i, row in enumerate(csv.reader(io.StringIO(text))):
+        cell = (row[0] if row else '').strip()
+        if i == 0 and cell.casefold() in HEADER_WORDS:
+            continue
+        if cell:
+            names.append(cell)
+    return '\n'.join(names)
+
+
+def plan_import(raw_text, existing):
+    """把貼上的姓名分類。existing：[{'name','status'}]。
+
+    回傳 {'rows': [...], 'truncated': bool}；每列 {'name','status','match'}。
+    分類只做『建議』，真正寫入時伺服器會重算一次（不信任前端傳來的分類）。
+    - same／same_left：正規化後完全相同 → 一律略過（不自動合併、不自動恢復）
+    - similar：差一個字（名字至少 3 個字才比，兩個字的名字差一個字太容易誤判）→ 要人確認
+    """
+    lines = [n.strip() for n in (raw_text or '').splitlines() if n.strip()]
+    truncated = len(lines) > MAX_IMPORT_NAMES
+    lines = lines[:MAX_IMPORT_NAMES]
+    known = [(norm_name(m['name']), m['name'], m.get('status')) for m in existing]
+    seen, rows = {}, []
+    for name in lines:
+        key = norm_name(name)
+        if key in seen:
+            rows.append({'name': name, 'status': 'dup_in_file', 'match': seen[key]})
+            continue
+        seen[key] = name
+        hit = next((k for k in known if k[0] == key), None)
+        if hit:
+            rows.append({'name': name, 'status': 'same' if hit[2] == 'active' else 'same_left', 'match': hit[1]})
+            continue
+        sim = None
+        if len(key) >= 3:
+            sim = next((k for k in known if len(k[0]) >= 3 and _within_one_edit(k[0], key)), None)
+            sim = sim or next(((None, v, None) for k, v in seen.items() if k != key and len(k) >= 3
+                               and _within_one_edit(k, key)), None)
+        rows.append({'name': name, 'status': 'similar' if sim else 'new', 'match': sim[1] if sim else None})
+    return {'rows': rows, 'truncated': truncated}

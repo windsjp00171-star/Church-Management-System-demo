@@ -69,7 +69,8 @@ def fake_db():
     mod = types.ModuleType('db')
     mod.supabase = fake
     sys.modules['db'] = mod
-    sys.modules.pop('routes.roll_call', None)
+    for name in ('routes.roll_call', 'routes.audit', 'routes.decorators'):
+        sys.modules.pop(name, None)      # 載入時綁住 db 的模組，跟著這一輪的假資料庫重新載入
     return fake
 
 
