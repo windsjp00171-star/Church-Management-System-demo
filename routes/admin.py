@@ -2,6 +2,7 @@ import logging
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
+from image_kind import image_kind
 from config import Config
 from routes.audit import log_action
 from routes.decorators import admin_required, super_admin_required, staff_required
@@ -1995,12 +1996,12 @@ def admin_verses():
 @admin_bp.route('/verses/upload-watermark', methods=['POST'])
 @admin_required
 def upload_verse_watermark():
-    import os, imghdr
+    import os
     f = request.files.get('image')
     if not f or not f.filename:
         return jsonify({'success': False, 'error': '請選擇圖片'})
     data = f.read()
-    if imghdr.what(None, data) not in ('png', 'jpeg', 'gif', 'webp'):
+    if image_kind(data) not in ('png', 'jpeg', 'gif', 'webp'):
         return jsonify({'success': False, 'error': '只接受 PNG / JPG / GIF / WebP'})
     dest = os.path.join(os.path.dirname(__file__), '..', 'static', 'img', 'lion.png')
     with open(dest, 'wb') as out:
@@ -2011,7 +2012,7 @@ def upload_verse_watermark():
 @admin_bp.route('/verses/upload-theme', methods=['POST'])
 @admin_required
 def upload_verse_theme():
-    import imghdr, time as _time
+    import time as _time
     name = (request.form.get('name') or '').strip()
     symbol = (request.form.get('symbol') or '✝').strip() or '✝'
     text_mode = request.form.get('text_mode', 'light')
@@ -2023,7 +2024,7 @@ def upload_verse_theme():
     if not f or not f.filename:
         return jsonify({'success': False, 'error': '請選擇圖片'})
     data = f.read()
-    fmt = imghdr.what(None, data)
+    fmt = image_kind(data)
     if fmt not in ('png', 'jpeg', 'webp'):
         return jsonify({'success': False, 'error': '只接受 PNG / JPG / WebP'})
     ext = 'jpg' if fmt == 'jpeg' else fmt
