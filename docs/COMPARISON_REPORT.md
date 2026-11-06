@@ -159,3 +159,6 @@ cell_reporter 的 CLAUDE.md 有一節「Things that are deliberately the way the
 - **需要你決定的事**：① 天父日記內容（`diary_entries`）與分享授權目前**不在超管匯出內**（隱私考量，與「開發者不接觸教會用戶資料」一致），代價是災難還原時日記無法靠本匯出復原，需靠 Supabase 專案層級備份——要不要改成「教會超管可選擇性匯出」？② `material_stock` 是檢視表，不匯出（由 `material_transactions` 重算）。
 - **未驗證**：真實 Supabase 上的匯出／匯入；`docs/NEW_CHURCH_SETUP.md` 的「完整還原演練」仍需在真實專案做一次。
 - 仍待處理：手冊與教學導覽依模組隱藏；cell_report 的 `link_member_ajax`／`user_id`／`is_confirmed` 待清理；出席率規則預設值（等問卷）；查詢者／匯出授權矩陣（等與教會討論）。
+
+### 決定：天父日記匯出範圍（2026-11-06）
+- 使用者決定：超管匯出**不含**日記；**個人可匯出自己的**。已實作 `/diary/export`（文字檔，只限本人，有測試與 mutation 驗證）。

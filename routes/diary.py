@@ -16,7 +16,7 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    session, flash, jsonify, current_app
+    session, flash, jsonify, current_app, Response
 )
 
 from db import supabase as sb
@@ -617,6 +617,64 @@ def grant():
         flash('已授權（之後會自動延續）', 'ok')
 
     return redirect(url_for('diary.index', d=d))
+
+
+def export_own_entries(line_user_id: str) -> List[Dict[str, Any]]:
+    """讀出「自己的」全部日記（分頁，一次最多 1000 筆）。
+    讀取失敗就丟例外——寧可讓人知道沒匯出成功，也不要給一份缺頁的備份。
+    """
+    rows: List[Dict[str, Any]] = []
+    page, offset = 1000, 0
+    while True:
+        res = (
+            sb.table('diary_entries')
+            .select('entry_date,content')
+            .eq('line_user_id', line_user_id)
+            .order('entry_date')
+            .range(offset, offset + page - 1)
+            .execute()
+        )
+        batch = res.data or []
+        rows.extend(batch)
+        if len(batch) < page:
+            return rows
+        offset += page
+
+
+def render_own_export(name: str, rows: List[Dict[str, Any]]) -> str:
+    lines = [f'{name or "我"} 的天父日記', f'共 {len(rows)} 篇', '=' * 24, '']
+    for r in rows:
+        lines += [str(r.get('entry_date', '')), (r.get('content') or '').strip(), '', '-' * 24, '']
+    return '\r\n'.join(lines)
+
+
+@diary_bp.get('/diary/export')
+def export_mine():
+    """每個人只能匯出自己的日記（鍵是 session 裡的 LINE id，不接受任何參數指定別人）。"""
+    if not _require_login():
+        return redirect(url_for('auth.login_page'))
+    user = _get_user()
+    uid = user.get('line_user_id', '')
+    if not uid or not sb:
+        flash('目前無法匯出，請重新登入後再試', 'error')
+        return redirect(url_for('diary.history'))
+    try:
+        rows = export_own_entries(uid)
+    except Exception:
+        current_app.logger.warning('個人日記匯出失敗', exc_info=True)
+        flash('匯出失敗（資料庫暫時連不上），沒有產生檔案，請稍後再試', 'error')
+        return redirect(url_for('diary.history'))
+
+    from routes.audit import log_action
+    log_action('diary.export_self', target_type='diary_export', detail={'entries': len(rows)})  # 只記篇數，不記內容
+    body = '\ufeff' + render_own_export(_safe_display_name(user), rows)   # BOM：Windows 記事本才不會亂碼
+    stamp = datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d')
+    return Response(
+        body.encode('utf-8'),
+        mimetype='text/plain; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename=diary_{stamp}.txt',
+                 'Cache-Control': 'no-store'},
+    )
 
 
 @diary_bp.get('/diary/history')
