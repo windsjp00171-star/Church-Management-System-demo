@@ -107,6 +107,10 @@ def create_app():
     from routes.staff_leave import staff_leave_bp
     app.register_blueprint(staff_leave_bp)
 
+    # ── 聚會點名（與使用者帳號脫鉤）────────────────────────────
+    from routes.roll_call import roll_call_bp
+    app.register_blueprint(roll_call_bp)
+
     # ── 資料匯出 / 匯入 ────────────────────────────────────────
     from routes.data_transfer import data_transfer_bp
     app.register_blueprint(data_transfer_bp)
