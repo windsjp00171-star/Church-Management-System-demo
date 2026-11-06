@@ -56,14 +56,6 @@ class Config:
     if not ADMIN_LINE_USER_IDS and os.getenv('DEMO_MODE', 'false').lower() == 'true':
         ADMIN_LINE_USER_IDS = ['Ue4b748edb6ec7d80d4c8a15138ae4b3b']
 
-    # ── 功能模組開關（設為 'false' 停用）────────────────────────────
-    ENABLE_PRAYER        = os.getenv('ENABLE_PRAYER',        'true').lower() != 'false'
-    ENABLE_GOSPEL        = os.getenv('ENABLE_GOSPEL',        'true').lower() != 'false'
-    ENABLE_BULLETIN      = os.getenv('ENABLE_BULLETIN',      'true').lower() != 'false'
-    ENABLE_CALENDAR      = os.getenv('ENABLE_CALENDAR',      'true').lower() != 'false'
-    ENABLE_COURSES       = os.getenv('ENABLE_COURSES',       'true').lower() != 'false'
-    ENABLE_VISITOR_FORMS = os.getenv('ENABLE_VISITOR_FORMS', 'true').lower() != 'false'
-
     # ── 錯誤監控（可選，未設定則停用）──────────────────────────────
     SENTRY_DSN = os.getenv('SENTRY_DSN') or None
 

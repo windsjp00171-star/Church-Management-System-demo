@@ -469,24 +469,22 @@ SELECT id, real_name, line_id, is_admin FROM users ORDER BY created_at DESC LIMI
         <strong>取得方式：</strong>前往 console.groq.com 免費申請 API Key，填入 <code>GROQ_API_KEY</code>。
       </div>
 
-      <div class="sec-label">🔧 功能模組開關</div>
+      <div class="sec-label" data-tour="modules">🧩 選用功能模組（這間教會要用哪些功能）</div>
+      <div style="font-size:.85rem; color:#374151; margin-bottom:10px; line-height:1.6;">
+        部署完成、用超管帳號登入後，到 <strong>後台 → 選用功能模組</strong>（<code>/admin/modules</code>）勾選要用的功能。
+        <strong>關掉的功能會整塊消失</strong>（網址、首頁卡片、後台入口），<strong>但資料不會刪</strong>，之後隨時可以再打開。
+        人、登入、權限、稽核、通知、備份是核心，永遠開著。目前狀態：
+      </div>
       <div class="tbl-grid">
-        {% for key, label in [
-          ('ENABLE_PRAYER', '代禱牆'),
-          ('ENABLE_GOSPEL', '福音探索'),
-          ('ENABLE_BULLETIN', '每週週報'),
-          ('ENABLE_CALENDAR', '行事曆'),
-          ('ENABLE_COURSES', '門訓學程'),
-          ('ENABLE_VISITOR_FORMS', '留名單'),
-        ] %}
-        <div class="tbl-row" style="background:#f0f9ff; color:#0369a1;">
-          <code style="font-size:.75rem;">{{ key }}</code>
-          <span>{{ label }}</span>
+        {% for r in module_rows %}
+        <div class="tbl-row" style="{% if r.on %}background:#f0fdf4; color:#15803d;{% else %}background:#f3f4f6; color:#6b7280;{% endif %}">
+          {% if r.on %}✓{% else %}○{% endif %} {{ r.label }}{% if r.needs %}<span style="font-size:.75rem; opacity:.8;">（需要：{{ r.needs }}）</span>{% endif %}
         </div>
         {% endfor %}
       </div>
       <div style="font-size:.8rem; color:#6b7280; margin-top:8px;">
-        在 Render 環境變數設定 <code>ENABLE_XXXXX=false</code> 可停用對應模組。
+        舊的環境變數 <code>ENABLE_COURSES</code>／<code>ENABLE_CALENDAR</code>／<code>ENABLE_BULLETIN</code>／<code>ENABLE_PRAYER</code>／<code>ENABLE_GOSPEL</code>／<code>ENABLE_VISITOR_FORMS</code>
+        設成 <code>false</code> 仍然有效，但現在只是「預設值」：在後台表態之後，以後台為準。
       </div>
     </div>
   </div>

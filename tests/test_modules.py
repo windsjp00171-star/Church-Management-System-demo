@@ -214,7 +214,10 @@ def test_save_writes_settings_and_audits(editor, mod):
     make, fake = editor
     r = make(is_super_admin=True).post('/admin/modules/save', json={'modules': {'diary': False, 'prayer': True}})
     assert r.status_code == 200 and r.get_json()['data']['disabled'] == ['diary']
-    assert _saved(fake) == {'diary': False, 'prayer': True}
+    saved = _saved(fake)                 # 儲存時把「目前實際生效的狀態」一起寫下，沒提到的模組維持原樣
+    assert saved['diary'] is False and saved['prayer'] is True
+    assert set(saved) == {m.key for m in mod.MODULES if m.kind == 'optional'}
+    assert all(v for k, v in saved.items() if k != 'diary')
     assert any(w[0] == 'audit_logs' and w[2]['action'] == 'module.update' for w in fake.writes)
 
 
@@ -281,3 +284,66 @@ def test_wiring_in_the_app_and_the_admin_pages(mod):
     assert "globals['module_on']" in app_src and 'register_blueprint(modules_bp)' in app_src
     assert 'module_on' in scan.strip_py((ROOT / 'routes' / 'admin.py').read_text(encoding='utf-8'))
     assert 'module_on' in scan.strip_py((ROOT / 'routes' / 'permissions.py').read_text(encoding='utf-8'))
+
+
+# ── 舊的 ENABLE_* 環境變數：只當預設值，後台表態後以後台為準 ───────────────
+@pytest.mark.parametrize('var,key', [('ENABLE_COURSES', 'courses'), ('ENABLE_CALENDAR', 'calendar'),
+                                     ('ENABLE_BULLETIN', 'bulletins'), ('ENABLE_PRAYER', 'prayer'),
+                                     ('ENABLE_GOSPEL', 'gospel'), ('ENABLE_VISITOR_FORMS', 'visitor_forms')])
+def test_old_env_switches_are_only_defaults(mod, fake_db, monkeypatch, var, key):
+    assert mod.ENV_DEFAULTS[key] == var
+    monkeypatch.setenv(var, 'false')
+    mod.bust()
+    assert mod.is_enabled(key) is False                          # 沒表態：照舊的環境變數
+    _state(fake_db, **{key: True}); mod.bust()
+    assert mod.is_enabled(key) is True                           # 後台表態：以後台為準
+    _state(fake_db, **{key: False}); monkeypatch.setenv(var, 'true'); mod.bust()
+    assert mod.is_enabled(key) is False
+
+
+def test_old_env_switch_is_off_in_the_admin_page_and_the_dependency_check(mod, fake_db, monkeypatch):
+    monkeypatch.setenv('ENABLE_COURSES', 'false'); mod.bust()
+    assert mod.is_on_in_state('courses') is False and mod.is_on_in_state('diary') is True
+
+
+def test_blueprints_are_always_registered_so_links_never_break():
+    """舊做法：ENABLE_*=false 時整個藍圖不註冊，模板裡的 url_for 會直接爆。現在一律註冊，由登記表攔截。"""
+    app_src = scan.strip_py((ROOT / 'app.py').read_text(encoding='utf-8'))
+    assert 'Config.ENABLE_' not in app_src
+    for bp in ('courses_bp', 'calendar_bp', 'bulletin_bp', 'prayer_bp', 'gospel_bp', 'visitor_forms_bp'):
+        assert f'register_blueprint({bp})' in app_src and not re.search(rf'if [^\n]*:\s*\n\s*from[^\n]*\n\s*app\.register_blueprint\({bp}\)', app_src)
+
+
+def test_nobody_reads_the_removed_config_flags():
+    for f in scan.py_files():
+        assert 'Config.ENABLE_' not in scan.strip_py(f.read_text(encoding='utf-8')), scan.rel(f)
+
+
+def test_guide_and_tutorial_follow_the_registry(mod, fake_db, monkeypatch):
+    for f in ('routes/guide.py', 'routes/tutorial.py'):
+        assert 'is_enabled(' in scan.strip_py((ROOT / f).read_text(encoding='utf-8')), f
+
+
+def test_setup_wizard_lists_the_registry_not_the_dead_env_block():
+    tpl = (ROOT / 'templates' / 'setup_wizard' / 'index.html').read_text(encoding='utf-8')
+    assert 'module_rows' in tpl and '/admin/modules' in tpl
+    assert "('ENABLE_PRAYER', '代禱牆')" not in tpl
+    assert 'module_rows' in scan.strip_py((ROOT / 'routes' / 'setup_wizard.py').read_text(encoding='utf-8'))
+
+
+def test_setup_wizard_passes_the_current_module_state(mod, fake_db, monkeypatch):
+    from flask import Flask
+    sys.modules.pop('routes.setup_wizard', None)
+    import routes.setup_wizard as wiz
+    seen = {}
+    monkeypatch.setattr(wiz, 'render_template', lambda name, **kw: seen.update(kw) or 'ok')
+    monkeypatch.setattr(wiz.Config, 'SUPABASE_URL', None, raising=False)       # 尚未設定：精靈不要求登入
+    _state(fake_db, diary=False); mod.bust()
+    app = Flask(__name__)
+    app.secret_key = 't'
+    app.register_blueprint(wiz.setup_wizard_bp)
+    assert app.test_client().get('/setup-wizard').status_code == 200
+    rows = {r['label']: r for r in seen['module_rows']}
+    assert rows['天父日記']['on'] is False and rows['代禱牆']['on'] is True
+    assert '天父日記' in rows and rows['檔案分享']['needs'] and rows['天父日記']['needs']
+    assert all(r['label'] != mod.BY_KEY['demo'].label for r in seen['module_rows'])    # 展示站專用的不給教會選

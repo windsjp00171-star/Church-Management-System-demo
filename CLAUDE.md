@@ -115,6 +115,8 @@ from db import supabase
 - **展示站專用**（`demo`：展示帳號登入、洽詢、洽詢紀錄）只在 `DEMO_MODE` 為真時存在，不靠資料庫開關；正式教會部署不會有。
 - **新增功能時**：把網址前綴登記進 `MODULES`（`*` 可代表任一段），或明確列為核心。`tests/test_modules.py` 掃所有路由，沒歸屬的會紅；`portal.html`／`staff/index.html`／`admin/index.html` 裡指向選配模組的連結一律要有 `module_on()`／`can_see()` 守著。
 - 判定只有一份（`classify()` / `is_enabled()`）；讀不到開關時維持預設（開）。
+- **舊的 `ENABLE_*` 環境變數**（`ENABLE_COURSES`／`CALENDAR`／`BULLETIN`／`PRAYER`／`GOSPEL`／`VISITOR_FORMS`）只剩「預設值」的作用（`ENV_DEFAULTS`）：後台沒表態才生效，表態後以後台為準。這 6 個藍圖現在**一律註冊**（以前 `false` 時不註冊，模板裡的連結會斷）；`Config.ENABLE_*` 已移除，`guide`／`tutorial` 也改走登記表。
+- 新教會部署與交接：`docs/NEW_CHURCH_SETUP.md`（給非技術同工）；部署精靈 `/setup-wizard` 的「可選功能設定」列出目前的模組狀態。
 
 ### 後台權限矩陣（`routes/permissions.py`，移植自 event-registration-）
 - Y 軸＝後台功能模塊（`ADMIN_MODULES`，**新增後台路由要到這裡登記前綴**，否則有測試會紅）；X 軸＝副標籤群組；權限存 `groups.admin_modules`；只有超管能在 `/admin/permissions` 編輯。
