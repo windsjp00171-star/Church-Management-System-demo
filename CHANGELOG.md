@@ -5,6 +5,7 @@
 ## [Unreleased]
 
 ### 新增
+- `docs/COMPARISON_REPORT.md`：與 event-registration-、tianfu-diary、cell_reporter 三個 repo 的整合比對報告（僅文件）。
 - 聚會點名模塊（`/roll-call`、`/admin/roll-call`）：點名名冊獨立於會員帳號，支援逐人點名（到／未到／請假／遲到）與只記人數、名冊外訪客人數、場次鎖定、鎖定後修改須附原因、紙本名冊列印與事後補登標記、所有操作寫入只追加的稽核。
 - 出席率（`/admin/roll-call/rates`）：規則為資料（不可改、可版本化），請假／遲到／中途加入的算法須由教會明確選擇；由伺服器計算，匯出 CSV 附計算依據（匯出需超級管理員，每次留記錄）。
 - 需先在 Supabase 執行 `migrations/009_roll_call.sql`（`schema.sql` 已併入）。
