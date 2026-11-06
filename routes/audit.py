@@ -23,6 +23,7 @@ ACTION_LABELS = {
     'user.set_staff':        '設為同工',
     'user.remove_staff':     '移除同工',
     # 資料匯出入／功能模組
+    'roll_call.members_import': '匯入點名名冊',
     'diary.export_self': '匯出自己的天父日記',
     'data.export':           '匯出資料',
     'data.import':           '匯入資料（還原）',
