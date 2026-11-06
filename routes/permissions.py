@@ -45,7 +45,7 @@ ADMIN_MODULES = [
     ('contact_leads', '洽詢紀錄（展示站）', ['/admin/contact-leads']),
     ('changelogs',    '更新日誌',           ['/admin/changelogs']),
     ('logs',          '操作記錄',           ['/admin/logs']),
-    ('settings',      '系統設定',           ['/admin/settings']),
+    ('settings',      '系統設定',           ['/admin/settings', '/admin/modules']),
 ]
 
 MODULE_KEYS = [m[0] for m in ADMIN_MODULES]
@@ -170,7 +170,10 @@ def visible_index_modules(sess):
 def permissions_matrix():
     sub_groups = supabase.table('groups').select('id, name, admin_modules, is_staff')\
         .eq('is_primary', False).order('sort_order').execute().data or []
-    return render_template('admin/permissions.html', modules=ADMIN_MODULES, sub_groups=sub_groups)
+    from routes.modules import module_on
+    # 已被關掉的選配模組，不必出現在矩陣裡（沒有人能進去）
+    modules = [m for m in ADMIN_MODULES if any(module_on(p) for p in m[2])]
+    return render_template('admin/permissions.html', modules=modules, sub_groups=sub_groups)
 
 
 @permissions_bp.route('/admin/permissions/save', methods=['POST'])

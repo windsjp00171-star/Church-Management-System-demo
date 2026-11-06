@@ -130,6 +130,36 @@ def unprotected_admin_routes():
     return sorted(set(out))
 
 
+def all_route_paths():
+    """所有路由的完整路徑（含 Blueprint 前綴），路徑參數一律換成 x。回傳 {(檔案, 路徑)}。"""
+    found = set()
+    for f in sorted(list((ROOT / 'routes').glob('*.py')) + [ROOT / 'app.py']):
+        tree = ast.parse(f.read_text(encoding='utf-8'))
+        prefixes = {}
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and isinstance(node.value, ast.Call) \
+                    and _decorator_name(node.value) == 'Blueprint':
+                pre = ''
+                for kw in node.value.keywords:
+                    if kw.arg == 'url_prefix' and isinstance(kw.value, ast.Constant):
+                        pre = kw.value.value
+                for t in node.targets:
+                    if isinstance(t, ast.Name):
+                        prefixes[t.id] = pre
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.FunctionDef):
+                continue
+            for d in node.decorator_list:
+                if not (isinstance(d, ast.Call) and isinstance(d.func, ast.Attribute)
+                        and d.func.attr in ROUTE_METHODS and isinstance(d.func.value, ast.Name)):
+                    continue
+                path = _route_path(d)
+                if path is None:
+                    continue
+                found.add((rel(f), re.sub(r'<[^>]+>', 'x', prefixes.get(d.func.value.id, '') + path)))
+    return found
+
+
 def or_zero_hits():
     out = {}
     for f in py_files():

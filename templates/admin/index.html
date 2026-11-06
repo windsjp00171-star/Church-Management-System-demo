@@ -139,7 +139,7 @@
 <div class="section-label">財務管理</div>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
-    {% if True %}
+    {% if module_on('/admin/settings/payment') %}
     <a href="/admin/settings/payment" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fff4; color:#15803d;">💳</div>
@@ -149,7 +149,7 @@
     </a>
     {% endif %}
 
-    {% if True %}
+    {% if module_on('/admin/payments') %}
     <a href="/admin/payments" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">🧾</div>
@@ -194,6 +194,16 @@
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
     {% if session.get('is_super_admin') %}
+    <a href="/admin/modules" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#ecfdf5; color:#047857;">🧩</div>
+            <div class="admin-card-name">選用功能模組</div>
+            <div class="admin-card-desc">這間教會要用哪些功能</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if session.get('is_super_admin') %}
     <a href="/admin/permissions" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eef2ff; color:#4F46E5;">🔐</div>
@@ -223,6 +233,7 @@
     </a>
     {% endif %}
 
+    {% if module_on('/diary') %}
     <a href="/diary/admin" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fdf4ff; color:#7c3aed;">📖</div>
@@ -230,6 +241,7 @@
             <div class="admin-card-desc">管理牧者白名單與讀經計畫</div>
         </div>
     </a>
+    {% endif %}
 
     {% if can_see('/admin/verses') %}
     <a href="/admin/verses" style="text-decoration:none;">

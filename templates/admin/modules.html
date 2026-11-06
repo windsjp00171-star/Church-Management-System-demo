@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}選用功能模組{% endblock %}
+{% block content %}
+<div style="max-width:820px; margin:0 auto; padding:16px 16px 60px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+    <h2 style="margin:0;">🧩 選用功能模組</h2>
+    <div style="display:flex; gap:8px;">
+      <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:8px 16px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer;">？ 教學</button>
+      <a href="/admin" style="padding:8px 16px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; text-decoration:none; color:#4b5563;">← 返回後台</a>
+    </div>
+  </div>
+  <p style="color:#4b5563; line-height:1.7; margin:0 0 16px;">
+    選擇這間教會要使用哪些功能。<strong>關掉的功能會整塊消失</strong>：網址打不開、首頁卡片、後台入口都不會出現。
+    <strong>關掉不會刪除任何資料</strong>，之後再開啟，資料都還在；備份與匯出也照常包含。<br>
+    人、登入、權限、稽核、通知、備份屬於核心，永遠開著。
+  </p>
+  <p id="msg" role="status" style="min-height:1.4em; color:#b91c1c;"></p>
+
+  <div data-tour="list" style="background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:4px 16px;">
+    {% for r in rows %}
+    <label style="display:flex; gap:14px; align-items:flex-start; padding:14px 0; border-bottom:1px solid #f1f5f9; cursor:pointer;">
+      <input type="checkbox" class="mod-cb" data-key="{{ r.m.key }}" {% if r.on %}checked{% endif %}
+             style="width:24px; height:24px; margin-top:2px; flex-shrink:0;">
+      <span>
+        <strong style="font-size:1.05rem;">{{ r.m.label }}</strong>
+        <span style="display:block; color:#6b7280; font-size:.92rem;">{{ r.m.desc }}</span>
+        {% if r.requires %}<span style="display:block; color:#b45309; font-size:.85rem;">需要先開啟：{{ r.requires|join('、') }}</span>{% endif %}
+      </span>
+    </label>
+    {% endfor %}
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-top:20px;">
+    <button type="button" id="save-btn" data-tour="save" onclick="saveModules()"
+            style="padding:12px 28px; background:#4F46E5; color:#fff; border:none; border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer;">💾 儲存</button>
+    <span id="save-status" role="status" style="color:#4b5563;"></span>
+  </div>
+  {% if demo_mode %}<p style="color:#6b7280; font-size:.88rem; margin-top:16px;">展示站專用功能（展示帳號登入、洽詢）由 <code>DEMO_MODE</code> 控制，不在這裡開關。</p>{% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/tour.js"></script>
+<script>
+function saveModules() {
+  var btn = document.getElementById('save-btn'), msg = document.getElementById('msg'), st = document.getElementById('save-status');
+  if (btn.disabled) return;                          // 連點保護
+  var modules = {};
+  document.querySelectorAll('.mod-cb').forEach(function (cb) { modules[cb.dataset.key] = cb.checked; });
+  btn.disabled = true; btn.textContent = '儲存中…'; msg.textContent = ''; st.textContent = '';
+  fetch('/admin/modules/save', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                                 body: JSON.stringify({ modules: modules }) })
+    .then(function (r) { return r.json(); })
+    .then(function (d) {
+      btn.disabled = false; btn.textContent = '💾 儲存';
+      if (d.error) { msg.textContent = d.error; return; }
+      st.style.color = '#047857'; st.textContent = '✅ 已儲存（約半分鐘內全站生效）';
+    })
+    .catch(function () { btn.disabled = false; btn.textContent = '💾 儲存'; msg.textContent = '儲存失敗，請重試'; });
+}
+function startTour() {
+  RollTour.start([
+    { target: 'list', text: '勾起來就是這間教會要用的功能；沒勾的會整塊消失（網址、首頁卡片、後台入口），但資料不會刪。' },
+    { target: 'save', text: '按儲存後，約半分鐘內全站生效。隨時可以回來再打開。' },
+    { target: 'help-btn', text: '隨時可以回來重看這個教學。' }
+  ]);
+}
+</script>
+{% endblock %}
