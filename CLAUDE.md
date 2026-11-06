@@ -262,6 +262,8 @@ RENDER=
 
 ## 整體煙霧測試與 Python 相容
 
+- **裝飾器順序**：`@login_required`／`@pastor_required`… 一律寫在 `@bp.route` **下面**（`tests/test_decorator_order.py` 掃整個專案）。寫在上面等於沒套，不會有任何錯誤。授權探針在 `tests/smoke_boot.py` 的 `PROBES`：新增需要權限的頁面時加一行。
+
 - `tests/test_app_boot.py` 在子行程跑 `tests/smoke_boot.py`：真的 `create_app()`，三種身分打遍所有路由，不准有 500（唯一例外：沒設 R2 時 `/files` 回 503 說明頁）。新增路由時它自動涵蓋；若某路由在空資料庫下 500，先判斷是缺陷還是替身不夠真（替身在 `smoke_boot.py` 的 `DB`）。
 - `tests/test_python_compat.py` 禁止 import 在 Python 3.12／3.13 被移除的標準函式庫（`imghdr`、`cgi`…）。圖片格式判斷用 `image_kind.image_kind()`。注意 Render 不一定看 `runtime.txt`，Python 版本以 `PYTHON_VERSION` 環境變數為準。
 

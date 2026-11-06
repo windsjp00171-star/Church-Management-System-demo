@@ -358,8 +358,8 @@ def portal():
     return render_template('cell_report/portal.html', groups=groups, report_status=report_status)
 
 
-@login_required
 @cell_report_bp.route('/cell-report/<group_id>/section1', methods=['GET', 'POST'])
+@login_required
 def section1(group_id):
     group = _get_group(group_id)
     if not group:
@@ -430,8 +430,8 @@ def section1(group_id):
                            is_backfill=display_date != this_week_date)
 
 
-@login_required
 @cell_report_bp.route('/cell-report/<group_id>/section2', methods=['GET', 'POST'])
+@login_required
 def section2(group_id):
     group = _get_group(group_id)
     if not group:
@@ -481,8 +481,8 @@ def section2(group_id):
                            is_backfill=week_date_obj != this_week_date)
 
 
-@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/attendance')
+@login_required
 def ajax_save_attendance(group_id):
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
@@ -530,8 +530,8 @@ def ajax_save_attendance(group_id):
     return jsonify({'success': True})
 
 
-@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/add-member')
+@login_required
 def add_member_ajax(group_id):
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
@@ -564,8 +564,8 @@ def add_member_ajax(group_id):
     return jsonify({'success': False, 'error': '新增失敗'}), 500
 
 
-@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/link-member/<member_id>')
+@login_required
 def link_member_ajax(group_id, member_id):
     """連結（或解除連結）小組成員與系統帳號
     JSON body: { user_id: "uuid" | null }
@@ -586,8 +586,8 @@ def link_member_ajax(group_id, member_id):
     return jsonify({'success': True, 'user_id': user_id})
 
 
-@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/remove-member/<member_id>')
+@login_required
 def remove_member_ajax(group_id, member_id):
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
@@ -596,8 +596,8 @@ def remove_member_ajax(group_id, member_id):
     return jsonify({'success': True})
 
 
-@login_required
 @cell_report_bp.route('/cell-report/<group_id>/step3', methods=['GET', 'POST'])
+@login_required
 def step3(group_id):
     group = _get_group(group_id)
     if not group:
@@ -802,8 +802,8 @@ def view_report(group_id):
                            back_url=back_url)
 
 
-@pastor_required
 @cell_report_bp.get('/cell-report/pastor-dashboard')
+@pastor_required
 def pastor_dashboard():
     week_str = request.args.get('week')
     if week_str:
