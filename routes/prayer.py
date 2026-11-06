@@ -223,14 +223,18 @@ def get_comments(prayer_id):
             .order('created_at').execute()
         comments = r.data or []
 
-        # 補上顯示名稱
+        # 補上顯示名稱。回給瀏覽器的資料不可以帶 user_id：匿名留言的作者就是靠它被認出來的
+        # （瀏覽器開發工具看得到 JSON，再對照其他頁面的使用者清單就知道是誰）
+        safe = []
         for c in comments:
             name, pic = get_user_display(c['user_id'], c.get('is_anonymous', False))
-            c['display_name'] = name
-            c['picture_url'] = pic
-            c['is_mine'] = c['user_id'] == session['user_id']
+            row = {k: v for k, v in c.items() if k != 'user_id'}
+            row['display_name'] = name
+            row['picture_url'] = pic
+            row['is_mine'] = c['user_id'] == session['user_id']
+            safe.append(row)
 
-        return jsonify({'success': True, 'comments': comments})
+        return jsonify({'success': True, 'comments': safe})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
