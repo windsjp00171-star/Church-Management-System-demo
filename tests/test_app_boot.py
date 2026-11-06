@@ -34,3 +34,10 @@ def test_the_smoke_actually_reaches_pages(result):
     assert result['checked'] > 800
     assert result['ok200']['admin'] > 100 and result['ok200']['member'] > 40
     assert result['ok200']['anon'] < result['ok200']['member'] < result['ok200']['admin']
+
+
+def test_protected_pages_are_not_open_to_the_wrong_people(result):
+    """5xx 檢查看不到『該擋卻放行』：未登入、一般會友打開需要更高權限的頁面，不可以是 200。"""
+    open_pages = [(role, url, code) for role, pages in result['probe'].items()
+                  for url, code in pages.items() if code == 200]
+    assert not open_pages, open_pages

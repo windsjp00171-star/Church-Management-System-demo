@@ -115,4 +115,13 @@ for role, flags in ROLES.items():
                     bad.append([role, m, rule.rule, r.status_code])
             except Exception as e:
                 bad.append([role, m, rule.rule, f'EXC {type(e).__name__}: {str(e)[:80]}'])
-print(json.dumps({'checked': n, 'bad': bad, 'ok200': ok200}, ensure_ascii=False))
+# 授權探針：這些頁面對某些身分『不可以』是 200（空資料庫下 5xx 檢查看不到這種洞）
+PROBES = {
+    'anon': ['/cell-report/pastor-dashboard', '/cell-report/staff-dashboard', '/admin/users', '/admin/backup/',
+             '/admin/modules', '/admin/permissions', '/admin/data-export', '/roll-call', '/admin/roll-call',
+             '/diary/export', '/staff', '/my-history'],
+    'member': ['/cell-report/pastor-dashboard', '/cell-report/staff-dashboard', '/admin/users', '/admin/backup/',
+               '/admin/modules', '/admin/permissions', '/admin/data-export', '/admin/roll-call', '/staff'],
+}
+probe = {role: {u: client(ROLES[role]).get(u).status_code for u in urls} for role, urls in PROBES.items()}
+print(json.dumps({'checked': n, 'bad': bad, 'ok200': ok200, 'probe': probe}, ensure_ascii=False))
