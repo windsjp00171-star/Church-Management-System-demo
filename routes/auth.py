@@ -49,6 +49,10 @@ def _populate_session(user):
     if _luid and _luid in Config.ADMIN_LINE_USER_IDS:
         session['is_admin'] = True
         session['is_super_admin'] = True
+    # 後台模塊權限（副標籤 × 模塊矩陣）。超管／管理員為 '*'；其他人由其副標籤授權的模塊決定
+    from routes.permissions import compute_admin_modules
+    _mods = compute_admin_modules(session['is_super_admin'], session['is_admin'], session['group_tags'])
+    session['admin_modules'] = '*' if _mods == '*' else sorted(_mods)
     session['is_demo']       = False  # 真實登入預設非展示帳號（demo_login 會覆寫為 True）
     session['_user_verified']= True  # 剛從 DB 讀出，免去 before_request 再驗證
 

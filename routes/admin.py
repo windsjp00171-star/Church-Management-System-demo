@@ -139,9 +139,16 @@ def can_manage_event(event):
 @admin_bp.route('/')
 @admin_required
 def index():
-    """後台首頁"""
+    """後台首頁：卡片依權限矩陣（模塊）顯示"""
+    from routes.permissions import visible_index_modules, module_for_path
+    visible = visible_index_modules(session)
+
+    def can_see(path):
+        mod = module_for_path(path)
+        return mod is None or mod in visible
+
     return render_template('admin/index.html',
-        has_finance_access=_has_finance_access())
+        has_finance_access=_has_finance_access(), can_see=can_see)
 
 
 @admin_bp.route('/calendar')

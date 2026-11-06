@@ -109,6 +109,10 @@ def create_app():
     from routes.staff_leave import staff_leave_bp
     app.register_blueprint(staff_leave_bp)
 
+    # ── 後台權限矩陣（副標籤 × 模塊）────────────────────────────
+    from routes.permissions import permissions_bp
+    app.register_blueprint(permissions_bp)
+
     # ── 聚會點名（與使用者帳號脫鉤）────────────────────────────
     from routes.roll_call import roll_call_bp
     app.register_blueprint(roll_call_bp)

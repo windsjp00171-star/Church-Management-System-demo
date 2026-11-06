@@ -42,14 +42,20 @@ def approved_required(f):
 
 
 def admin_required(f):
-    """需要管理員或超級管理員身分。"""
+    """需要管理員／超級管理員，或被權限矩陣授權該後台模塊的副標籤成員。
+
+    判定只有一份實作（routes.permissions.module_allows_path）：
+    副標籤的人只能進被授權的模塊；沒登記的後台路徑、後台以外的路徑一律拒絕。
+    """
     @wraps(f)
     @login_required
     def decorated(*args, **kwargs):
         if not (session.get('is_admin') or session.get('is_super_admin')):
-            if _is_json():
-                return jsonify({'error': '權限不足'}), 403
-            abort(403)
+            from routes.permissions import module_allows_path
+            if not module_allows_path(session, request.path):
+                if _is_json():
+                    return jsonify({'error': '權限不足'}), 403
+                abort(403)
         return f(*args, **kwargs)
     return decorated
 

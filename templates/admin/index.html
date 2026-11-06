@@ -13,6 +13,7 @@
 <div class="section-label">活動管理 / 福音</div>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
+    {% if can_see('/admin/events') %}
     <a href="/admin/events" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎉</div>
@@ -20,7 +21,9 @@
             <div class="admin-card-desc">建立、編輯教會活動</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/calendar') %}
     <a href="/admin/calendar" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fff7ed; color:#ea580c;">📅</div>
@@ -28,7 +31,9 @@
             <div class="admin-card-desc">教會行事管理</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/gospel') %}
     <a href="/admin/gospel" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fdf6ec; color:#8b5a2b;">✝️</div>
@@ -36,7 +41,9 @@
             <div class="admin-card-desc">詢問紀錄與跟進管理</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/gospel/cards') %}
     <a href="/admin/gospel/cards" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fff7ed; color:#c2410c;">❓</div>
@@ -44,7 +51,9 @@
             <div class="admin-card-desc">自訂福音探索 Q&amp;A 內容</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/visitor-forms') %}
     <a href="/admin/visitor-forms" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fff0f6; color:#c2185b;">📋</div>
@@ -52,12 +61,14 @@
             <div class="admin-card-desc">新朋友留名單照片管理</div>
         </div>
     </a>
+    {% endif %}
 
 </div>
 
 <div class="section-label">學程與認證</div>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
+    {% if can_see('/admin/courses') %}
     <a href="/admin/courses" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eff6ff; color:#1d6fe5;">📚</div>
@@ -65,7 +76,9 @@
             <div class="admin-card-desc">課程管理與出席追蹤</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/courses/group-overview') %}
     <a href="/admin/courses/group-overview" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#e3f2fd; color:#1565c0;">📋</div>
@@ -73,7 +86,9 @@
             <div class="admin-card-desc">各小組門訓出席狀況</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/certifications') %}
     <a href="/admin/certifications" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎓</div>
@@ -81,7 +96,9 @@
             <div class="admin-card-desc">查看及補登認證記錄</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/materials') %}
     <a href="/admin/materials" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fff8e1; color:#f57f17;">📦</div>
@@ -89,7 +106,9 @@
             <div class="admin-card-desc">進銷存追蹤與記錄</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/devotional') %}
     <a href="/admin/devotional" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eef2ff; color:#4338ca;">📖</div>
@@ -97,12 +116,14 @@
             <div class="admin-card-desc">訂購、登記與簽收管理</div>
         </div>
     </a>
+    {% endif %}
 
 </div>
 
 <div class="section-label">系統備份 / 交接</div>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
+    {% if can_see('/admin/backup') %}
     <a href="{{ url_for('backup.index') }}" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#0f2027; color:#fff;">🗄</div>
@@ -110,6 +131,7 @@
             <div class="admin-card-desc">分類 CSV、打包 ZIP、HTML 離線閱讀器</div>
         </div>
     </a>
+    {% endif %}
 
 </div>
 
@@ -117,6 +139,7 @@
 <div class="section-label">財務管理</div>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
+    {% if True %}
     <a href="/admin/settings/payment" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fff4; color:#15803d;">💳</div>
@@ -124,7 +147,9 @@
             <div class="admin-card-desc">綠界 / LINE Pay / 手動繳費設定</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if True %}
     <a href="/admin/payments" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">🧾</div>
@@ -132,15 +157,17 @@
             <div class="admin-card-desc">付款明細、手續費估算、匯出 CSV</div>
         </div>
     </a>
+    {% endif %}
 
 </div>
 {% endif %}
 
-{% if session.get('is_super_admin') %}
-<div class="section-label">會員管理 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
+{% if session.get('is_super_admin') or (not session.get('is_admin') and session.get('admin_modules')) %}
+<div class="section-label">會員管理 {% if session.get('is_super_admin') %}<span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span>{% endif %}</div>
 <p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
+    {% if can_see('/admin/users') %}
     <a href="/admin/users" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fdf4ff; color:#9333ea;">👥</div>
@@ -148,7 +175,9 @@
             <div class="admin-card-desc">查看所有會員資料</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/logs') %}
     <a href="/admin/logs" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fdf4; color:#166534;">📋</div>
@@ -156,13 +185,25 @@
             <div class="admin-card-desc">帳號整合、權限異動等操作記錄</div>
         </div>
     </a>
+    {% endif %}
 
 </div>
 
-<div class="section-label">系統設定 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
+<div class="section-label">系統設定 {% if session.get('is_super_admin') %}<span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span>{% endif %}</div>
 <p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
 <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
 
+    {% if session.get('is_super_admin') %}
+    <a href="/admin/permissions" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#eef2ff; color:#4F46E5;">🔐</div>
+            <div class="admin-card-name">權限矩陣</div>
+            <div class="admin-card-desc">副標籤能進哪些後台功能</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/groups') %}
     <a href="/admin/groups" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎼</div>
@@ -170,7 +211,9 @@
             <div class="admin-card-desc">管理教會各服事部門分類</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/cell-groups') %}
     <a href="/admin/cell-groups" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">🏠</div>
@@ -178,6 +221,7 @@
             <div class="admin-card-desc">小組長回報與牧者查閱用的小組</div>
         </div>
     </a>
+    {% endif %}
 
     <a href="/diary/admin" style="text-decoration:none;">
         <div class="admin-card">
@@ -187,6 +231,7 @@
         </div>
     </a>
 
+    {% if can_see('/admin/verses') %}
     <a href="/admin/verses" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f5f3ff; color:#7c3aed;">🎴</div>
@@ -194,7 +239,9 @@
             <div class="admin-card-desc">管理每日祝福經文庫</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/portal-cards') %}
     <a href="/admin/portal-cards" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🏠</div>
@@ -202,7 +249,9 @@
             <div class="admin-card-desc">系統功能卡片與快捷連結</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/portal-cards/group-defaults') %}
     <a href="/admin/portal-cards/group-defaults" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">👥</div>
@@ -210,7 +259,9 @@
             <div class="admin-card-desc">各小組的區塊與卡片顯示預設</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/files') %}
     <a href="/admin/files" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fff7ed; color:#ea580c;">🗄</div>
@@ -218,7 +269,9 @@
             <div class="admin-card-desc">儲存空間監控與檔案管理</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/bulletins') %}
     <a href="/admin/bulletins" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fff8e1; color:#f59e0b;">📰</div>
@@ -226,7 +279,9 @@
             <div class="admin-card-desc">上傳與管理每週週報 PDF</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/group-discussions') %}
     <a href="/admin/group-discussions" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">▶</div>
@@ -234,7 +289,9 @@
             <div class="admin-card-desc">排程本週影片與討論問題</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/announcements') %}
     <a href="/admin/announcements" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fef2f2; color:#ef4444;">📢</div>
@@ -242,7 +299,9 @@
             <div class="admin-card-desc">發送站內通知給全體會員</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/changelogs') %}
     <a href="/admin/changelogs" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">📋</div>
@@ -250,7 +309,9 @@
             <div class="admin-card-desc">發布系統更新通知給所有教會</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/staff-leave') %}
     <a href="/admin/staff-leave" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f5f3ff; color:#6d28d9;">🗓</div>
@@ -258,7 +319,9 @@
             <div class="admin-card-desc">同工請假與加班審核</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/roll-call') %}
     <a href="/admin/roll-call" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#eef2ff; color:#4F46E5;">📝</div>
@@ -266,7 +329,9 @@
             <div class="admin-card-desc">名冊、場次、點名與出席率</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/data-export') %}
     <a href="{{ url_for('data_transfer.data_export') }}" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">📤</div>
@@ -274,6 +339,7 @@
             <div class="admin-card-desc">備份或遷移至新教會（ZIP）</div>
         </div>
     </a>
+    {% endif %}
 
     <a href="{{ url_for('data_transfer.data_import') }}" style="text-decoration:none;">
         <div class="admin-card">
@@ -292,6 +358,7 @@
     </a>
 
     {% if config.DEMO_MODE or config.CONTACT_EMAIL %}
+    {% if can_see('/admin/contact-leads') %}
     <a href="/admin/contact-leads" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#ecfdf5; color:#059669;">📩</div>
@@ -299,6 +366,7 @@
             <div class="admin-card-desc">體驗洽詢留言管理</div>
         </div>
     </a>
+    {% endif %}
     {% endif %}
 
 </div>
