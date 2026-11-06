@@ -220,7 +220,7 @@ CREATE TABLE IF NOT EXISTS course_enrollments (
     UNIQUE (course_id, user_id)
 );
 
-CREATE TABLE IF NOT EXISTS course_attendance (
+CREATE TABLE IF NOT EXISTS session_attendance (
     id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     session_id  UUID NOT NULL REFERENCES course_sessions(id),
     user_id     UUID NOT NULL REFERENCES users(id),
@@ -700,14 +700,28 @@ CREATE OR REPLACE VIEW material_stock AS
 
 -- 教材進出記錄
 CREATE TABLE IF NOT EXISTS material_transactions (
-    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    material_id   UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
-    txn_type      TEXT NOT NULL CHECK (txn_type IN ('in','out','adjust')),
-    quantity      INTEGER NOT NULL,
-    note          TEXT,
-    enrollment_id UUID REFERENCES course_enrollments(id) ON DELETE SET NULL,
-    created_by    UUID REFERENCES users(id),
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    material_id      UUID NOT NULL REFERENCES materials(id) ON DELETE CASCADE,
+    type             TEXT NOT NULL CHECK (type IN ('in','out','adjust')),
+    quantity         INTEGER NOT NULL,
+    unit_cost        INTEGER NOT NULL DEFAULT 0,
+    total_cost       INTEGER NOT NULL DEFAULT 0,
+    course_id        UUID REFERENCES courses(id) ON DELETE SET NULL,
+    enrollment_id    UUID REFERENCES course_enrollments(id) ON DELETE SET NULL,
+    notes            TEXT,
+    transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- 洽詢（示範站的洽詢表單）
+CREATE TABLE IF NOT EXISTS contact_leads (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name         TEXT,
+    church       TEXT,
+    contact_info TEXT,
+    message      TEXT,
+    submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 -- 留名單照片
@@ -1193,5 +1207,34 @@ ALTER TABLE rc_rate_rules         ENABLE ROW LEVEL SECURITY;
 -- DROP TABLE IF EXISTS rc_rate_rules, rc_audit, rc_guest_counts, rc_records,
 --                      rc_sessions, rc_members, rc_meeting_types;
 -- DROP FUNCTION IF EXISTS rc_audit_block_change();
+
+NOTIFY pgrst, 'reload schema';
+
+-- ════════════════════════════════════════════════════════
+-- 安全強化（migrations/010_security_hardening.sql）：必須放在所有建表語句之後
+-- ════════════════════════════════════════════════════════
+-- 010 安全強化：每張表開 RLS（不設任何政策）、函式不開放給公開角色
+--
+-- 目的：就算有人拿到「公開金鑰（anon / publishable key）」，直接連 Supabase 也什麼都讀不到、寫不進、呼叫不了。
+-- 前提：伺服器（Render）使用的是「服務端金鑰（service_role / secret key）」——它繞過 RLS，所以網站照常運作。
+--       若 Render 的 SUPABASE_KEY 填的是公開金鑰，執行後網站會讀不到任何資料（請先確認金鑰種類）。
+-- 可重複執行。新增資料表後請再執行一次（或在建表時自己加 ENABLE ROW LEVEL SECURITY）。
+-- 還原（不建議）：ALTER TABLE <表名> DISABLE ROW LEVEL SECURITY;
+DO $$
+DECLARE r record;
+BEGIN
+    FOR r IN SELECT tablename FROM pg_tables WHERE schemaname = 'public' LOOP
+        EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', r.tablename);
+    END LOOP;
+
+    -- Supabase 才有這些角色；一般 Postgres（本機測試）略過
+    IF EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'anon')
+       AND EXISTS (SELECT 1 FROM pg_roles WHERE rolname = 'service_role') THEN
+        REVOKE EXECUTE ON ALL FUNCTIONS IN SCHEMA public FROM PUBLIC, anon, authenticated;
+        GRANT  EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO service_role;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC, anon, authenticated;
+        ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT  EXECUTE ON FUNCTIONS TO service_role;
+    END IF;
+END $$;
 
 NOTIFY pgrst, 'reload schema';

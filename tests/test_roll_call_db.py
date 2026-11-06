@@ -1,17 +1,12 @@
 """對真的 Postgres 執行 migration 與資料庫函式（環境沒有 Postgres 16 或不是 root 時略過）。"""
-import os
-import shutil
-import subprocess
-import tempfile
 from pathlib import Path
 
 import pytest
 
-BIN = Path('/usr/lib/postgresql/16/bin')
+import pg_helper
+
 ROOT = Path(__file__).resolve().parent.parent
-pytestmark = pytest.mark.skipif(
-    not (BIN / 'initdb').exists() or os.geteuid() != 0 or not shutil.which('psql'),
-    reason='需要 root 與 Postgres 16')
+pytestmark = pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
 
 A_IND, A_HEAD = '00000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-0000000000a2'
 M1, M2, M_LEFT = (f'00000000-0000-0000-0000-0000000000b{i}' for i in (1, 2, 3))
@@ -20,17 +15,7 @@ S_IND, S_HEAD = '00000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000
 
 @pytest.fixture(scope='module')
 def pg():
-    base = tempfile.mkdtemp(prefix='pgtest')
-    os.chmod(base, 0o777)
-    run = lambda *a: subprocess.run(['runuser', '-u', 'postgres', '--', *a], capture_output=True)
-    run(str(BIN / 'initdb'), '-D', f'{base}/data', '-A', 'trust')
-    run(str(BIN / 'pg_ctl'), '-D', f'{base}/data', '-o', f'-p 55433 -k {base}', '-l', f'{base}/log', 'start')
-
-    def psql(sql=None, file=None):
-        args = ['psql', '-h', base, '-p', '55433', '-U', 'postgres', '-q', '-t', '-A']
-        args += ['-f', file] if file else ['-c', sql]
-        return subprocess.run(args, capture_output=True, text=True)
-
+    psql, stop = pg_helper.start(55433)
     assert psql(file=str(ROOT / 'migrations' / '009_roll_call.sql')).returncode == 0
     assert psql(file=str(ROOT / 'migrations' / '009_roll_call.sql')).returncode == 0   # 可重複執行
     psql(f"""INSERT INTO rc_meeting_types(id,name,record_mode) VALUES ('{A_IND}','主日','individual'),('{A_HEAD}','禱告會','headcount');
@@ -38,8 +23,7 @@ def pg():
     INSERT INTO rc_members(id,name,status) VALUES ('{M_LEFT}','丙','left');
     INSERT INTO rc_sessions(id,type_id,starts_at) VALUES ('{S_IND}','{A_IND}',now()),('{S_HEAD}','{A_HEAD}',now());""")
     yield psql
-    run(str(BIN / 'pg_ctl'), '-D', f'{base}/data', 'stop', '-m', 'immediate')
-    shutil.rmtree(base, ignore_errors=True)
+    stop()
 
 
 def save(pg, member, status, name='操作者', reason=None, sess=S_IND, backfill='false'):

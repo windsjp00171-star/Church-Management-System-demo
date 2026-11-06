@@ -14,6 +14,7 @@ from flask import (
 )
 
 from db import supabase
+from roll_call_logic import parse_count
 from routes.decorators import (
     login_required, pastor_required, staff_required, cell_leader_required
 )
@@ -264,6 +265,23 @@ def _get_or_create_report(group_id, week_date_str: str) -> Dict:
     return (res2.data or [{}])[0]
 
 
+def _find_report(group_id, week_date_str: str) -> Optional[Dict]:
+    """只查不建。GET 不得建立資料列：否則看一眼舊週報，儀表板就會誤報「已開始回報」。"""
+    res = (
+        supabase.table('cell_reports').select('*')
+        .eq('group_id', group_id).eq('week_date', week_date_str).limit(1).execute()
+    )
+    return (res.data or [None])[0]
+
+
+def _count_or_error(raw):
+    """人數欄位：空白、非整數、負數一律退回（回 (None, 訊息)），絕不預設為 0。"""
+    try:
+        return parse_count(raw), None
+    except ValueError as e:
+        return None, str(e)
+
+
 def _get_attendance_map(group_id, report_id) -> Dict[str, Dict]:
     members = _get_members(group_id)
     if not members:
@@ -374,7 +392,6 @@ def section1(group_id):
 
         session['week_date'] = selected_date.isoformat()
 
-        report = _get_or_create_report(group_id, selected_date.isoformat())
         update_data: Dict[str, Any] = {'no_meeting': no_meeting}
 
         if no_meeting:
@@ -382,13 +399,16 @@ def section1(group_id):
             update_data['attendance_count'] = None
             update_data['is_complete'] = True
         else:
-            attendance_raw = request.form.get('attendance_count', '').strip()
-            try:
-                update_data['attendance_count'] = int(attendance_raw or 0)
-            except ValueError:
-                update_data['attendance_count'] = 0
+            count, count_err = _count_or_error(request.form.get('attendance_count'))
+            if count_err:   # 空白不是 0：退回，什麼都不寫
+                flash(f'請填寫本週實際出席人數（{count_err}）。', 'error')
+                return redirect(url_for('cell_report.section1', group_id=group_id,
+                                        prefill_date=selected_date.isoformat()))
+            update_data['attendance_count'] = count
             update_data['no_meeting_reason'] = ''
             update_data['is_complete'] = False
+
+        report = _get_or_create_report(group_id, selected_date.isoformat())
 
         try:
             supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
@@ -400,7 +420,7 @@ def section1(group_id):
         return redirect(url_for('cell_report.section2', group_id=group_id,
                                 week_date=selected_date.isoformat()))
 
-    report = _get_or_create_report(group_id, display_date.isoformat())
+    report = _find_report(group_id, display_date.isoformat()) or {}
 
     return render_template('cell_report/section1.html',
                            group=group,
@@ -431,12 +451,9 @@ def section2(group_id):
         flash('週報日期錯誤', 'error')
         return redirect(url_for('cell_report.section1', group_id=group_id))
 
-    report = _get_or_create_report(group_id, week_date_obj.isoformat())
-    if not report.get('id'):
-        flash('無法建立回報單，請重新整理後再試。', 'error')
-        return redirect(url_for('cell_report.section1', group_id=group_id))
+    report = _find_report(group_id, week_date_obj.isoformat()) or {}
     members = _get_members(group_id)
-    attendance_map = _get_attendance_map(group_id, report['id'])
+    attendance_map = _get_attendance_map(group_id, report['id']) if report.get('id') else {}
 
     display_map = {}
     for m in members:
@@ -600,7 +617,10 @@ def step3(group_id):
         flash('週報日期格式錯誤。', 'error')
         return redirect(url_for('cell_report.section1', group_id=group_id))
 
-    report = _get_or_create_report(group_id, week_date.isoformat())
+    if request.method == 'POST':
+        report = _get_or_create_report(group_id, week_date.isoformat())
+    else:
+        report = _find_report(group_id, week_date.isoformat()) or {}
     this_week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
     mcfg = _get_module_settings()
 
@@ -926,10 +946,14 @@ def sunday():
     if request.method == 'POST':
         try:
             data = json.loads(request.data.decode('utf-8'))
-            first = int(data.get('first_service_count', 0))
-            second = int(data.get('second_service_count', 0)) if service_count >= 2 else 0
         except Exception:
-            first = second = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        first, err = _count_or_error(data.get('first_service_count'))
+        second = 0
+        if not err and service_count >= 2:
+            second, err = _count_or_error(data.get('second_service_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
 
         try:
             report = _get_or_create_sunday_report(date_str)
@@ -938,7 +962,7 @@ def sunday():
                 'first_service_count': first,
                 'second_service_count': second,
                 'submitted_by': session.get('user_id'),
-                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -963,9 +987,11 @@ def children():
     if request.method == 'POST':
         try:
             data = json.loads(request.data.decode('utf-8'))
-            count = int(data.get('attendance_count', 0))
         except Exception:
-            count = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        count, err = _count_or_error(data.get('attendance_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
 
         try:
             from datetime import timezone
@@ -973,7 +999,7 @@ def children():
             supabase.table('children_sunday_reports').update({
                 'attendance_count': count,
                 'submitted_by': session.get('user_id'),
-                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -997,9 +1023,11 @@ def prayer():
     if request.method == 'POST':
         try:
             data = json.loads(request.data.decode('utf-8'))
-            count = int(data.get('attendance_count', 0))
         except Exception:
-            count = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        count, err = _count_or_error(data.get('attendance_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
 
         try:
             from datetime import timezone
@@ -1007,7 +1035,7 @@ def prayer():
             supabase.table('prayer_reports').update({
                 'attendance_count': count,
                 'submitted_by': session.get('user_id'),
-                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -1031,9 +1059,11 @@ def morning_prayer():
     if request.method == 'POST':
         try:
             data = json.loads(request.data.decode('utf-8'))
-            count = int(data.get('attendance_count', 0))
         except Exception:
-            count = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        count, err = _count_or_error(data.get('attendance_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
 
         try:
             from datetime import timezone
@@ -1041,7 +1071,7 @@ def morning_prayer():
             supabase.table('morning_prayer_reports').update({
                 'attendance_count': count,
                 'submitted_by': session.get('user_id'),
-                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -1147,13 +1177,15 @@ def custom_meeting(meeting_key):
     if request.method == 'POST':
         try:
             data = json.loads(request.data.decode('utf-8'))
-            count = int(data.get('attendance_count', 0))
         except Exception:
-            count = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        count, err = _count_or_error(data.get('attendance_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
         try:
             from datetime import timezone
             uid = session.get('user_id')
-            now_iso = datetime.now(timezone.utc).isoformat()
+            now_iso = datetime.datetime.now(timezone.utc).isoformat()
             existing = supabase.table('custom_meeting_reports').select('id')\
                 .eq('date', date_str).eq('meeting_key', meeting_key).execute()
             if existing.data:

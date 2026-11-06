@@ -235,6 +235,9 @@ python app.py      # debug=True, port 5000
 | 007 | `migrations/007_devotional.sql` | 禱讀本訂購三張表 |
 | 008 | `migrations/008_diary_admin_whitelist.sql` | 天父日記後台白名單 |
 | 009 | `migrations/009_roll_call.sql` | 聚會點名（8 張 rc_* 表、稽核觸發器、寫入函式、RLS） |
+| 010 | `migrations/010_security_hardening.sql` | 所有表開 RLS（不設政策）、函式不給公開角色。**僅限伺服器用服務端金鑰的專案**，詳見 `docs/SUPABASE_SETUP.md` |
+
+新專案只需執行整份 `schema.sql`（已含 009、010）。
 
 ## 多教會部署架構與開發者權限原則
 

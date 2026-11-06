@@ -14,7 +14,7 @@
 
   <div style="background:#fff; border-radius:12px; padding:24px; box-shadow:0 2px 8px rgba(0,0,0,.08);">
     <label style="display:block; font-weight:600; margin-bottom:8px;">出席人數</label>
-    <input type="number" id="count" min="0" value="{{ existing }}"
+    <input type="number" id="count" min="0" inputmode="numeric" placeholder="請輸入人數" value="{{ report.get('attendance_count') if report.get('attendance_count') is not none else '' }}"
            style="width:100%; padding:12px; border:1px solid #ddd; border-radius:8px; font-size:1.1rem; text-align:center; margin-bottom:16px;">
     <button id="submit-btn" onclick="submitReport()"
             style="width:100%; padding:14px; background:#607d8b; color:#fff; border:none;
@@ -29,18 +29,21 @@
 <script>
 const EXISTING = {{ existing }};
 async function submitReport() {
+  const raw = document.getElementById('count').value.trim();
+  if (raw === '') { showToast('請填寫人數（沒有人也請明確填 0）', 'error'); return; }
   if (EXISTING > 0 && !confirm(`本週已填報 ${EXISTING} 人，確定要覆蓋嗎？`)) return;
   const btn = document.getElementById('submit-btn');
   btn.disabled = true; btn.textContent = '送出中…';
   try {
     const res = await fetch(window.location.href, {
       method: 'POST', headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({attendance_count: parseInt(document.getElementById('count').value) || 0})
+      body: JSON.stringify({attendance_count: raw})
     });
-    if ((await res.json()).success) {
+    const j = await res.json();
+    if (j.success) {
       btn.style.display = 'none';
       document.getElementById('result').style.display = 'block';
-    } else { showToast('儲存失敗', 'error'); btn.disabled = false; btn.textContent = '送出'; }
+    } else { showToast(j.error || '儲存失敗', 'error'); btn.disabled = false; btn.textContent = '送出'; }
   } catch(e) { showToast('網路錯誤', 'error'); btn.disabled = false; btn.textContent = '送出'; }
 }
 </script>
