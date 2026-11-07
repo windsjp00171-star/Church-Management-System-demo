@@ -235,3 +235,27 @@ def test_migration_018_upgrades_an_old_database_and_is_repeatable():
         assert psql("update event_fields set auto_tier = '{}'::jsonb").returncode == 0
     finally:
         stop()
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_fresh_schema_lets_an_open_session_be_corrected_without_a_reason_but_not_a_locked_one():
+    """新專案跑整份 schema.sql 的點名函式要跟 019 同一個規則（不然新舊部署的行為不一樣）。"""
+    psql, stop = pg_helper.start(55442)
+    try:
+        psql(ROLES)
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        ids = dict(t='00000000-0000-0000-0000-0000000000a1', m='00000000-0000-0000-0000-0000000000b1',
+                   s='00000000-0000-0000-0000-0000000000c1')
+        psql(f"""INSERT INTO rc_meeting_types(id,name,record_mode) VALUES ('{ids['t']}','主日','individual');
+        INSERT INTO rc_members(id,name) VALUES ('{ids['m']}','甲');
+        INSERT INTO rc_sessions(id,type_id,starts_at) VALUES ('{ids['s']}','{ids['t']}',now());""")
+        save = lambda st, reason='NULL': psql(
+            f"select rc_save_record('{ids['s']}','{ids['m']}','{st}',gen_random_uuid(),'操作者',{reason},false)")
+        assert save('present').returncode == 0
+        assert save('absent').returncode == 0 and save('present').returncode == 0        # 擦掉重打
+        assert psql(f"select rc_lock_session('{ids['s']}',gen_random_uuid(),'管理員')").returncode == 0
+        r = save('absent')
+        assert r.returncode != 0 and '場次已鎖定' in r.stderr
+        assert save('absent', "'更正'").returncode == 0
+    finally:
+        stop()

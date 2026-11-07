@@ -7,7 +7,7 @@
 """
 import csv
 import io
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, Response, abort, jsonify, render_template, request, session
 
@@ -158,6 +158,46 @@ def portal_rollcall():
         return None
 
 
+@roll_call_bp.route('/api/roll-call/members/quick-add', methods=['POST'])
+@staff_required
+def api_quick_add_member():
+    """主日臨時來了新朋友：同工直接在點名單上加名字，並可順手替他在這一欄打勾。
+
+    重複的處理跟名冊匯入同一套（`plan_import`）：名冊已有同名＝不重複建立（請直接勾那一位）；
+    差一個字的疑似重複要同工確認（confirm）才建立。
+    """
+    data = request.get_json(silent=True) or {}
+    name = ' '.join((data.get('name') or '').split())
+    if not name:
+        return _err('請輸入姓名')
+    if len(name) > 30:
+        return _err('姓名太長')
+    sid = (data.get('session_id') or '').strip() or None
+    sess = _load_session(sid) if sid else None
+    if sess and not can_mark(sess, _is_admin(), _is_staff()):
+        return _err('此場次已鎖定，只有管理員可以修改', 403)
+    try:
+        row = plan_import(name, _existing_members())['rows'][0]
+        if row['status'] in ('same', 'same_left'):
+            where = '名冊裡已有' if row['status'] == 'same' else '已離開名單裡有'
+            return _err(f'{where}「{row["match"]}」，請直接在名單上找他打勾', 409)
+        if row['status'] == 'similar' and not data.get('confirm'):
+            return jsonify({'status': 409, 'data': {'similar': row['match']}, 'error': '疑似重複'}), 409
+        made = supabase.table('rc_members').insert({
+            'name': name, 'source': 'manual', 'joined_on': _today_taipei().isoformat()}).execute().data
+        member = made[0]
+        if sess:
+            uid, actor = _actor()
+            supabase.rpc('rc_save_record', {
+                'p_session': sid, 'p_member': member['id'], 'p_status': 'present',
+                'p_actor': uid, 'p_actor_name': actor, 'p_reason': None, 'p_backfill': False}).execute()
+    except Exception as e:
+        return _db_error(e)
+    log_action('roll_call.member_quick_add', target_type='rc_members', target_id=member.get('id'),
+               detail={'ticked': bool(sess)})
+    return _ok({'id': member['id'], 'name': name, 'ticked': bool(sess)})
+
+
 @roll_call_bp.route('/api/roll-call/sheet/add-column', methods=['POST'])
 @staff_required
 def api_sheet_add_column():
@@ -186,6 +226,103 @@ def api_sheet_add_column():
     except Exception as e:
         return _db_error(e)
     return _ok({'id': row[0]['id'] if row else None, 'created': True})
+
+
+# ── 區間出席：撈「某一段期間」誰到了幾次 ─────────────────────
+REPORT_MAX_DAYS = 366
+
+
+def _parse_day(raw, default):
+    try:
+        return datetime.fromisoformat(raw).date() if raw else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _fetch_records(session_ids):
+    """分頁讀完這些場次的紀錄（PostgREST 一次最多 1000 筆，一年的表格會超過）。讀取失敗直接丟例外。"""
+    rows, offset, page = [], 0, 1000
+    while session_ids:
+        batch = supabase.table('rc_records').select('session_id,member_id,status')\
+            .in_('session_id', session_ids).range(offset, offset + page - 1).execute().data or []
+        rows += batch
+        if len(batch) < page:
+            break
+        offset += page
+    return rows
+
+
+def range_report(mtype, start, end):
+    """區間內（台北日期、到今天為止）每個人到幾次。沒打勾＝沒來，跟紙本一樣。回 dict。"""
+    today = _today_taipei()
+    end = min(end, today)                                    # 還沒發生的聚會不算進分母
+    rows = supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])\
+        .order('starts_at').limit(400).execute().data or []
+    sessions = []
+    for r in rows:
+        r['_local'] = to_taipei(r['starts_at'])
+        if start <= r['_local'].date() <= end:
+            sessions.append(r)
+    sessions.sort(key=lambda r: r['starts_at'])
+    recs = _fetch_records([s['id'] for s in sessions])
+    marks = {(r['session_id'], r['member_id']): r['status'] for r in recs}
+    members = _active_members()
+    known = {m['id'] for m in members}
+    extra = sorted({r['member_id'] for r in recs} - known)
+    if extra:                                                # 區間內有紀錄、但後來離開的人也要算
+        members += supabase.table('rc_members').select('*').in_('id', extra).execute().data or []
+        members.sort(key=lambda m: m['name'])
+    total = len(sessions)
+    people = []
+    for m in members:
+        joined = m.get('joined_on')
+        # 新朋友加入之前的場次不算他沒來（沒有加入日期的，每一次都算）
+        counted = [not joined or s['_local'].date().isoformat() >= str(joined)[:10] for s in sessions]
+        cells = [marks.get((s['id'], m['id'])) == 'present' for s in sessions]
+        n = sum(1 for c, k in zip(cells, counted) if c and k)
+        denom = sum(counted)
+        people.append({'id': m['id'], 'name': m['name'], 'left': m.get('status') == 'left', 'cells': cells,
+                       'counted': counted, 'present': n, 'total': denom,
+                       'percent': round(n * 100 / denom, 1) if denom else None})
+    per_session = [sum(1 for p in people if p['cells'][i]) for i in range(total)]
+    return {'sessions': sessions, 'people': people, 'total': total, 'per_session': per_session,
+            'start': start, 'end': end}
+
+
+@roll_call_bp.route('/roll-call/report')
+@staff_required
+def report():
+    """預設撈過去一個月；也可以自己選日期區間。匯出 CSV 只有管理員（個資，會留稽核）。"""
+    today = _today_taipei()
+    end = _parse_day(request.args.get('to'), today)
+    start = _parse_day(request.args.get('from'), end - timedelta(days=29))
+    if start > end:
+        start, end = end, start
+    if (end - start).days > REPORT_MAX_DAYS:
+        start = end - timedelta(days=REPORT_MAX_DAYS)
+    mtype, individual = _sheet_type(request.args.get('type'))
+    data = range_report(mtype, start, end) if mtype else None
+    if request.args.get('format') == 'csv':
+        if not _is_admin():
+            abort(403)
+        if not data:
+            abort(404)
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(['姓名'] + [s['_local'].strftime('%Y-%m-%d') for s in data['sessions']] + ['到', '共', '出席率'])
+        for p in data['people']:
+            w.writerow([p['name']] + ['✓' if c else '' for c in p['cells']] +
+                       [p['present'], p['total'], '' if p['percent'] is None else f"{p['percent']}%"])
+        log_action('roll_call.range_export', target_type='rc_report',
+                   detail={'from': start.isoformat(), 'to': end.isoformat(), 'people': len(data['people'])})
+        return Response('\ufeff' + buf.getvalue(), mimetype='text/csv; charset=utf-8',
+                        headers={'Content-Disposition': f'attachment; filename=attendance_{start}_{end}.csv',
+                                 'Cache-Control': 'no-store'})
+    return render_template('roll_call/report.html', mtype=mtype, types=individual, data=data,
+                           start=start, end=end, today=today, is_admin=_is_admin(),
+                           presets=[('過去一個月', today - timedelta(days=29), today),
+                                    ('過去三個月', today - timedelta(days=89), today),
+                                    ('今年', today.replace(month=1, day=1), today)])
 
 
 @roll_call_bp.route('/roll-call/sessions')

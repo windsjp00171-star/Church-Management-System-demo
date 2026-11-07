@@ -3,15 +3,6 @@ import datetime
 import re
 import sys
 
-import pytest
-
-@pytest.fixture(autouse=True)
-def _template_globals(app):
-    """測試用的簡化 app 沒有正式 app 在啟動時掛上的模板全域函式；base.html 要用到。"""
-    g = app.jinja_env.globals
-    g.update(csrf_token=lambda: 't', module_on=lambda *_: True, church_name='測試教會', church_short_name='測試',
-             line_liff_id='', privacy_policy_url='', card_names={}, can_see=lambda *_: True)
-
 
 TYPE = {'id': 't1', 'name': '主日', 'record_mode': 'individual', 'created_at': '2026-01-01'}
 
@@ -160,3 +151,141 @@ def test_portal_template_and_script_are_wired():
     tpl = (root / 'templates' / 'portal.html').read_text(encoding='utf-8')
     assert 'data-rollcall' in tpl and '/static/portal-rollcall.js' in tpl
     assert (root / 'static' / 'portal-rollcall.js').exists()
+
+
+# ── 臨時來了新朋友：直接在點名單加 ──
+def _today(monkeypatch, day=datetime.date(2026, 11, 8)):
+    monkeypatch.setattr(sys.modules['routes.roll_call'], '_today_taipei', lambda: day)
+
+
+def _quick(client, **body):
+    return client.post('/api/roll-call/members/quick-add', json=body)
+
+
+def test_quick_add_creates_the_person_and_ticks_them_for_today(fake_db, client_as, monkeypatch):
+    _today(monkeypatch)
+    fake_db.tables.update(rc_meeting_types=[TYPE], rc_sessions=[_sess('s1', '2026-11-08T02:00:00+00:00')])
+    r = _quick(client_as(is_staff=True), name='  新  朋友 ', session_id='s1')
+    assert r.status_code == 200 and r.get_json()['data']['ticked'] is True
+    row = _writes(fake_db, 'rc_members')[0][2]
+    assert row['name'] == '新 朋友' and row['joined_on'] == '2026-11-08' and row['source'] == 'manual'
+    fn, args = fake_db.rpcs[0]
+    assert fn == 'rc_save_record' and args['p_status'] == 'present' and args['p_session'] == 's1'   # 走既有的稽核函式
+
+
+def test_quick_add_without_a_column_only_adds_the_name(fake_db, client_as, monkeypatch):
+    _today(monkeypatch)
+    r = _quick(client_as(is_staff=True), name='新朋友')
+    assert r.status_code == 200 and r.get_json()['data']['ticked'] is False and not fake_db.rpcs
+
+
+def test_quick_add_never_duplicates_an_existing_name(fake_db, client_as, monkeypatch):
+    _today(monkeypatch)
+    fake_db.tables['rc_members'] = [{'id': 'm1', 'name': '王小明', 'status': 'active'},
+                                    {'id': 'm2', 'name': '陳大文', 'status': 'left'}]
+    c = client_as(is_staff=True)
+    for n in ('王小明', ' 王　小明 ', '陳大文'):
+        assert _quick(c, name=n).status_code == 409
+    assert not _writes(fake_db, 'rc_members') and not fake_db.rpcs
+
+
+def test_quick_add_similar_name_needs_confirmation(fake_db, client_as, monkeypatch):
+    _today(monkeypatch)
+    fake_db.tables['rc_members'] = [{'id': 'm1', 'name': '王小明', 'status': 'active'}]
+    c = client_as(is_staff=True)
+    r = _quick(c, name='王曉明')
+    assert r.status_code == 409 and r.get_json()['data']['similar'] == '王小明' and not _writes(fake_db, 'rc_members')
+    assert _quick(c, name='王曉明', confirm=True).status_code == 200 and _writes(fake_db, 'rc_members')
+
+
+def test_quick_add_input_and_permissions(fake_db, client_as, monkeypatch):
+    _today(monkeypatch)
+    assert _quick(client_as(is_staff=True), name='  ').status_code == 400
+    assert _quick(client_as(is_staff=True), name='甲' * 31).status_code == 400
+    assert _quick(client_as(), name='新朋友').status_code == 403
+    assert not _writes(fake_db, 'rc_members')
+
+
+def test_quick_add_into_a_locked_column_is_refused_for_staff(fake_db, client_as, monkeypatch):
+    _today(monkeypatch)
+    fake_db.tables.update(rc_meeting_types=[TYPE], rc_sessions=[_sess('s1', '2026-11-08T02:00:00+00:00', 'locked')])
+    r = _quick(client_as(is_staff=True), name='新朋友', session_id='s1')
+    assert r.status_code == 403 and not _writes(fake_db, 'rc_members') and not fake_db.rpcs
+
+
+# ── 區間出席 ──
+def _report_world(fake_db):
+    fake_db.tables.update(
+        rc_meeting_types=[TYPE],
+        rc_sessions=[_sess('a', '2026-10-11T02:00:00+00:00'), _sess('b', '2026-10-18T02:00:00+00:00'),
+                     _sess('c', '2026-10-25T02:00:00+00:00'), _sess('d', '2026-11-01T02:00:00+00:00'),
+                     _sess('future', '2026-11-15T02:00:00+00:00')],
+        rc_members=[{'id': 'm1', 'name': '甲', 'status': 'active'},
+                    {'id': 'm2', 'name': '乙', 'status': 'active', 'joined_on': '2026-10-25'}],
+        rc_records=[{'session_id': 'a', 'member_id': 'm1', 'status': 'present'},
+                    {'session_id': 'b', 'member_id': 'm1', 'status': 'absent'},
+                    {'session_id': 'c', 'member_id': 'm1', 'status': 'present'},
+                    {'session_id': 'c', 'member_id': 'm2', 'status': 'present'},
+                    {'session_id': 'd', 'member_id': 'm2', 'status': 'present'},
+                    {'session_id': 'future', 'member_id': 'm1', 'status': 'present'}])
+
+
+def _people(data):
+    return {p['name']: p for p in data['people']}
+
+
+def test_range_report_counts_only_sessions_in_range_up_to_today(fake_db, app, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _report_world(fake_db)
+    rc = sys.modules['routes.roll_call']
+    with app.test_request_context():
+        from flask import session
+        session.update(user_id='u', is_staff=True)
+        data = rc.range_report(TYPE, datetime.date(2026, 10, 1), datetime.date(2026, 11, 30))
+    assert data['total'] == 4                                          # 未來那一次不算進分母
+    p = _people(data)
+    assert (p['甲']['present'], p['甲']['total'], p['甲']['percent']) == (2, 4, 50.0)     # 沒打勾/缺席＝沒來
+    assert (p['乙']['present'], p['乙']['total'], p['乙']['percent']) == (2, 2, 100.0)    # 10/25 才加入，之前不算他沒來
+    assert data['per_session'] == [1, 0, 2, 1]
+
+
+def test_range_report_narrows_to_the_chosen_dates(fake_db, app, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _report_world(fake_db)
+    rc = sys.modules['routes.roll_call']
+    with app.test_request_context():
+        from flask import session
+        session.update(user_id='u', is_staff=True)
+        data = rc.range_report(TYPE, datetime.date(2026, 10, 18), datetime.date(2026, 10, 25))
+    assert [s['id'] for s in data['sessions']] == ['b', 'c'] and _people(data)['甲']['percent'] == 50.0
+
+
+def test_report_page_defaults_to_the_last_month_and_survives_reversed_dates(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _report_world(fake_db)
+    c = client_as(is_staff=True)
+    html = c.get('/roll-call/report').get_data(as_text=True)
+    assert '2026/10/10' in html and '2026/11/8' in html and '甲' in html        # 預設過去 30 天
+    assert c.get('/roll-call/report?from=2026-11-30&to=2026-10-01').status_code == 200   # 日期顛倒不會壞
+    assert c.get('/roll-call/report?from=garbage&to=nope').status_code == 200
+
+
+def test_report_page_when_there_is_nothing_yet(fake_db, client_as):
+    assert client_as(is_staff=True).get('/roll-call/report').status_code == 200
+
+
+def test_csv_export_is_admin_only_and_audited(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _report_world(fake_db)
+    assert client_as(is_staff=True).get('/roll-call/report?format=csv').status_code == 403
+    r = client_as(is_admin=True).get('/roll-call/report?from=2026-10-01&to=2026-11-30&format=csv')
+    assert r.status_code == 200 and 'attachment' in r.headers['Content-Disposition']
+    text = r.data.decode('utf-8-sig')
+    assert '甲' in text and '50.0%' in text and '100.0%' in text
+    logged = [w for w in fake_db.writes if w[0] == 'audit_logs']
+    assert logged and logged[0][2]['action'] == 'roll_call.range_export'
+    assert logged[0][2]['detail']['people'] == 2                        # 只記人數，不記姓名
+
+
+def test_plain_members_cannot_open_the_report(fake_db, client_as):
+    assert client_as().get('/roll-call/report').status_code == 403

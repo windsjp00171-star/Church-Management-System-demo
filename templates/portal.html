@@ -476,7 +476,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 <div class="card pa" data-rollcall style="--d:40ms; padding:16px 18px; margin-bottom:16px;">
   <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;">
     <strong style="font-size:1.05rem;">📝 {{ rollcall.type.name if rollcall and rollcall.type else '聚會' }}點名{% if rollcall and rollcall.session %}　<span style="font-weight:400; color:#6b7280; font-size:.9rem;">{{ rollcall.session._local.strftime('%-m/%-d') }}{% if not rollcall.is_today %}（最近一次）{% endif %}</span>{% endif %}</strong>
-    {% if module_on('/roll-call') %}<a href="/roll-call" style="font-size:.85rem; color:#4F46E5; text-decoration:none; white-space:nowrap;">完整點名單 ›</a>{% endif %}
+    <span style="white-space:nowrap;">{% if module_on('/roll-call/report') %}<a href="/roll-call/report" style="font-size:.85rem; color:#4F46E5; text-decoration:none; margin-right:12px;">出席統計</a>{% endif %}{% if module_on('/roll-call') %}<a href="/roll-call" style="font-size:.85rem; color:#4F46E5; text-decoration:none;">完整點名單 ›</a>{% endif %}</span>
   </div>
   <div id="rc-msg" role="status" style="min-height:1.1em; color:#b91c1c; font-size:.85rem;"></div>
   {% if not rollcall %}
@@ -487,15 +487,22 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
   {% elif rollcall.state == 'no_members' %}
     <p style="margin:0; color:#6b7280;">名冊還是空的。{% if is_admin %}請到 {% if module_on('/admin/roll-call') %}<a href="/admin/roll-call">後台 → 聚會點名</a>{% else %}後台聚會點名{% endif %} 貼上姓名。{% else %}請管理員先貼上名冊姓名。{% endif %}</p>
   {% else %}
-    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px;">
+    <input id="rc-search" type="search" placeholder="🔍 搜尋姓名" autocomplete="off" aria-label="搜尋姓名"
+           style="width:100%; box-sizing:border-box; padding:12px 14px; font-size:1rem; border:2px solid #c7d2fe; border-radius:10px; margin-bottom:8px;">
+    <div id="rc-none" style="display:none; margin-bottom:8px; padding:10px 12px; border:1px dashed #fcd34d; border-radius:10px; background:#fffbeb;">找不到「<span id="rc-none-q"></span>」。按下面的「加入」可把他加為新朋友。</div>
+    <div id="rc-grid" style="display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px; max-height:340px; overflow-y:auto; -webkit-overflow-scrolling:touch;">
       {% for m in rollcall.members %}
       {% set on = rollcall.records.get(m.id) == 'present' %}
-      <button type="button" class="rc-chip" data-sid="{{ rollcall.session.id }}" data-mid="{{ m.id }}" data-on="{{ '1' if on else '0' }}"
+      <button type="button" class="rc-chip" data-name="{{ m.name|lower }}" data-sid="{{ rollcall.session.id }}" data-mid="{{ m.id }}" data-on="{{ '1' if on else '0' }}"
               {% if not rollcall.editable %}disabled{% endif %} aria-pressed="{{ 'true' if on else 'false' }}"
               style="display:flex; align-items:center; justify-content:space-between; gap:6px; padding:10px 12px; min-height:46px; border:1px solid {{ '#86efac' if on else '#e5e7eb' }}; border-radius:10px; background:{{ '#dcfce7' if on else '#fff' }}; font-size:1rem; text-align:left;">
         <span>{{ m.name }}</span><span class="rc-tick" style="color:#15803d; font-weight:700;">{{ '✓' if on else '' }}</span>
       </button>
       {% endfor %}
+    </div>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <input id="rc-newname" type="text" maxlength="30" placeholder="新朋友姓名" autocomplete="off" aria-label="新朋友姓名" style="flex:1; min-width:0; padding:12px; font-size:1rem; border:1px solid #d1d5db; border-radius:8px;">
+      <button type="button" id="rc-newbtn" data-sid="{{ rollcall.session.id if rollcall.is_today else '' }}" style="padding:12px 14px; border:0; background:#16a34a; color:#fff; border-radius:8px; font-weight:bold; white-space:nowrap;">加入{% if rollcall.is_today %}並打勾{% endif %}</button>
     </div>
     <p style="margin:10px 0 0; color:#6b7280; font-size:.85rem;">到場 <strong id="rc-count">{{ rollcall.present }}</strong> / {{ rollcall.members|length }} 人。點名字打勾，再點取消。{% if not rollcall.editable %}（這一欄已鎖定，只有管理員能改）{% endif %}</p>
   {% endif %}
