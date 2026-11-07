@@ -6,6 +6,7 @@ from db import supabase
 logger = logging.getLogger(__name__)
 
 ACTION_LABELS = {
+    'pwa.login_failed':     'PWA 續登沒成功',
     # 帳號
     'user.create':           '新增手動帳號',
     'user.merge_line_admin': '管理員整合 LINE',

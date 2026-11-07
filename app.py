@@ -106,6 +106,14 @@ def create_app():
     from routes.staff_leave import staff_leave_bp
     app.register_blueprint(staff_leave_bp)
 
+    # ── PWA 續登：把 start_url 夾帶的 token 兌換成 session ──
+    # 必須排在其他 before_request 之前，否則會先被當成未登入而導去登入頁。
+    # on_problem：兌換沒成功時留一筆（三種原因處理方式完全不同，見 routes/auth.record_pwa_problem）。
+    from routes.pwa_session import init_pwa_session
+    from routes.auth import load_user_for_pwa, _populate_session, record_pwa_problem
+    init_pwa_session(app, load_user=load_user_for_pwa,
+                     on_login=_populate_session, on_problem=record_pwa_problem)
+
     # ── 功能模組登記表（各教會自己選要用哪些功能）──────────────────
     from routes.modules import modules_bp, enforce_modules, module_on
     app.register_blueprint(modules_bp)
@@ -376,13 +384,18 @@ def create_app():
     # ── PWA manifest ─────────────────────────────────────────
     @app.route('/manifest.json')
     def pwa_manifest():
+        from routes.pwa_session import start_url_for
         name = Config.CHURCH_NAME
         short = Config.CHURCH_SHORT_NAME or name
-        return jsonify({
+        # 已登入時把身分夾帶進 start_url：iOS 的 PWA 有獨立 cookie 容器，裝好第一次打開會是未登入，
+        # 接著被丟去 LINE 網頁登入頁要求輸入註冊 email 與密碼（幾乎沒有人記得）。帶了 token，
+        # PWA 首次啟動就直接登入（需要 base.html 的 manifest link 加 crossorigin="use-credentials"）。
+        start_url = start_url_for(app.secret_key, session.get('user_id'))
+        resp = jsonify({
             'name': name,
             'short_name': short,
             'description': f'{name} 整合型教會行政系統',
-            'start_url': '/',
+            'start_url': start_url,
             'display': 'standalone',
             'background_color': '#f5f5f5',
             'theme_color': '#06C755',
@@ -396,6 +409,11 @@ def create_app():
                 }
             ],
         })
+        # 內容依登入狀態而異，絕不能被快取：快取到未登入版的 start_url，使用者安裝後打開就是未登入，
+        # 接著被 LINE 要求輸入註冊 email 與密碼 —— 就是要避免的那個 bug。
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        resp.headers['Vary'] = 'Cookie'
+        return resp
 
     # ── 健康檢查端點（UptimeRobot 保活 / 監控用，不查資料庫）──────
     @app.route('/healthz')

@@ -4,6 +4,9 @@
 
 ## [Unreleased]
 
+### 新增
+- **PWA 續登（搬成熟版 `pwa_session.py`）**：iOS 的 PWA 有獨立的 cookie 容器，加到主畫面後第一次打開是未登入，接著被丟去 LINE 網頁登入頁、要求輸入註冊 email 與密碼（幾乎沒人記得）。現在 `/manifest.json` 對已登入的人在 `start_url` 夾帶簽章 token（不可被快取、`Vary: Cookie`），PWA 首次啟動驗章後直接登入；manifest 連結補 `crossorigin="use-credentials"`（少了它整套靜默失效）。兌換失敗分三種原因寫進操作記錄 `pwa.login_failed`（`bad_token` 舊了、`not_allowed` 本來就不給登入、`load_failed` 是我們資料庫的問題）；資料庫抖一下會重試一次、仍失敗丟例外，**不會再被當成「帳號被停用」**。放回成熟版 `test_pwa_login_failures.py` ＋ 新增 `test_pwa_manifest.py`。結構守衛 `routes/auth.py` 查 users 基準 16→17（登入路徑，正當新增）。
+
 ### 修正
 - **後台「編輯報名資料」彈窗認得所有欄位型別**：以前分級收費、生日、監護人、身分證字號、複選都掉到普通文字框 —— 分級收費要同工手打、差一個字就對不上價格；生日顯示西元；複選一個都沒勾。現在跟報名表單走同一份 `form-fields.js`／partials：生日三格民國、監護人兩格、依生日自動判定、分級收費選項、複選；每次打開先清再填（不會看到上一位的資料）；必填只對看得見的欄位。報名名單的生日欄與 Excel 匯出都改印民國（`088/03/05`，認不出來的原樣）。編輯器上「依身分別分級收費」按鈕移到費用欄位旁邊。放回成熟版 `test_roster_edit_covers_every_field_type`，並新增 `test_roster_shows_roc`。尚未有：名冊年齡欄、匯出應繳金額、身分證遮罩。
 
