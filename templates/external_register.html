@@ -146,20 +146,21 @@
 
         <!-- 姓名必填 -->
         <div class="field-wrapper">
-            <label class="field-label">姓名 <span style="color:var(--red);">*</span></label>
+            <label class="field-label">姓名 <span class="req-tag" style="color:var(--red);">*</span></label>
             <input type="text" id="guest-name" placeholder="請輸入您的姓名">
         </div>
 
         <!-- 自訂欄位 -->
         {% for field in fields %}
         <div class="field-wrapper"
+             data-sort-order="{{ loop.index0 }}"
              data-condition="{{ field.condition_json or '' }}"
              data-field-type="{{ field.field_type }}"
              data-field-id="{{ field.id }}"
              {% if field.is_required %}data-required="true"{% endif %}>
             <label class="field-label">
                 {{ field.label }}
-                {% if field.is_required %}<span style="color:var(--red);">*</span>{% endif %}
+                {% if field.is_required %}<span class="req-tag" style="color:var(--red);">*</span>{% endif %}
             </label>
 
             {% if field.field_type == 'radio' %}
@@ -260,70 +261,9 @@
         </div>
     </div>
 
+    <script src="{{ asset('js/form-fields.js') }}"></script>
     <script>
         const eventId = {{ event.id | tojson }};
-
-        function toggleOtherText(el) {
-            const otherInput = el.closest('label').querySelector('.other-text');
-            if (!otherInput) return;
-            otherInput.style.display = el.checked ? 'block' : 'none';
-        }
-
-        function evaluateConditions() {
-            document.querySelectorAll('.field-wrapper[data-condition]').forEach(wrapper => {
-                const condStr = wrapper.dataset.condition;
-                if (!condStr) return;
-                try {
-                    const cond = JSON.parse(condStr);
-                    if (!cond || !cond.trigger_field_id || !cond.trigger_value) return;
-                    const triggerWrapper = document.querySelector(`.field-wrapper[data-field-id="${cond.trigger_field_id}"]`);
-                    if (!triggerWrapper) return;
-                    let triggerVal = '';
-                    const sel = triggerWrapper.querySelector('select');
-                    if (sel) { triggerVal = sel.value; }
-                    else {
-                        const radio = triggerWrapper.querySelector(`input[type=radio]:checked`);
-                        if (radio) triggerVal = radio.value;
-                    }
-                    wrapper.style.display = (triggerVal === cond.trigger_value) ? 'block' : 'none';
-                } catch(e) {}
-            });
-        }
-
-        function collectAnswers() {
-            const answers = [];
-            document.querySelectorAll('.field-wrapper[data-field-id]').forEach(wrapper => {
-                if (wrapper.style.display === 'none') return;
-                const fid = wrapper.dataset.fieldId;
-                const ftype = wrapper.dataset.fieldType;
-                let answer = '';
-
-                if (ftype === 'radio') {
-                    const checked = wrapper.querySelector('input[type=radio]:checked');
-                    if (checked) {
-                        if (checked.value === '__other__') {
-                            const t = checked.closest('label').querySelector('.other-text');
-                            answer = t ? t.value.trim() : '';
-                        } else { answer = checked.value; }
-                    }
-                } else if (ftype === 'checkbox') {
-                    const vals = [];
-                    wrapper.querySelectorAll('input[type=checkbox]:checked').forEach(cb => {
-                        if (cb.value === '__other__') {
-                            const t = cb.closest('label').querySelector('.other-text');
-                            if (t && t.value.trim()) vals.push(t.value.trim());
-                        } else { vals.push(cb.value); }
-                    });
-                    answer = vals.join(', ');
-                } else {
-                    const el = wrapper.querySelector(`[data-field-id="${fid}"]`);
-                    if (el) answer = el.value.trim();
-                }
-
-                answers.push({ field_id: fid, answer });
-            });
-            return answers;
-        }
 
         function submitExternal() {
             // Block submission if user identified as a church member
@@ -339,24 +279,9 @@
                 return;
             }
 
-            // 必填檢查
-            let missing = false;
-            document.querySelectorAll('.field-wrapper[data-required="true"]').forEach(wrapper => {
-                if (wrapper.style.display === 'none') return;
-                const fid = wrapper.dataset.fieldId;
-                const ftype = wrapper.dataset.fieldType;
-                let filled = false;
-                if (ftype === 'radio') filled = !!wrapper.querySelector('input[type=radio]:checked');
-                else if (ftype === 'checkbox') filled = wrapper.querySelectorAll('input[type=checkbox]:checked').length > 0;
-                else {
-                    const el = wrapper.querySelector(`[data-field-id="${fid}"]`);
-                    filled = el && el.value.trim() !== '';
-                }
-                if (!filled) missing = true;
-            });
-
-            if (missing) {
-                showError('請填寫所有必填欄位');
+            const missing = missingRequiredFields();
+            if (missing.length) {
+                showError('還沒填：' + missing.join('、'));
                 return;
             }
 
@@ -369,7 +294,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     guest_name: guestName,
-                    answers: collectAnswers(),
+                    answers: collectFieldAnswers(),
                 }),
             })
             .then(r => r.json())
