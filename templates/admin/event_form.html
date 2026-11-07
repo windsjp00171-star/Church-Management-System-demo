@@ -237,16 +237,15 @@
         <div class="field-row"
              data-saved-condition="{{ field.condition_json or '' }}"
              data-field-id="{{ field.id }}"
-             data-auto-tier='{{ (field.auto_tier or none) | tojson }}'
-             style="background:#f9f9f9; border-radius:10px; padding:14px 16px; margin-bottom:10px; border:1px solid #eee;">
+             style="background:var(--surface-2, #f5f5f5); border-radius:12px; padding:14px 16px; margin-bottom:10px; border:1px solid var(--border, #ddd);">
 
             <!-- 第一行：欄位名稱 + 類型 + 必填 + 刪除 -->
             <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-                <input type="text" placeholder="欄位名稱，例：電話" value="{{ field.label }}"
+                <input aria-label="欄位名稱，例：電話" type="text" placeholder="欄位名稱，例：電話" value="{{ field.label }}"
                     class="f-label"
-                    style="flex:1; min-width:140px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;">
-                <select class="f-type" onchange="toggleOptions(this)"
-                    style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;">
+                    style="flex:1; min-width:140px; padding:8px 10px; border:1px solid var(--border, #ddd); border-radius:8px; font-size: 1rem;">
+                <select aria-label="欄位類型" class="f-type" onchange="toggleOptions(this)"
+                    style="padding:8px 10px; border:1px solid var(--border, #ddd); border-radius:8px; font-size: 1rem;">
                     <option value="text"     {{ 'selected' if field.field_type=='text' }}>文字</option>
                     <option value="textarea" {{ 'selected' if field.field_type=='textarea' }}>長文字</option>
                     <option value="radio"    {{ 'selected' if field.field_type=='radio' }}>單選</option>
@@ -254,63 +253,114 @@
                     <option value="select"   {{ 'selected' if field.field_type=='select' }}>下拉選單</option>
                     <option value="number"   {{ 'selected' if field.field_type=='number' }}>數字</option>
                     <option value="date"     {{ 'selected' if field.field_type=='date' }}>日期</option>
-                    <option value="fee"      {{ 'selected' if field.field_type=='fee' }}>分級收費</option>
-                    <option value="birthday" {{ 'selected' if field.field_type=='birthday' }}>出生日期</option>
-                    <option value="id_number" {{ 'selected' if field.field_type=='id_number' }}>身分證字號</option>
-                    <option value="guardian" {{ 'selected' if field.field_type=='guardian' }}>監護人</option>
+                    <option value="fee"      {{ 'selected' if field.field_type=='fee' }}>💰 分級收費（每項各自訂價）</option>
+                    <option value="birthday" {{ 'selected' if field.field_type=='birthday' }}>出生日期（自動顯示民國年）</option>
+                    <option value="guardian" {{ 'selected' if field.field_type=='guardian' }}>監護人（姓名＋電話，只問未滿18歲）</option>
+                    <option value="id_number" {{ 'selected' if field.field_type=='id_number' }}>身分證字號（自動檢查對錯）</option>
                 </select>
                 <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
                     <input type="checkbox" class="f-required" {{ 'checked' if field.is_required }}
                         style="width:16px; height:16px;"> 必填
                 </label>
                 <button onclick="this.closest('.field-row').remove(); rebuildAllConditionDropdowns()"
-                    style="padding:6px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                    style="padding:6px 14px; background:var(--danger-bg, #ffebee); color:var(--danger, #c62828); border:none; border-radius:8px; cursor:pointer; font-size: 0.9rem;">
                     刪除
                 </button>
             </div>
 
-            <!-- 第二行：選項（select / radio / checkbox 才顯示） -->
+            {# ★ 一列一個選項，不是叫人在 textarea 裡打字。
+
+               使用者原話：「我真的很討厭那個 TEXTBOX」「用 textarea 設定問題跟
+               分隔問題的真的很麻煩」。他是對的 —— 換行當分隔、| 當價格分隔，
+               都是為了「一個欄位存一串字」而發明的規則，是實作方便，
+               不該轉嫁成使用者要記的東西。
+
+               ★ 但**存進資料庫的格式沒變**（每行一個選項，收費的是「名稱|金額」）。
+                 底下那個隱藏的 textarea 就是儲存來源，每次改動都同步過去 ——
+                 所以送出、跳題條件下拉那些讀 .f-options 的地方一行都不用改。
+                 這是刻意的：改動面越小，靜默壞掉的機會越少。 #}
             <div class="options-area" style="margin-top:10px; {{ '' if field.field_type in ['select','radio','checkbox','fee'] else 'display:none;' }}">
-                <label style="font-size:0.85rem; color:#888; display:block; margin-bottom:4px;">
-                    選項內容（每行一個；要收費的寫成「成人|800」）
+                <label class="opt-title" style="font-size: 0.9rem; color:var(--text-3, #888); display:block; margin-bottom:6px;">
+                    選項內容
                 </label>
-                <textarea class="f-options" rows="3"
-                    style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; resize:vertical;">{{ (field.options or '').replace('__other__', '').strip() }}</textarea>
-                <!-- 其他選項開關 -->
-                <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.85rem; cursor:pointer; color:#555;">
-                    <input type="checkbox" class="f-has-other"
-                        {{ 'checked' if field.options and '__other__' in field.options }}
-                        onchange="toggleHasOther(this)"
+                {# ── 依生日自動判定身分別 ──────────────────────────
+                   ★ 這是明確的開關，不是「有設年齡範圍就算開」。
+                     使用者定的：不是每場活動都要按生日分級收費。推論式的話，
+                     複製一場舊活動會靜靜地把自動判定一起帶過來。
+                   ★ 年齡欄位藏在開關底下，所以不會有「範圍設好了但沒生效」。 #}
+                <div class="auto-tier-wrap" style="display:none; margin-top:10px; padding-top:10px;
+                     border-top:1px dashed var(--border, #ddd);">
+                    <label style="display:flex; align-items:center; gap:7px; font-size:0.9rem;
+                                  cursor:pointer; color:var(--text-2, #555); font-weight:600;">
+                        <input type="checkbox" class="f-auto-tier" onchange="toggleAutoTier(this)"
+                            style="width:15px; height:15px;">
+                        依「出生日期」自動判定身分別
+                    </label>
+                    <p class="at-hint" style="margin:5px 0 0 22px; font-size:0.9rem; color:var(--text-3, #888);">
+                        報名者不用自己選 —— 填了生日就自動算出身分別與金額。
+                    </p>
+                    <p class="at-nobirthday" style="display:none; margin:6px 0 0 22px; font-size:0.9rem;
+                       color:var(--warn, #e65100);">⚠️ 這份表單還沒有「出生日期」欄位，請先加一個，否則算不出年齡。</p>
+                </div>
+                <textarea aria-label="依「出生日期」自動判定身分別" class="f-auto-tier-json" style="display:none;">{{ field.auto_tier | tojson if field.auto_tier else '' }}</textarea>
+                <div class="opt-rows"></div>
+                <button type="button" onclick="addOptionRow(this.closest('.field-row'))"
+                    style="margin-top:6px; padding:6px 14px; background:var(--info-bg, #e3f2fd); color:var(--info, #1565c0);
+                           border:1px solid var(--info-border, #90caf9); border-radius:8px; cursor:pointer;
+                           font-size:0.9rem; font-weight:600; font-family:inherit;">
+                    ＋ 新增選項
+                </button>
+                <div class="opt-fee-note" style="display:none; font-size:0.9rem; color:var(--text-3, #888); margin-top:6px;">
+                    名稱和金額都由你決定。免費的項目金額填 0。
+                </div>
+                <label class="opt-other-wrap" style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size: 0.9rem; cursor:pointer; color:var(--text-3, #888);">
+                    <input type="checkbox" class="f-has-other" {{ 'checked' if field.options and '__other__' in field.options }}
+                        onchange="syncOptionRows(this.closest('.field-row'))"
                         style="width:15px; height:15px;">
                     加入「其他（請填寫）」開放填寫選項
                 </label>
+                {# 隱藏，但它才是真正被送出的東西 #}
+                <textarea aria-label="加入「其他（請填寫）」開放填寫選項" class="f-options" style="display:none;">{{ (field.options or '').replace('__other__', '').strip() }}</textarea>
             </div>
-
             <!-- 第三行：跳題條件 -->
-            <div class="condition-section" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e0e0e0;">
-                <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:#666; cursor:pointer;">
+            <div class="condition-section" style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border, #ddd);">
+                <label style="display:flex; align-items:center; gap:6px; font-size: 0.9rem; color:var(--text-3, #888); cursor:pointer;">
                     <input type="checkbox" class="f-has-condition"
                         onchange="toggleConditionPanel(this)"
                         style="width:15px; height:15px;">
                     設定跳題條件（只在特定答案時才顯示此問題）
                 </label>
-                <div class="condition-panel" style="display:none; margin-top:10px; background:white; border:1px solid #d0d0d0; border-radius:8px; padding:14px;">
-                    <p style="font-size:0.85rem; color:#555; margin-bottom:10px;">此問題只在以下條件成立時才顯示：</p>
-                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.9rem;">
-                        <span style="color:#555;">當</span>
-                        <select class="f-cond-trigger" onchange="updateConditionValues(this)"
-                            style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; min-width:160px; font-size:0.9rem;">
+                <div class="condition-panel" style="display:none; margin-top:10px; background:white; border:1px solid var(--border, #ddd); border-radius:8px; padding:14px;">
+                    <p style="font-size: 0.9rem; color:var(--text-3, #888); margin-bottom:10px;">此問題只在以下條件成立時才顯示：</p>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size: 0.9rem;">
+                        <span style="color:var(--text-3, #888);">當</span>
+                        <select aria-label="設定跳題條件（只在特定答案時才顯示此問題）" class="f-cond-trigger" onchange="updateConditionValues(this)"
+                            style="padding:7px 10px; border:1px solid var(--border, #ddd); border-radius:8px; min-width:160px; font-size: 0.9rem;">
                             <option value="">— 選擇觸發問題 —</option>
                         </select>
-                        <span style="color:#555;">的答案是</span>
-                        <select class="f-cond-value"
-                            style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; min-width:120px; font-size:0.9rem;">
+                        <span class="cond-verb" style="color:var(--text-3, #888);">的答案是</span>
+                        <select aria-label="觸發問題" class="f-cond-value"
+                            style="padding:7px 10px; border:1px solid var(--border, #ddd); border-radius:8px; min-width:120px; font-size: 0.9rem;">
                             <option value="">— 先選觸發問題 —</option>
                         </select>
-                        <span style="color:#555;">時才顯示</span>
+                        {# 觸發問題選「出生日期」時換成這一組（見 updateConditionValues） #}
+                        <span class="cond-age" style="display:none; align-items:center; gap:6px;">
+                            <input aria-label="不限" type="number" class="f-cond-age-min" min="0" max="120" placeholder="不限"
+                                style="width:78px; padding:7px 8px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem; text-align:center;">
+                            <span style="color:var(--text-3, #888);">～</span>
+                            <input aria-label="不限" type="number" class="f-cond-age-max" min="0" max="120" placeholder="不限"
+                                style="width:78px; padding:7px 8px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem; text-align:center;">
+                            <span style="color:var(--text-3, #888);">歲</span>
+                        </span>
+                        <span style="color:var(--text-3, #888);">時才顯示</span>
                     </div>
-                    <p style="font-size:0.8rem; color:#aaa; margin-top:8px;">
-                        ⚠️ 觸發問題需為「單選」或「下拉選單」類型，且已填好選項。
+                    <p class="cond-hint" style="font-size: 0.9rem; color:var(--text-3, #888); margin-top:8px;">
+                        ⚠️ 觸發問題需為「單選」、「下拉選單」、「分級收費」（且已填好選項）或「出生日期」。
+                    </p>
+                    <p class="cond-age-hint" style="display:none; font-size: 0.9rem; color:var(--text-3, #888); margin-top:8px;">
+                        年齡以<strong>活動當日</strong>計算（跨日活動用第一天），跟身分別同一套規則。<br>
+                        只填一邊也可以：只填右邊＝「幾歲以下」，只填左邊＝「幾歲以上」。<br>
+                        兩邊都空白的話這題等於永遠不顯示。
                     </p>
                 </div>
             </div>
@@ -450,23 +500,46 @@
     </div>
 </div>
 
+{# 預覽跑的是報名者在跑的同一份 JS（跳題、金額、身分證檢查碼、監護人格式）——
+   自己另外寫一份的話，預覽會 certify 一個不存在的行為。 #}
+<script src="{{ asset('js/form-fields.js') }}"></script>
+<script src="{{ asset('js/fee-total.js') }}"></script>
+
 <!-- ===== 預覽表單 Modal ===== -->
 <div id="preview-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:1000; overflow-y:auto; padding:24px 16px;">
     <div style="background:white; border-radius:16px; max-width:520px; margin:0 auto; padding:28px; position:relative;">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h3 style="margin:0; color:#333;">👁 表單預覽</h3>
+            <h3 style="margin:0; color:var(--text-2, #555);">👁 表單預覽</h3>
             <button onclick="closePreview()"
-                style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:#999; padding:4px 8px;">✕</button>
+                style="background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-3, #888); padding:4px 8px;">✕</button>
         </div>
-        <p style="font-size:0.85rem; color:#aaa; margin-bottom:20px;">這是報名者看到的填寫畫面（僅供預覽，不可實際送出）</p>
-        <div style="margin-bottom:16px; padding:12px 16px; background:#f5f5f5; border-radius:8px; color:#555; font-size:0.9rem;">
+        {# ★ 可以真的填。跳題、金額、身分證檢查碼跑的都是報名者在跑的同一支 JS
+             （static/js/form-fields.js ＋ fee-total.js）——
+             預覽如果自己另外寫一套，它會 certify 一個不存在的行為。 #}
+        <p style="font-size: 0.9rem; color:var(--text-3, #888); margin-bottom:20px;">
+            這是報名者看到的畫面，<strong>可以直接試填</strong>（不會真的送出）。
+        </p>
+        <div style="margin-bottom:16px; padding:12px 16px; background:var(--surface-2, #f5f5f5); border-radius:8px; color:var(--text-3, #888); font-size: 0.9rem;">
             報名身份：<strong>您的 LINE 名稱</strong>（來自您的 LINE 帳號）
         </div>
+        <div id="preview-poster"></div>
         <div id="preview-fields"></div>
-        <button disabled
-            style="width:100%; background:#ccc; color:white; border:none; padding:14px; border-radius:10px; font-size:1rem; font-weight:bold; cursor:not-allowed; margin-top:16px;">
-            確認報名（預覽模式）
+
+        {# 應繳金額：沒有任何標價欄位時 fee-total.js 會自己整列隱藏 #}
+        <div class="fee-total" data-base-fee="0"
+             style="display:none; align-items:center; justify-content:space-between;
+                    margin-top:14px; padding:12px 16px; background:var(--green-bg, #e8f5e9); border-radius:12px;">
+            <span style="font-weight:700; color:var(--text-2, #555);">應繳金額</span>
+            <span class="fee-total-val" style="font-size:1.25rem; font-weight:800; color:var(--green-ink, #1b5e20);">$0</span>
+        </div>
+
+        <button type="button" onclick="previewSubmit()"
+            style="width:100%; background:var(--green,#1c6141); color:white; border:none; padding:14px;
+                   border-radius:12px; font-size:1rem; font-weight:bold; cursor:pointer; margin-top:16px;">
+            試按送出（不會真的報名）
         </button>
+        <div id="preview-result" style="display:none; margin-top:12px; padding:12px 14px;
+             border-radius:12px; font-size:0.9rem; line-height:1.9;"></div>
     </div>
 </div>
 
@@ -477,25 +550,409 @@
 function toggleOptions(select) {
     const row = select.closest('.field-row');
     const area = row.querySelector('.options-area');
-    const showOptions = ['select', 'radio', 'checkbox', 'fee'].includes(select.value);
-    area.style.display = showOptions ? 'block' : 'none';
+    const type = select.value;
+    // 監護人：收起跳題面板、補上說明（條件是伺服器自動掛的）
+    applyGuardianRow(row);
+    const hasOptions = ['select', 'radio', 'checkbox', 'fee'].includes(type);
+    area.style.display = hasOptions ? 'block' : 'none';
+    if (hasOptions) {
+        applyOptionMode(row);
+        if (!area.querySelector('.opt-row')) loadOptionRows(row);
+        // ★ 換型別後要立刻重寫一次隱藏 textarea。
+        //   單選改成收費時，儲存格式要從「葷食」變成「葷食|0」——
+        //   少了這一步，畫面上金額欄已經出現、但送出去的還是沒價格的舊格式，
+        //   而兩邊看起來都正常。
+        syncOptionRows(row);
+    }
     rebuildAllConditionDropdowns();
 }
 
 // ==========================================
-// 「其他」選項：加入或移除 __other__ 標記
+// 選項編輯器：一列一個選項
+//
+// 使用者原話：「我真的很討厭那個 TEXTBOX」。他是對的 —— 換行當分隔、
+// | 當價格分隔，都是為了「一個欄位存一串字」發明的規則，是實作方便，
+// 不該轉嫁成使用者要記的東西。
+//
+// ★ 存進資料庫的格式沒變。那個隱藏的 .f-options 就是儲存來源，
+//   每次改動都同步過去 —— 所以送出、跳題條件下拉那些讀它的地方
+//   一行都不用改。改動面越小，靜默壞掉的機會越少。
 // ==========================================
-function toggleHasOther(checkbox) {
-    const textarea = checkbox.closest('.options-area').querySelector('.f-options');
-    const lines = textarea.value.split('\n').map(l => l.trim()).filter(l => l && l !== '__other__');
-    if (checkbox.checked) lines.push('__other__');
-    textarea.value = lines.join('\n');
+
+/** 這個欄位是不是收費型（要多一個金額框） */
+function isFeeField(fieldRow) {
+    return fieldRow.querySelector('.f-type')?.value === 'fee';
 }
+
+/** 依型別調整標題、金額欄的顯示、以及「其他」選項要不要出現 */
+function applyOptionMode(fieldRow) {
+    const fee = isFeeField(fieldRow);
+    const title = fieldRow.querySelector('.opt-title');
+    if (title) title.textContent = fee ? '收費項目（報名者選一項，系統自動算應繳金額）' : '選項內容';
+    const note = fieldRow.querySelector('.opt-fee-note');
+    if (note) note.style.display = fee ? 'block' : 'none';
+    // 收費欄位不給「其他（請填寫）」—— 自由填的答案對不到任何價格，
+    // 那個人的金額會算不出來，而名冊上看起來只是「選項對不上」
+    const other = fieldRow.querySelector('.opt-other-wrap');
+    if (other) other.style.display = fee ? 'none' : 'flex';
+
+    // ★ 金額框不是只有「分級收費」才該出現。
+    //
+    //   「分級收費」型別是後來才有的。在那之前，價格就是寫在單選／下拉的
+    //   選項裡（成人|800），而前台到現在都還照樣把金額算出來、收出來。
+    //
+    //   所以舊活動的單選欄位是**真的帶著價格**的。這裡如果一律把金額框藏起來，
+    //   使用者看不到它、改不到它，而 syncOptionRows 會把看不到的東西寫掉 ——
+    //   等於一開頁面價格就沒了，畫面上完全正常，只是報名者從此不用付錢。
+    const hasPrice = Array.from(fieldRow.querySelectorAll('.opt-price'))
+        .some(i => i.value.trim() !== '');
+    fieldRow.querySelectorAll('.opt-price-wrap').forEach(el => {
+        el.style.display = (fee || hasPrice) ? 'flex' : 'none';
+    });
+
+    // 「依生日自動判定」只對分級收費有意義
+    const atWrap = fieldRow.querySelector('.auto-tier-wrap');
+    if (atWrap) atWrap.style.display = fee ? 'block' : 'none';
+    // ★ 年齡欄位藏在開關底下 —— 關著的時候根本設不了範圍，
+    //   所以不會有「範圍設好了但沒生效」那種看不出差別的狀態。
+    const autoOn = fee && fieldRow.querySelector('.f-auto-tier')?.checked;
+    fieldRow.querySelectorAll('.opt-age-wrap').forEach(el => {
+        el.style.display = autoOn ? 'flex' : 'none';
+    });
+}
+
+// ══════════════════════════════════════════
+// 依生日自動判定身分別
+//
+// ★ 設定放在「分級收費」欄位上，不是生日欄位 —— 年齡範圍必須跟選項
+//   擺在一起（「65 歲以上 → 65歲以上者 $600」）。生日欄位的角色是資料來源。
+// ══════════════════════════════════════════
+
+/** 同一個欄位裡只能有一個「其他年齡」、一個「自行申報」 */
+function pickOne(box, cls) {
+    const row = box.closest('.field-row');
+    if (box.checked) {
+        row.querySelectorAll('.' + cls).forEach(o => { if (o !== box) o.checked = false; });
+    }
+    syncSpecialNotes(row);
+    syncAutoTier(row);
+}
+
+/** 提醒文字只在「自行申報」那一列出現 —— 每一列都放的話，
+ *  管理員會在別列填了字然後發現存不進去（那個欄位只有申報項有）。 */
+function syncSpecialNotes(fieldRow) {
+    fieldRow.querySelectorAll('.opt-row').forEach(r => {
+        const on = r.querySelector('.opt-special')?.checked;
+        const note = r.querySelector('.opt-special-note');
+        if (note) note.style.display = on ? 'block' : 'none';
+    });
+}
+
+function toggleAutoTier(cb) {
+    const row = cb.closest('.field-row');
+    applyOptionMode(row);
+    // 開了但表單裡沒有生日欄位 → 算不出年齡。要當場講，
+    // 不然設定看起來好好的，實際上永遠判不出來。
+    const warn = row.querySelector('.at-nobirthday');
+    if (warn) warn.style.display = (cb.checked && !hasBirthdayField()) ? 'block' : 'none';
+    syncAutoTier(row);
+}
+
+function hasBirthdayField() {
+    return Array.from(document.querySelectorAll('.field-row .f-type'))
+        .some(t => t.value === 'birthday');
+}
+
+/** 一列一列 → 隱藏的 .f-auto-tier-json（真正被送出的東西） */
+function syncAutoTier(fieldRow) {
+    const ta = fieldRow.querySelector('.f-auto-tier-json');
+    if (!ta) return;
+    const on = fieldRow.querySelector('.f-auto-tier')?.checked;
+    if (!on || !isFeeField(fieldRow)) { ta.value = ''; return; }
+
+    const ages = {};
+    let special = null, specialNote = null, fallback = null;
+    fieldRow.querySelectorAll('.opt-row').forEach(r => {
+        const label = r.querySelector('.opt-label').value.trim();
+        if (!label) return;
+        if (r.querySelector('.opt-special')?.checked) {
+            special = label;
+            specialNote = r.querySelector('.opt-special-note')?.value.trim() || null;
+            return;
+        }
+        if (r.querySelector('.opt-fallback')?.checked) fallback = label;
+        const lo = r.querySelector('.opt-age-min')?.value.trim();
+        const hi = r.querySelector('.opt-age-max')?.value.trim();
+        if (lo !== '' || hi !== '') {
+            ages[label] = [lo === '' ? null : parseInt(lo, 10),
+                           hi === '' ? null : parseInt(hi, 10)];
+        }
+    });
+    ta.value = JSON.stringify({
+        enabled: true, special_label: special, special_note: specialNote,
+        fallback_label: fallback, ages,
+    });
+}
+
+/** 既有欄位：把存下來的設定填回一列一列 */
+function loadAutoTier(fieldRow) {
+    const ta = fieldRow.querySelector('.f-auto-tier-json');
+    const cb = fieldRow.querySelector('.f-auto-tier');
+    if (!ta || !cb) return;
+    let cfg = null;
+    try { cfg = JSON.parse(ta.value || 'null'); } catch (e) { cfg = null; }
+    cb.checked = !!(cfg && cfg.enabled);
+    if (!cfg) return;
+    const ages = cfg.ages || {};
+    fieldRow.querySelectorAll('.opt-row').forEach(r => {
+        const label = r.querySelector('.opt-label').value.trim();
+        const b = ages[label];
+        if (b) {
+            r.querySelector('.opt-age-min').value = b[0] === null || b[0] === undefined ? '' : b[0];
+            r.querySelector('.opt-age-max').value = b[1] === null || b[1] === undefined ? '' : b[1];
+        }
+        if (label && label === cfg.special_label) {
+            r.querySelector('.opt-special').checked = true;
+            const note = r.querySelector('.opt-special-note');
+            if (note) note.value = cfg.special_note || '';
+        }
+        if (label && label === cfg.fallback_label) r.querySelector('.opt-fallback').checked = true;
+    });
+}
+
+function addOptionRow(fieldRow, label, price, cap) {
+    const box = fieldRow.querySelector('.opt-rows');
+    if (!box) return;
+    const div = document.createElement('div');
+    div.className = 'opt-row';
+    div.style.cssText = 'display:flex; gap:8px; align-items:center; margin-bottom:6px; flex-wrap:wrap;';
+    div.innerHTML = `
+        <input aria-label="選項名稱" type="text" class="opt-label" placeholder="選項名稱"
+            value="${(label || '').replace(/"/g, '&quot;')}"
+            oninput="syncOptionRows(this.closest('.field-row'))"
+            style="flex:1; min-width:100px; padding:8px 10px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem;">
+        <span class="opt-price-wrap" style="display:none; align-items:center; gap:6px;">
+            <span style="color:var(--text-3, #888); font-size:0.9rem;">$</span>
+            <input aria-label="0" type="number" class="opt-price" min="0" step="1" placeholder="0"
+                value="${price === undefined || price === null ? '' : price}"
+                oninput="syncOptionRows(this.closest('.field-row'))"
+                style="width:100px; padding:8px 10px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem;">
+            {# 名額（選填）：搭車這類有人數限制的選項填這格，滿了報名者就選不到。 #}
+            <input aria-label="名額（不限就留白）" type="number" class="opt-cap" min="1" step="1" placeholder="名額"
+                value="${cap === undefined || cap === null ? '' : cap}"
+                oninput="syncOptionRows(this.closest('.field-row'))"
+                style="width:84px; padding:8px 10px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem;">
+            <span style="color:var(--text-3, #888); font-size:0.85rem;">人（選填）</span>
+        </span>
+        <button type="button" onclick="const r=this.closest('.field-row'); this.closest('.opt-row').remove(); syncOptionRows(r);"
+            style="padding:6px 10px; background:var(--danger-bg, #ffebee); color:var(--danger, #c62828); border:none;
+                   border-radius:8px; cursor:pointer; font-size:0.9rem;">✕</button>
+        <div class="opt-age-wrap" style="display:none; width:100%; align-items:center; gap:6px;
+             flex-wrap:wrap; padding:6px 0 2px 4px; font-size:0.9rem; color:var(--text-3, #888);">
+            <span style="color:var(--text-3, #888);">年齡</span>
+            <input aria-label="不限" type="number" class="opt-age-min" min="0" max="120" placeholder="不限"
+                oninput="syncAutoTier(this.closest('.field-row'))"
+                style="width:64px; padding:5px 7px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem; text-align:center;">
+            <span style="color:var(--text-3, #888);">～</span>
+            <input aria-label="不限" type="number" class="opt-age-max" min="0" max="120" placeholder="不限"
+                oninput="syncAutoTier(this.closest('.field-row'))"
+                style="width:64px; padding:5px 7px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem; text-align:center;">
+            <span style="color:var(--text-3, #888);">歲（含本數）</span>
+            {# ★ 預設項一定要明確指定，不能用「第一個沒設範圍的」去推 ——
+                 管理員幫成人也填了範圍的話，沒設範圍的就只剩身障，
+                 於是 15 歲的孩子會被自動標成持有身心障礙證明。 #}
+            <label style="display:flex; align-items:center; gap:4px; cursor:pointer; margin-left:6px;"
+                   title="其他年齡都算這一項">
+                <input type="checkbox" class="opt-fallback" onchange="pickOne(this, 'opt-fallback')"
+                    style="width:14px; height:14px;">其他年齡
+            </label>
+            {# 身心障礙算不出來，只能本人申報 —— 年齡範圍對它一律無效 #}
+            <label style="display:flex; align-items:center; gap:4px; cursor:pointer;"
+                   title="只能由報名者自行勾選，不看年齡">
+                <input type="checkbox" class="opt-special" onchange="pickOne(this, 'opt-special')"
+                    style="width:14px; height:14px;">自行申報
+            </label>
+            {# ★ 這一格的提醒文字必須可設。原本前台寫死「當日請攜帶證明」——
+                 但「自行申報」這個機制是通用的（可能是工作人員、清寒證明、
+                 教會同工），寫死的話換一場活動畫面就在講一個不相干的東西。 #}
+            <input aria-label="提醒文字（選填，例：當日請攜帶證明）" type="text" class="opt-special-note" placeholder="提醒文字（選填，例：當日請攜帶證明）"
+                oninput="syncAutoTier(this.closest('.field-row'))"
+                style="display:none; flex:1 1 200px; min-width:0; padding:5px 9px;
+                       border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem;">
+        </div>`;
+    box.appendChild(div);
+    applyOptionMode(fieldRow);
+    syncOptionRows(fieldRow);
+    syncAutoTier(fieldRow);
+}
+
+/** 隱藏 textarea 的既有內容 → 拆成一列一列。空的話給兩列空白讓人直接填。 */
+function loadOptionRows(fieldRow) {
+    const box = fieldRow.querySelector('.opt-rows');
+    const ta = fieldRow.querySelector('.f-options');
+    if (!box || !ta) return;
+
+    // ★★ 先把存下來的自動判定設定抄一份，**在建任何一列之前**。
+    //
+    //   addOptionRow 結尾會呼叫 syncAutoTier（使用者編輯時必要），
+    //   而那個時間點「依生日自動判定」的勾選框還沒被 loadAutoTier 還原 ——
+    //   syncAutoTier 看起來就像「這個欄位沒開自動判定」，於是把
+    //   .f-auto-tier-json 清成空字串。等一下 loadAutoTier 讀到的是空的，
+    //   勾選框維持沒勾、年齡範圍全空。
+    //
+    //   而畫面上選項（成人 800、孩童 500…）還在，看起來只是「忘了勾」——
+    //   **下一次按儲存就會把 null 寫回資料庫，設定真的沒了。**
+    //   （使用者回報：設好存檔 → 再打開編輯頁，自動判定整個消失。）
+    const savedAutoTier = fieldRow.querySelector('.f-auto-tier-json')?.value || '';
+
+    box.innerHTML = '';
+    const lines = (ta.value || '').split('\n')
+        .map(l => l.trim()).filter(l => l && l !== '__other__');
+    if (lines.length) {
+        lines.forEach(l => addOptionRow(fieldRow, optionLabel(l), optionPrice(l), optionCap(l)));
+    } else {
+        addOptionRow(fieldRow);
+        addOptionRow(fieldRow);
+    }
+    // 建列的過程把它洗掉了，還原回去再讀
+    const atTa = fieldRow.querySelector('.f-auto-tier-json');
+    if (atTa && !atTa.value) atTa.value = savedAutoTier;
+    // ★ 一定要在 addOptionRow 之後 —— 設定是填進每一列的，列還沒建好就沒得填
+    loadAutoTier(fieldRow);
+    syncSpecialNotes(fieldRow);
+    applyOptionMode(fieldRow);
+}
+
+/** 一列一列 → 隱藏 textarea（真正被送出的東西）。每次改動都要叫。 */
+function syncOptionRows(fieldRow) {
+    const ta = fieldRow.querySelector('.f-options');
+    if (!ta) return;
+    const fee = isFeeField(fieldRow);
+    const lines = [];
+    fieldRow.querySelectorAll('.opt-row').forEach(r => {
+        const label = r.querySelector('.opt-label').value.trim();
+        if (!label) return;              // 還沒填完的空列，跳過
+        const raw = r.querySelector('.opt-price')?.value.trim() ?? '';
+        if (!fee) {
+            // ★ 非收費型別也可能帶價格 —— 舊活動就是把價格寫在單選／下拉的
+            //   選項裡（成人|800），前台到現在都照樣收費。
+            //
+            //   原本這裡無條件只寫回標籤，於是**光是打開編輯頁**就把價格洗掉了
+            //   （載入時 addOptionRow 就會叫一次 sync）。使用者什麼都沒做，
+            //   畫面完全正常，只是那場活動從此不收錢。
+            const cap0 = parseInt(r.querySelector('.opt-cap')?.value.trim() ?? '', 10);
+            lines.push(raw === '' ? label : label + '|' + Math.max(0, parseInt(raw, 10) || 0)
+                + (cap0 > 0 ? '|' + cap0 : ''));
+            return;
+        }
+        // 金額留白當 0（免費項目），不要變成「沒有價格」——
+        // 沒有價格的選項在名冊上不計費，跟免費是兩件事
+        const capN = parseInt(r.querySelector('.opt-cap')?.value.trim() ?? '', 10);
+        lines.push(label + '|' + (raw === '' ? 0 : Math.max(0, parseInt(raw, 10) || 0))
+            + (capN > 0 ? '|' + capN : ''));
+    });
+    // 收費欄位不支援「其他」（見 applyOptionMode）
+    if (!fee && fieldRow.querySelector('.f-has-other')?.checked) lines.push('__other__');
+    ta.value = lines.join('\n');
+    // ★ 選項改名之後，自動判定的設定是用標籤當 key 的 —— 一起重算，
+    //   不然改個名字設定就靜靜對不到，而畫面上完全看不出來。
+    syncAutoTier(fieldRow);
+    rebuildAllConditionDropdowns();
+}
+
+// ==========================================
+// 選項帶價格：「成人|800」→ 標籤「成人」、價格 800
+// 規則要跟後端 routes/event_fields.py 的 _PRICED 一致：
+// 只有「行尾是 | 接純數字」才算價格，所以「A|B 方案」不會被誤判。
+// ==========================================
+function optionLabel(line) {
+    const m = String(line || '').trim().match(/^(.*?\S)\s*\|\s*\d{1,7}(?:\s*\|\s*\d{1,5})?\s*$/);
+    return (m ? m[1] : String(line || '')).trim();
+}
+function optionPrice(line) {
+    const m = String(line || '').trim().match(/^.*?\S\s*\|\s*(\d{1,7})(?:\s*\|\s*\d{1,5})?\s*$/);
+    return m ? parseInt(m[1], 10) : null;
+}
+// 名額（「搭車|200|20」的 20）；沒設回 null
+function optionCap(line) {
+    const m = String(line || '').trim().match(/^.*?\S\s*\|\s*\d{1,7}\s*\|\s*(\d{1,5})\s*$/);
+    return m ? parseInt(m[1], 10) : null;
+}
+
+// 既有欄位：把 textarea 裡的選項拆成一列一列。
+//
+// ★ 漏了這步的話，編輯舊活動會看到空白的選項編輯器 —— 一按儲存
+//   原本的選項就全沒了，而畫面上完全正常。
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.field-row').forEach(row => {
+        const type = row.querySelector('.f-type');
+        if (type) toggleOptions(type);
+    });
+});
 
 // ==========================================
 // 跳題條件相關
 // ==========================================
+/** 監護人：說明它預設的行為。★ 面板**不拿掉** ——
+ *  有些活動的規則本來就不一樣（兒童營全部都要填、水上活動是「選了獨木舟
+ *  才問」）。拿掉的話那些活動只能繞路，而繞路的做法一定比較差。
+ *
+ *  規則：沒設條件 → 伺服器自動補「未滿18歲才問」；自己設了 → 完全照你的。
+ */
+function applyGuardianRow(row) {
+    const isGuardian = row.querySelector('.f-type')?.value === 'guardian';
+    let note = row.querySelector('.guardian-note');
+    if (isGuardian && !note) {
+        note = document.createElement('p');
+        note.className = 'guardian-note';
+        note.style.cssText = 'margin:10px 0 0;padding:10px 12px;font-size:0.9rem;'
+            + 'color:var(--text-3, #888);line-height:1.8;background:var(--surface-2, #f5f5f5);border-radius:8px;';
+        note.innerHTML = '這一題會收<strong>姓名＋電話</strong>兩格，兩格都填才算填了。<br>'
+            + '<strong>預設只問未滿 18 歲的人</strong>（依「出生日期」欄位自動判斷）——'
+            + '不用自己設，這場活動有一個出生日期欄位就好。<br>'
+            //  ★ 「每個人都問」以前只能靠「把條件清掉」表達，而清掉之後
+            //    伺服器會自動補回「未滿18歲」—— 存檔成功、後台看起來設好了，
+            //    只有 18 歲以上的人看不到那一題。所以要有一個勾得起來的選項。
+            + '<label style="display:flex;align-items:center;gap:7px;cursor:pointer;'
+            + 'margin:8px 0 6px;color:var(--text-2, #555);font-weight:600;">'
+            + '<input type="checkbox" class="f-guardian-everyone" '
+            + 'onchange="syncGuardianWhen(this)" style="width:15px;height:15px;">'
+            + '這一題每個人都要填（不只未成年）</label>'
+            + '勾了就不需要出生日期欄位。'
+            + '要換成別的規則（例如選了某個項目才問），'
+            + '就照下面的跳題條件設，設了就以你設的為準。';
+        const section = row.querySelector('.condition-section');
+        if (section) section.parentNode.insertBefore(note, section);
+        else row.appendChild(note);
+    }
+    if (note) note.style.display = isGuardian ? '' : 'none';
+}
+
+/** 「每個人都問」和「自己設跳題條件」是兩個互斥的答案。
+ *
+ * ★ 兩個都勾得起來的話，畫面上會有兩個互相矛盾的設定，而**只有一個
+ *   會生效**（伺服器以管理員自己設的為準）—— 他勾的另一個靜靜地沒有作用。
+ *   所以勾一個就把另一個關掉，讓畫面上永遠只有一個答案。
+ *
+ * ★ 跳題面板本身**沒有被拿掉**（它照原本的方式由自己的勾選框開合）——
+ *   「選了獨木舟才問」那種活動仍然設得起來。
+ */
+function syncGuardianWhen(checkbox) {
+    if (!checkbox.checked) return;
+    const row = checkbox.closest('.field-row');
+    const cond = row?.querySelector('.f-has-condition');
+    if (cond?.checked) {
+        cond.checked = false;
+        toggleConditionPanel(cond);
+    }
+}
+
 function toggleConditionPanel(checkbox) {
+    //  ★ 反方向：自己設條件時，把「每個人都問」收起來（同上，互斥）。
+    if (checkbox.checked) {
+        const ev = checkbox.closest('.field-row')?.querySelector('.f-guardian-everyone');
+        if (ev) ev.checked = false;
+    }
     const panel = checkbox.closest('.condition-section').querySelector('.condition-panel');
     if (checkbox.checked) {
         panel.style.display = 'block';
@@ -505,24 +962,100 @@ function toggleConditionPanel(checkbox) {
     }
 }
 
+/* ══ 跳題條件的「第幾題」只有一份基準 ══════════════════════
+ *
+ * ## 這裡出過的錯（三個，同一個根因）
+ *
+ * 條件存的是 `trigger_sort_order` ＝「畫面上的第幾題」。而原本編輯器
+ * 用**索引數字**當觸發問題的身分，於是：
+ *
+ *   1. 刪掉／插入一個欄位 → 記住的還是那個數字，指到**別題**上
+ *   2. 編輯器數的是**全部列**（含還沒打名字的空白列），
+ *      而報名表單數的是「有名字的、非 group」—— 兩邊差一號
+ *   3. 伺服器 `sort_order = i` 也數了沒名字的列 → 跳號
+ *
+ * 實際後果（驗證過）：管理員按了「新增欄位」沒填名字就存檔，
+ * 「選了孩童才問監護人」那條會指到**監護人自己**
+ * → 條件永遠不成立 → **未成年不會被問監護人**。
+ * 而後台看起來設定正確，報名表單上那一題只是不出現。
+ *
+ * ## 修法：編輯時用**身分**，只有存檔那一刻才換算成數字
+ *
+ * - `conditionRows()`  ── 唯一的基準（跟報名表單、伺服器一致）
+ * - `rowKey(row)`      ── 每一列一個穩定的 key（活在這次編輯期間）
+ * - 下拉的 option value 存 key，不存索引
+ * - `conditionJsonFromRow` 存檔時才 `conditionRows().indexOf(row)`
+ *
+ * ★ 索引是**序列化的細節**，不是身分。
+ */
+function conditionRows() {
+    // ★ 濾掉沒名字的：那幾列存檔時不會進資料庫，所以它們不佔號碼，
+    //   也不可以被選成觸發問題（存下去就是一個指向空氣的條件）。
+    // ★ 濾掉 group：報名表單的三份 for 迴圈都濾掉它。
+    return Array.from(document.querySelectorAll('.field-row')).filter(r =>
+        (r.querySelector('.f-label')?.value || '').trim()
+        && r.querySelector('.f-type')?.value !== 'group');
+}
+
+let _rowKeySeq = 0;
+function rowKey(row) {
+    if (!row) return '';
+    if (!row.dataset.rowKey) row.dataset.rowKey = 'k' + (++_rowKeySeq);
+    return row.dataset.rowKey;
+}
+
+function rowByKey(key) {
+    if (!key) return null;
+    return Array.from(document.querySelectorAll('.field-row'))
+        .find(r => r.dataset.rowKey === key) || null;
+}
+
+/** 這一列在「畫面上的第幾題」。不在基準裡（沒名字／group）回 -1。 */
+function conditionIndexOf(row) {
+    return row ? conditionRows().indexOf(row) : -1;
+}
+
 function rebuildTriggerDropdown(currentRow) {
     const triggerSelect = currentRow.querySelector('.f-cond-trigger');
     if (!triggerSelect) return;
+    //  ★★ 記住的是**那一列**（key），不是「第幾個」。
+    //    存索引的話，刪掉前面一列之後這個數字會指到別題 ——
+    //    而下拉看起來還是選著某一題，完全看不出換人了。
     const savedTrigger = triggerSelect.value;
     triggerSelect.innerHTML = '<option value="">— 選擇觸發問題 —</option>';
-    const allRows = Array.from(document.querySelectorAll('.field-row'));
-    allRows.forEach((row, index) => {
+    //  ★ 基準跟報名表單一致（conditionRows）—— 用全部列的話，
+    //    編輯器的號碼跟表單的號碼會差一號。
+    conditionRows().forEach((row, index) => {
         if (row === currentRow) return;
         const type = row.querySelector('.f-type').value;
-        if (!['select', 'radio', 'fee'].includes(type)) return; // 只有 select / radio / fee 可觸發
-        const label = row.querySelector('.f-label').value.trim() || `第 ${index + 1} 題`;
+        // ★ fee（分級收費）底下就是單選，當然可以當觸發問題。
+        //   漏掉它的話：身分別一改成收費型別，「選了孩童才問監護人」
+        //   那條跳題就再也設不起來 —— 而畫面上只是下拉裡少了一個選項，
+        //   看不出是系統不給還是自己沒建那一題。
+        //
+        // ★ birthday 比的是**年齡**不是答案文字。
+        //   生日的答案是 '2016-03-05' 這種字串，拿去做字串相等比對的話，
+        //   只會對「剛好在那一天出生」的一個人成立 —— 那比不給設更糟，
+        //   因為後台看起來設定成功了。所以選到它會換成年齡區間。
+        if (!['select', 'radio', 'fee', 'birthday'].includes(type)) return;
+        const label = row.querySelector('.f-label').value.trim();
         const opt = document.createElement('option');
-        opt.value = index;
+        opt.value = rowKey(row);
         opt.textContent = `第${index + 1}題：${label}`;
-        if (String(index) === String(savedTrigger)) opt.selected = true;
+        if (opt.value === savedTrigger) opt.selected = true;
         triggerSelect.appendChild(opt);
     });
     if (triggerSelect.value !== '') updateConditionValues(triggerSelect);
+
+    // ★ 那行 ⚠ 原本是**永遠亮著**的，條件設好了也還在。
+    //
+    //   一個永遠亮著的警告會被學會忽略 —— 等哪天它真的在警告你
+    //   （觸發問題被改成文字型別、選項被清空，下拉整個變空的），
+    //   你不會注意到，因為它跟平常長得一模一樣。
+    //
+    //   所以：有東西可選就收起來，真的沒得選才亮。
+    const hint = currentRow.querySelector('.cond-hint');
+    if (hint) hint.style.display = triggerSelect.options.length > 1 ? 'none' : '';
 }
 
 function rebuildAllConditionDropdowns() {
@@ -531,21 +1064,53 @@ function rebuildAllConditionDropdowns() {
     });
 }
 
+/** 這一列的跳題條件是不是「比年齡」（觸發問題是生日欄位） */
+function condIsAgeMode(row) {
+    const triggerRow = rowByKey(row.querySelector('.f-cond-trigger')?.value);
+    return triggerRow?.querySelector('.f-type')?.value === 'birthday';
+}
+
+/** 答案下拉 ⇄ 年齡區間，兩者只會出現一個。
+ *
+ *  ★ 兩個都留在畫面上的話，管理員會兩個都填，而只有一個會被存下來 ——
+ *    看起來設好了，實際上生效的不是他以為的那個。
+ */
+function applyCondMode(row) {
+    const panel = row.querySelector('.condition-panel');
+    if (!panel) return;
+    const ageMode = condIsAgeMode(row);
+    const verb = panel.querySelector('.cond-verb');
+    const valueSelect = panel.querySelector('.f-cond-value');
+    const ageBox = panel.querySelector('.cond-age');
+    const ageHint = panel.querySelector('.cond-age-hint');
+    if (verb) verb.textContent = ageMode ? '的年齡在' : '的答案是';
+    if (valueSelect) valueSelect.style.display = ageMode ? 'none' : '';
+    if (ageBox) ageBox.style.display = ageMode ? 'inline-flex' : 'none';
+    if (ageHint) ageHint.style.display = ageMode ? '' : 'none';
+}
+
 function updateConditionValues(triggerSelect) {
+    const row = triggerSelect.closest('.field-row');
+    if (row) applyCondMode(row);
     const valueSelect = triggerSelect.closest('.condition-panel').querySelector('.f-cond-value');
     const savedValue = valueSelect.value;
-    const triggerIndex = parseInt(triggerSelect.value);
-    if (isNaN(triggerIndex)) {
+    const triggerRow = rowByKey(triggerSelect.value);
+    if (!triggerRow) {
         valueSelect.innerHTML = '<option value="">— 先選觸發問題 —</option>';
         return;
     }
-    const allRows = Array.from(document.querySelectorAll('.field-row'));
-    const triggerRow = allRows[triggerIndex];
-    if (!triggerRow) return;
+    if (triggerRow.querySelector('.f-type')?.value === 'birthday') {
+        // 生日沒有選項可列，答案下拉在年齡模式下也用不到
+        valueSelect.innerHTML = '<option value="">—</option>';
+        return;
+    }
     const optionsText = triggerRow.querySelector('.f-options')?.value || '';
-    // 分級收費的選項寫成「成人|800」，答案是標籤（不含價格）
-    const options = optionsText.split('\n').map(s => s.trim().replace(/\s*\|\s*\d+(\s*\|\s*\d+)?$/, ''))
-        .filter(s => s && s !== '__other__');
+    // ★ 選項可能帶價格（成人|800），觸發值必須只取標籤 ——
+    //   報名者的答案存的是標籤，這裡放整行的話條件永遠不成立，
+    //   而且畫面完全正常：那個欄位只是再也不出現。
+    const options = optionsText.split('\n')
+        .map(l => optionLabel(l))
+        .filter(l => l && l !== '__other__');
     valueSelect.innerHTML = '<option value="">— 選擇觸發答案 —</option>';
     options.forEach(opt => {
         const el = document.createElement('option');
@@ -559,17 +1124,70 @@ function updateConditionValues(triggerSelect) {
 // ==========================================
 // 新增欄位
 // ==========================================
+// 一鍵建好「分級收費」欄位。
+//
+// 這個功能本身早就有（選項寫成「成人|800」），但它藏在自訂欄位的選項框裡，
+// 而那個框要先把型別選成「單選」才會出現 —— 實際上使用者在「費用」那一格
+// 找不到，就以為系統做不到。
+//
+// 所以不是加一行說明，是直接把欄位建好、選項也先填好範例，改數字就能用。
+function addTieredFeeField() {
+    // ★★ 這一顆就是出錯的那一刻。
+    //
+    //   他剛在上面填了 800（因為那個欄位以前叫「費用」，看起來就是價錢），
+    //   然後按這顆做成人 800 —— 兩個動作各自都合理，合起來一個人收 1600。
+    //
+    //   事後跳提示是補救；在這裡問是**不讓它發生**。而且問的時機剛好：
+    //   他正在決定「這場活動的錢怎麼收」，兩個選項對他都是有意義的句子。
+    //
+    //   ★ 不講總金額。金額怎麼加只有 fee_range／fee-total.js 說了算，
+    //     在這裡算一個數字出來，遲早會跟報名頁不一樣 —— 那比不講更糟。
+    //     只講規則：每個人 ＝ 基本費用 ＋ 他選到的級距。
+    const feeEl = document.getElementById('fee');
+    const base = parseInt(feeEl?.value, 10) || 0;
+    if (base > 0) {
+        const zero = confirm(
+            `你上面已經填了「基本費用 ${base} 元」。\n\n` +
+            `分級收費是「加在基本費用上面」的，不是取代它 ——\n` +
+            `兩邊都留著的話，每個人要繳的 ＝ ${base} 元 ＋ 他選到的級距金額。\n\n` +
+            `【確定】把基本費用改成 0，金額全部由分級收費決定（多數情況選這個）\n` +
+            `【取消】保留 ${base} 元，分級收費再往上加\n` +
+            `　　　　（例如「報名費 ${base} ＋ 門票依身分別」）\n\n` +
+            `不論選哪一個，分級收費的欄位都會幫你建好。`);
+        if (zero) feeEl.value = 0;
+    }
+    addField();
+    const rows = document.querySelectorAll('.field-row');
+    const row = rows[rows.length - 1];
+    if (!row) return;
+    row.querySelector('.f-label').value = '身分別';   // 只是預填，隨時可改
+    const type = row.querySelector('.f-type');
+    type.value = 'fee';
+    toggleOptions(type);                              // 打開收費編輯器
+    row.querySelector('.f-required').checked = true;
+    // 先給常見的四級距，改數字就能用。不想要的按 ✕ 刪掉。
+    const box = row.querySelector('.opt-rows');
+    box.innerHTML = '';
+    [['成人', 800], ['敬老', 600], ['持身障證明', 600], ['12歲以下孩童', 400]]
+        .forEach(([label, price]) => addOptionRow(row, label, price));
+    rebuildAllConditionDropdowns();
+    // ★ 這顆按鈕就在「費用」那一格旁邊 —— 剛填完 800 的人按下去馬上會多收，
+    //   所以按完立刻判一次，不要等他去動別的地方。
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.querySelector('.opt-label')?.focus();
+}
+
 function addField() {
     const div = document.createElement('div');
     div.className = 'field-row';
-    div.style.cssText = 'background:#f9f9f9; border-radius:10px; padding:14px 16px; margin-bottom:10px; border:1px solid #eee;';
+    div.style.cssText = 'background:var(--surface-2, #f5f5f5); border-radius:12px; padding:14px 16px; margin-bottom:10px; border:1px solid var(--border, #ddd);';
     div.innerHTML = `
         <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-            <input type="text" placeholder="欄位名稱，例：電話"
+            <input aria-label="欄位名稱，例：電話" type="text" placeholder="欄位名稱，例：電話"
                 class="f-label"
-                style="flex:1; min-width:140px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;">
-            <select class="f-type" onchange="toggleOptions(this)"
-                style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.95rem;">
+                style="flex:1; min-width:140px; padding:8px 10px; border:1px solid var(--border, #ddd); border-radius:8px; font-size: 1rem;">
+            <select aria-label="欄位類型" class="f-type" onchange="toggleOptions(this)"
+                style="padding:8px 10px; border:1px solid var(--border, #ddd); border-radius:8px; font-size: 1rem;">
                 <option value="text">文字</option>
                 <option value="textarea">長文字</option>
                 <option value="radio">單選</option>
@@ -577,52 +1195,108 @@ function addField() {
                 <option value="select">下拉選單</option>
                 <option value="number">數字</option>
                 <option value="date">日期</option>
-                <option value="fee">分級收費</option>
-                <option value="birthday">出生日期</option>
-                <option value="id_number">身分證字號</option>
-                <option value="guardian">監護人</option>
+                <option value="fee">💰 分級收費（每項各自訂價）</option>
+                <option value="birthday">出生日期（自動顯示民國年）</option>
+                <option value="guardian">監護人（姓名＋電話，只問未滿18歲）</option>
+                <option value="id_number">身分證字號（自動檢查對錯）</option>
             </select>
             <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
                 <input type="checkbox" class="f-required" style="width:16px; height:16px;"> 必填
             </label>
             <button onclick="this.closest('.field-row').remove(); rebuildAllConditionDropdowns()"
-                style="padding:6px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                style="padding:6px 14px; background:var(--danger-bg, #ffebee); color:var(--danger, #c62828); border:none; border-radius:8px; cursor:pointer; font-size: 0.9rem;">
                 刪除
             </button>
         </div>
+        {# ★ 一列一個選項，不是叫人在 textarea 裡打字。
+
+           使用者原話：「我真的很討厭那個 TEXTBOX」「用 textarea 設定問題跟
+           分隔問題的真的很麻煩」。他是對的 —— 換行當分隔、| 當價格分隔，
+           都是為了「一個欄位存一串字」而發明的規則，是實作方便，
+           不該轉嫁成使用者要記的東西。
+
+           ★ 但**存進資料庫的格式沒變**（每行一個選項，收費的是「名稱|金額」）。
+             底下那個隱藏的 textarea 就是儲存來源，每次改動都同步過去 ——
+             所以送出、跳題條件下拉那些讀 .f-options 的地方一行都不用改。
+             這是刻意的：改動面越小，靜默壞掉的機會越少。 #}
         <div class="options-area" style="margin-top:10px; display:none;">
-            <label style="font-size:0.85rem; color:#888; display:block; margin-bottom:4px;">
-                選項內容（每行一個；要收費的寫成「成人|800」）
+            <label class="opt-title" style="font-size: 0.9rem; color:var(--text-3, #888); display:block; margin-bottom:6px;">
+                選項內容
             </label>
-            <textarea class="f-options" rows="3"
-                style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; resize:vertical;"></textarea>
-            <label style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size:0.85rem; cursor:pointer; color:#555;">
-                <input type="checkbox" class="f-has-other" onchange="toggleHasOther(this)" style="width:15px; height:15px;">
+                {# ── 依生日自動判定身分別 ──────────────────────────
+               ★ 這是明確的開關，不是「有設年齡範圍就算開」。
+                 使用者定的：不是每場活動都要按生日分級收費。推論式的話，
+                 複製一場舊活動會靜靜地把自動判定一起帶過來。
+               ★ 年齡欄位藏在開關底下，所以不會有「範圍設好了但沒生效」。 #}
+            <div class="auto-tier-wrap" style="display:none; margin-top:10px; padding-top:10px;
+                 border-top:1px dashed var(--border, #ddd);">
+                <label style="display:flex; align-items:center; gap:7px; font-size:0.9rem;
+                              cursor:pointer; color:var(--text-2, #555); font-weight:600;">
+                    <input type="checkbox" class="f-auto-tier" onchange="toggleAutoTier(this)"
+                        style="width:15px; height:15px;">
+                    依「出生日期」自動判定身分別
+                </label>
+                <p class="at-hint" style="margin:5px 0 0 22px; font-size:0.9rem; color:var(--text-3, #888);">
+                    報名者不用自己選 —— 填了生日就自動算出身分別與金額。
+                </p>
+                <p class="at-nobirthday" style="display:none; margin:6px 0 0 22px; font-size:0.9rem;
+                   color:var(--warn, #e65100);">⚠️ 這份表單還沒有「出生日期」欄位，請先加一個，否則算不出年齡。</p>
+            </div>
+            <textarea aria-label="選項（一行一個）" class="f-auto-tier-json" style="display:none;"></textarea>
+            <div class="opt-rows"></div>
+            <button type="button" onclick="addOptionRow(this.closest('.field-row'))"
+                style="margin-top:6px; padding:6px 14px; background:var(--info-bg, #e3f2fd); color:var(--info, #1565c0);
+                       border:1px solid var(--info-border, #90caf9); border-radius:8px; cursor:pointer;
+                       font-size:0.9rem; font-weight:600; font-family:inherit;">
+                ＋ 新增選項
+            </button>
+            <div class="opt-fee-note" style="display:none; font-size:0.9rem; color:var(--text-3, #888); margin-top:6px;">
+                名稱和金額都由你決定。免費的項目金額填 0。
+            </div>
+            <label class="opt-other-wrap" style="display:flex; align-items:center; gap:6px; margin-top:8px; font-size: 0.9rem; cursor:pointer; color:var(--text-3, #888);">
+                <input type="checkbox" class="f-has-other" 
+                    onchange="syncOptionRows(this.closest('.field-row'))"
+                    style="width:15px; height:15px;">
                 加入「其他（請填寫）」開放填寫選項
             </label>
+            {# 隱藏，但它才是真正被送出的東西 #}
+            <textarea aria-label="選項（一行一個）" class="f-options" style="display:none;"></textarea>
         </div>
-        <div class="condition-section" style="margin-top:10px; padding-top:10px; border-top:1px dashed #e0e0e0;">
-            <label style="display:flex; align-items:center; gap:6px; font-size:0.85rem; color:#666; cursor:pointer;">
+        <div class="condition-section" style="margin-top:10px; padding-top:10px; border-top:1px dashed var(--border, #ddd);">
+            <label style="display:flex; align-items:center; gap:6px; font-size: 0.9rem; color:var(--text-3, #888); cursor:pointer;">
                 <input type="checkbox" class="f-has-condition" onchange="toggleConditionPanel(this)" style="width:15px; height:15px;">
                 設定跳題條件（只在特定答案時才顯示此問題）
             </label>
-            <div class="condition-panel" style="display:none; margin-top:10px; background:white; border:1px solid #d0d0d0; border-radius:8px; padding:14px;">
-                <p style="font-size:0.85rem; color:#555; margin-bottom:10px;">此問題只在以下條件成立時才顯示：</p>
-                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size:0.9rem;">
-                    <span style="color:#555;">當</span>
-                    <select class="f-cond-trigger" onchange="updateConditionValues(this)"
-                        style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; min-width:160px; font-size:0.9rem;">
+            <div class="condition-panel" style="display:none; margin-top:10px; background:white; border:1px solid var(--border, #ddd); border-radius:8px; padding:14px;">
+                <p style="font-size: 0.9rem; color:var(--text-3, #888); margin-bottom:10px;">此問題只在以下條件成立時才顯示：</p>
+                <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; font-size: 0.9rem;">
+                    <span style="color:var(--text-3, #888);">當</span>
+                    <select aria-label="觸發問題" class="f-cond-trigger" onchange="updateConditionValues(this)"
+                        style="padding:7px 10px; border:1px solid var(--border, #ddd); border-radius:8px; min-width:160px; font-size: 0.9rem;">
                         <option value="">— 選擇觸發問題 —</option>
                     </select>
-                    <span style="color:#555;">的答案是</span>
-                    <select class="f-cond-value"
-                        style="padding:7px 10px; border:1px solid #ddd; border-radius:6px; min-width:120px; font-size:0.9rem;">
+                    <span class="cond-verb" style="color:var(--text-3, #888);">的答案是</span>
+                    <select aria-label="觸發答案" class="f-cond-value"
+                        style="padding:7px 10px; border:1px solid var(--border, #ddd); border-radius:8px; min-width:120px; font-size: 0.9rem;">
                         <option value="">— 先選觸發問題 —</option>
                     </select>
-                    <span style="color:#555;">時才顯示</span>
+                    <span class="cond-age" style="display:none; align-items:center; gap:6px;">
+                        <input aria-label="不限" type="number" class="f-cond-age-min" min="0" max="120" placeholder="不限"
+                            style="width:78px; padding:7px 8px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem; text-align:center;">
+                        <span style="color:var(--text-3, #888);">～</span>
+                        <input aria-label="不限" type="number" class="f-cond-age-max" min="0" max="120" placeholder="不限"
+                            style="width:78px; padding:7px 8px; border:1px solid var(--border, #ddd); border-radius:8px; font-size:0.9rem; text-align:center;">
+                        <span style="color:var(--text-3, #888);">歲</span>
+                    </span>
+                    <span style="color:var(--text-3, #888);">時才顯示</span>
                 </div>
-                <p style="font-size:0.8rem; color:#aaa; margin-top:8px;">
-                    ⚠️ 觸發問題需為「單選」或「下拉選單」類型，且已填好選項。
+                <p class="cond-hint" style="font-size: 0.9rem; color:var(--text-3, #888); margin-top:8px;">
+                    ⚠️ 觸發問題需為「單選」、「下拉選單」、「分級收費」（且已填好選項）或「出生日期」。
+                </p>
+                <p class="cond-age-hint" style="display:none; font-size: 0.9rem; color:var(--text-3, #888); margin-top:8px;">
+                    年齡以<strong>活動當日</strong>計算（跨日活動用第一天），跟身分別同一套規則。<br>
+                    只填一邊也可以：只填右邊＝「幾歲以下」，只填左邊＝「幾歲以上」。<br>
+                    兩邊都空白的話這題等於永遠不顯示。
                 </p>
             </div>
         </div>
@@ -712,47 +1386,49 @@ window.addEventListener('DOMContentLoaded', initMealConfig);
 function submitForm(btn) {
     const title = document.getElementById('title').value.trim();
     if (!title) { showToast('請填寫活動名稱', 'warning'); document.getElementById('title').focus(); return; }
+    // 條件設壞的那一題會「永遠不顯示」，存下去之後完全沒有徵兆，所以在這裡就擋
+    const badConds = [];
+    document.querySelectorAll('.field-row').forEach((row, i) => {
+        const problem = conditionProblem(row);
+        if (problem) {
+            const label = row.querySelector('.f-label').value.trim() || `第 ${i + 1} 題`;
+            badConds.push(`「${label}」：${problem}`);
+        }
+    });
+    if (badConds.length) {
+        alert('跳題條件有問題，請先修好這幾題：\n\n' + badConds.join('\n'));
+        return;
+    }
+
     const origLabel = btn.textContent;
     btn.disabled = true; btn.textContent = '送出中…';
 
     const fields = [];
     document.querySelectorAll('.field-row').forEach((row, index) => {
-        let condition_json = null;
-        const hasCondition = row.querySelector('.f-has-condition')?.checked;
-        if (hasCondition) {
-            const triggerIndex = row.querySelector('.f-cond-trigger')?.value;
-            const triggerValue = row.querySelector('.f-cond-value')?.value;
-            if (triggerIndex !== '' && triggerValue !== '') {
-                condition_json = JSON.stringify({
-                    trigger_sort_order: parseInt(triggerIndex),
-                    trigger_value: triggerValue
-                });
-            }
-        }
-
-        if (!condition_json && row.dataset.savedCondition) {
-            try {
-                const saved = JSON.parse(row.dataset.savedCondition);
-                if (saved.op || saved.auto) condition_json = row.dataset.savedCondition;
-            } catch {}
-        }
+        // ★ 跟預覽共用同一支（conditionJsonFromRow）—— 各寫一份的話，
+        //   預覽會顯示一個跟實際存進去不一樣的行為。
+        const condition_json = conditionJsonFromRow(row) || null;
 
         // 選項：把不含 __other__ 的純文字選項 + 若有勾選則加回 __other__
-        const rawOptions = row.querySelector('.f-options')?.value.trim() || '';
-        const hasOther = row.querySelector('.f-has-other')?.checked;
-        const cleanOptions = rawOptions.split('\n').map(l => l.trim())
-            .filter(l => l && l !== '__other__').join('\n');
-        const finalOptions = hasOther ? cleanOptions + '\n__other__' : cleanOptions;
+        const fieldType = row.querySelector('.f-type').value;
+        // 一列一列的內容隨時同步到隱藏的 .f-options，這裡再同步一次保險 ——
+        // 送出前補一刀，免得某個改動路徑漏了呼叫 syncOptionRows
+        if (row.querySelector('.opt-rows')) syncOptionRows(row);
+        const finalOptions = row.querySelector('.f-options')?.value.trim() || '';
 
         fields.push({
             id: row.dataset.fieldId || null,   // 保留既有欄位 ID，避免重建後答案消失
             label: row.querySelector('.f-label').value.trim(),
-            field_type: row.querySelector('.f-type').value,
+            field_type: fieldType,
             options: finalOptions,
             is_required: row.querySelector('.f-required').checked,
             condition_json,
-            // 這一版還沒有設定面板，既有的「依生日自動判定」設定原樣帶回去，不然存檔會把它洗掉
-            auto_tier: JSON.parse(row.dataset.autoTier || 'null'),
+            // 依生日自動判定身分別（見 routes/auto_tier.py）
+            auto_tier: (() => {
+                const raw = row.querySelector('.f-auto-tier-json')?.value.trim();
+                if (!raw) return null;
+                try { return JSON.parse(raw); } catch (e) { return null; }
+            })(),
         });
     });
 
@@ -911,70 +1587,409 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 // 預覽表單 Modal
 // ==========================================
+function ageBound(raw) {
+    const s = String(raw === null || raw === undefined ? '' : raw).trim();
+    if (s === '') return null;
+    const n = parseInt(s, 10);
+    return isNaN(n) ? null : n;
+}
+
+/** 這一列的跳題條件 → 前台看得懂的 condition_json（沒設就回空字串）
+ *
+ * ★ 只有這一份。送出用的和預覽用的原本各寫各的 —— 那正是這個專案
+ *   反覆被咬的形狀：預覽會 certify 一個跟實際存進去不一樣的行為，
+ *   而兩邊的畫面都完全正常。
+ */
+function conditionJsonFromRow(row) {
+    // ★ 監護人的條件是伺服器存檔時自動掛的（未滿18歲），管理員不設。
+    //   預覽這裡要補上同一條 —— 不補的話預覽會顯示「每個人都要填監護人」，
+    //   而實際存下去只問未成年。那正是預覽 certify 一個不存在行為的形狀。
+    // ★ 監護人沒設條件時，伺服器會自動補「未滿18歲才問」。預覽要補上
+    //   同一條 —— 不補的話預覽會顯示「每個人都要填監護人」，而實際存下去
+    //   只問未成年。那正是預覽 certify 一個不存在行為的形狀。
+    //   自己設了條件就走下面的一般流程（伺服器也會照他設的）。
+    //  ★ 「每個人都問」：存一個明確的印記，不是存空的。
+    //    存空的話伺服器會把「未滿18歲」補回去 —— 存檔成功、後台看起來
+    //    設好了，而 18 歲以上的人看不到那一題。
+    //    （印記的形狀只有一份：routes/guardian.everyone_condition）
+    if (row.querySelector('.f-type')?.value === 'guardian'
+        && row.querySelector('.f-guardian-everyone')?.checked
+        && !row.querySelector('.f-has-condition')?.checked) {
+        return JSON.stringify({ auto: 'everyone' });
+    }
+    if (row.querySelector('.f-type')?.value === 'guardian'
+        && !row.querySelector('.f-has-condition')?.checked) {
+        //  ★ 基準走 conditionRows()（唯一那一份）。原本這裡自己 filter
+        //    一次而且只濾「有名字」—— 漏掉 group，跟報名表單差一號。
+        const idx = conditionRows().findIndex(
+            r => r.querySelector('.f-type')?.value === 'birthday');
+        if (idx === -1) return '';        // 沒有生日欄位 —— 存檔時會被擋下來
+        return JSON.stringify({ trigger_sort_order: idx, op: 'age_between',
+                                min: null, max: 17, auto: 'minor' });
+    }
+    if (!row.querySelector('.f-has-condition')?.checked) return '';
+    //  ★★ 換算成數字**只發生在這一刻**。編輯期間記的是那一列本身，
+    //    所以中途刪欄位、插欄位、改名字都不會讓條件指到別題。
+    const idx = conditionIndexOf(rowByKey(row.querySelector('.f-cond-trigger')?.value));
+    //  ★ 觸發問題被刪掉、或名字被清空（＝存檔時不會進資料庫）→ 回 -1。
+    //    這時**不要存一個指向空氣的條件**：存空字串等於「沒有條件」，
+    //    那一題會對每個人顯示 —— 看得見，有人會反應。
+    //    存一個壞掉的索引才是最糟的：那一題安靜地永遠不出現。
+    if (idx < 0) return '';
+
+    if (condIsAgeMode(row)) {
+        const min = ageBound(row.querySelector('.f-cond-age-min')?.value);
+        const max = ageBound(row.querySelector('.f-cond-age-max')?.value);
+        if (min === null && max === null) return '';   // 兩邊都空 ＝ 沒設完
+        return JSON.stringify({
+            trigger_sort_order: idx, op: 'age_between', min: min, max: max
+        });
+    }
+
+    const value = row.querySelector('.f-cond-value')?.value || '';
+    if (!value) return '';
+    return JSON.stringify({ trigger_sort_order: idx, trigger_value: value });
+}
+
+/** 這條件哪裡不對？沒問題回空字串。
+ *
+ * ★ 訊息要講**後果**，而且兩種後果是相反的：
+ *
+ *     沒設完   → condition_json 存成 null → 等於沒有條件 → 每個人都看到
+ *     範圍寫反 → 條件存下去了但沒有人符合 → 那題永遠不出現
+ *
+ *   兩種都寫成「永遠不顯示」的話，其中一種是**反的** —— 管理員會以為
+ *   那題被藏起來了，實際上它對所有人顯示。而預覽當下就自相矛盾：
+ *   畫面上那題明明看得到，底下卻寫著「等於永遠不顯示」。
+ */
+function conditionProblem(row) {
+    // ★ 監護人的預設條件是靠「出生年月日」判斷未成年 —— 而那一題沒設必填
+    //   的話，整條規則可以被繞過：不填生日 → 算不出年齡 → 監護人那題不
+    //   出現 → 也就不用填。於是「未成年一定要填監護人」變成
+    //   「不想填的人不要填生日就好」，而後台看起來設定得好好的，
+    //   名冊上那一格就是空的，沒有任何徵兆。
+    //
+    //   （自己設了跳題條件的走下面那段一般流程，規則一樣。）
+    //  ★ 勾了「每個人都要填」就不靠年齡判斷了 —— 這一整段的前提
+    //    （要有生日欄位、生日還要必填）在那種活動上是**假的**。
+    //    照樣擋的話，兒童營會為了過這一關加一題他不需要的出生日期。
+    if (row.querySelector('.f-type')?.value === 'guardian'
+        && row.querySelector('.f-guardian-everyone')?.checked
+        && !row.querySelector('.f-has-condition')?.checked) {
+        return '';
+    }
+    if (row.querySelector('.f-type')?.value === 'guardian'
+        && row.querySelector('.f-required')?.checked
+        && !row.querySelector('.f-has-condition')?.checked) {
+        const rows = Array.from(document.querySelectorAll('.field-row'))
+            .filter(r => (r.querySelector('.f-label')?.value || '').trim());
+        const bd = rows.find(r => r.querySelector('.f-type')?.value === 'birthday');
+        if (!bd) {
+            return '這場活動還沒有「出生日期」欄位 —— 算不出年齡，'
+                 + '這一題永遠不會出現。請先加一個出生日期欄位';
+        }
+        if (!bd.querySelector('.f-required')?.checked) {
+            const label = bd.querySelector('.f-label').value.trim() || '出生日期';
+            return `這題是必填，但「${label}」不是必填 —— 不填「${label}」`
+                 + '就算不出年齡，這題不會出現、也就不用填了。'
+                 + `請把「${label}」也勾必填`;
+        }
+    }
+    if (!row.querySelector('.f-has-condition')?.checked) return '';
+    if (!conditionJsonFromRow(row)) {
+        return '跳題條件還沒設定完 —— 現在等於沒有條件，每個人都會看到這一題';
+    }
+    if (condIsAgeMode(row)) {
+        const min = ageBound(row.querySelector('.f-cond-age-min')?.value);
+        const max = ageBound(row.querySelector('.f-cond-age-max')?.value);
+        if (min !== null && max !== null && min > max) {
+            return `年齡範圍寫反了（${min} ～ ${max} 歲沒有人符合），這一題永遠不會出現`;
+        }
+        // ★ 這一題是必填、但它依賴的生日欄位不是必填 → 整條規則可以被繞過。
+        //
+        //   不填生日 → 算不出年齡 → 這題不出現 → 也就不必填。於是
+        //   「未成年一定要填監護人」變成「不想填的人不要填生日就好」，
+        //   而後台看起來設定得好好的，名冊上那一格就是空的。
+        if (row.querySelector('.f-required')?.checked) {
+            //  ★ 一樣走 key —— 這裡留著索引的話，刪一個欄位之後
+            //    這條檢查會去看**別題**是不是必填，然後放行一個
+            //    真的有問題的設定（或反過來，擋一個沒問題的）。
+            const triggerRow = rowByKey(row.querySelector('.f-cond-trigger')?.value);
+            if (triggerRow && !triggerRow.querySelector('.f-required')?.checked) {
+                const label = triggerRow.querySelector('.f-label').value.trim() || '出生日期';
+                return `這題是必填，但它依賴的「${label}」不是必填 ——`
+                     + ` 不填「${label}」就算不出年齡，這題不會出現、也就不用填了。`
+                     + ` 請把「${label}」也設成必填`;
+            }
+        }
+    }
+    return '';
+}
+
+function previewConditionJson(row) { return conditionJsonFromRow(row); }
+function previewBrokenCondition(row) { return !!conditionProblem(row); }
+
+/** 這一列有沒有開「依生日自動判定」→ 回設定物件，沒開回 null。
+ *  ★ 讀的是 .f-auto-tier-json（真正被送出的那一份），不是勾選框 ——
+ *    勾了但選項還沒填完的話，那份 JSON 才知道實際會存進去什麼。 */
+function rowAutoTier(row) {
+    if (row.querySelector('.f-type')?.value !== 'fee') return null;
+    const raw = row.querySelector('.f-auto-tier-json')?.value.trim();
+    if (!raw) return null;
+    try {
+        const at = JSON.parse(raw);
+        return (at && at.enabled) ? at : null;
+    } catch (e) { return null; }
+}
+
+/** 預覽的身分別試算要送什麼 —— 表單上的**草稿設定**。
+ *
+ *  ★ 共用 /event/<id>/compute-tier 的話，算的是資料庫裡的舊設定：
+ *    新建的活動沒有 id（整個算不出來），改過的設定還沒存
+ *    （算出來的是改之前的）。兩種都是「畫面正常但說的是假的」。
+ *
+ *  ★ 判定邏輯不在這裡 —— 伺服器用同一支 auto_tier.resolve 算。
+ */
+window.previewTierPayload = function (birthday, specials) {
+    const rows = Array.from(document.querySelectorAll('.field-row'));
+    const fields = [];
+    rows.forEach((row, i) => {
+        const at = rowAutoTier(row);
+        if (!at) return;
+        fields.push({
+            id: 'pv' + i,
+            options: row.querySelector('.f-options')?.value || '',
+            auto_tier: at,
+            special: !!(specials || {})['pv' + i],
+        });
+    });
+    if (!fields.length) return null;
+    return { basis: window.PREVIEW_BASIS_DATE || '', birthday: birthday, fields: fields };
+};
+
+const PV_ON = 'onchange="previewChanged()"';
+
 function openPreview() {
     const container = document.getElementById('preview-fields');
     container.innerHTML = '';
+    // 海報：跟報名頁一樣放在最上面（有上傳才顯示）
+    const posterBox = document.getElementById('preview-poster');
+    const posterUrl = document.getElementById('poster_url')?.value || '';
+    posterBox.innerHTML = posterUrl
+        ? `<div style="margin-bottom:16px;border-radius:12px;overflow:hidden;border:1px solid var(--border, #ddd);">
+               <img alt="活動海報" src="${escHtml(posterUrl)}"
+                    style="width:100%;display:block;max-height:420px;object-fit:contain;background:var(--surface-2, #f5f5f5);"></div>`
+        : '';
 
     const rows = Array.from(document.querySelectorAll('.field-row'));
+    // 選項的真正儲存處是隱藏的 .f-options，由 syncOptionRows 寫入。
+    // 送出前會同步一次，這裡也同步一次 —— 預覽讀到舊值的話，
+    // 畫面看起來完全正常，只是「跟實際會存的東西不一樣」。
+    rows.forEach(row => { if (row.querySelector('.opt-rows')) syncOptionRows(row); });
+
     if (!rows.length) {
-        container.innerHTML = '<p style="color:#aaa; text-align:center; padding:20px;">尚未新增任何欄位</p>';
+        container.innerHTML = '<p style="color:var(--text-3, #888); text-align:center; padding:20px;">尚未新增任何欄位</p>';
     } else {
         rows.forEach((row, i) => {
-            const label = row.querySelector('.f-label').value.trim() || `欄位 ${i+1}`;
+            const label = row.querySelector('.f-label').value.trim() || `欄位 ${i + 1}`;
             const type = row.querySelector('.f-type').value;
             const required = row.querySelector('.f-required').checked;
             const rawOpts = row.querySelector('.f-options')?.value || '';
             const hasOther = row.querySelector('.f-has-other')?.checked;
-            const opts = rawOpts.split('\n').map(o => o.trim()).filter(o => o && o !== '__other__');
+            const rawLines = rawOpts.split('\n').map(o => o.trim())
+                .filter(o => o && o !== '__other__');
+            const fid = 'pv' + i;
 
             const wrap = document.createElement('div');
+            wrap.className = 'field-wrapper';
             wrap.style.cssText = 'margin-bottom:20px;';
+            // ★ 這四個屬性就是前台那套邏輯的輸入。少一個，跳題或收值
+            //   就會靜靜地不動作 —— 而畫面完全正常。
+            wrap.dataset.sortOrder = i;
+            wrap.dataset.fieldType = type;
+            wrap.dataset.fieldId = fid;
+            wrap.dataset.condition = previewConditionJson(row);
+            if (required) wrap.dataset.required = 'true';
 
-            let html = `<label style="display:block; font-weight:bold; margin-bottom:8px; color:#333;">
-                ${escHtml(label)}${required ? ' <span style="color:#e53935;">*</span>' : ''}
+            let html = `<label class="field-label" style="display:block; font-weight:bold; margin-bottom:8px; color:var(--text-2, #555);">
+                ${escHtml(label)}${required ? ' <span class="req-tag">必填</span>' : ''}
             </label>`;
 
-            if (type === 'radio') {
-                html += '<div style="display:flex;flex-direction:column;gap:6px;">';
-                opts.forEach(opt => {
-                    html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;cursor:pointer;">
-                        <input type="radio" disabled style="width:17px;height:17px;"> <span>${escHtml(opt)}</span>
-                    </label>`;
-                });
-                if (hasOther) html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;cursor:pointer;">
-                    <input type="radio" disabled style="width:17px;height:17px;"> <span>其他（請填寫）</span>
-                    <input type="text" disabled placeholder="請說明..." style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;min-width:120px;flex:1;">
+            const condProblem = conditionProblem(row);
+            if (condProblem) {
+                html += `<p style="font-size:0.9rem;color:var(--warn, #e65100);margin-bottom:8px;">
+                    ⚠️ ${escHtml(condProblem)}。</p>`;
+            }
+
+            const optRow = (inputHtml, text, price, cap) => `
+                <label style="display:flex;align-items:center;gap:10px;padding:10px 14px;
+                              border:1px solid var(--border, #ddd);border-radius:8px;background:var(--surface-2, #f5f5f5);cursor:pointer;">
+                    ${inputHtml}
+                    <span style="flex:1;">${escHtml(text)}</span>
+                    ${price === null || price === undefined ? ''
+                        : `<span style="font-weight:800;color:var(--green-ink, #1b5e20);flex-shrink:0;">$${price}</span>`}
+                    ${cap === null || cap === undefined ? ''
+                        : `<span style="font-size:0.85rem;color:var(--text-3, #888);flex-shrink:0;">限 ${cap} 位・剩 ${cap}／${cap} 位</span>`}
                 </label>`;
+
+            // ★ 開了「依生日自動判定」的收費欄位：報名者**不能自己選**，
+            //   畫面是一格自動算出來的身分別。少了這一支的話，預覽會把
+            //   成人／孩童／敬老全部列出來讓你選 —— 而實際報名頁根本
+            //   沒有那些選項。預覽 certify 一個不存在的行為，
+            //   比沒有預覽更糟（CLAUDE.md 記過的同一個形狀）。
+            //   DOM 要跟 templates/_auto_tier_field.html 一致。
+            const atCfg = rowAutoTier(row);
+            if (atCfg) {
+                const sp = atCfg.special_label || '';
+                html += `<div class="auto-tier" data-at-field="${fid}"
+                              data-field-label="${escHtml(label)}"
+                              data-special-label="${escHtml(sp)}">
+                    <div style="display:flex;align-items:center;justify-content:space-between;
+                                gap:10px;padding:13px 15px;background:var(--green-bg, #e8f5e9);
+                                border:1px solid var(--green-border, #c8e6c9);border-radius:8px;flex-wrap:wrap;">
+                        <span style="font-size:0.9rem;color:var(--text-3, #888);font-weight:600;">你的${escHtml(label)}</span>
+                        <span style="display:flex;align-items:baseline;gap:10px;">
+                            <span class="at-value" style="font-size:1.1rem;font-weight:800;">—</span>
+                            <span class="at-price" style="font-size:1.1rem;font-weight:800;color:var(--green-ink, #1b5e20);"></span>
+                        </span>
+                    </div>
+                    <p class="at-note" style="margin:6px 0 0;font-size:0.9rem;color:var(--warn, #e65100);">
+                        請先填寫上面的出生日期，系統會自動判定。</p>
+                    <p class="at-cheaper" style="display:none;margin:6px 0 0;font-size:0.9rem;
+                       color:var(--green-ink, #1b5e20);line-height:1.7;"></p>
+                    ${sp ? `<label style="display:flex;align-items:flex-start;gap:9px;margin-top:10px;
+                                 padding:11px 14px;border:1px solid var(--border, #ddd);border-radius:8px;
+                                 background:var(--surface, #fff);cursor:pointer;">
+                        <input type="checkbox" class="at-special"
+                            onchange="refreshAutoTiers(); previewChanged()"
+                            style="width:17px;height:17px;flex-shrink:0;margin-top:1px;">
+                        <span style="font-size:0.9rem;line-height:1.7;">${escHtml(sp)}
+                            <span style="display:block;font-size:0.9rem;color:var(--text-3, #888);">
+                                這一項系統無法從生日判斷，符合的話請自己勾選。${
+                                atCfg.special_note ? ' <strong>' + escHtml(atCfg.special_note) + '</strong>' : ''}</span>
+                        </span></label>` : ''}
+                    <p class="at-rules" style="display:none;margin:7px 0 0;font-size:0.9rem;
+                       color:var(--text-3, #888);line-height:1.7;"></p>
+                    <input type="hidden" class="at-hidden" data-field-id="${fid}"
+                        ${required ? 'data-required="true"' : ''}>
+                </div>`;
+            } else if (type === 'fee' || type === 'radio') {
+                // fee 就是帶價格的單選，畫法跟前台完全一樣（含 data-price）。
+                // 「分級收費」型別出現之前，價格是寫在單選選項裡的，
+                // 舊活動還帶著那種資料，所以 radio 也要帶價格。
+                html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+                rawLines.forEach(line => {
+                    const price = optionPrice(line);
+                    const p = price === null ? '' : ` data-price="${price}"`;
+                    html += optRow(
+                        `<input type="radio" name="${fid}" value="${escHtml(optionLabel(line))}"${p}
+                                ${PV_ON} style="width:17px;height:17px;flex-shrink:0;">`,
+                        optionLabel(line), price, optionCap(line));
+                });
+                // ★ 條件要跟真表單一樣。真表單的 radio/fee 分支只看
+                //   「選項裡有沒有 __other__」，不看型別 —— 舊活動的收費欄位
+                //   確實可能帶著它（那是設定問題：自由填的答案對不到價格）。
+                //   預覽自己多擋一層的話，那個問題在預覽裡看不到，
+                //   而報名者選得下去、金額算不出來。
+                if (hasOther) {
+                    html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border, #ddd);border-radius:8px;background:var(--surface-2, #f5f5f5);cursor:pointer;flex-wrap:wrap;">
+                        <input type="radio" name="${fid}" value="__other__" ${PV_ON} style="width:17px;height:17px;">
+                        <span>其他（請填寫）</span>
+                        <input type="text" class="other-text" oninput="previewChanged()" placeholder="請說明..."
+                            style="display:none;padding:6px 10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:0.9rem;min-width:120px;flex:1;">
+                    </label>`;
+                }
                 html += '</div>';
+                if (type === 'fee') {
+                    html += `<p style="font-size:0.9rem;color:var(--text-3, #888);margin-top:6px;">選了哪一項，下面的應繳金額就跟著算。</p>`;
+                }
             } else if (type === 'checkbox') {
                 html += '<div style="display:flex;flex-direction:column;gap:6px;">';
-                opts.forEach(opt => {
-                    html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;cursor:pointer;">
-                        <input type="checkbox" disabled style="width:17px;height:17px;"> <span>${escHtml(opt)}</span>
-                    </label>`;
+                rawLines.forEach(line => {
+                    const price = optionPrice(line);
+                    const p = price === null ? '' : ` data-price="${price}"`;
+                    html += optRow(
+                        `<input type="checkbox" value="${escHtml(optionLabel(line))}"${p}
+                                ${PV_ON} style="width:17px;height:17px;flex-shrink:0;">`,
+                        optionLabel(line), price);
                 });
-                if (hasOther) html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid #e0e0e0;border-radius:8px;background:#fafafa;cursor:pointer;">
-                    <input type="checkbox" disabled style="width:17px;height:17px;"> <span>其他（請填寫）</span>
-                    <input type="text" disabled placeholder="請說明..." style="padding:5px 8px;border:1px solid #ddd;border-radius:6px;font-size:0.9rem;min-width:120px;flex:1;">
-                </label>`;
+                if (hasOther) {
+                    html += `<label style="display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid var(--border, #ddd);border-radius:8px;background:var(--surface-2, #f5f5f5);cursor:pointer;flex-wrap:wrap;">
+                        <input type="checkbox" value="__other__" ${PV_ON} style="width:17px;height:17px;">
+                        <span>其他（請填寫）</span>
+                        <input type="text" class="other-text" oninput="previewChanged()" placeholder="請說明..."
+                            style="display:none;padding:6px 10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:0.9rem;min-width:120px;flex:1;">
+                    </label>`;
+                }
                 html += '</div>';
             } else if (type === 'select') {
-                html += `<select disabled style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">
-                    <option>請選擇...</option>`;
-                opts.forEach(opt => { html += `<option>${escHtml(opt)}</option>`; });
+                html += `<select aria-label="${escHtml(label)}" data-field-id="${fid}" ${PV_ON}
+                    style="width:100%;padding:10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:1rem;">
+                    <option value="">請選擇...</option>`;
+                rawLines.forEach(line => {
+                    const price = optionPrice(line);
+                    html += `<option value="${escHtml(optionLabel(line))}"${price === null ? '' : ` data-price="${price}"`}>${escHtml(optionLabel(line))}${price === null ? '' : `（$${price}）`}${optionCap(line) === null ? '' : `（限 ${optionCap(line)} 位）`}</option>`;
+                });
                 html += '</select>';
+            } else if (type === 'birthday') {
+                // ★ 提示元素的 class 要跟真表單一樣（.roc-hint）——
+                //   syncRocDate 寫的就是它。自己另外掛一個回顯元素的話，
+                //   報名者看得到的驗證訊息（「這一天不存在」「年份看起來不對」
+                //   「出生日期不能是未來」）在預覽裡一個都不會出現，
+                //   管理員填 2 月 30 日畫面什麼都不說。
+                // 前台收民國年，存西元（隱藏的 .roc-iso 帶 data-field-id）。
+                // syncRocDate 是 fee-total.js 裡的同一支。
+                html += `<div class="roc-date" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap;">
+                    <span style="font-size:0.9rem;color:var(--text-3, #888);font-weight:600;">民國</span>
+                    <input aria-label="88" type="number" class="roc-y" placeholder="88" oninput="syncRocDate(this); previewChanged()"
+                        style="width:78px;padding:10px 8px;border:1px solid var(--border, #ddd);border-radius:8px;text-align:center;font-weight:700;">
+                    <span style="font-size:0.9rem;color:var(--text-3, #888);">年</span>
+                    <input aria-label="3" type="number" class="roc-m" placeholder="3" oninput="syncRocDate(this); previewChanged()"
+                        style="width:62px;padding:10px 8px;border:1px solid var(--border, #ddd);border-radius:8px;text-align:center;font-weight:700;">
+                    <span style="font-size:0.9rem;color:var(--text-3, #888);">月</span>
+                    <input aria-label="15" type="number" class="roc-d" placeholder="15" oninput="syncRocDate(this); previewChanged()"
+                        style="width:62px;padding:10px 8px;border:1px solid var(--border, #ddd);border-radius:8px;text-align:center;font-weight:700;">
+                    <span style="font-size:0.9rem;color:var(--text-3, #888);">日</span>
+                    <input type="hidden" class="roc-iso" data-field-id="${fid}">
+                    <span class="roc-hint" style="font-size:0.9rem;color:var(--text-3, #888);"></span>
+                </div>`;
+            } else if (type === 'id_number') {
+                html += `<input aria-label="例：A123456789" type="text" data-field-id="${fid}" class="id-input"
+                    oninput="checkTwId(this); previewChanged()" placeholder="例：A123456789"
+                    style="width:100%;padding:11px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:1.1rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;box-sizing:border-box;">
+                <div class="id-hint" style="margin-top:5px;font-size:0.9rem;font-weight:600;"></div>`;
+            } else if (type === 'guardian') {
+                // 監護人：姓名＋電話。條件（未滿18歲才問）是伺服器存檔時掛的，
+                // 預覽這裡由 previewGuardianCondition 補上同一條，
+                // 不然預覽會顯示「每個人都要填監護人」——
+                // 那正是預覽 certify 一個不存在行為的形狀。
+                html += `<div class="guardian-field">
+                    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+                        <input aria-label="監護人姓名" type="text" class="gd-name" oninput="syncGuardian(this); previewChanged()"
+                            placeholder="監護人姓名"
+                            style="flex:1 1 140px;min-width:0;padding:10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:1rem;box-sizing:border-box;">
+                        <input aria-label="聯絡電話" type="tel" class="gd-phone" oninput="syncGuardian(this); previewChanged()"
+                            placeholder="聯絡電話" inputmode="tel"
+                            style="flex:1 1 140px;min-width:0;padding:10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:1rem;box-sizing:border-box;">
+                    </div>
+                    <p class="gd-hint" style="margin:6px 0 0;font-size:0.9rem;color:var(--warn, #e65100);display:none;">
+                        姓名和電話都要填 —— 只有名字的話，真的有狀況時聯絡不到人。</p>
+                    <input type="hidden" data-field-id="${fid}" class="gd-value">
+                </div>
+                <p style="font-size:0.9rem;color:var(--text-3, #888);margin-top:6px;">
+                    這一題只會問未滿 18 歲的人（依上面的出生日期自動判斷）。</p>`;
             } else if (type === 'textarea') {
-                html += `<textarea disabled rows="3" placeholder="${escHtml(label)}"
-                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;resize:vertical;"></textarea>`;
+                html += `<textarea aria-label="${escHtml(label)}" data-field-id="${fid}" rows="3" oninput="previewChanged()" placeholder="${escHtml(label)}"
+                    style="width:100%;padding:10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:1rem;resize:vertical;box-sizing:border-box;"></textarea>`;
             } else if (type === 'number') {
-                html += `<input type="number" disabled placeholder="${escHtml(label)}"
-                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">`;
+                html += `<input aria-label="${escHtml(label)}" type="number" data-field-id="${fid}" oninput="previewChanged()" placeholder="${escHtml(label)}"
+                    style="width:100%;padding:10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:1rem;box-sizing:border-box;">`;
             } else if (type === 'date') {
-                html += `<input type="date" disabled
-                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">`;
+                html += `<input aria-label="${escHtml(label)}" type="date" data-field-id="${fid}" oninput="previewChanged()"
+                    style="width:100%;padding:10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:1rem;box-sizing:border-box;">`;
             } else {
-                html += `<input type="text" disabled placeholder="${escHtml(label)}"
-                    style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:0.95rem;">`;
+                html += `<input aria-label="${escHtml(label)}" type="text" data-field-id="${fid}" oninput="previewChanged()" placeholder="${escHtml(label)}"
+                    style="width:100%;padding:10px;border:1px solid var(--border, #ddd);border-radius:8px;font-size:1rem;box-sizing:border-box;">`;
             }
 
             wrap.innerHTML = html;
@@ -982,8 +1997,66 @@ function openPreview() {
         });
     }
 
+    // 基本費：跟前台一樣從 data-base-fee 起算
+    const box = document.querySelector('#preview-modal .fee-total');
+    if (box) box.dataset.baseFee = document.getElementById('fee')?.value || 0;
+
+    // 年齡條件的基準日＝活動當日。活動還沒存，所以從表單上的日期取 ——
+    // 沒填日期時 age_on 會退回今天，預覽下面那行會講。
+    window.PREVIEW_BASIS_DATE =
+        (document.getElementById('event_start')?.value || '').slice(0, 10);
+
     document.getElementById('preview-modal').style.display = 'block';
     document.body.style.overflow = 'hidden';
+    document.getElementById('preview-result').style.display = 'none';
+    previewChanged();
+}
+
+/** 填了東西就重跑一次跳題與金額 —— 用的是報名者在跑的同一支 JS。 */
+function previewChanged() {
+    const root = document.getElementById('preview-fields');
+    if (!root) return;
+    // 「其他（請填寫）」的文字框開合 —— 走共用那支，不要自己再寫一份
+    if (typeof syncOtherTexts === 'function') syncOtherTexts(root);
+    if (typeof evaluateConditions === 'function') evaluateConditions(root);
+    // 年齡是伺服器算的（跟報名者跑的是同一支 /compute-age）——
+    // 預覽自己算一份的話，預覽會 certify 一個不存在的行為。
+    if (typeof refreshAgeConditions === 'function') refreshAgeConditions(root);
+    if (typeof updateFeeTotal === 'function') updateFeeTotal();
+}
+
+/** 預覽的「送出」：跑真的必填檢查，但不打 API。 */
+function previewSubmit() {
+    const root = document.getElementById('preview-fields');
+    const out = document.getElementById('preview-result');
+    const missing = typeof missingRequiredFields === 'function'
+        ? missingRequiredFields(root) : [];
+    if (missing.length) {
+        out.style.display = 'block';
+        out.style.cssText += ';background:var(--danger-bg, #ffebee);color:var(--danger, #c62828);';
+        out.textContent = '還沒填：' + missing.join('、') + '（報名者會看到這句）';
+        return;
+    }
+    // ★ 摘要直接用報名者確認頁在跑的那一份（form-confirm.js 的
+    //   buildAnswerSummary）。自己拼一份的話會漏掉它做的轉換 ——
+    //   實際踩到的是生日：存的是西元，但欄位叫「出生年月日(民國)」，
+    //   於是預覽印出「出生年月日(民國)：1989-09-01」，標題說民國、
+    //   數字是西元。報名者的確認頁一直是對的（民國 78 年 9 月 1 日），
+    //   只有預覽在說謊。
+    out.style.display = 'block';
+    out.style.cssText += ';background:var(--green-bg, #e8f5e9);color:var(--green-ink, #1b5e20);';
+    out.innerHTML = '<strong>這樣就會送出（預覽不會真的存）</strong>';
+    const box = document.createElement('div');
+    box.style.marginTop = '6px';
+    out.appendChild(box);
+    if (typeof buildAnswerSummary === 'function') buildAnswerSummary(root, box);
+    const fee = typeof currentFeeText === 'function' ? currentFeeText(root) : '';
+    if (fee) {
+        const f = document.createElement('div');
+        f.style.cssText = 'margin-top:8px; font-weight:800;';
+        f.textContent = '應繳金額：' + fee;
+        out.appendChild(f);
+    }
 }
 
 function closePreview() {
@@ -1009,9 +2082,18 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!condStr) return;
         let cond;
         try { cond = JSON.parse(condStr); } catch { return; }
-        // 年齡條件、系統自動補的（auto）不是「答案是 X」，這個面板畫不出來；
-        // 留給伺服器，存檔時原樣帶回去
-        if (cond.op || cond.auto) return;
+        // ★ 自動補的那條（auto:'minor'）不要打勾顯示成「管理員設的」——
+        //   打勾的話它就變成手動的了，之後改欄位順序不會再重新產生，
+        //   而 index 已經指到別的問題上，畫面上完全看不出來。
+        if (cond && cond.auto === 'minor') return;
+        // ★ 「每個人都問」要把那個勾勾還原回去 —— 不還原的話，打開編輯頁
+        //   看起來像沒設過，他一存檔就變回「未滿18歲才問」，
+        //   **而他什麼都沒有動**。（同一個形狀：畫面正常，說的是假的。）
+        if (cond && cond.auto === 'everyone') {
+            const ev = row.querySelector('.f-guardian-everyone');
+            if (ev) ev.checked = true;
+            return;
+        }
         const checkbox = row.querySelector('.f-has-condition');
         if (checkbox) {
             checkbox.checked = true;
@@ -1021,10 +2103,22 @@ document.addEventListener('DOMContentLoaded', () => {
         rebuildTriggerDropdown(row);
         const triggerSelect = row.querySelector('.f-cond-trigger');
         if (triggerSelect) {
-            triggerSelect.value = String(cond.trigger_sort_order);
-            updateConditionValues(triggerSelect);
-            const valueSelect = row.querySelector('.f-cond-value');
-            if (valueSelect) valueSelect.value = cond.trigger_value;
+            //  ★ 存的是索引，編輯期間用的是 key —— 這裡換過來。
+            //    載入時畫面順序跟資料庫一致，所以這個對應是準的；
+            //    之後管理員怎麼刪怎麼插，記住的都是那一列本身。
+            const triggerRow = conditionRows()[cond.trigger_sort_order];
+            triggerSelect.value = triggerRow ? rowKey(triggerRow) : '';
+            updateConditionValues(triggerSelect);      // 這支會切好答案／年齡模式
+            if (cond.op === 'age_between') {
+                // ★ null ＝ 不限，要還原成空字串而不是 'null'
+                const minEl = row.querySelector('.f-cond-age-min');
+                const maxEl = row.querySelector('.f-cond-age-max');
+                if (minEl) minEl.value = (cond.min === null || cond.min === undefined) ? '' : cond.min;
+                if (maxEl) maxEl.value = (cond.max === null || cond.max === undefined) ? '' : cond.max;
+            } else {
+                const valueSelect = row.querySelector('.f-cond-value');
+                if (valueSelect) valueSelect.value = cond.trigger_value;
+            }
         }
     });
 });

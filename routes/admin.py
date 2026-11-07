@@ -981,6 +981,56 @@ def events():
 from routes.admin_events import _apply_guardian_conditions  # noqa: E402
 
 
+@admin_bp.route('/events/preview-tier', methods=['POST'])
+@admin_required
+def preview_tier():
+    """後台預覽的身分別試算 —— 用**表單上的草稿設定**，不是資料庫裡的。
+
+    ## 為什麼不能共用 /event/<id>/compute-tier
+
+    那一支的設定是從資料庫撈的。但按「預覽」的當下：
+
+      - 新建的活動根本還沒有 id
+      - 既有活動改過的設定還沒按儲存
+
+    用那一支的話，預覽算的是**舊設定**（或算不出來直接 return）——
+    而畫面完全正常，管理員以為自己驗過了。這正是預覽最不能出的錯：
+    它 certify 一個不存在的行為，比沒有預覽更糟。
+
+    ## ★ 判定邏輯還是只有一份
+
+    這裡只換「設定從哪裡來」，算的還是 routes/auto_tier.resolve ——
+    跟前台報名者跑的是同一支。自己在後台再算一份的話，症狀會是
+    「預覽說成人、實際報名算成敬老」，兩邊都看起來正常。
+
+    ★ 基準日由前端送（表單上的活動日期）—— 這裡沒有活動可以撈，
+      而且這支是 admin_required 的試算，不決定任何人的金額。
+    """
+    from routes.auto_tier import describe, is_enabled, resolve
+    from routes.event_fields import parse_options
+
+    data = request.get_json() or {}
+    basis = (data.get('basis') or '').strip() or None
+    birthday = (data.get('birthday') or '').strip() or None
+    event = {'event_start': basis}
+
+    tiers, rules = {}, {}
+    for f in (data.get('fields') or [])[:30]:
+        fid = str(f.get('id') or '')
+        if not fid or not is_enabled(f.get('auto_tier')):
+            continue
+        options = parse_options(f.get('options') or '')
+        label, age, note = resolve(f, options, birthday, event,
+                                   has_special=bool(f.get('special')))
+        price = next((o['price'] for o in options if o['label'] == label), None)
+        # 預覽要跟報名者看到的一模一樣 —— 包含「比較貴所以讓開」那句話
+        tiers[fid] = {'label': label, 'price': price, 'age': age, 'note': note}
+        # 判定方式那句話也走同一支 describe —— 預覽自己拼一份的話，
+        # 說明會跟實際規則各自演化
+        rules[fid] = describe(options, f.get('auto_tier'))
+    return jsonify({'tiers': tiers, 'rules': rules})
+
+
 @admin_bp.route('/events/new', methods=['GET', 'POST'])
 @admin_required
 def event_new():
