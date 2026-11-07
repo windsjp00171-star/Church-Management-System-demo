@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}聚會點名{% endblock %}
+{% block content %}
+<div style="max-width:640px; margin:0 auto; padding:16px 16px 60px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:16px;">
+    <h2 style="margin:0;">📝 聚會點名</h2>
+    <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:10px 14px; border:1px solid #c7d2fe; background:#eef2ff; border-radius:8px;">？ 教學</button>
+  </div>
+  <div data-tour="session-list">
+  {% for s in sessions %}
+    <a href="/roll-call/session/{{ s.id }}" style="display:block; padding:16px; margin-bottom:10px; border:1px solid #ddd; border-radius:12px; text-decoration:none; color:inherit; background:#fff;">
+      <div style="font-weight:bold; font-size:1.1rem;">{{ s._type.name or '聚會' }}</div>
+      <div style="color:#666;">{{ s._local.strftime('%Y/%m/%d %H:%M') }}　{{ '逐人點名' if s._type.record_mode == 'individual' else '只記人數' }}</div>
+    </a>
+  {% else %}
+    <p style="color:#666;">目前沒有開放中的場次，請管理員先到「後台 → 聚會點名」建立場次。</p>
+  {% endfor %}
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/tour.js"></script>
+<script>
+function startTour() {
+  RollTour.start([
+    { target: 'session-list', text: '這裡列出開放中的聚會場次，點一下進入點名。' },
+    { target: 'help-btn', text: '隨時可以按這裡重看教學。' }
+  ]);
+}
+</script>
+{% endblock %}

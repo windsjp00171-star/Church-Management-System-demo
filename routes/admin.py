@@ -1,6 +1,10 @@
+import logging
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
+from image_kind import image_kind
+from config import Config
+from routes.audit import log_action
 from routes.decorators import admin_required, super_admin_required, staff_required
 import secrets
 import uuid
@@ -14,6 +18,25 @@ from datetime import datetime, timezone, timedelta
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 _TW = timezone(timedelta(hours=8))
+
+
+def _is_protected_owner_target(user_id):
+    """目標是否為系統擁有者（line_user_id 在 ADMIN_LINE_USER_IDS），且操作者無權更動。
+    用途：防止展示帳號（或非擁有者超管）把系統擁有者降權 / 封鎖 / 刪除。
+    操作者本身就是真實擁有者時放行（擁有者可彼此管理）。
+    """
+    owner_ids = Config.ADMIN_LINE_USER_IDS
+    if not owner_ids:
+        return False
+    row = supabase.table('users').select('line_user_id').eq('id', user_id).execute().data
+    if not row:
+        return False
+    target_luid = row[0].get('line_user_id') or ''
+    if target_luid not in owner_ids:
+        return False
+    actor_luid = session.get('line_id') or ''
+    actor_is_owner = (not session.get('is_demo')) and actor_luid in owner_ids
+    return not actor_is_owner
 
 def _tw_to_utc(s):
     """datetime-local 表單值（台灣時間，無時區）→ UTC ISO 字串"""
@@ -117,9 +140,19 @@ def can_manage_event(event):
 @admin_bp.route('/')
 @admin_required
 def index():
-    """後台首頁"""
+    """後台首頁：卡片依權限矩陣（模塊）顯示"""
+    from routes.permissions import visible_index_modules, module_for_path
+    from routes.modules import module_on
+    visible = visible_index_modules(session)
+
+    def can_see(path):
+        if not module_on(path):               # 這間教會沒開這個功能
+            return False
+        mod = module_for_path(path)
+        return mod is None or mod in visible
+
     return render_template('admin/index.html',
-        has_finance_access=_has_finance_access())
+        has_finance_access=_has_finance_access(), can_see=can_see)
 
 
 @admin_bp.route('/calendar')
@@ -293,29 +326,36 @@ def create_manual_user():
     if not session.get('is_super_admin'):
         return jsonify({'error': '無權限'}), 403
     data = request.get_json() or {}
-    name = (data.get('real_name') or '').strip()
-    if not name:
-        return jsonify({'error': '請輸入姓名'}), 400
-    result = supabase.table('users').insert({
-        'real_name': name,
-        'display_name': name,
-        'member_type': data.get('member_type', 'member'),
-    }).execute()
-    if not result.data:
+    from routes.person import create_person
+    try:
+        kind, payload = create_person(data.get('real_name'), data.get('member_type', 'member'),
+                                      force=bool(data.get('force')))
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception:
         return jsonify({'error': '建立失敗'}), 500
-    return jsonify({'success': True, 'id': result.data[0]['id']})
+    if kind == 'duplicates':
+        return jsonify({'error': '系統裡已有疑似同一個人，請先確認', 'duplicates': payload}), 409
+    log_action('user.create', 'user', payload['id'], {'name': payload['real_name'], 'forced': bool(data.get('force')) or None})
+    return jsonify({'success': True, 'id': payload['id']})
 
 
 @admin_bp.route('/api/users/<user_id>/merge-line', methods=['POST'])
 @admin_required
 def merge_line_account(user_id):
-    """將 LINE 帳號整合到手動建立的帳號：複製 LINE 資料、移轉關聯紀錄、刪除舊帳號"""
+    """將 LINE 帳號整合到手動建立的帳號：複製 LINE 資料、移轉關聯紀錄、刪除舊帳號（失敗全部還原）"""
     if not session.get('is_super_admin'):
         return jsonify({'error': '無權限'}), 403
     data = request.get_json() or {}
     line_user_id = (data.get('line_user_id') or '').strip()
     if not line_user_id:
         return jsonify({'error': '請指定 LINE 帳號 ID'}), 400
+
+    # 保護系統擁有者：展示帳號 / 非擁有者不得整合（進而刪除）擁有者帳號
+    actor_luid = session.get('line_id') or ''
+    actor_is_owner = (not session.get('is_demo')) and actor_luid in Config.ADMIN_LINE_USER_IDS
+    if line_user_id in Config.ADMIN_LINE_USER_IDS and not actor_is_owner:
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     # 查目標帳號（手動帳號）
     target_res = supabase.table('users').select('*').eq('id', user_id).execute()
@@ -335,27 +375,28 @@ def merge_line_account(user_id):
     if old_id == user_id:
         return jsonify({'error': '不能與自己整合'}), 400
 
-    # 複製 LINE 資訊到手動帳號
-    supabase.table('users').update({
-        'line_user_id': line_user_id,
-        'display_name': line_acct.get('display_name') or target.get('display_name'),
-        'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
-    }).eq('id', user_id).execute()
+    # 搬移、失敗還原、刪帳號都在 user_merge（兩個合併流程共用同一份清單）
+    from routes.user_merge import merge_users, MergeError
+    identity_cols = ('line_user_id', 'display_name', 'picture_url')
+    try:
+        summary = merge_users(
+            keep_id=user_id, drop_id=old_id,
+            keep_before={c: target.get(c) for c in identity_cols},
+            drop_before={c: line_acct.get(c) for c in identity_cols},
+            new_identity={
+                'line_user_id': line_user_id,
+                'display_name': line_acct.get('display_name') or target.get('display_name'),
+                'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
+            })
+    except MergeError as e:
+        log_action('user.merge_line_admin_failed', 'user', user_id,
+                   {'merged_from': old_id, 'error': e.message, 'rolled_back': e.rolled_back})
+        return jsonify({'error': e.message, 'rolled_back': e.rolled_back}), 500
 
-    # 移轉關聯紀錄
-    tables_to_migrate = [
-        'course_enrollments', 'registrations', 'session_attendance',
-        'notifications', 'prayers', 'prayer_reactions', 'prayer_comments', 'personal_events',
-    ]
-    for tbl in tables_to_migrate:
-        try:
-            supabase.table(tbl).update({'user_id': user_id}).eq('user_id', old_id).execute()
-        except Exception:
-            pass  # 若資料表不存在或欄位不同就跳過
-
-    # 刪除舊 LINE 帳號
-    supabase.table('users').delete().eq('id', old_id).execute()
-
+    log_action('user.merge_line_admin', 'user', user_id, {
+        'merged_from': old_id, 'line_user_id': line_user_id,
+        'moved': summary['moved'], 'duplicates_dropped': summary['duplicates_dropped'] or None,
+    })
     return jsonify({'success': True})
 
 
@@ -571,6 +612,8 @@ def toggle_admin(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能修改自己的權限'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_admin, is_super_admin, display_name')\
@@ -587,6 +630,8 @@ def toggle_admin(user_id):
     if not new_value:
         update['is_super_admin'] = False
     supabase.table('users').update(update).eq('id', user_id).execute()
+    log_action('user.set_admin' if new_value else 'user.remove_admin',
+               'user', user_id, {'name': result.data[0]['display_name']})
 
     return jsonify({
         'success': True,
@@ -604,6 +649,8 @@ def toggle_super_admin(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能修改自己的權限'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_admin, is_super_admin, display_name')\
@@ -620,6 +667,8 @@ def toggle_super_admin(user_id):
     if new_value:
         update['is_admin'] = True
     supabase.table('users').update(update).eq('id', user_id).execute()
+    log_action('user.set_super_admin' if new_value else 'user.remove_super_admin',
+               'user', user_id, {'name': result.data[0]['display_name']})
 
     return jsonify({
         'success': True,
@@ -637,6 +686,8 @@ def toggle_block_user(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能封鎖自己'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_blocked, display_name')\
@@ -647,6 +698,8 @@ def toggle_block_user(user_id):
     current = result.data[0].get('is_blocked') or False
     new_value = not current
     supabase.table('users').update({'is_blocked': new_value}).eq('id', user_id).execute()
+    log_action('user.block' if new_value else 'user.unblock',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({
         'success': True,
         'is_blocked': new_value,
@@ -657,6 +710,35 @@ def toggle_block_user(user_id):
 # =====================
 # Demo 洽詢名單
 # =====================
+
+@admin_bp.route('/logs')
+@admin_required
+def audit_logs_page():
+    """稽核日誌查詢頁（超級管理員限定）"""
+    if not session.get('is_super_admin'):
+        return render_template('admin/forbidden.html'), 403
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 50
+    action_filter = request.args.get('action', '').strip()
+
+    query = supabase.table('audit_logs').select('*', count='exact')\
+        .order('created_at', desc=True)
+    if action_filter:
+        query = query.eq('action', action_filter)
+    try:
+        result = query.range((page - 1) * per_page, page * per_page - 1).execute()
+        logs, total = result.data or [], result.count or 0
+    except Exception:
+        logging.getLogger(__name__).warning('稽核日誌查詢失敗（資料表可能尚未建立）', exc_info=True)
+        logs, total = [], 0
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    from routes.audit import ACTION_LABELS
+    return render_template('admin/audit_logs.html',
+                           logs=logs, action_labels=ACTION_LABELS,
+                           action_filter=action_filter, page=page,
+                           total_pages=total_pages, total=total)
+
 
 @admin_bp.route('/contact-leads')
 @admin_required
@@ -817,11 +899,15 @@ def search_users_for_cell():
 def toggle_pastor(user_id):
     if not session.get('is_super_admin'):
         return jsonify({'error': '僅超級管理員可操作'}), 403
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
     result = supabase.table('users').select('is_pastor, display_name').eq('id', user_id).execute()
     if not result.data:
         return jsonify({'error': '找不到此用戶'}), 404
     new_value = not bool(result.data[0].get('is_pastor', False))
     supabase.table('users').update({'is_pastor': new_value}).eq('id', user_id).execute()
+    log_action('user.set_pastor' if new_value else 'user.remove_pastor',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({'success': True, 'is_pastor': new_value, 'display_name': result.data[0]['display_name']})
 
 
@@ -830,11 +916,15 @@ def toggle_pastor(user_id):
 def toggle_staff(user_id):
     if not session.get('is_super_admin'):
         return jsonify({'error': '僅超級管理員可操作'}), 403
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
     result = supabase.table('users').select('is_staff, display_name').eq('id', user_id).execute()
     if not result.data:
         return jsonify({'error': '找不到此用戶'}), 404
     new_value = not bool(result.data[0].get('is_staff', False))
     supabase.table('users').update({'is_staff': new_value}).eq('id', user_id).execute()
+    log_action('user.set_staff' if new_value else 'user.remove_staff',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({'success': True, 'is_staff': new_value, 'display_name': result.data[0]['display_name']})
 
 
@@ -894,6 +984,9 @@ def event_new():
     """建立新活動"""
     if request.method == 'POST':
         data = request.get_json()
+
+        if data.get('checkin_mode') == 'open' and (data.get('whitelist_enabled') or data.get('waitlist_enabled')):
+            return jsonify({'error': '開放型簽到不能與「限定報名名單」或「候補名單」同時啟用'}), 400
 
         # 建立活動主體
         checkin_enabled = data.get('checkin_enabled', False)
@@ -965,6 +1058,9 @@ def event_edit(event_id):
 
     if request.method == 'POST':
         data = request.get_json()
+
+        if data.get('checkin_mode') == 'open' and (data.get('whitelist_enabled') or data.get('waitlist_enabled')):
+            return jsonify({'error': '開放型簽到不能與「限定報名名單」或「候補名單」同時啟用'}), 400
 
         checkin_enabled = data.get('checkin_enabled', False)
 
@@ -1335,6 +1431,8 @@ def event_delete(event_id):
     except Exception as e:
         return jsonify({'error': f'刪除失敗：{str(e)}'}), 500
 
+    log_action('event.delete', 'event', event_id,
+               {'title': result.data[0].get('title')})
     return jsonify({'success': True})
 
 
@@ -1898,12 +1996,12 @@ def admin_verses():
 @admin_bp.route('/verses/upload-watermark', methods=['POST'])
 @admin_required
 def upload_verse_watermark():
-    import os, imghdr
+    import os
     f = request.files.get('image')
     if not f or not f.filename:
         return jsonify({'success': False, 'error': '請選擇圖片'})
     data = f.read()
-    if imghdr.what(None, data) not in ('png', 'jpeg', 'gif', 'webp'):
+    if image_kind(data) not in ('png', 'jpeg', 'gif', 'webp'):
         return jsonify({'success': False, 'error': '只接受 PNG / JPG / GIF / WebP'})
     dest = os.path.join(os.path.dirname(__file__), '..', 'static', 'img', 'lion.png')
     with open(dest, 'wb') as out:
@@ -1914,7 +2012,7 @@ def upload_verse_watermark():
 @admin_bp.route('/verses/upload-theme', methods=['POST'])
 @admin_required
 def upload_verse_theme():
-    import imghdr, time as _time
+    import time as _time
     name = (request.form.get('name') or '').strip()
     symbol = (request.form.get('symbol') or '✝').strip() or '✝'
     text_mode = request.form.get('text_mode', 'light')
@@ -1926,7 +2024,7 @@ def upload_verse_theme():
     if not f or not f.filename:
         return jsonify({'success': False, 'error': '請選擇圖片'})
     data = f.read()
-    fmt = imghdr.what(None, data)
+    fmt = image_kind(data)
     if fmt not in ('png', 'jpeg', 'webp'):
         return jsonify({'success': False, 'error': '只接受 PNG / JPG / WebP'})
     ext = 'jpg' if fmt == 'jpeg' else fmt
@@ -1958,7 +2056,7 @@ def delete_verse_custom_theme(theme_id):
             filename = row[0]['image_url'].split('verse-themes/')[-1].split('?')[0]
             supabase.storage.from_('verse-themes').remove([filename])
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     supabase.table('verse_custom_themes').delete().eq('id', theme_id).execute()
     return jsonify({'success': True})
 
@@ -2138,7 +2236,7 @@ def upload_bulletin():
         try:
             supabase.storage.create_bucket('bulletins', options={'public': True})
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         supabase.storage.from_('bulletins').upload(
             filename, file_bytes, {'content-type': 'application/pdf'}
         )
@@ -2343,7 +2441,7 @@ def _load_portal_cards_from_db():
         if rows:
             return rows, True
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return _PORTAL_CARDS_DEFAULT, False
 
 
@@ -2846,6 +2944,6 @@ def files_admin_delete(file_id):
     try:
         r2_delete(file_key)
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     supabase.table('files').delete().eq('id', file_id).execute()
     return jsonify({'success': True})

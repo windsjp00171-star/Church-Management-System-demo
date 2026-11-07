@@ -50,6 +50,7 @@
 
     <!-- 操作按鈕 -->
     <form method="POST" action="/events/{{ event.id }}/registrations/{{ reg.id }}/pay/execute">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
         <button type="submit"
             style="width:100%; padding:14px; background:#06C755; color:white; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer; margin-bottom:12px;">
             確認，前往繳費 →

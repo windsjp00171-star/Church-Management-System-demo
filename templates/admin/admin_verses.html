@@ -41,7 +41,7 @@
                                 box-shadow:0 4px 12px rgba(0,0,0,0.22);
                                 display:flex;align-items:center;justify-content:center;
                                 font-size:1.4rem;color:white;">{{ t.symbol }}</div>
-                    <div style="font-size:0.68rem;color:#666;text-align:center;max-width:64px;">{{ t.name }}</div>
+                    <div style="font-size:0.78rem;color:#666;text-align:center;max-width:64px;">{{ t.name }}</div>
                 </div>
                 {% endfor %}
             </div>
@@ -75,8 +75,8 @@
                                    cursor:pointer;font-size:0.7rem;display:flex;align-items:center;
                                    justify-content:center;padding:0;line-height:1;">✕</button>
                     </div>
-                    <div style="font-size:0.68rem;color:#666;text-align:center;max-width:64px;">{{ t.name }}</div>
-                    <div style="font-size:0.6rem;color:{% if t.text_mode=='dark' %}#888{% else %}#ab47bc{% endif %};">
+                    <div style="font-size:0.78rem;color:#666;text-align:center;max-width:64px;">{{ t.name }}</div>
+                    <div style="font-size:0.75rem;color:{% if t.text_mode=='dark' %}#888{% else %}#ab47bc{% endif %};">
                         {{ '深色文字' if t.text_mode=='dark' else '淺色文字' }}
                     </div>
                 </div>
@@ -173,7 +173,7 @@
                              style="width:52px;height:52px;object-fit:contain;opacity:0.85;"
                              onerror="this.parentElement.innerHTML='<span style=color:rgba(255,255,255,0.4);font-size:1.8rem>?</span>'">
                     </div>
-                    <div style="font-size:0.68rem;color:#aaa;">目前</div>
+                    <div style="font-size:0.78rem;color:#aaa;">目前</div>
                 </div>
                 <div style="display:flex;flex-direction:column;gap:8px;">
                     <input type="file" id="watermark-file" accept="image/*"
@@ -249,13 +249,13 @@
                 <!-- 上方教會名 -->
                 <div style="text-align:center;position:relative;z-index:1;">
                     <div style="font-size:0.52rem;color:rgba(255,255,255,0.65);letter-spacing:2px;">DAILY BLESSING</div>
-                    <div style="font-size:0.68rem;font-weight:bold;color:white;letter-spacing:1px;margin-top:3px;">{{ church_name }}</div>
+                    <div style="font-size:0.78rem;font-weight:bold;color:white;letter-spacing:1px;margin-top:3px;">{{ church_name }}</div>
                 </div>
                 <!-- 中間經文 -->
                 <div style="text-align:center;position:relative;z-index:1;">
                     <div style="font-size:1.2rem;margin-bottom:8px;opacity:0.85;">✝</div>
                     <div style="background:rgba(255,255,255,0.13);border-radius:8px;padding:10px 8px;border:1px solid rgba(255,255,255,0.2);">
-                        <p id="preview-text" style="font-size:0.68rem;line-height:1.75;color:white;font-weight:500;margin:0 0 6px;text-align:justify;">在此輸入經文內容...</p>
+                        <p id="preview-text" style="font-size:0.78rem;line-height:1.75;color:white;font-weight:500;margin:0 0 6px;text-align:justify;">在此輸入經文內容...</p>
                         <p id="preview-ref" style="font-size:0.58rem;color:rgba(255,255,255,0.7);margin:0;text-align:right;">—</p>
                     </div>
                 </div>
@@ -426,10 +426,11 @@ function saveEdit(id) {
     });
 }
 function deleteVerse(id) {
-    if (!confirm('確定刪除此經文？')) return;
-    fetch(`/admin/verses/${id}/delete`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
+    openConfirm('確定刪除此經文？', () => {
+        fetch(`/admin/verses/${id}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
+    });
 }
 
 function previewCustomTheme(input) {
@@ -477,10 +478,11 @@ function uploadCustomTheme() {
 }
 
 function deleteCustomTheme(id) {
-    if (!confirm('確定刪除此自訂樣式？')) return;
-    fetch(`/admin/verses/custom-theme/${id}/delete`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
+    openConfirm('確定刪除此自訂樣式？', () => {
+        fetch(`/admin/verses/custom-theme/${id}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => { if (d.success) location.reload(); else showToast(d.error || '刪除失敗', 'error'); });
+    });
 }
 
 function previewWatermark(input) {

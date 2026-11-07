@@ -1,0 +1,58 @@
+{
+  "date_today_hits": {
+    "routes/admin.py": 3,
+    "routes/auth.py": 1,
+    "routes/calendar.py": 4,
+    "routes/cell_report.py": 20,
+    "routes/changelog.py": 2,
+    "routes/devotional.py": 4,
+    "routes/event.py": 2,
+    "routes/payment.py": 1,
+    "routes/staff_leave.py": 2,
+    "seed_demo.py": 3,
+    "test_staff_leave_calc.py": 1
+  },
+  "or_zero_hits": {
+    "routes/admin.py": 7,
+    "routes/cell_report.py": 11,
+    "routes/courses.py": 12,
+    "routes/devotional.py": 1,
+    "routes/event.py": 8,
+    "routes/files.py": 1,
+    "routes/payment.py": 3,
+    "routes/prayer.py": 3
+  },
+  "ungated_admin_routes": [
+    "routes/admin.py::checkin_live",
+    "routes/admin.py::checkin_live_data",
+    "routes/admin.py::checkin_search",
+    "routes/admin.py::event_qrcode",
+    "routes/admin.py::payment_ledger",
+    "routes/admin.py::payment_ledger_export",
+    "routes/admin.py::payment_settings",
+    "routes/admin.py::proxy_checkin",
+    "routes/admin.py::registrations",
+    "routes/admin.py::toggle_checkin"
+  ],
+  "users_table_hits": {
+    "app.py": 1,
+    "routes/admin.py": 37,
+    "routes/auth.py": 16,
+    "routes/cell_report.py": 1,
+    "routes/changelog.py": 1,
+    "routes/checkin.py": 3,
+    "routes/courses.py": 9,
+    "routes/devotional.py": 1,
+    "routes/diary.py": 9,
+    "routes/event.py": 3,
+    "routes/files.py": 2,
+    "routes/gospel.py": 2,
+    "routes/notifications.py": 1,
+    "routes/person.py": 2,
+    "routes/prayer.py": 1,
+    "routes/profile.py": 11,
+    "routes/staff_leave.py": 3,
+    "routes/user_merge.py": 5,
+    "routes/visitor_forms.py": 3
+  }
+}

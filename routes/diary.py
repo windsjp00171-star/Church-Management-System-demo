@@ -1,3 +1,4 @@
+import logging
 """
 天父日記 Blueprint
 整合自 tianfu-diary/app.py，以 Blueprint 模組化方式掛入整合系統。
@@ -15,10 +16,11 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    session, flash, jsonify, current_app
+    session, flash, jsonify, current_app, Response
 )
 
 from db import supabase as sb
+from extensions import limiter
 
 diary_bp = Blueprint('diary', __name__, template_folder='../templates/diary')
 
@@ -170,7 +172,7 @@ def load_plan_map() -> Dict[str, Dict[str, str]]:
                 _PLAN_CACHE_TS = now
                 return _PLAN_CACHE
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 2. Fallback: 讀 xlsx（DB 是空的時候）
     if not os.path.exists(PLAN_PATH):
@@ -316,8 +318,20 @@ def sb_list_month_entries(line_user_id: str, y: int, m: int) -> Dict[str, bool]:
 
 
 def sb_is_pastor(line_user_id: str) -> bool:
-    """從 session 讀取牧者身分（登入時已由 auth.py 統一寫入）。"""
-    return bool(session.get('is_pastor'))
+    """確認指定 LINE user ID 是否有牧者/小組長資格（查 DB，不依賴 session）。"""
+    if not line_user_id or not sb:
+        return False
+    try:
+        res = sb.table('users').select('id,is_pastor').eq('line_id', line_user_id).limit(1).execute()
+        if not res.data:
+            return False
+        user = res.data[0]
+        if user.get('is_pastor'):
+            return True
+        leader_res = sb.table('cell_group_leaders').select('user_id').eq('user_id', user['id']).limit(1).execute()
+        return bool(leader_res.data)
+    except Exception:
+        return False
 
 
 def sb_list_pastors() -> List[Dict[str, Any]]:
@@ -603,6 +617,64 @@ def grant():
         flash('已授權（之後會自動延續）', 'ok')
 
     return redirect(url_for('diary.index', d=d))
+
+
+def export_own_entries(line_user_id: str) -> List[Dict[str, Any]]:
+    """讀出「自己的」全部日記（分頁，一次最多 1000 筆）。
+    讀取失敗就丟例外——寧可讓人知道沒匯出成功，也不要給一份缺頁的備份。
+    """
+    rows: List[Dict[str, Any]] = []
+    page, offset = 1000, 0
+    while True:
+        res = (
+            sb.table('diary_entries')
+            .select('entry_date,content')
+            .eq('line_user_id', line_user_id)
+            .order('entry_date')
+            .range(offset, offset + page - 1)
+            .execute()
+        )
+        batch = res.data or []
+        rows.extend(batch)
+        if len(batch) < page:
+            return rows
+        offset += page
+
+
+def render_own_export(name: str, rows: List[Dict[str, Any]]) -> str:
+    lines = [f'{name or "我"} 的天父日記', f'共 {len(rows)} 篇', '=' * 24, '']
+    for r in rows:
+        lines += [str(r.get('entry_date', '')), (r.get('content') or '').strip(), '', '-' * 24, '']
+    return '\r\n'.join(lines)
+
+
+@diary_bp.get('/diary/export')
+def export_mine():
+    """每個人只能匯出自己的日記（鍵是 session 裡的 LINE id，不接受任何參數指定別人）。"""
+    if not _require_login():
+        return redirect(url_for('auth.login_page'))
+    user = _get_user()
+    uid = user.get('line_user_id', '')
+    if not uid or not sb:
+        flash('目前無法匯出，請重新登入後再試', 'error')
+        return redirect(url_for('diary.history'))
+    try:
+        rows = export_own_entries(uid)
+    except Exception:
+        current_app.logger.warning('個人日記匯出失敗', exc_info=True)
+        flash('匯出失敗（資料庫暫時連不上），沒有產生檔案，請稍後再試', 'error')
+        return redirect(url_for('diary.history'))
+
+    from routes.audit import log_action
+    log_action('diary.export_self', target_type='diary_export', detail={'entries': len(rows)})  # 只記篇數，不記內容
+    body = '\ufeff' + render_own_export(_safe_display_name(user), rows)   # BOM：Windows 記事本才不會亂碼
+    stamp = datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d')
+    return Response(
+        body.encode('utf-8'),
+        mimetype='text/plain; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename=diary_{stamp}.txt',
+                 'Cache-Control': 'no-store'},
+    )
 
 
 @diary_bp.get('/diary/history')
@@ -1093,6 +1165,7 @@ def stars():
 # =========================
 
 @diary_bp.get('/api/diary/guide')
+@limiter.limit("15 per minute")
 def api_guide():
     if not _require_login():
         return jsonify({'error': '未登入'}), 401
@@ -1148,6 +1221,7 @@ def api_guide():
 
 
 @diary_bp.get('/api/diary/passage-intro')
+@limiter.limit("15 per minute")
 def api_passage_intro():
     if not _require_login():
         return jsonify({'error': '未登入'}), 401
@@ -1189,7 +1263,7 @@ def api_passage_intro():
 
 
 def _get_ai_clients():
-    """動態取得 AI 客戶端（避免啟動時強制依賴）"""
+    """動態取得 AI 客戶端（Groq 主、Gemini 備，兩者皆嘗試初始化）"""
     groq_client = None
     gemini_model = None
 
@@ -1199,32 +1273,36 @@ def _get_ai_clients():
             from groq import Groq
             groq_client = Groq(api_key=groq_key)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
-    if not groq_client:
-        gemini_key = os.environ.get('GEMINI_API_KEY', '')
-        if gemini_key:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=gemini_key)
-                gemini_model = genai.GenerativeModel('gemini-2.0-flash')
-            except Exception:
-                pass
+    # 永遠嘗試初始化 Gemini，讓 runtime 錯誤時仍能備援
+    gemini_key = os.environ.get('GEMINI_API_KEY', '')
+    if gemini_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+        except Exception:
+            logging.getLogger(__name__).warning('Gemini 初始化失敗', exc_info=True)
 
     return groq_client, gemini_model
 
 
 def _call_ai(groq_client, gemini_model, system_prompt: str, content: str, max_tokens: int = 400) -> str:
     if groq_client:
-        resp = groq_client.chat.completions.create(
-            model='llama-3.3-70b-versatile',
-            messages=[
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': content},
-            ],
-            max_tokens=max_tokens,
-        )
-        return resp.choices[0].message.content.strip()
-    else:
+        try:
+            resp = groq_client.chat.completions.create(
+                model='llama-3.3-70b-versatile',
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': content},
+                ],
+                max_tokens=max_tokens,
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception:
+            pass  # Groq 呼叫失敗，fall through 到 Gemini
+    if gemini_model:
         resp = gemini_model.generate_content(f'{system_prompt}\n\n{content}')
         return resp.text.strip()
+    raise RuntimeError('無可用的 AI 服務（Groq 與 Gemini 均無法使用）')

@@ -1,4 +1,5 @@
 import logging
+import mimetypes
 import uuid
 import os
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify, abort, g, current_app, Response
@@ -126,6 +127,34 @@ def _can_access_folder(folder_record):
     return False
 
 
+def _password_matches(password: str, password_hash) -> bool:
+    """沒有雜湊值（資料不完整）一律視為不符，不可以讓 500 錯誤洩漏狀態。"""
+    if not password_hash:
+        return False
+    try:
+        return bcrypt.checkpw(password.encode(), password_hash.encode())
+    except ValueError:
+        return False
+
+
+def _folder_locked(folder) -> bool:
+    """資料夾有密碼、本人不是建立者／管理員、而且這個 session 還沒解鎖。"""
+    if not folder or folder.get('protection') != 'password':
+        return False
+    if _get_role() == 'admin' or folder.get('created_by') == session.get('user_id'):
+        return False
+    return not session.get(f"folder_unlocked_{folder['id']}")
+
+
+def _file_in_locked_folder(file_record) -> bool:
+    """檔案放在一個還沒解鎖的密碼資料夾裡（搜尋、直接開網址都不能繞過資料夾密碼）。"""
+    fid = file_record.get('folder_id')
+    if not fid:
+        return False
+    rows = supabase.table('folders').select('*').eq('id', fid).execute().data or []
+    return bool(rows) and _folder_locked(rows[0])
+
+
 def _format_size(size_bytes):
     if size_bytes is None:
         return ''
@@ -164,11 +193,18 @@ def index():
     else:
         folders_q = folders_q.is_('parent_id', 'null')
 
-    if role != 'admin':
-        folders_q = folders_q.or_(
-            f'visibility.eq.public,visibility.eq.management,allowed_roles.cs.{{"{role}"}},created_by.eq.{session["user_id"]}'
-        )
-    folders = folders_q.order('name').execute().data or []
+    # 能不能看到哪個資料夾只有一份判定（_can_access_folder）；
+    # 以前在資料庫端另寫一份過濾，指定使用者／指定分組的資料夾永遠列不出來
+    folders = [f for f in (folders_q.order('name').execute().data or []) if _can_access_folder(f)]
+
+    if folder_id:
+        cur = supabase.table('folders').select('*').eq('id', folder_id).execute().data
+        if not cur:
+            abort(404)
+        if not _can_access_folder(cur[0]):
+            abort(403)
+        if _folder_locked(cur[0]):
+            return render_template('files/folder_password_prompt.html', folder=cur[0])
 
     if q:
         files_q = supabase.table('files').select('*').ilike('name', f'%{q}%')
@@ -181,9 +217,15 @@ def index():
             files_q = files_q.is_('folder_id', 'null')
     all_files = files_q.order('created_at', desc=True).execute().data or []
     files = [f for f in all_files if _can_access_file(f)]
+    if q:      # 搜尋會跨資料夾：還沒解鎖的密碼資料夾裡的檔案不能出現在結果裡
+        in_folders = list({f['folder_id'] for f in files if f.get('folder_id')})
+        if in_folders:
+            locked = {r['id'] for r in (supabase.table('folders').select('*').in_('id', in_folders)
+                                        .execute().data or []) if _folder_locked(r)}
+            files = [f for f in files if f.get('folder_id') not in locked]
 
     # 批次取上傳者姓名
-    uploader_ids = list({f['uploaded_by'] for f in files if f.get('uploaded_by')})
+    uploader_ids = list({f['owner_id'] for f in files if f.get('owner_id')})
     uploader_map = {}
     if uploader_ids:
         up_users = supabase.table('users').select('id, display_name')\
@@ -195,7 +237,7 @@ def index():
         ext = os.path.splitext(f['name'])[1].lower()
         f['thumb_url'] = get_presigned_url(f['file_key'], expires=3600) if ext in IMAGE_EXTS else None
         f['size_label'] = _format_size(f.get('file_size'))
-        f['uploader'] = uploader_map.get(f.get('uploaded_by'), '')
+        f['uploader'] = uploader_map.get(f.get('owner_id'), '')
 
     current_folder = None
     if folder_id:
@@ -237,6 +279,23 @@ def index():
                            is_admin=session.get('is_admin'),
                            user_role=role,
                            storage_info=storage_info)
+
+
+def _r2_error_hint(exc) -> str:
+    """把 boto3 / R2 的例外轉成可行動的中文提示（給超管看，協助排查設定）。"""
+    from botocore.exceptions import ClientError, EndpointConnectionError
+    if isinstance(exc, EndpointConnectionError):
+        return ('無法連線到 R2_ENDPOINT。請確認端點格式為 '
+                'https://<帳號ID>.r2.cloudflarestorage.com（不要包含 bucket 名稱）。')
+    if isinstance(exc, ClientError):
+        code = (exc.response.get('Error', {}) or {}).get('Code', '')
+        if code in ('AccessDenied', 'SignatureDoesNotMatch', 'InvalidAccessKeyId', '403'):
+            return ('R2 認證失敗（%s）。請檢查 R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY，'
+                    '並確認該 API Token 具有「物件讀寫（Object Read & Write）」權限。' % code)
+        if code in ('NoSuchBucket', '404'):
+            return 'R2 找不到指定的 Bucket。請檢查 R2_BUCKET_NAME 是否正確。'
+        return 'R2 回報錯誤代碼：%s。' % (code or '未知')
+    return ''
 
 
 @files_bp.route('/files/upload', methods=['POST'])
@@ -283,13 +342,19 @@ def upload():
     password = request.form.get('password', '')
 
     file_key = f'files/{uuid.uuid4()}{ext}'
-    content_type = f.content_type or 'application/octet-stream'
+    # 由副檔名推斷 MIME，不信任客戶端傳來的 Content-Type
+    content_type = mimetypes.guess_type(safe_name)[0] or 'application/octet-stream'
 
     try:
         upload_file(f, file_key, content_type)
-    except Exception:
+    except Exception as exc:
         logger.exception('R2 upload failed: %s', safe_name)
-        return jsonify({'error': '檔案上傳至儲存空間失敗，請稍後再試'}), 500
+        msg = '檔案上傳至儲存空間失敗，請稍後再試'
+        if session.get('is_super_admin'):
+            hint = _r2_error_hint(exc)
+            if hint:
+                msg = '檔案上傳失敗 — ' + hint
+        return jsonify({'error': msg}), 500
 
     password_hash = None
     if protection == 'password' and password:
@@ -317,7 +382,7 @@ def upload():
         try:
             delete_file(file_key)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         return jsonify({'error': '資料庫寫入失敗，請稍後再試'}), 500
 
     # 上傳後通知指定對象（失敗不影響上傳結果）
@@ -325,7 +390,7 @@ def upload():
         try:
             _notify_file_shared(file_id, safe_name, visibility, allowed_users, allowed_groups)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         logger.info('上傳成功 file=%s size=%d user=%s', safe_name, file_size, session.get('user_id', '')[:8])
 
     return jsonify({'success': True, 'file_id': file_id})
@@ -379,6 +444,9 @@ def view_file(file_id):
     if not _can_access_file(file_record):
         abort(403)
 
+    if _file_in_locked_folder(file_record):
+        return redirect(url_for('files.index', folder_id=file_record['folder_id']))
+
     if file_record.get('protection') == 'password':
         verified = session.get(f'file_unlocked_{file_id}')
         if not verified:
@@ -410,14 +478,17 @@ def view_file(file_id):
 
 @files_bp.route('/files/<file_id>/unlock', methods=['POST'])
 @login_required
+@limiter.limit('10 per minute')
 def unlock_file(file_id):
     res = supabase.table('files').select('*').eq('id', file_id).execute()
     if not res.data:
         abort(404)
     file_record = res.data[0]
+    if not _can_access_file(file_record):
+        abort(403)
     password = request.form.get('password', '')
 
-    if bcrypt.checkpw(password.encode(), file_record['password_hash'].encode()):
+    if _password_matches(password, file_record.get('password_hash')):
         session[f'file_unlocked_{file_id}'] = True
         return redirect(url_for('files.view_file', file_id=file_id))
 
@@ -480,6 +551,12 @@ def share_link(file_id):
     if not _can_access_file(file_record):
         abort(403)
 
+    # 有密碼的檔案：沒解鎖就不能產生分享連結（連結本身不需要登入，等於把密碼繞過去，最長 7 天）
+    if file_record.get('protection') == 'password' and not session.get(f'file_unlocked_{file_id}'):
+        return jsonify({'error': '此檔案受密碼保護，請先輸入密碼解鎖'}), 403
+    if _file_in_locked_folder(file_record):
+        return jsonify({'error': '此檔案所在的資料夾受密碼保護，請先解鎖資料夾'}), 403
+
     expires_map = {'1h': 3600, '24h': 86400, '7d': 604800}
     expires_key = request.form.get('expires', '24h')
     expires_sec = expires_map.get(expires_key, 86400)
@@ -503,6 +580,8 @@ def stream_file(file_id):
     if file_record.get('protection') == 'password':
         if not session.get(f'file_unlocked_{file_id}'):
             abort(403)
+    if _file_in_locked_folder(file_record):
+        abort(403)
 
     url = get_presigned_url(file_record['file_key'], expires=300)
     r = http_requests.get(url, stream=True, timeout=30)
@@ -534,6 +613,8 @@ def download_file(file_id):
     if file_record.get('protection') == 'password':
         if not session.get(f'file_unlocked_{file_id}'):
             abort(403)
+    if _file_in_locked_folder(file_record):
+        abort(403)
 
     url = get_presigned_url(file_record['file_key'], expires=60)
     return redirect(url)
@@ -585,30 +666,37 @@ def create_folder():
     if protection == 'password' and password:
         password_hash = bcrypt.hashpw(password.encode(), bcrypt.gensalt()).decode()
 
-    supabase.table('folders').insert({
-        'name': name,
-        'parent_id': parent_id,
-        'created_by': session['user_id'],
-        'visibility': visibility,
-        'allowed_roles': allowed_roles if allowed_roles else None,
-        'allowed_users': allowed_users if allowed_users else None,
-        'allowed_groups': allowed_groups if allowed_groups else None,
-        'protection': protection,
-        'password_hash': password_hash,
-    }).execute()
+    try:
+        supabase.table('folders').insert({
+            'name': name,
+            'parent_id': parent_id,
+            'created_by': session['user_id'],
+            'visibility': visibility,
+            'allowed_roles': allowed_roles if allowed_roles else None,
+            'allowed_users': allowed_users if allowed_users else None,
+            'allowed_groups': allowed_groups if allowed_groups else None,
+            'protection': protection,
+            'password_hash': password_hash,
+        }).execute()
+    except Exception:
+        logger.exception('建立資料夾失敗 name=%s', name)
+        return jsonify({'error': '資料庫寫入失敗，請稍後再試'}), 500
     return jsonify({'success': True})
 
 
 @files_bp.route('/folders/<folder_id>/unlock', methods=['POST'])
 @login_required
+@limiter.limit('10 per minute')
 def unlock_folder(folder_id):
     res = supabase.table('folders').select('*').eq('id', folder_id).execute()
     if not res.data:
         abort(404)
     folder = res.data[0]
+    if not _can_access_folder(folder):
+        abort(403)
     password = request.form.get('password', '')
 
-    if bcrypt.checkpw(password.encode(), folder['password_hash'].encode()):
+    if _password_matches(password, folder.get('password_hash')):
         session[f'folder_unlocked_{folder_id}'] = True
         return redirect(url_for('files.index', folder_id=folder_id))
 

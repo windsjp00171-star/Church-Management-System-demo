@@ -144,11 +144,12 @@ async function setPassword() {
 }
 
 async function removePassword() {
-  if (!confirm('確定移除密碼保護？')) return;
-  const res = await fetch('{{ url_for("files.remove_password", file_id=file.id) }}', { method: 'POST' });
-  const data = await res.json();
-  if (data.success) { location.reload(); }
-  else { showToast(data.error || '移除失敗', 'error'); }
+  openConfirm('確定移除密碼保護？', async () => {
+    const res = await fetch('{{ url_for("files.remove_password", file_id=file.id) }}', { method: 'POST' });
+    const data = await res.json();
+    if (data.success) { location.reload(); }
+    else { showToast(data.error || '移除失敗', 'error'); }
+  });
 }
 </script>
 {% endblock %}

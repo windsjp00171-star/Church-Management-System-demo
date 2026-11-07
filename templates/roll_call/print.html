@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="zh-Hant"><head><meta charset="utf-8"><title>點名名冊</title>
+<style>
+  @page { size: A4; margin: 14mm; }
+  body { font-family: "Noto Sans TC", sans-serif; color:#000; }
+  h2 { margin:0 0 4px; } p { margin:0 0 10px; color:#444; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { border:1px solid #444; padding:7px 8px; text-align:left; }
+  th.c, td.c { width:60px; text-align:center; }
+  @media print { .noprint { display:none; } }
+</style></head><body>
+<div class="noprint" style="margin-bottom:10px;"><button type="button" data-tour="print-btn" onclick="window.print()" style="padding:10px 18px;">列印</button></div>
+<h2>{{ s._type.name or '聚會' }} 點名名冊</h2>
+<p>{{ s._local.strftime('%Y/%m/%d %H:%M') }}　（紙本勾選，事後請補登；本表不含生日、電話等個人資料）</p>
+<table>
+  <thead><tr><th>姓名</th><th class="c">到</th><th class="c">遲到</th><th class="c">請假</th><th class="c">未到</th></tr></thead>
+  <tbody>
+  {% for m in members %}
+    <tr><td>{{ m.name }}</td><td class="c"></td><td class="c"></td><td class="c"></td><td class="c"></td></tr>
+  {% endfor %}
+  </tbody>
+</table>
+<p style="margin-top:12px;">名冊外訪客人數：＿＿＿＿　　填寫人：＿＿＿＿＿＿</p>
+</body></html>

@@ -154,13 +154,14 @@ function saveEdit(id) {
     });
 }
 function deleteCategory(id, name) {
-    if (!confirm(`確定刪除「${name}」？\n（如有學程使用此類別則無法刪除）`)) return;
-    fetch(`/admin/course-categories/${id}/delete`, { method: 'POST' })
-        .then(r => r.json())
-        .then(d => {
-            if (d.success) location.reload();
-            else showToast(d.error || '刪除失敗', 'error');
-        });
+    openConfirm(`確定刪除「${name}」？（如有學程使用此類別則無法刪除）`, () => {
+        fetch(`/admin/course-categories/${id}/delete`, { method: 'POST' })
+            .then(r => r.json())
+            .then(d => {
+                if (d.success) location.reload();
+                else showToast(d.error || '刪除失敗', 'error');
+            });
+    });
 }
 // Enter 送出
 document.getElementById('new-name').addEventListener('keydown', e => { if (e.key === 'Enter') submitAdd(); });

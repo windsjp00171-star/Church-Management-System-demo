@@ -7,7 +7,7 @@
     <a href="/" class="breadcrumb">← 返回首頁</a>
     <div class="page-title">📖 {{ card_names.get('diary', '天父日記') }}</div>
   </div>
-  <div style="display:flex;gap:8px;align-items:center;">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end;">
     <a class="secondary-btn" href="{{ url_for('diary.history') }}">📖 書卷瀏覽</a>
     {% if pastor_mode %}
       <a class="pastor-entry-btn" href="{{ url_for('diary.pastor') }}">查閱成員靈修</a>
@@ -63,12 +63,10 @@
   <h2>今日讀經</h2>
 
   {% if plan %}
-    {% if plan %}
-      <div class="book-bg-wrap">
-        <div class="book-bg-label">段落背景</div>
-        <div class="book-bg" id="book-intro">{{ book_bg or '' }}</div>
-      </div>
-    {% endif %}
+    <div class="book-bg-wrap">
+      <div class="book-bg-label">段落背景</div>
+      <div class="book-bg" id="book-intro">{{ book_bg or '' }}</div>
+    </div>
 
     <div class="scripture-ref">
       <strong>{{ plan.book }} {{ plan.range }}</strong>
@@ -253,6 +251,7 @@ function loadGuide() {
 
   {% else %}
     <form method="post" action="{{ url_for('diary.save') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <textarea
         name="content"
         class="diary-textarea"
@@ -261,7 +260,7 @@ function loadGuide() {
 
       <input type="hidden" name="entry_date" value="{{ entry_date }}">
       <button type="submit" class="primary-btn"
-        onclick="return confirm('確定要儲存並鎖定嗎？\n鎖定後內容就無法再修改了。')">儲存並鎖定</button>
+        onclick="var f=this.form;openConfirm('確定要儲存並鎖定嗎？鎖定後內容就無法再修改了。',()=>f.submit());return false;">儲存並鎖定</button>
     </form>
   {% endif %}
 </section>
