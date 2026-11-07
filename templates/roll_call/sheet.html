@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}聚會點名{% endblock %}
+{% block content %}
+<div style="max-width:960px; margin:0 auto; padding:16px 12px 60px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+    <h2 style="margin:0;">📝 {{ mtype.name if mtype else '聚會' }}點名單</h2>
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      {% if mtype %}<button type="button" data-tour="add-col" onclick="addColumn()" style="padding:10px 14px; border:1px solid #4F46E5; background:#4F46E5; color:#fff; border-radius:8px; font-weight:bold;">＋ 加今天這一欄</button>{% endif %}
+      <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:10px 14px; border:1px solid #c7d2fe; background:#eef2ff; border-radius:8px;">？ 教學</button>
+    </div>
+  </div>
+
+  {% if types|length > 1 %}
+  <div style="display:flex; gap:6px; margin-bottom:10px; flex-wrap:wrap;">
+    {% for t in types %}<a href="/roll-call?type={{ t.id }}" style="padding:6px 12px; border-radius:999px; text-decoration:none; border:1px solid #c7d2fe; {{ 'background:#4F46E5;color:#fff;' if mtype and t.id == mtype.id else 'background:#fff;color:#4338ca;' }}">{{ t.name }}</a>{% endfor %}
+  </div>
+  {% endif %}
+
+  <div id="msg" role="status" style="min-height:1.2em; color:#b91c1c; margin-bottom:8px;"></div>
+
+  {% if not mtype %}
+    <div style="padding:24px; border:1px dashed #c7d2fe; border-radius:12px; background:#fff; text-align:center;">
+      <p style="margin:0 0 12px;">還沒有點名單。按一下就會建立「主日」點名單，並加上今天這一欄。</p>
+      <button type="button" onclick="addColumn()" style="padding:12px 20px; border:0; background:#4F46E5; color:#fff; border-radius:8px; font-weight:bold; font-size:1rem;">開始：建立主日點名單</button>
+    </div>
+  {% elif not members %}
+    <div style="padding:24px; border:1px dashed #fcd34d; border-radius:12px; background:#fffbeb;">
+      <p style="margin:0;">名冊還是空的。{% if is_admin %}請到 <a href="/admin/roll-call">後台 → 聚會點名</a>，貼上姓名（每行一個）就會出現在這裡。{% else %}請管理員先到後台貼上名冊姓名。{% endif %}</p>
+    </div>
+  {% else %}
+  <div data-tour="sheet" style="overflow-x:auto; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+    <table style="border-collapse:separate; border-spacing:0; width:100%; min-width:{{ 120 + sessions|length * 64 }}px;">
+      <thead>
+        <tr>
+          <th style="position:sticky; left:0; z-index:2; background:#f9fafb; text-align:left; padding:10px 12px; border-bottom:1px solid #e5e7eb; min-width:110px;">姓名</th>
+          {% for s in sessions %}
+          <th style="background:#f9fafb; padding:8px 6px; border-bottom:1px solid #e5e7eb; text-align:center; font-weight:600; min-width:60px; {{ 'color:#4F46E5;' if s.id == today_col }}">
+            {{ s._local.strftime('%-m/%-d') }}{% if s.status == 'locked' %} 🔒{% endif %}
+          </th>
+          {% endfor %}
+          <th style="background:#f9fafb; padding:8px 8px; border-bottom:1px solid #e5e7eb; text-align:center; min-width:56px;">到</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for m in members %}
+        <tr>
+          <td style="position:sticky; left:0; background:#fff; padding:6px 12px; border-bottom:1px solid #f3f4f6; font-size:1.05rem;">{{ m.name }}{% if m.status == 'left' %} <span style="color:#9ca3af; font-size:.8rem;">（已離開）</span>{% endif %}</td>
+          {% for s in sessions %}
+          {% set on = records.get((s.id, m.id)) == 'present' %}
+          <td style="padding:2px; border-bottom:1px solid #f3f4f6; text-align:center;">
+            <button type="button" class="cell" data-sid="{{ s.id }}" data-mid="{{ m.id }}" data-on="{{ '1' if on else '0' }}"
+                    {% if not can_edit[s.id] %}disabled{% endif %}
+                    aria-label="{{ m.name }} {{ s._local.strftime('%-m/%-d') }}" aria-pressed="{{ 'true' if on else 'false' }}"
+                    onclick="toggle(this)"
+                    style="width:52px; height:44px; border:1px solid #e5e7eb; border-radius:8px; font-size:1.4rem; background:{{ '#dcfce7' if on else '#fff' }}; color:#15803d;">{{ '✓' if on else '' }}</button>
+          </td>
+          {% endfor %}
+          <td class="rowcount" style="text-align:center; border-bottom:1px solid #f3f4f6; color:#374151; font-weight:600;"></td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td style="position:sticky; left:0; background:#f9fafb; padding:10px 12px; font-weight:700;">人數</td>
+          {% for s in sessions %}<td class="colcount" data-sid="{{ s.id }}" style="background:#f9fafb; text-align:center; font-weight:700;"></td>{% endfor %}
+          <td style="background:#f9fafb;"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="color:#6b7280; font-size:.85rem; margin-top:10px;">點一下打勾，再點一下取消。沒打勾就是沒來。鎖定的欄（🔒）只有管理員能改。</p>
+  <p style="font-size:.85rem;"><a href="/roll-call/sessions">進階：逐場次、只記人數、補登、列印名冊</a></p>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/tour.js"></script>
+<script>
+const TODAY_COL = {{ (today_col or '')|tojson }};
+const AUTO_ADD = {{ 'true' if auto_add else 'false' }};
+const NEED_TYPE = {{ 'true' if not mtype else 'false' }};
+function say(t) { document.getElementById('msg').textContent = t || ''; }
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {}) });
+  const j = await r.json().catch(() => ({ error: '連線失敗' }));
+  if (!r.ok || j.error) throw new Error(j.error || '操作失敗');
+  return j;
+}
+function recount() {
+  document.querySelectorAll('tbody tr').forEach(tr => {
+    const n = tr.querySelectorAll('.cell[data-on="1"]').length;
+    const c = tr.querySelector('.rowcount'); if (c) c.textContent = n;
+  });
+  document.querySelectorAll('.colcount').forEach(td => {
+    td.textContent = document.querySelectorAll('.cell[data-sid="' + td.dataset.sid + '"][data-on="1"]').length;
+  });
+}
+async function toggle(btn) {
+  if (btn.dataset.busy) return;
+  const was = btn.dataset.on === '1', now = !was;
+  btn.dataset.busy = '1';
+  paint(btn, now);                                   // 先畫上去，手指離開就看到結果
+  try {
+    await post('/api/roll-call/session/' + btn.dataset.sid + '/mark', { member_id: btn.dataset.mid, status: now ? 'present' : 'absent' });
+    say('');
+  } catch (e) { paint(btn, was); say(e.message); }  // 失敗要還原，不能讓畫面說謊
+  delete btn.dataset.busy; recount();
+}
+function paint(btn, on) {
+  btn.dataset.on = on ? '1' : '0'; btn.textContent = on ? '✓' : '';
+  btn.style.background = on ? '#dcfce7' : '#fff'; btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+}
+async function addColumn() {
+  try { await post('/api/roll-call/sheet/add-column', {}); location.reload(); } catch (e) { say(e.message); }
+}
+function startTour() {
+  RollTour.start([
+    { target: 'sheet', text: '這就是紙本點名單：左邊是姓名，上面是日期。來了就點一下打勾，再點一下取消。' },
+    { target: 'add-col', text: '每週日打開這頁會自動加上今天這一欄；其他日子的聚會，按這裡加。' },
+    { target: 'help-btn', text: '隨時可以按這裡重看教學。' }
+  ]);
+}
+recount();
+if (AUTO_ADD && !TODAY_COL) { addColumn(); }           // 週日第一次打開：自動加上今天這一欄
+</script>
+{% endblock %}

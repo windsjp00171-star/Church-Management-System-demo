@@ -70,9 +70,91 @@ def _active_members():
 
 
 # ── 同工頁面 ──────────────────────────────────────────
+SHEET_COLUMNS = 8          # 表格一次顯示最近幾次聚會（紙本那種一排日期）
+DEFAULT_TYPE_NAME = '主日'
+DEFAULT_START_TIME = '10:00'
+
+
+def _today_taipei():
+    return to_taipei(datetime.now(timezone.utc)).date()
+
+
+def _sheet_type(type_id=None):
+    """表格用的聚會類型：指定的，或第一個逐人點名的類型。還沒有就回 None（建立由 POST 負責，GET 不寫入）。"""
+    types = supabase.table('rc_meeting_types').select('*').order('created_at').execute().data or []
+    individual = [t for t in types if t.get('record_mode') == 'individual']
+    if type_id:
+        hit = next((t for t in individual if t['id'] == type_id), None)
+        if hit:
+            return hit, individual
+    return (individual[0] if individual else None), individual
+
+
 @roll_call_bp.route('/roll-call')
 @staff_required
 def home():
+    """紙本名冊的樣子：左邊人名、上面日期，來了就打勾。"""
+    mtype, individual = _sheet_type(request.args.get('type'))
+    sessions, members, records = [], [], {}
+    if mtype:
+        rows = supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])\
+            .order('starts_at', desc=True).limit(SHEET_COLUMNS).execute().data or []
+        sessions = sorted(rows, key=lambda r: r['starts_at'])             # 舊的在左、新的在右
+        for s in sessions:
+            s['_local'] = to_taipei(s['starts_at'])
+        members = _active_members()
+        if sessions:
+            recs = supabase.table('rc_records').select('*')\
+                .in_('session_id', [s['id'] for s in sessions]).execute().data or []
+            records = {(r['session_id'], r['member_id']): r['status'] for r in recs}
+            known = {m['id'] for m in members}                            # 已離開但有紀錄的人也要看得到
+            extra = sorted({r['member_id'] for r in recs} - known)
+            if extra:
+                members += supabase.table('rc_members').select('*').in_('id', extra).execute().data or []
+                members.sort(key=lambda m: m['name'])
+    today = _today_taipei()
+    today_col = next((s['id'] for s in sessions if s['_local'].date() == today), None)
+    present = {s['id']: sum(1 for m in members if records.get((s['id'], m['id'])) == 'present') for s in sessions}
+    return render_template('roll_call/sheet.html', mtype=mtype, types=individual, sessions=sessions,
+                           members=members, records=records, present=present, today=today,
+                           today_col=today_col, auto_add=(today.weekday() == 6 and today_col is None),
+                           is_admin=_is_admin(), can_edit={s['id']: can_mark(s, _is_admin(), _is_staff()) for s in sessions})
+
+
+@roll_call_bp.route('/api/roll-call/sheet/add-column', methods=['POST'])
+@staff_required
+def api_sheet_add_column():
+    """加一欄日期（預設今天）。第一次使用時順便建立「主日」聚會類型；同一天不會重複加。"""
+    data = request.get_json(silent=True) or {}
+    day = (data.get('date') or '').strip() or _today_taipei().isoformat()
+    try:
+        starts_at = taipei_input_to_utc_iso(day, DEFAULT_START_TIME)
+    except ValueError:
+        return _err('日期格式不正確')
+    try:
+        mtype, _ = _sheet_type((data.get('type_id') or '').strip() or None)
+        if not mtype:
+            made = supabase.table('rc_meeting_types').insert({
+                'name': DEFAULT_TYPE_NAME, 'record_mode': 'individual', 'counts_toward_rate': True}).execute().data
+            mtype = made[0]
+        same = [s for s in (supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])
+                            .order('starts_at', desc=True).limit(60).execute().data or [])
+                if to_taipei(s['starts_at']).date().isoformat() == day]
+        if same:
+            return _ok({'id': same[0]['id'], 'created': False})
+        uid, name = _actor()
+        row = supabase.table('rc_sessions').insert({
+            'type_id': mtype['id'], 'starts_at': starts_at, 'created_by': uid, 'created_by_name': name,
+        }).execute().data
+    except Exception as e:
+        return _db_error(e)
+    return _ok({'id': row[0]['id'] if row else None, 'created': True})
+
+
+@roll_call_bp.route('/roll-call/sessions')
+@staff_required
+def session_list():
+    """進階：逐場次列表（只記人數的聚會、補登、列印名冊從這裡進）。"""
     sessions = supabase.table('rc_sessions').select('*').eq('status', 'open')\
         .order('starts_at', desc=True).limit(30).execute().data or []
     types = {t['id']: t for t in (supabase.table('rc_meeting_types').select('*').execute().data or [])}

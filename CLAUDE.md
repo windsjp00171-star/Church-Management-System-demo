@@ -105,6 +105,7 @@ from db import supabase
 - 點名寫入一律走資料庫函式 `rc_save_record` / `rc_lock_session` / `rc_set_count`（同交易寫紀錄＋稽核）；不得直接寫 `rc_records`。
 - `rc_audit` 只許追加（觸發器擋 UPDATE／DELETE／TRUNCATE）；修改必須附原因；人數空白一律退回、不得當 0。
 - 出席率規則是資料（`rc_rate_rules`，不可改、同名新增即新版本），請假／遲到／中途加入的算法沒有預設值，由教會決定；計算在伺服器端（`roll_call_logic.py`）。
+- **點名單**（`/roll-call`）：紙本樣式的表格（人名×日期）；`GET` 不寫資料庫，建立「主日」類型與加欄由 `POST /api/roll-call/sheet/add-column`（同一天不重複、預設台北 10:00）；打勾走既有的 `api_mark`（present／absent）。逐場次頁移到 `/roll-call/sessions`。
 - 名冊匯入：`/api/admin/roll-call/members/preview`（只分類、不寫入）→ `/api/admin/roll-call/members`（伺服器重算分類；疑似重複須 `confirm_similar` 明確確認；同名一律略過）。分類邏輯只有 `roll_call_logic.plan_import` 一份。
 - 測試：`tests/`（`pytest`；`test_roll_call_db.py` 需要 root＋Postgres 16，否則略過）。
 - 網址：同工 `/roll-call`；後台 `/admin/roll-call`、`/admin/roll-call/rates`。API 回傳 `{"status", "data", "error"}`。
