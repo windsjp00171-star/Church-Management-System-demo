@@ -254,6 +254,17 @@ def _src(path):
     return open(path, encoding='utf-8').read()
 
 
+def test_both_registration_paths_recompute_on_the_server():
+    """★★ 身分別決定金額。前端送什麼就存什麼的話，任何人都能把
+    「成人 $800」改成「國小以下孩童 $500」—— 而畫面上完全正常、
+    名冊上完全正常，只是那個人少付了 300 塊。
+
+    兩個寫入點（會員報名、外部報名）都要覆蓋。漏掉一個的話，
+    那個入口就是一個公開的改價介面。
+    """
+    for path, fn in _answer_writers():
+        assert '_enforce_auto_tiers(' in fn, \
+            f'{path} 有一個寫入答案的地方沒有重算身分別'
 
 
 def _answer_writers():
@@ -283,16 +294,80 @@ def _answer_writers():
     return out
 
 
+def test_the_server_overwrites_rather_than_validates():
+    """★ 「檢查前端送的對不對，不對就報錯」跟「直接覆蓋」不一樣。
+
+    前者會在使用者沒做錯任何事的時候擋下他（例如他填完生日之後
+    網路斷了、前端算不出來送了空字串）。直接覆蓋不會有這個問題，
+    而且結果一樣不可竄改。
+    """
+    src = _src('routes/event.py')
+    fn = src[src.index('def _enforce_auto_tiers'):]
+    fn = fn[:fn.index('\ndef ')]
+    assert "by_id[f['id']]['answer'] = final" in fn, '沒有覆蓋，只是驗證'
 
 
+def test_the_special_declaration_is_the_only_thing_taken_from_the_client():
+    """★ 身心障礙系統算不出來，只能本人申報 —— 那一項要沿用前端。
+
+    但也只有那一項：從「送上來的答案是不是等於 special_label」反推，
+    不另外開一個欄位讓前端直接指定身分別。
+    """
+    src = _src('routes/event.py')
+    fn = src[src.index('def _enforce_auto_tiers'):]
+    fn = fn[:fn.index('\ndef ')]
+    assert 'sent == special_label' in fn
 
 
+def test_the_frontend_never_computes_the_tier_itself():
+    """★ 前端自己算一份的話，兩份會開始各自演化 —— 而症狀是
+    「畫面說成人、存進去卻是敬老」，兩邊都看起來完全正常。
+
+    這個專案已經被這一類咬過好幾次（收值、跳題條件各寫一份）。
+    """
+    js = _src('static/js/form-fields.js')
+    assert 'compute-tier' in js, '前端沒有走伺服器端的計算'
+    for own in ('pickTier', 'ageFrom', 'function pick_tier'):
+        assert own not in js, f'前端自己又算了一份（{own}）'
 
 
+def test_the_hidden_answer_carries_the_price_for_the_fee_total():
+    """★ 金額是 fee-total.js 從 data-price 讀的，而自動判定的答案在
+    隱藏欄位上、不是 :checked 的 radio。
+
+    漏掉的話身分別顯示得好好的、應繳金額卻永遠是 0 ——
+    而那個人會照著畫面上的 $0 出門。
+    """
+    assert '.at-hidden[data-price]' in _src('static/js/fee-total.js')
 
 
+def test_filling_the_birthday_triggers_a_recompute():
+    """★ 兩條路徑都要重算，而且要**分開釘**。
+
+    只數次數（>= 2）的話，拿掉其中一條照樣通過 —— mutation 測試抓到的。
+
+    填好了不重算 → 身分別永遠停在「請先填寫出生日期」。
+    填壞了不重算 → 停在上一次算好的身分別，等於用舊生日的答案送出。
+    """
+    js = _src('static/js/fee-total.js')
+    fn = js[js.index('window.syncRocDate'):]
+    fn = fn[:fn.index('\n  window.')] if '\n  window.' in fn else fn
+
+    # 成功路徑：寫入 iso.value 之後
+    ok = fn[fn.index("iso.value = y + '-'"):]
+    assert 'refreshAutoTiers' in ok[:400], '生日填好之後沒有重算身分別'
+
+    # 失敗路徑：fail() 裡把 iso 清空之後
+    bad = fn[fn.index('function fail(msg)'):]
+    bad = bad[:bad.index('\n    }')]
+    assert 'refreshAutoTiers' in bad, '生日填壞之後沒有把身分別退回算不出來'
 
 
+def test_all_three_entry_points_render_the_same_partial():
+    """★ 這個專案反覆被「同一件事有三份實作」咬到。"""
+    for path in ('templates/event_detail.html', 'templates/external_register.html'):
+        src = _src(path)
+        assert "{% include '_auto_tier_field.html' %}" in src, f'{path} 沒有用共用的那一份'
 
 
 def test_the_age_basis_is_the_event_date():
@@ -304,6 +379,10 @@ def test_the_age_basis_is_the_event_date():
     assert "get('event_start')" in fn
 
 
+def test_an_unresolvable_tier_is_explained_not_left_blank():
+    """生日填了、年齡也算出來了，卻對不到任何身分別 —— 那是設定沒接好。
+    只留一個「—」的話，報名者不知道發生什麼事，只會覺得系統壞了。"""
+    assert '對不到任何身分別' in _src('static/js/form-fields.js')
 
 
 # ══ 報名確認頁 ══════════════════════════════════════

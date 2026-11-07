@@ -111,3 +111,37 @@ def client_as(app):
                 s.update(flags)
         return c
     return make
+
+
+import re as _re
+from pathlib import Path as _Path
+
+
+#  asset() 引用得到的**原始碼**副檔名。
+#  ★ 圖片也走 asset()（頭像、icon），而圖片不是文字 ——
+#    一律 read_text 的話會 UnicodeDecodeError，而且是在 **import 期**炸，
+#    所以整個檔案連收集都收集不到：畫面上是「2 errors during collection」，
+#    看起來像測試壞了，其實只是有人在模板裡加了一張圖。
+#    （實際發生過：小舟的頭像從 emoji 換成 PNG 的那一次。）
+_SOURCE_EXTS = ('.css', '.js', '.svg')
+
+
+def source_bundle(template):
+    """回傳 template 的內容 ＋ 它透過 asset() 引用的所有 static **原始碼**內容。
+
+    template: 相對 templates/ 的路徑，例如 'base.html'。
+    """
+    root = _Path(__file__).resolve().parent.parent
+    text = (root / 'templates' / template).read_text(encoding='utf-8')
+    parts = [text]
+    for rel in _re.findall(r"asset\(\s*['\"]([^'\"]+)['\"]\s*\)", text):
+        f = root / 'static' / rel
+        if f.exists() and f.suffix.lower() in _SOURCE_EXTS:
+            parts.append(f.read_text(encoding='utf-8'))
+    # 還沒改用 asset() 的寫死路徑也一起收進來
+    for rel in _re.findall(r'src="/static/([^"]+\.js)"', text):
+        f = root / 'static' / rel
+        if f.exists():
+            parts.append(f.read_text(encoding='utf-8'))
+    return '\n'.join(parts)
+

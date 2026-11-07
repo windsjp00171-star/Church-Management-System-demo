@@ -1845,9 +1845,11 @@ def edit_registration(event_id, reg_id):
 
     answers = data.get('answers', [])  # [{field_id, answer}]
     if answers:
-        from routes.event import (_normalize_guardian_answers,
+        from routes.event import (_enforce_auto_tiers, _normalize_guardian_answers,
                                   _reject_bad_id_numbers, _reject_missing_required)
         ev = supabase.table('events').select('*').eq('id', event_id).execute().data
+        if ev:
+            _enforce_auto_tiers(ev[0], answers)
         bad = _reject_bad_id_numbers(event_id, answers)
         if not bad:
             _normalize_guardian_answers(event_id, answers)

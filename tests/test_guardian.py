@@ -39,6 +39,7 @@ from pathlib import Path
 
 import pytest
 
+
 from routes.conditions import missing_required
 from routes.guardian import MINOR_MAX_AGE, compose, is_complete, parse
 
@@ -204,6 +205,18 @@ def js_guardian():
     return json.loads(out.stdout)['guardian']
 
 
+def test_js_and_python_agree(js_guardian):
+    """★★ 前端和伺服器對同一組輸入必須產生完全一樣的結果。
+
+    分歧的症狀是「畫面上填好了，伺服器說沒填」—— 使用者盯著兩個明明
+    有字的框，不知道系統在講什麼，而且他做什麼都改變不了。
+    """
+    assert len(js_guardian) == len(GUARDIAN_CASES)
+    for (name, phone), got in zip(GUARDIAN_CASES, js_guardian):
+        want = compose(name, phone)
+        assert got['composed'] == want, f'{name!r}/{phone!r} 組出來的字串不一樣'
+        assert tuple(got['parsed']) == parse(want), f'{want!r} 拆回來不一樣'
+        assert got['complete'] == is_complete(want), f'{want!r} 完整性判斷不一樣'
 
 
 # ── 後台 ──────────────────────────
@@ -226,3 +239,12 @@ def _admin():
 
 
 
+def test_all_three_entry_points_share_one_renderer():
+    """三份各寫的話，其中一份的 class 打錯就變成
+    「那個入口的監護人永遠存不進去」，而畫面完全正常。"""
+    for name in ('event_detail.html', 'external_register.html'):
+        src = (ROOT / 'templates' / name).read_text(encoding='utf-8')
+        assert "_guardian_field.html" in src, f'{name} 沒有用共用的那一份'
+    detail = (ROOT / 'templates' / 'event_detail.html').read_text(encoding='utf-8')
+    assert detail.count("include '_guardian_field.html'") == 2, \
+        'event_detail 有兩份表單（自己報名／幫別人報名），兩份都要'

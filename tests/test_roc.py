@@ -148,8 +148,24 @@ BIRTHDAY_FORMS = (
 
 
 
+def test_this_roc_year_uses_taipei_time():
+    """用 UTC 的話跨年那一刻會差一年"""
+    src = open('app.py', encoding='utf-8').read()
+    assert 'def this_roc_year' in src
+    assert 'timedelta(hours=8)' in src, 'this_roc_year 沒有用台灣時間'
 
 
+def test_frontend_and_backend_agree_on_the_year_rule():
+    """★ JS 和 Python 各有一份「民國還是西元」的判斷，必須一致。
+
+    不一致的話：前端顯示「＝ 西元 1999」但後端算年齡時當成別的年 ——
+    而畫面上完全看不出來。
+    """
+    js = open('static/js/fee-total.js', encoding='utf-8').read()
+    assert 'ROC_OFFSET = 1911' in js
+    assert 'normalizeRocYear' in js
+    from routes.roc import ROC_OFFSET
+    assert ROC_OFFSET == 1911
 
 
 
