@@ -87,15 +87,16 @@
 <div class="gw">
   <div class="gw-head">
     <h2>✨ 我陪你開一場活動</h2>
-    <span class="gw-step" id="gw-step"></span>
+    <span class="gw-step" id="gw-step" data-tour="step"></span>
+    <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:8px 16px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer; min-height:44px;">？ 教學</button>
   </div>
   <div class="gw-bar"><i id="gw-bar"></i></div>
 
-  <div class="gw-card" id="gw-card"></div>
+  <div class="gw-card" id="gw-card" data-tour="card"></div>
 
   <div class="gw-nav">
     <button type="button" class="gw-back" id="gw-back" onclick="gwBack()">← 上一題</button>
-    <a class="gw-quit" href="/admin/events/new">我自己填表單就好 →</a>
+    <a class="gw-quit" href="/admin/events/new" data-tour="quit">我自己填表單就好 →</a>
   </div>
 </div>
 
@@ -611,5 +612,18 @@ function gwCreate() {
 }
 
 gwRender();
+</script>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/tour.js"></script>
+<script>
+function startTour() {
+  RollTour.start([
+    { target: 'card', text: '一次只問一題。不確定的先選「待定」，系統會告訴你選了之後會怎樣，之後隨時能在活動編輯頁補。' },
+    { target: 'step', text: '這裡是進度。最後一步會把我替你做的每一個決定攤開來，你確認了才會真的建立。' },
+    { target: 'quit', text: '熟悉表單的話隨時可以改用自己填，走到哪裡都可以離開。' },
+    { target: 'help-btn', text: '隨時可以回來重看這個教學。' }
+  ]);
+}
 </script>
 {% endblock %}
