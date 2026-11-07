@@ -172,7 +172,12 @@
                     {% for field in fields %}
                     <td style="padding:14px 16px; font-size:0.9rem;
                         {% if field.is_archived %}color:#bbb;{% else %}color:#444;{% endif %}">
+                        {# 生日存的是西元，名冊和保險公司看的是民國（認不出來原樣印出）—— 匯出走同一支 routes.roc.to_roc #}
+                        {%- if field.field_type == 'birthday' and my_answers.get(field.id) -%}
+                        {{ my_answers.get(field.id) | roc_short }}
+                        {%- else -%}
                         {{ my_answers.get(field.id, '—') }}
+                        {%- endif %}
                     </td>
                     {% endfor %}
 
@@ -284,43 +289,91 @@
 
         <!-- 自訂欄位 -->
         <div id="edit-fields-section">
-            <p style="font-weight:bold; margin:0 0 12px; color:#333; font-size:0.9rem;">📝 活動欄位資料</p>
-            {% for field in fields %}
-            <div style="margin-bottom:14px;">
-                <label style="font-size:0.85rem; font-weight:bold; display:block; margin-bottom:4px; color:#555;">
-                    {{ field.label }}{% if field.is_required %} <span style="color:#e53935;">*</span>{% endif %}
+            <p style="font-weight:bold; margin:0 0 12px; color:var(--text-2, #555); font-size: 0.9rem;">📝 活動欄位資料</p>
+            {% for field in fields if field.field_type != 'group' %}
+            <div class="field-wrapper"
+                 data-sort-order="{{ loop.index0 }}"
+                 data-condition="{{ field.condition_json or '' }}"
+                 data-field-type="{{ field.field_type }}"
+                 data-field-id="{{ field.id }}"
+                 data-field-label="{{ field.label }}"
+                 {% if field.is_required %}data-required="true"{% endif %}
+                 style="margin-bottom:14px;">
+                <label class="field-label" style="font-size: 0.9rem; font-weight:bold; display:block; margin-bottom:4px; color:var(--text-3, #888);">
+                    {{ field.label }}{% if field.is_required %} <span class="req-tag">必填</span>{% endif %}
                 </label>
-                {% if field.field_type == 'radio' %}
+
+                {# 以下的分支要跟 event_detail.html 同步 ——
+                   新增／修改渲染分支時，那邊改了這邊也要改
+                   （tests/test_roster_edit_covers_every_field_type.py 在守）。 #}
+                {% if field.field_type == 'fee' and (field.auto_tier or {}).enabled %}
+                {# 依生日自動判定：同工不用自己選，勾的只有「自行申報」那一項 #}
+                {% include '_auto_tier_field.html' %}
+                {% elif field.field_type in ['radio', 'fee'] %}
                 <div style="display:flex; flex-direction:column; gap:6px;">
-                    {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
-                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 12px; border:1px solid #e0e0e0; border-radius:8px;">
-                        <input type="radio" name="edit_field_{{ field.id }}" value="{{ opt.strip() }}"
-                            data-field-id="{{ field.id }}" style="accent-color:#06C755;">
-                        <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                    {# 選項可能帶價格（成人|800）。value 一律只存標籤 ——
+                       存整行的話跳題條件和金額比對都會對不上。 #}
+                    {% for opt in field_options(field.options) %}
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 12px; border:1px solid var(--border, #ddd); border-radius:8px;">
+                        <input type="radio" name="edit_field_{{ field.id }}" value="{{ opt.label }}"
+                            onchange="evaluateConditions(document.getElementById('edit-fields-section'))"
+                            style="width:16px; height:16px; accent-color:var(--green-ink, #1b5e20); flex-shrink:0;">
+                        <span style="font-size: 0.9rem; flex:1;">{{ opt.label }}</span>
+                        {% if opt.price is not none %}
+                        <span style="font-size:0.9rem; font-weight:800; color:var(--green-ink,var(--green-ink, #1b5e20));">${{ opt.price }}</span>
+                        {% endif %}
                     </label>
                     {% endfor %}
                 </div>
+                {% elif field.field_type == 'checkbox' %}
+                <div style="display:flex; flex-direction:column; gap:6px;">
+                    {% for opt in field_options(field.options) %}
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; padding:8px 12px; border:1px solid var(--border, #ddd); border-radius:8px;">
+                        <input type="checkbox" value="{{ opt.label }}"
+                            style="width:16px; height:16px; accent-color:var(--green-ink, #1b5e20); flex-shrink:0;">
+                        <span style="font-size: 0.9rem;">{{ opt.label }}</span>
+                    </label>
+                    {% endfor %}
+                </div>
+                {% elif field.field_type == 'guardian' %}
+                {# 監護人：姓名＋電話，存成一格「姓名／電話」 #}
+                {% include '_guardian_field.html' %}
                 {% elif field.field_type == 'select' %}
-                <select data-field-id="{{ field.id }}"
-                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem;">
+                <select aria-label="{{ field.label }}" data-field-id="{{ field.id }}"
+                    onchange="evaluateConditions(document.getElementById('edit-fields-section'))"
+                    style="width:100%; padding:9px 12px; border:1px solid var(--border, #ddd); border-radius:8px; font-size: 0.9rem;">
                     <option value="">請選擇...</option>
-                    {% for opt in field.options.split('\n') if field.options and opt.strip() %}
-                    <option value="{{ opt.strip() }}">{{ opt.strip() }}</option>
+                    {% for opt in field_options(field.options) %}
+                    <option value="{{ opt.label }}">{{ opt.label }}{% if opt.price is not none %}（${{ opt.price }}）{% endif %}</option>
                     {% endfor %}
                 </select>
                 {% elif field.field_type == 'textarea' %}
-                <textarea data-field-id="{{ field.id }}" rows="3"
-                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; resize:vertical; box-sizing:border-box;"></textarea>
+                <textarea aria-label="{{ field.label }}" data-field-id="{{ field.id }}" rows="3"
+                    style="width:100%; padding:9px 12px; border:1px solid var(--border, #ddd); border-radius:8px; font-size: 0.9rem; resize:vertical; box-sizing:border-box;"></textarea>
+                {% elif field.field_type == 'birthday' %}
+                {# 生日跟報名表單走同一份 markup（見 _roc_date_field.html）。
+                   原本這裡掉到預設分支變成普通文字框，於是欄位名稱寫著
+                   「出生年月日(民國)」、框裡卻是西元 1969-10-20 ——
+                   而且那個框收什麼字串都存得進去：同工照著標題填民國
+                   58-10-20，存進去就是一個算不出年齡的爛值，
+                   身分別和「未滿18歲才問監護人」會一起靜靜地算錯。 #}
+                {% include '_roc_date_field.html' %}
+                {% elif field.field_type == 'id_number' %}
+                <input aria-label="例：A123456789" type="text" data-field-id="{{ field.id }}" class="id-input"
+                    inputmode="latin" autocapitalize="characters"
+                    oninput="checkTwId(this)" placeholder="例：A123456789"
+                    style="width:100%; padding:9px 12px; border:1px solid var(--border, #ddd); border-radius:8px; font-size: 0.9rem; box-sizing:border-box;">
+                <p class="id-hint" style="margin:5px 0 0; font-size:0.9rem; color:var(--text-3, #888);"></p>
                 {% else %}
-                <input type="{{ 'number' if field.field_type == 'number' else ('date' if field.field_type == 'date' else 'text') }}"
+                <input aria-label="{{ field.label }}" type="{{ 'number' if field.field_type == 'number' else ('date' if field.field_type == 'date' else 'text') }}"
                     data-field-id="{{ field.id }}"
-                    style="width:100%; padding:9px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem; box-sizing:border-box;"
+                    style="width:100%; padding:9px 12px; border:1px solid var(--border, #ddd); border-radius:8px; font-size: 0.9rem; box-sizing:border-box;"
                     placeholder="{{ field.label }}">
                 {% endif %}
             </div>
             {% endfor %}
             {% if not fields %}
-            <p style="color:#aaa; font-size:0.88rem; text-align:center; padding:12px 0;">此活動沒有自訂欄位</p>
+            <p style="color:var(--text-3, #888); font-size: 0.9rem; text-align:center; padding:12px 0;">此活動沒有自訂欄位</p>
             {% endif %}
         </div>
 
@@ -343,8 +396,6 @@ let _editIsGuest = false;
 function openEditModal(btn) {
     _editRegId = btn.dataset.regId;
     _editIsGuest = btn.dataset.isGuest === 'true';
-    const guestName = btn.dataset.guestName || '';
-    const guestPhone = btn.dataset.guestPhone || '';
     let existingAnswers = {};
     try { existingAnswers = JSON.parse(btn.dataset.answers || '{}'); } catch(e) {}
 
@@ -352,20 +403,35 @@ function openEditModal(btn) {
     const guestSection = document.getElementById('edit-guest-section');
     guestSection.style.display = _editIsGuest ? 'block' : 'none';
     if (_editIsGuest) {
-        document.getElementById('edit-guest-name').value = guestName;
-        document.getElementById('edit-guest-phone').value = guestPhone;
+        document.getElementById('edit-guest-name').value = btn.dataset.guestName || '';
+        document.getElementById('edit-guest-phone').value = btn.dataset.guestPhone || '';
     }
 
-    // 預填自訂欄位現有答案（先清除再填）
-    document.querySelectorAll('#edit-fields-section [data-field-id]').forEach(el => {
-        const fid = el.dataset.fieldId;
-        const val = existingAnswers[fid] || '';
-        if (el.tagName === 'INPUT' && el.type === 'radio') {
-            el.checked = (el.value === val);
-        } else {
-            el.value = val;
-        }
-    });
+    /*  ★★ 填答案走**報名表單那一份**（form-fields.js 的 prefillFields）。
+     *
+     *  使用者定的：「後台編輯還是要跟前端報名表行為一致才對」。
+     *
+     *  這裡原本自己寫了一份「找出所有 [data-field-id] 塞值進去」的迴圈，
+     *  而那份只認得單純的輸入框。於是每一種**畫面跟儲存格式不一樣**的
+     *  欄位都各自壞在不同的地方，四個症狀分開看都像不同的 bug：
+     *
+     *    生日      畫面是民國三格、存的是西元 → 打開來三格是空的
+     *    監護人    畫面是兩格、存的是「姓名／電話」→ 姓名欄寫著整串
+     *    複選      畫面是勾選框、存的是「素食、不吃牛」→ 一個都沒勾
+     *    自動判定  勾選框沒有 data-field-id → 勾過身障的人打開來沒勾，
+     *              同工按下儲存就把他的申報**取消掉**了
+     *
+     *  ★ prefillFields 填完會自己重跑跳題、身分別、年齡條件和金額 ——
+     *    順序也是它管的（先填再判斷，反過來會把剛填好的答案清掉）。
+     */
+    //  ★★ 先清乾淨再填。這個彈窗是**重複使用**的，而 prefillFields
+    //    只填「有答案的」欄位 —— 沒有答案的它會跳過，不是清空。
+    //    不先清的話，換一個人打開來會看到上一位的生日、上一位勾的選項，
+    //    而旁邊那些欄位已經換成這一位了：整格看起來完全正常，
+    //    只是有一半是別人的資料，而同工按下儲存就把它存成這個人的。
+    const section = document.getElementById('edit-fields-section');
+    resetFields(section);
+    prefillFields(section, existingAnswers);
 
     document.getElementById('edit-overlay').style.display = 'block';
     document.getElementById('edit-modal').style.display = 'block';
@@ -393,22 +459,23 @@ function saveEditModal() {
         payload.guest_phone = document.getElementById('edit-guest-phone').value.trim();
     }
 
-    // 收集自訂欄位
-    const seen = {};
-    document.querySelectorAll('#edit-fields-section [data-field-id]').forEach(el => {
-        const fid = el.dataset.fieldId;
-        if (seen[fid]) return;
-        let val = '';
-        if (el.tagName === 'INPUT' && el.type === 'radio') {
-            // radio 群組：找選中的
-            const checked = document.querySelector(`input[name="edit_field_${fid}"]:checked`);
-            val = checked ? checked.value : '';
-        } else {
-            val = el.value.trim();
-        }
-        seen[fid] = true;
-        if (val) payload.answers.push({ field_id: fid, answer: val });
-    });
+    /*  ★★ 收值和必填也走報名表單那一份。
+     *
+     *  ★ 必填只對**看得見**的欄位成立 —— 而看不看得見是跳題算出來的。
+     *    自己寫一份的話，同工會被擋在一個他畫面上根本沒有的欄位上
+     *    （例如 57 歲的人的「監護人姓名(未滿18歲者)」）。
+     *
+     *  ★ 伺服器還會再擋一次（_reject_missing_required）—— 這裡擋是為了
+     *    當場講得出是哪一格，不是為了取代它。
+     */
+    const section = document.getElementById('edit-fields-section');
+    const missing = missingRequiredFields(section);
+    if (missing.length) {
+        alert('還有必填沒有填：\n\n・' + missing.join('\n・'));
+        return;
+    }
+    payload.answers = collectFieldAnswers(section)
+        .filter(a => String(a.answer || '').trim() !== '');
 
     fetch(`/admin/events/{{ event.id }}/registrations/${_editRegId}/edit`, {
         method: 'POST',
@@ -416,7 +483,7 @@ function saveEditModal() {
         body: JSON.stringify(payload)
     }).then(r => r.json()).then(d => {
         if (d.success) { closeEditModal(); location.reload(); }
-        else showToast(d.error || '儲存失敗', 'error');
+        else alert(d.error || '儲存失敗');
     });
 }
 
@@ -672,4 +739,13 @@ document.addEventListener('click', e => {
 {% endif %}
 </script>
 
+{# ★ 編輯彈窗的欄位（生日三格、監護人兩格、依生日自動判定、分級收費、跳題）跟報名表單走**同一份** JS：
+     自己再寫一份的話，每一種「畫面跟儲存格式不一樣」的欄位都會各自壞在不同的地方。
+     順序跟報名頁一樣：form-fields 在 fee-total 之前。 #}
+<script src="{{ asset('js/form-fields.js') }}"></script>
+<script src="{{ asset('js/fee-total.js') }}"></script>
+<script>
+    //  ★ 身分別要問伺服器才算得出來（/event/<id>/compute-tier）；不設的話那一格靜靜地不更新。
+    document.body.dataset.eventId = "{{ event.id }}";
+</script>
 {% endblock %}

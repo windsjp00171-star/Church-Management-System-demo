@@ -237,6 +237,18 @@ def test_admin_and_backend_agree_on_the_price_syntax():
 #
 # 這是這個專案反覆出現的同一類 bug：兩份複製，只改了一份。
 
+def test_there_is_a_one_click_entry_next_to_the_fee_field():
+    """★ 找錢的人會先看「費用」那一格。
+
+    分級收費藏在自訂欄位的選項框裡，而那個框要先把型別選成「單選」
+    才會出現 —— 使用者在費用那格找不到，就以為系統做不到（實際發生過）。
+
+    所以給一顆會直接建好欄位的按鈕，不是只給一行說明。
+    """
+    src = open('templates/admin/event_form.html', encoding='utf-8').read()
+    fee_block = src.split('id="fee"')[1].split('</div>')[0]
+    assert 'addTieredFeeField()' in fee_block, '費用欄位旁邊沒有分級收費的入口'
+    assert 'function addTieredFeeField' in src
 
 
 def test_the_one_click_entry_produces_a_usable_field():

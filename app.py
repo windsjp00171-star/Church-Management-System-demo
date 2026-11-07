@@ -334,6 +334,12 @@ def create_app():
 
     app.jinja_env.filters['taipei_time'] = _taipei_time
 
+    def _roc_short(iso):
+        """西元 'YYYY-MM-DD' → '077/09/06'（給名冊表格、給保險公司）。認不出來原樣印回去。"""
+        from routes.roc import to_roc
+        return to_roc(iso) or (iso or '')
+    app.jinja_env.filters['roc_short'] = _roc_short
+
     # ── 錯誤頁面 ──────────────────────────────────────────────
     @app.errorhandler(404)
     def not_found(e):
