@@ -11,6 +11,7 @@ import settings_store
 from storage import upload_file, get_presigned_url, delete_file
 from routes.notifications import create_notification
 from extensions import limiter
+from routes.decorators import login_required
 
 logger = logging.getLogger(__name__)
 files_bp = Blueprint('files', __name__)
@@ -53,16 +54,6 @@ ALLOWED_EXTENSIONS = {
 }
 
 MAX_FILENAME_LEN = 200
-
-
-def login_required(f):
-    from functools import wraps
-    @wraps(f)
-    def decorated(*args, **kwargs):
-        if not session.get('user_id'):
-            return redirect(url_for('auth.login_page'))
-        return f(*args, **kwargs)
-    return decorated
 
 
 def _get_role() -> str:
