@@ -237,6 +237,7 @@
         <div class="field-row"
              data-saved-condition="{{ field.condition_json or '' }}"
              data-field-id="{{ field.id }}"
+             data-auto-tier='{{ (field.auto_tier or none) | tojson }}'
              style="background:#f9f9f9; border-radius:10px; padding:14px 16px; margin-bottom:10px; border:1px solid #eee;">
 
             <!-- 第一行：欄位名稱 + 類型 + 必填 + 刪除 -->
@@ -253,6 +254,10 @@
                     <option value="select"   {{ 'selected' if field.field_type=='select' }}>下拉選單</option>
                     <option value="number"   {{ 'selected' if field.field_type=='number' }}>數字</option>
                     <option value="date"     {{ 'selected' if field.field_type=='date' }}>日期</option>
+                    <option value="fee"      {{ 'selected' if field.field_type=='fee' }}>分級收費</option>
+                    <option value="birthday" {{ 'selected' if field.field_type=='birthday' }}>出生日期</option>
+                    <option value="id_number" {{ 'selected' if field.field_type=='id_number' }}>身分證字號</option>
+                    <option value="guardian" {{ 'selected' if field.field_type=='guardian' }}>監護人</option>
                 </select>
                 <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
                     <input type="checkbox" class="f-required" {{ 'checked' if field.is_required }}
@@ -265,9 +270,9 @@
             </div>
 
             <!-- 第二行：選項（select / radio / checkbox 才顯示） -->
-            <div class="options-area" style="margin-top:10px; {{ '' if field.field_type in ['select','radio','checkbox'] else 'display:none;' }}">
+            <div class="options-area" style="margin-top:10px; {{ '' if field.field_type in ['select','radio','checkbox','fee'] else 'display:none;' }}">
                 <label style="font-size:0.85rem; color:#888; display:block; margin-bottom:4px;">
-                    選項內容（每行一個）
+                    選項內容（每行一個；要收費的寫成「成人|800」）
                 </label>
                 <textarea class="f-options" rows="3"
                     style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; resize:vertical;">{{ (field.options or '').replace('__other__', '').strip() }}</textarea>
@@ -472,7 +477,7 @@
 function toggleOptions(select) {
     const row = select.closest('.field-row');
     const area = row.querySelector('.options-area');
-    const showOptions = ['select', 'radio', 'checkbox'].includes(select.value);
+    const showOptions = ['select', 'radio', 'checkbox', 'fee'].includes(select.value);
     area.style.display = showOptions ? 'block' : 'none';
     rebuildAllConditionDropdowns();
 }
@@ -509,7 +514,7 @@ function rebuildTriggerDropdown(currentRow) {
     allRows.forEach((row, index) => {
         if (row === currentRow) return;
         const type = row.querySelector('.f-type').value;
-        if (!['select', 'radio'].includes(type)) return; // 只有 select / radio 可觸發
+        if (!['select', 'radio', 'fee'].includes(type)) return; // 只有 select / radio / fee 可觸發
         const label = row.querySelector('.f-label').value.trim() || `第 ${index + 1} 題`;
         const opt = document.createElement('option');
         opt.value = index;
@@ -538,7 +543,9 @@ function updateConditionValues(triggerSelect) {
     const triggerRow = allRows[triggerIndex];
     if (!triggerRow) return;
     const optionsText = triggerRow.querySelector('.f-options')?.value || '';
-    const options = optionsText.split('\n').map(s => s.trim()).filter(s => s && s !== '__other__');
+    // 分級收費的選項寫成「成人|800」，答案是標籤（不含價格）
+    const options = optionsText.split('\n').map(s => s.trim().replace(/\s*\|\s*\d+(\s*\|\s*\d+)?$/, ''))
+        .filter(s => s && s !== '__other__');
     valueSelect.innerHTML = '<option value="">— 選擇觸發答案 —</option>';
     options.forEach(opt => {
         const el = document.createElement('option');
@@ -570,6 +577,10 @@ function addField() {
                 <option value="select">下拉選單</option>
                 <option value="number">數字</option>
                 <option value="date">日期</option>
+                <option value="fee">分級收費</option>
+                <option value="birthday">出生日期</option>
+                <option value="id_number">身分證字號</option>
+                <option value="guardian">監護人</option>
             </select>
             <label style="display:flex; align-items:center; gap:6px; white-space:nowrap; cursor:pointer;">
                 <input type="checkbox" class="f-required" style="width:16px; height:16px;"> 必填
@@ -581,7 +592,7 @@ function addField() {
         </div>
         <div class="options-area" style="margin-top:10px; display:none;">
             <label style="font-size:0.85rem; color:#888; display:block; margin-bottom:4px;">
-                選項內容（每行一個）
+                選項內容（每行一個；要收費的寫成「成人|800」）
             </label>
             <textarea class="f-options" rows="3"
                 style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:0.9rem; resize:vertical;"></textarea>
@@ -719,6 +730,13 @@ function submitForm(btn) {
             }
         }
 
+        if (!condition_json && row.dataset.savedCondition) {
+            try {
+                const saved = JSON.parse(row.dataset.savedCondition);
+                if (saved.op || saved.auto) condition_json = row.dataset.savedCondition;
+            } catch {}
+        }
+
         // 選項：把不含 __other__ 的純文字選項 + 若有勾選則加回 __other__
         const rawOptions = row.querySelector('.f-options')?.value.trim() || '';
         const hasOther = row.querySelector('.f-has-other')?.checked;
@@ -733,6 +751,8 @@ function submitForm(btn) {
             options: finalOptions,
             is_required: row.querySelector('.f-required').checked,
             condition_json,
+            // 這一版還沒有設定面板，既有的「依生日自動判定」設定原樣帶回去，不然存檔會把它洗掉
+            auto_tier: JSON.parse(row.dataset.autoTier || 'null'),
         });
     });
 
@@ -989,6 +1009,9 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!condStr) return;
         let cond;
         try { cond = JSON.parse(condStr); } catch { return; }
+        // 年齡條件、系統自動補的（auto）不是「答案是 X」，這個面板畫不出來；
+        // 留給伺服器，存檔時原樣帶回去
+        if (cond.op || cond.auto) return;
         const checkbox = row.querySelector('.f-has-condition');
         if (checkbox) {
             checkbox.checked = true;

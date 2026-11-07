@@ -146,6 +146,9 @@ BIRTHDAY_FORMS = (
 
 
 
+def test_admin_can_pick_the_birthday_type():
+    src = open('templates/admin/event_form.html', encoding='utf-8').read()
+    assert src.count('value="birthday"') == 2, '欄位型別下拉少了 birthday（有兩份：既有欄位 / 新增欄位）'
 
 
 def test_this_roc_year_uses_taipei_time():
