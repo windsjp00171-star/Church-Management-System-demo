@@ -26,18 +26,83 @@ def test_empty_database_shows_a_start_button_and_writes_nothing(fake_db, client_
     assert not fake_db.writes                       # 打開頁面不可以寫資料庫
 
 
-def test_sheet_has_names_on_the_left_dates_on_top_and_ticks(fake_db, client_as):
+def _buttons(html, enabled):
+    """表格裡可點／反灰的按鈕數量（只數按鈕本身）。"""
+    allb = re.findall(r'<button[^>]*class="cell"[^>]*>', html)
+    return len([b for b in allb if (' disabled' not in b) == enabled])
+
+
+def _sheet_world(fake_db):
     fake_db.tables.update(
         rc_meeting_types=[TYPE],
-        rc_sessions=[_sess('s2', '2026-11-08T02:00:00+00:00'), _sess('s1', '2026-11-01T02:00:00+00:00')],
+        rc_sessions=[_sess('s1', '2026-11-01T02:00:00+00:00'), _sess('s2', '2026-11-08T02:00:00+00:00')],
         rc_members=[{'id': 'm1', 'name': '王小明', 'status': 'active'}, {'id': 'm2', 'name': '李小華', 'status': 'active'}],
         rc_records=[{'session_id': 's1', 'member_id': 'm1', 'status': 'present'},
                     {'session_id': 's2', 'member_id': 'm1', 'status': 'present'},
                     {'session_id': 's2', 'member_id': 'm2', 'status': 'absent'}])
+
+
+def test_sheet_lays_out_the_whole_quarter_of_sundays(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))                # 週日，第四季
+    _sheet_world(fake_db)
     html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    labels = re.findall(r'<th[^>]*>\s*(\d+/\d+)', html)
+    assert labels == ['10/4', '10/11', '10/18', '10/25', '11/1', '11/8', '11/15', '11/22', '11/29',
+                      '12/6', '12/13', '12/20', '12/27']             # 整季 13 個主日，由左到右
     assert '王小明' in html and '李小華' in html
-    assert html.index('11/1') < html.index('11/8')                 # 舊的在左、新的在右，跟紙本一樣
-    assert _ticks(html, '1') == 2 and _ticks(html, '0') == 2      # 王兩次到；李 11/8 缺席、11/1 無紀錄
+
+
+def test_only_this_weeks_sunday_can_be_clicked_everything_else_is_greyed(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _sheet_world(fake_db)
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    assert _buttons(html, True) == 2                                 # 2 位成員 × 本週 1 欄
+    assert _buttons(html, False) == 2 * 12                           # 其餘 12 欄全部反灰
+    assert html.count('id="col-current"') == 1                       # 本週那一欄有標記（手機上自動捲到它）
+
+
+def test_ticks_in_greyed_columns_are_still_shown(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _sheet_world(fake_db)
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    assert _ticks(html, '1') == 2                                    # 王：11/1 與 11/8 都到；李 11/8 缺席
+    # 11/1（過去）的打勾還在，只是反灰不能改
+    past = [b for b in re.findall(r'<button[^>]*class="cell"[^>]*>', html) if 'data-on="1"' in b and ' disabled' in b]
+    assert len(past) == 1
+
+
+def test_midweek_the_sundays_column_is_still_this_weeks_and_next_sunday_is_not_yet(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 11))                 # 週三
+    _sheet_world(fake_db)
+    fake_db.tables['rc_sessions'].append(_sess('wed', '2026-11-11T02:00:00+00:00'))   # 臨時加開的週三聚會
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    assert _buttons(html, True) == 2 * 2                             # 本週主日 11/8 ＋ 同週的臨時聚會 11/11
+    assert 'const ADD_DATE = "2026-11-08"' in html                   # 本週的主日是 11/8（週日起算）
+
+
+def test_locked_current_column_is_not_clickable(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _sheet_world(fake_db)
+    fake_db.tables['rc_sessions'][1]['status'] = 'locked'
+    assert _buttons(client_as(is_staff=True).get('/roll-call').get_data(as_text=True), True) == 0
+
+
+def test_there_is_no_per_person_total_column_on_the_sheet(fake_db, client_as, monkeypatch):
+    """個人到幾次、出席率在「出席統計」；點名單上那一欄只會讓人困惑。"""
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _sheet_world(fake_db)
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    assert 'rowcount' not in html and '>到<' not in html
+
+
+def test_quarter_start_week_whose_sunday_falls_in_the_previous_quarter_still_has_its_column(fake_db, client_as, monkeypatch):
+    """1/1 那一週的主日是 12/28（上一季）：不顯示的話自動建立會無限重新整理。"""
+    _today(monkeypatch, datetime.date(2026, 1, 1))
+    fake_db.tables.update(rc_meeting_types=[TYPE], rc_members=[{'id': 'm1', 'name': '甲', 'status': 'active'}],
+                          rc_sessions=[_sess('s1', '2025-12-28T02:00:00+00:00')])
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    assert 'const AUTO_ADD = false' in html and 'id="col-current"' in html and '12/28' in html
+    assert _buttons(html, True) == 1
 
 
 def test_blank_and_absent_look_the_same_as_on_paper(fake_db, client_as):
@@ -79,78 +144,26 @@ def test_empty_roster_tells_you_where_to_add_names(fake_db, client_as):
     assert '/admin/roll-call' in admin and '名冊還是空的' in staff
 
 
-def test_sunday_opens_with_todays_column_added_automatically(fake_db, client_as, monkeypatch):
+def test_missing_current_week_column_is_added_automatically_with_the_sundays_date(fake_db, client_as, monkeypatch):
     fake_db.tables.update(rc_meeting_types=[TYPE])
-    rc = sys.modules['routes.roll_call']
-    monkeypatch.setattr(rc, '_today_taipei', lambda: datetime.date(2026, 11, 8))     # 週日
-    assert 'const AUTO_ADD = true' in client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
-    monkeypatch.setattr(rc, '_today_taipei', lambda: datetime.date(2026, 11, 9))     # 週一：不自動加
-    assert 'const AUTO_ADD = false' in client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    _today(monkeypatch, datetime.date(2026, 11, 11))                 # 週三：本週主日 11/8 還沒有那一欄
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    assert 'const AUTO_ADD = true' in html and 'const ADD_DATE = "2026-11-08"' in html
 
 
-def test_sunday_column_that_already_exists_is_not_added_again(fake_db, client_as, monkeypatch):
+def test_nothing_is_added_when_the_current_week_column_already_exists(fake_db, client_as, monkeypatch):
     fake_db.tables.update(rc_meeting_types=[TYPE], rc_sessions=[_sess('s1', '2026-11-08T02:00:00+00:00')])
-    monkeypatch.setattr(sys.modules['routes.roll_call'], '_today_taipei', lambda: datetime.date(2026, 11, 8))
+    _today(monkeypatch, datetime.date(2026, 11, 11))
     assert 'const AUTO_ADD = false' in client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+
+
+def test_auto_add_has_a_loop_guard_in_the_page(fake_db, client_as):
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    assert 'rc_auto_add' in html and '15000' in html               # 15 秒內不重複自動重新整理
 
 
 def test_old_session_list_still_reachable_for_headcount_and_backfill(fake_db, client_as):
     assert client_as(is_staff=True).get('/roll-call/sessions').status_code == 200
-
-
-# ── 首頁「本週點名」──
-def _portal(app, **flags):
-    rc = sys.modules['routes.roll_call']
-    with app.test_request_context():
-        from flask import session
-        session.update(user_id='u1', real_name='同工', **flags)
-        return rc.portal_rollcall()
-
-
-def test_portal_card_states(fake_db, app, monkeypatch):
-    rc = sys.modules['routes.roll_call']
-    monkeypatch.setattr(rc, '_today_taipei', lambda: datetime.date(2026, 11, 9))          # 週一
-    assert _portal(app, is_staff=True)['state'] == 'no_type'
-    fake_db.tables['rc_meeting_types'] = [TYPE]
-    assert _portal(app, is_staff=True)['state'] == 'no_session'
-    fake_db.tables['rc_sessions'] = [_sess('s1', '2026-11-08T02:00:00+00:00')]
-    assert _portal(app, is_staff=True)['state'] == 'no_members'
-    fake_db.tables['rc_members'] = [{'id': 'm1', 'name': '甲', 'status': 'active'}, {'id': 'm2', 'name': '乙', 'status': 'active'}]
-    fake_db.tables['rc_records'] = [{'session_id': 's1', 'member_id': 'm1', 'status': 'present'}]
-    info = _portal(app, is_staff=True)
-    assert info['state'] == 'ready' and info['present'] == 1 and len(info['members']) == 2
-    assert info['is_today'] is False and info['editable'] is True                         # 週一看到的是「最近一次」
-
-
-def test_portal_card_prefers_todays_column_and_is_read_only(fake_db, app, monkeypatch):
-    rc = sys.modules['routes.roll_call']
-    monkeypatch.setattr(rc, '_today_taipei', lambda: datetime.date(2026, 11, 8))
-    fake_db.tables.update(rc_meeting_types=[TYPE], rc_members=[{'id': 'm1', 'name': '甲', 'status': 'active'}],
-                          rc_sessions=[_sess('today', '2026-11-08T02:00:00+00:00'), _sess('old', '2026-11-01T02:00:00+00:00')])
-    info = _portal(app, is_staff=True)
-    assert info['session']['id'] == 'today' and info['is_today'] is True and info['auto_add'] is False
-    assert not fake_db.writes                                   # 讀首頁資料不可以寫資料庫
-
-
-def test_portal_card_sunday_without_a_column_asks_to_add_one(fake_db, app, monkeypatch):
-    rc = sys.modules['routes.roll_call']
-    monkeypatch.setattr(rc, '_today_taipei', lambda: datetime.date(2026, 11, 8))
-    fake_db.tables.update(rc_meeting_types=[TYPE], rc_sessions=[_sess('old', '2026-11-01T02:00:00+00:00')])
-    assert _portal(app, is_staff=True)['auto_add'] is True
-
-
-def test_portal_card_never_breaks_the_home_page(fake_db, app, monkeypatch):
-    rc = sys.modules['routes.roll_call']
-    monkeypatch.setattr(rc, '_sheet_type', lambda *a, **k: (_ for _ in ()).throw(RuntimeError('db down')))
-    assert _portal(app, is_staff=True) is None
-
-
-def test_portal_template_and_script_are_wired():
-    from pathlib import Path
-    root = Path(__file__).resolve().parent.parent
-    tpl = (root / 'templates' / 'portal.html').read_text(encoding='utf-8')
-    assert 'data-rollcall' in tpl and '/static/portal-rollcall.js' in tpl
-    assert (root / 'static' / 'portal-rollcall.js').exists()
 
 
 # ── 臨時來了新朋友：直接在點名單加 ──

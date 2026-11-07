@@ -105,8 +105,7 @@ from db import supabase
 - 點名寫入一律走資料庫函式 `rc_save_record` / `rc_lock_session` / `rc_set_count`（同交易寫紀錄＋稽核）；不得直接寫 `rc_records`。
 - `rc_audit` 只許追加（觸發器擋 UPDATE／DELETE／TRUNCATE）；**場次鎖定後**的任何修改必須附原因（019 起，還沒鎖定時改打勾不用原因，但每次修改仍寫稽核）；人數空白一律退回、不得當 0。
 - 出席率規則是資料（`rc_rate_rules`，不可改、同名新增即新版本），請假／遲到／中途加入的算法沒有預設值，由教會決定；計算在伺服器端（`roll_call_logic.py`）。
-- **點名單**（`/roll-call`）：紙本樣式的表格（人名×日期）；`GET` 不寫資料庫，建立「主日」類型與加欄由 `POST /api/roll-call/sheet/add-column`（同一天不重複、預設台北 10:00）；打勾走既有的 `api_mark`（present／absent）。逐場次頁移到 `/roll-call/sessions`。
-- **首頁「本週點名」**：`routes.roll_call.portal_rollcall()` 供首頁（只讀、出錯回 None 不拖垮首頁；同工以上才呼叫、模組關掉不呼叫），前端 `static/portal-rollcall.js`；打勾同樣走 `api_mark`。
+- **點名單**（`/roll-call`）：紙本樣式的表格（人名×日期），整季的主日都排好（`quarter_sundays()`），只有「本週」（週日起算，`week_start()`）那一欄可點，其餘反灰；`GET` 不寫資料庫，本週那一欄由頁面載入後 `POST /api/roll-call/sheet/add-column` 建立（頁面有 15 秒防無限重整）；打勾走既有的 `api_mark`（present／absent）。逐場次頁（補登、列印、只記人數）在 `/roll-call/sessions`。首頁只有一個功能磚（`data-key="roll_call"`），不內嵌名單。
 - **區間出席**（`/roll-call/report`，`range_report()`）：到的次數 ÷ 區間內聚會次數，沒打勾算沒來、未來的聚會不算、新朋友加入（`joined_on`）之前的不算；CSV 匯出僅管理員且留稽核。**臨時新朋友**：`POST /api/roll-call/members/quick-add`（同工即可；重複判斷同名冊匯入的 `plan_import`；可順手在指定欄打勾，走 `rc_save_record`）。點名單與首頁卡片都有搜尋欄（前端過濾，`tests/test_roll_call_search_browser.py` 用真的 Chromium 驗證）。
 - 名冊匯入：`/api/admin/roll-call/members/preview`（只分類、不寫入）→ `/api/admin/roll-call/members`（伺服器重算分類；疑似重複須 `confirm_similar` 明確確認；同名一律略過）。分類邏輯只有 `roll_call_logic.plan_import` 一份。
 - 測試：`tests/`（`pytest`；`test_roll_call_db.py` 需要 root＋Postgres 16，否則略過）。

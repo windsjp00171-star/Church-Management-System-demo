@@ -90,72 +90,77 @@ def _sheet_type(type_id=None):
     return (individual[0] if individual else None), individual
 
 
+def week_start(d):
+    """這個日期所在那一週的週日（一週從週日開始）。"""
+    return d - timedelta(days=(d.weekday() + 1) % 7)
+
+
+def quarter_sundays(today):
+    """今天所在這一季（1–3、4–6、7–9、10–12 月）的每一個主日。"""
+    first_month = 3 * ((today.month - 1) // 3) + 1
+    start = today.replace(month=first_month, day=1)
+    end = (start.replace(month=first_month + 2, day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    d = start + timedelta(days=(6 - start.weekday()) % 7)          # 第一個週日
+    out = []
+    while d <= end:
+        out.append(d)
+        d += timedelta(days=7)
+    return out, start, end
+
+
 @roll_call_bp.route('/roll-call')
 @staff_required
 def home():
-    """紙本名冊的樣子：左邊人名、上面日期，來了就打勾。"""
+    """紙本名冊的樣子：左邊人名、上面日期，來了就打勾。
+
+    整季的主日都先排好；只有「本週」的那一欄能點，其他反灰（過去的看得到、未來的還沒到）。
+    """
     mtype, individual = _sheet_type(request.args.get('type'))
-    sessions, members, records = [], [], {}
+    today = _today_taipei()
+    cur_sunday = week_start(today)
+    sundays, q_start, q_end = quarter_sundays(today)
+    if cur_sunday not in sundays:                  # 季初那一週的主日可能落在上一季：本週一定要有這一欄
+        sundays = sorted(sundays + [cur_sunday])
+        q_start = min(q_start, cur_sunday)
+    columns, members, records, present = [], [], {}, {}
     if mtype:
         rows = supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])\
-            .order('starts_at', desc=True).limit(SHEET_COLUMNS).execute().data or []
-        sessions = sorted(rows, key=lambda r: r['starts_at'])             # 舊的在左、新的在右
-        for s in sessions:
-            s['_local'] = to_taipei(s['starts_at'])
+            .order('starts_at').limit(400).execute().data or []
+        by_date = {}
+        for r in rows:
+            r['_local'] = to_taipei(r['starts_at'])
+            if q_start <= r['_local'].date() <= q_end:
+                by_date.setdefault(r['_local'].date(), r)             # 同一天只取一場
+        for d in sundays:
+            columns.append({'date': d, 'session': by_date.pop(d, None)})
+        for d, r in by_date.items():                                   # 非週日的臨時聚會
+            columns.append({'date': d, 'session': r})
+        columns.sort(key=lambda c: c['date'])
+        sessions = [c['session'] for c in columns if c['session']]
         members = _active_members()
         if sessions:
-            recs = supabase.table('rc_records').select('*')\
-                .in_('session_id', [s['id'] for s in sessions]).execute().data or []
+            recs = _fetch_records([s['id'] for s in sessions])
             records = {(r['session_id'], r['member_id']): r['status'] for r in recs}
-            known = {m['id'] for m in members}                            # 已離開但有紀錄的人也要看得到
+            known = {m['id'] for m in members}                         # 已離開但有紀錄的人也要看得到
             extra = sorted({r['member_id'] for r in recs} - known)
             if extra:
                 members += supabase.table('rc_members').select('*').in_('id', extra).execute().data or []
                 members.sort(key=lambda m: m['name'])
-    today = _today_taipei()
-    today_col = next((s['id'] for s in sessions if s['_local'].date() == today), None)
-    present = {s['id']: sum(1 for m in members if records.get((s['id'], m['id'])) == 'present') for s in sessions}
-    return render_template('roll_call/sheet.html', mtype=mtype, types=individual, sessions=sessions,
+        present = {s['id']: sum(1 for m in members if records.get((s['id'], m['id'])) == 'present') for s in sessions}
+    for c in columns:
+        s = c['session']
+        c['is_current'] = c['date'] == cur_sunday
+        c['in_this_week'] = week_start(c['date']) == cur_sunday
+        c['editable'] = bool(s) and c['in_this_week'] and s['status'] != 'locked'
+        c['label'] = f"{c['date'].month}/{c['date'].day}"
+        c['weekday'] = '一二三四五六日'[c['date'].weekday()]
+    cur_has_session = any(c['is_current'] and c['session'] for c in columns)
+    return render_template('roll_call/sheet.html', mtype=mtype, types=individual, columns=columns,
                            members=members, records=records, present=present, today=today,
-                           today_col=today_col, auto_add=(today.weekday() == 6 and today_col is None),
-                           is_admin=_is_admin(), can_edit={s['id']: can_mark(s, _is_admin(), _is_staff()) for s in sessions})
-
-
-def portal_rollcall():
-    """首頁「本週點名」卡片要的資料（同工以上才會被呼叫）。**只讀、不寫**，出任何錯都回 None，不可以拖垮首頁。
-
-    state：no_type（還沒開始）／no_session（還沒有任何一欄）／no_members（名冊是空的）／ready
-    顯示的那一欄＝今天的；今天還沒有就顯示最近一次。
-    """
-    try:
-        mtype, _ = _sheet_type()
-        today = _today_taipei()
-        info = {'state': 'no_type', 'type': mtype, 'today': today, 'auto_add': False, 'members': [],
-                'session': None, 'records': {}, 'editable': False, 'present': 0, 'is_today': False}
-        if not mtype:
-            info['auto_add'] = today.weekday() == 6
-            return info
-        rows = supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])\
-            .order('starts_at', desc=True).limit(SHEET_COLUMNS).execute().data or []
-        for r in rows:
-            r['_local'] = to_taipei(r['starts_at'])
-        cur = next((r for r in rows if r['_local'].date() == today), None) or (rows[0] if rows else None)
-        info['auto_add'] = today.weekday() == 6 and not any(r['_local'].date() == today for r in rows)
-        if not cur:
-            info['state'] = 'no_session'
-            return info
-        members = _active_members()
-        recs = supabase.table('rc_records').select('*').eq('session_id', cur['id']).execute().data or []
-        records = {r['member_id']: r['status'] for r in recs}
-        info.update(session=cur, members=members, records=records, is_today=cur['_local'].date() == today,
-                    editable=can_mark(cur, _is_admin(), _is_staff()),
-                    present=sum(1 for m in members if records.get(m['id']) == 'present'),
-                    state='ready' if members else 'no_members')
-        return info
-    except Exception:
-        import logging
-        logging.getLogger(__name__).warning('首頁點名卡片讀取失敗', exc_info=True)
-        return None
+                           cur_sunday=cur_sunday, add_date=cur_sunday.isoformat(),
+                           auto_add=not cur_has_session, is_admin=_is_admin(),
+                           cur_session_id=next((c['session']['id'] for c in columns
+                                                if c['is_current'] and c['editable']), None))
 
 
 @roll_call_bp.route('/api/roll-call/members/quick-add', methods=['POST'])
