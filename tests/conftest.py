@@ -23,6 +23,9 @@ class FakeQuery:
     def in_(self, *a, **k): return self
     def order(self, *a, **k): return self
     def limit(self, *a, **k): return self
+    def range(self, lo, hi):
+        self._range = (lo, hi)
+        return self
 
     def insert(self, payload):
         self.op, self.payload = 'insert', payload
@@ -38,7 +41,9 @@ class FakeQuery:
 
     def execute(self):
         if self.op == 'select':
-            return FakeResult(list(self.db.tables.get(self.name, [])))
+            rows = list(self.db.tables.get(self.name, []))
+            r = getattr(self, '_range', None)
+            return FakeResult(rows[r[0]:r[1] + 1] if r else rows)
         self.db.writes.append((self.name, self.op, self.payload))
         payload = self.payload if isinstance(self.payload, list) else [self.payload]
         return FakeResult([dict(p, id='new-id') for p in payload])
@@ -86,6 +91,10 @@ def app(fake_db):
         return 'login'
 
     app.register_blueprint(auth)
+    # 簡化 app 沒有正式 app 在啟動時掛上的模板全域函式；要渲染 base.html 的頁面需要它們
+    app.jinja_env.globals.update(csrf_token=lambda: 't', module_on=lambda *_: True, church_name='測試教會',
+                                 church_short_name='測試', line_liff_id='', privacy_policy_url='',
+                                 card_names={}, can_see=lambda *_: True)
     from routes.roll_call import roll_call_bp
     app.register_blueprint(roll_call_bp)
     return app

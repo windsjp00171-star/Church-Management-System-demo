@@ -5,6 +5,7 @@
   <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
     <h2 style="margin:0;">📝 {{ mtype.name if mtype else '聚會' }}點名單</h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
+      {% if mtype %}<a href="/roll-call/report" style="padding:10px 14px; border:1px solid #c7d2fe; background:#fff; color:#4338ca; border-radius:8px; text-decoration:none;">📊 出席統計</a>{% endif %}
       {% if mtype %}<button type="button" data-tour="add-col" onclick="addColumn()" style="padding:10px 14px; border:1px solid #4F46E5; background:#4F46E5; color:#fff; border-radius:8px; font-weight:bold;">＋ 加今天這一欄</button>{% endif %}
       <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:10px 14px; border:1px solid #c7d2fe; background:#eef2ff; border-radius:8px;">？ 教學</button>
     </div>
@@ -28,6 +29,13 @@
       <p style="margin:0;">名冊還是空的。{% if is_admin %}請到 <a href="/admin/roll-call">後台 → 聚會點名</a>，貼上姓名（每行一個）就會出現在這裡。{% else %}請管理員先到後台貼上名冊姓名。{% endif %}</p>
     </div>
   {% else %}
+  <div data-tour="search" style="position:sticky; top:0; z-index:5; background:#f9fafb; padding:8px 0; margin-bottom:6px;">
+    <input id="sh-search" type="search" placeholder="🔍 搜尋姓名（人多的時候用）" autocomplete="off" aria-label="搜尋姓名"
+           style="width:100%; box-sizing:border-box; padding:14px 14px; font-size:1.05rem; border:2px solid #c7d2fe; border-radius:10px; background:#fff;">
+    <div id="sh-none" style="display:none; margin-top:8px; padding:10px 12px; border:1px dashed #fcd34d; border-radius:10px; background:#fffbeb;">
+      找不到「<span id="sh-none-q"></span>」。<button type="button" onclick="useAsNewcomer()" style="margin-left:6px; padding:8px 12px; border:0; background:#16a34a; color:#fff; border-radius:8px; font-weight:bold;">把他加為新朋友</button>
+    </div>
+  </div>
   <div data-tour="sheet" style="overflow-x:auto; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
     <table style="border-collapse:separate; border-spacing:0; width:100%; min-width:{{ 120 + sessions|length * 64 }}px;">
       <thead>
@@ -43,7 +51,7 @@
       </thead>
       <tbody>
         {% for m in members %}
-        <tr>
+        <tr data-name="{{ m.name|lower }}">
           <td style="position:sticky; left:0; background:#fff; padding:6px 12px; border-bottom:1px solid #f3f4f6; font-size:1.05rem;">{{ m.name }}{% if m.status == 'left' %} <span style="color:#9ca3af; font-size:.8rem;">（已離開）</span>{% endif %}</td>
           {% for s in sessions %}
           {% set on = records.get((s.id, m.id)) == 'present' %}
@@ -65,6 +73,11 @@
         </tr>
       </tbody>
     </table>
+  </div>
+  <div data-tour="newcomer" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+    <label for="nc-name" style="font-weight:600;">新朋友</label>
+    <input id="nc-name" type="text" maxlength="30" placeholder="輸入姓名" autocomplete="off" style="flex:1; min-width:140px; padding:12px; font-size:1rem; border:1px solid #d1d5db; border-radius:8px;">
+    <button type="button" onclick="addNewcomer()" style="padding:12px 16px; border:0; background:#16a34a; color:#fff; border-radius:8px; font-weight:bold; font-size:1rem;">加入{% if today_col %}並打勾{% endif %}</button>
   </div>
   <p style="color:#6b7280; font-size:.85rem; margin-top:10px;">點一下打勾，再點一下取消。沒打勾就是沒來。鎖定的欄（🔒）只有管理員能改。</p>
   <p style="font-size:.85rem;"><a href="/roll-call/sessions">進階：逐場次、只記人數、補登、列印名冊</a></p>
@@ -111,9 +124,43 @@ function paint(btn, on) {
 async function addColumn() {
   try { await post('/api/roll-call/sheet/add-column', {}); location.reload(); } catch (e) { say(e.message); }
 }
+async function addNewcomer(confirmed) {
+  const name = document.getElementById('nc-name').value.trim();
+  if (!name) { say('請輸入姓名'); return; }
+  const r = await fetch('/api/roll-call/members/quick-add', { method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ name: name, session_id: TODAY_COL || null, confirm: confirmed === true }) });
+  const j = await r.json().catch(() => ({ error: '連線失敗' }));
+  if (r.status === 409 && j.data && j.data.similar) {
+    if (confirm('名冊裡有「' + j.data.similar + '」，跟「' + name + '」很像。確定是不同的人，要新增嗎？')) return addNewcomer(true);
+    return;
+  }
+  if (!r.ok || j.error) { say(j.error || '新增失敗'); return; }
+  location.reload();
+}
+function norm(t) { return (t || '').normalize('NFKC').toLowerCase().replace(/\s+/g, ''); }
+function filterNames() {
+  const q = norm(document.getElementById('sh-search').value);
+  let shown = 0;
+  document.querySelectorAll('tbody tr[data-name]').forEach(tr => {
+    const hit = !q || norm(tr.dataset.name).includes(q);
+    tr.style.display = hit ? '' : 'none';
+    if (hit) shown++;
+  });
+  const none = document.getElementById('sh-none');
+  none.style.display = (q && !shown) ? '' : 'none';
+  document.getElementById('sh-none-q').textContent = document.getElementById('sh-search').value.trim();
+}
+function useAsNewcomer() {
+  document.getElementById('nc-name').value = document.getElementById('sh-search').value.trim();
+  addNewcomer();
+}
+const _sh = document.getElementById('sh-search');
+if (_sh) _sh.addEventListener('input', filterNames);
 function startTour() {
   RollTour.start([
     { target: 'sheet', text: '這就是紙本點名單：左邊是姓名，上面是日期。來了就點一下打勾，再點一下取消。' },
+    { target: 'search', text: '名單很長的時候，在這裡打名字的一部分，就只會留下符合的人。' },
+    { target: 'newcomer', text: '臨時來了新朋友，直接在這裡打名字加入，今天這一欄會順手幫他打勾。' },
     { target: 'add-col', text: '每週日打開這頁會自動加上今天這一欄；其他日子的聚會，按這裡加。' },
     { target: 'help-btn', text: '隨時可以按這裡重看教學。' }
   ]);

@@ -1085,7 +1085,7 @@ CREATE TABLE IF NOT EXISTS rc_rate_rules (
 -- ── 點名寫入：同一交易內寫紀錄與稽核 ──────────────────────
 -- 規則（資料庫層守住，不只靠程式）：
 --   1. 狀態必須合法；聚會類型必須是「個人」模式；被點名者必須是在籍名冊成員
---   2. 修改既有紀錄（狀態不同）必須附原因
+--   2. （019 起）場次還沒鎖定時，改打勾不用原因，但每次修改仍寫稽核
 --   3. 場次已鎖定時，任何寫入都必須附原因
 --   4. 每次寫入必有一筆稽核
 CREATE OR REPLACE FUNCTION rc_save_record(
@@ -1130,9 +1130,6 @@ BEGIN
     END IF;
     IF v_sess.status = 'locked' AND v_reason IS NULL THEN
         RAISE EXCEPTION '場次已鎖定，修改必須填寫原因';
-    END IF;
-    IF v_old.id IS NOT NULL AND v_old.status <> p_status AND v_reason IS NULL THEN
-        RAISE EXCEPTION '修改點名必須填寫原因';
     END IF;
 
     IF v_old.id IS NULL THEN
