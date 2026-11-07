@@ -5,6 +5,7 @@ from db import supabase
 from image_kind import image_kind
 from config import Config
 from routes.audit import log_action
+from routes import cache as _cache
 from routes.decorators import admin_required, super_admin_required, staff_required
 import secrets
 import uuid
@@ -2298,6 +2299,7 @@ def upload_verse_theme():
         'symbol': symbol, 'text_mode': text_mode,
         'sort_order': next_order,
     }).execute().data[0]
+    _cache.bust('verse_custom_themes_active')
     return jsonify({'success': True, 'theme': row})
 
 
@@ -2312,6 +2314,7 @@ def delete_verse_custom_theme(theme_id):
         except Exception:
             logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     supabase.table('verse_custom_themes').delete().eq('id', theme_id).execute()
+    _cache.bust('verse_custom_themes_active')
     return jsonify({'success': True})
 
 
@@ -2389,6 +2392,7 @@ def admin_portal_link_new():
         'sort_order': next_order,
         'is_active': True,
     }).execute()
+    _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True, 'id': result.data[0]['id']})
 
 
@@ -2411,6 +2415,7 @@ def admin_portal_link_edit(link_id):
         'is_external': bool(data.get('is_external', True)),
         'is_active': bool(data.get('is_active', True)),
     }).eq('id', link_id).execute()
+    _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True})
 
 
@@ -2418,6 +2423,7 @@ def admin_portal_link_edit(link_id):
 @super_admin_required
 def admin_portal_link_delete(link_id):
     supabase.table('portal_links').delete().eq('id', link_id).execute()
+    _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True})
 
 
@@ -2431,6 +2437,7 @@ def reorder_portal_links():
         sort_order = item.get('sort_order')
         if link_id and sort_order is not None:
             supabase.table('portal_links').update({'sort_order': sort_order}).eq('id', link_id).execute()
+            _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True})
 
 
@@ -2611,6 +2618,7 @@ def portal_card_settings_toggle():
         {'key': key, 'is_visible': visible},
         on_conflict='key'
     ).execute()
+    _cache.bust('portal_card_settings')
     return jsonify({'success': True, 'key': key, 'is_visible': visible})
 
 
@@ -2623,6 +2631,7 @@ def portal_link_toggle(link_id):
     data = request.get_json(silent=True) or {}
     active = bool(data.get('is_active', True))
     supabase.table('portal_links').update({'is_active': active}).eq('id', link_id).execute()
+    _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True, 'is_active': active})
 
 
@@ -2730,6 +2739,7 @@ def update_portal_card(key):
         return jsonify({'error': '無有效欄位'}), 400
     try:
         supabase.table('portal_cards').update(payload).eq('key', key).execute()
+        _cache.bust('portal_cards')
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2748,6 +2758,7 @@ def reorder_portal_cards():
             supabase.table('portal_cards')\
                 .update({'sort_order': item['sort_order']})\
                 .eq('key', item['key']).execute()
+            _cache.bust('portal_cards')
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500

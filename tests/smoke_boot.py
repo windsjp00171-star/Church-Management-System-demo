@@ -62,7 +62,10 @@ class Query:
 
 
 class DB:
+    calls = 0                       # 資料庫往返次數（查詢預算用）
+
     def table(self, name):
+        DB.calls += 1
         return Query(name)
 
     def rpc(self, *a, **k):
@@ -131,4 +134,12 @@ for url, needles in ENTRIES.items():
     html = client(ROLES['admin']).get(url).get_data(as_text=True)
     entries[url] = {nd: (nd in html) for nd in needles}
     entries[url + ' (member)'] = {nd: (nd in client(ROLES['member']).get(url).get_data(as_text=True)) for nd in needles}
-print(json.dumps({'checked': n, 'bad': bad, 'ok200': ok200, 'probe': probe, 'entries': entries}, ensure_ascii=False))
+# 查詢預算：一般會友開首頁要幾趟資料庫往返（往返是看不見的成本 —— 加一個 supabase.table(...) 畫面上沒有任何變化，
+# 只是每個人每次開首頁多等 100 毫秒）。第一次會把行程內快取填起來，量第二次。
+_c = client(ROLES['member'])
+_c.get('/')
+DB.calls = 0
+_c.get('/')
+portal_round_trips = DB.calls
+print(json.dumps({'checked': n, 'bad': bad, 'ok200': ok200, 'probe': probe, 'entries': entries,
+                  'portal_round_trips': portal_round_trips}, ensure_ascii=False))

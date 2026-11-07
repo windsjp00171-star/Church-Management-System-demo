@@ -93,7 +93,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 成熟版比這個 demo 多約 75 個模組（對照 `routes/` 檔案清單，2026-11-07 查證）。成熟版 `CLAUDE.md` 是最完整的功能說明，要搬哪一項先讀那一節。
 使用者選的做法：**A，逐批搬進這個 repo**（不改以成熟版為底；先前「就地重構」的決定不變）。
 
-**表上列的 17 項功能，目前完成 5 項（約 3 成）**（更新：2026-11-07；做完一項就改這張表）
+**表上列的 17 項功能，目前完成 6 項（約 3.5 成）**（更新：2026-11-07；做完一項就改這張表）
 
 | 狀態 | 功能 | 成熟版檔案（`routes/`） | 這個 repo 的狀況 |
 |---|---|---|---|
@@ -113,7 +113,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 | ⬜ | 首頁個人化待辦 | `my_todos.py`、`todos.py` | 未做（成熟版刻意**不做催繳**，見其 CLAUDE.md） |
 | ⬜ | 生日祝賀 | `birthday.py` | 未做 |
 | ⬜ | 使用數據 | `usage_stats.py`、`module_views.py` | 未做 |
-| ⬜ | 效能快取 | `cache.py` | 未做（成熟版的 `Procfile` 另有 `--threads 8`，見其 CLAUDE.md「效能」） |
+| ✅ | 效能快取 | `cache.py` | 本批：`routes/cache.py` ＋ `settings_store` 與首頁的小表（快捷連結、磁磚設定、經文底圖）；首頁往返 16→10 趟。`Procfile` 的 `--threads 8` 本來就有。**沒搬**：`warm()`（要排程）、`reading_plans.forget_missing`、其他頁的查詢預算 |
 
 **反過來**，這個 demo 有而成熟版沒有的：聚會點名、功能模組登記表、備份登記制、天父日記／檔案分享／小組回報（來自另外三個 repo）、`person.py`、啟動煙霧測試與授權探針。
 

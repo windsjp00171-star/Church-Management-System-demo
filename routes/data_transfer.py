@@ -129,6 +129,9 @@ def import_bundle(zf, upsert=None):
         records = json.loads(zf.read(file_map[table]))
         count, err = upsert(table, records)
         results.append({'table': table, 'total': len(records), 'imported': count, 'error': err})
+    # 匯入會直接改 settings／首頁磁磚／快捷連結那幾張被快取的表，整份快取一起清掉（匯入很少發生）
+    from routes import cache
+    cache.clear()
     for table in file_map:
         if table not in reg.CONFLICT:
             why = reg.EXCLUDED.get(table) or ('檢視表，不匯入' if table in reg.VIEWS else '不在備份登記表裡')
