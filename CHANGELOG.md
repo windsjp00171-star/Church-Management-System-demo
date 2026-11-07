@@ -4,7 +4,11 @@
 
 ## [Unreleased]
 
+### 修正
+- 檔案分享模組改用共用的 `login_required`：未登入時會記住原始頁面，API 路徑回 401 JSON，行為與其他模組一致。
+
 ### 新增
+- `tests/test_decorators.py`：涵蓋 `login_required`、`admin_required` 的未登入、一般會員、管理員、超級管理員情境。
 - `docs/HANDOFF_FOR_NEXT_SESSION.md`：交接清單（程式碼在哪個 repo、參考 repo、已完成／待辦、部署步驟、使用者偏好與已決定不做的事）。
 - `HANDOVER.md` 更新到現況：全職同工差勤、點名、模組開關、權限矩陣；匯出『不包含』的資料與原因；migration 012～017 說明；完整還原演練步驟。
 - 整個應用的啟動煙霧測試：用真正的 `create_app()` 啟動，以未登入／一般會友／超管三種身分，用空資料庫打遍全部 1089 個路由請求（GET 與空 POST），確認沒有任何 500。另有測試擋住「再 import 已在新版 Python 被移除的標準函式庫模組」。
