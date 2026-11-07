@@ -41,3 +41,10 @@ def test_protected_pages_are_not_open_to_the_wrong_people(result):
     open_pages = [(role, url, code) for role, pages in result['probe'].items()
                   for url, code in pages.items() if code == 200]
     assert not open_pages, open_pages
+
+
+def test_roll_call_has_an_entry_for_staff_and_not_for_plain_members(result):
+    """點名只有後台有卡片時，同工在首頁和同工頁根本找不到它（實際部署時就發生過）。"""
+    e = result['entries']
+    assert all(e['/'].values()) and all(e['/staff'].values()), e
+    assert not any(e['/ (member)'].values()), e          # 一般會友不該看到同工功能的入口

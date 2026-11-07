@@ -124,4 +124,11 @@ PROBES = {
                '/admin/modules', '/admin/permissions', '/admin/data-export', '/admin/roll-call', '/staff'],
 }
 probe = {role: {u: client(ROLES[role]).get(u).status_code for u in urls} for role, urls in PROBES.items()}
-print(json.dumps({'checked': n, 'bad': bad, 'ok200': ok200, 'probe': probe}, ensure_ascii=False))
+# 入口探針：功能做好卻沒有入口，等於不存在（頁面在、測試綠，但沒有人走得到）
+ENTRIES = {'/': ['href="/roll-call"'], '/staff': ['href="/roll-call"']}
+entries = {}
+for url, needles in ENTRIES.items():
+    html = client(ROLES['admin']).get(url).get_data(as_text=True)
+    entries[url] = {nd: (nd in html) for nd in needles}
+    entries[url + ' (member)'] = {nd: (nd in client(ROLES['member']).get(url).get_data(as_text=True)) for nd in needles}
+print(json.dumps({'checked': n, 'bad': bad, 'ok200': ok200, 'probe': probe, 'entries': entries}, ensure_ascii=False))
