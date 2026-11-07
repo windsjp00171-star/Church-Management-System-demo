@@ -936,6 +936,86 @@ def event_detail(event_id):
         return f'<pre>活動詳情頁錯誤：\n{traceback.format_exc()}</pre>', 500
 
 
+def _reject_bad_id_numbers(event_id, answers):
+    """身分證字號欄位：後端也要驗一次。
+
+    前端擋得掉手誤，但擋不掉「JS 沒跑」「有人直接打 API」這兩種 ——
+    而一個錯的證號在名冊上看起來跟對的一模一樣，要等出事才發現
+    那個人根本沒被保到。
+
+    回錯誤訊息字串，沒問題回 None。
+    """
+    from routes.tw_id import is_valid, normalize
+    id_fields = {f['id'] for f in (supabase.table('event_fields')
+                 .select('id, field_type').eq('event_id', event_id)
+                 .eq('field_type', 'id_number').execute().data or [])}
+    if not id_fields:
+        return None
+    for ans in answers or []:
+        if ans.get('field_id') in id_fields:
+            raw = str(ans.get('answer') or '')
+            if raw and not is_valid(raw):
+                return f'身分證字號「{normalize(raw)}」的檢查碼不對，請再核對一次'
+    return None
+
+
+def _normalize_guardian_answers(event_id, answers):
+    """監護人欄位：把送上來的東西重新正規化成「姓名／電話」。
+
+    ★ 跟 _enforce_auto_tiers 同一個做法：伺服器覆蓋，不是「檢查對不對」。
+
+      前端送什麼就存什麼的話，只要有人直接打 API，那一格就可能是
+      任意字串（多一個斜線、整串 JSON、或前後一堆空白）——
+      而名冊、Excel 匯出、我的報名都是**直接把那一格印出來**，
+      所以壞掉的格式會一路長到每一個看得到的地方。
+
+    answers : [{field_id, answer}]（會就地修改）
+    """
+    from routes.guardian import compose, parse
+
+    gd = {f['id'] for f in (supabase.table('event_fields')
+          .select('id, field_type').eq('event_id', event_id)
+          .eq('field_type', 'guardian').execute().data or [])}
+    if not gd:
+        return
+    for ans in answers or []:
+        if ans.get('field_id') in gd:
+            ans['answer'] = compose(*parse(ans.get('answer')))
+
+
+def _reject_missing_required(event, answers):
+    """必填欄位：後端也要驗一次。
+
+    ★ 為什麼非有不可
+
+      `is_required` 原本只走到畫面上 —— 伺服器從來沒看過它。於是
+      「未成年要填監護人」這種規則，只要 JS 沒跑、或有人直接打 API，
+      就完全不存在。而名冊上那一格是空的，看起來就像那個人不用填。
+
+      跟身分證字號同一個理由：前端擋得掉手誤，擋不掉「前端根本沒跑」。
+
+    ★ 要不要填由**活動自己定**（欄位的必填勾勾），不是寫死的規則。
+      教會旅遊會把監護人設成必填；一場只是報名參加的聚會可能不會。
+
+    ★ 被跳題藏起來的必填欄位不算 —— 那一題報名者看不到。所以這裡要
+      先把跳題條件重新求一次值（routes/conditions.py），而年齡是伺服器
+      自己從生日算的，不看送上來的任何東西。
+
+    回錯誤訊息字串，沒問題回 None。
+    """
+    from routes.conditions import missing_required
+
+    fields = supabase.table('event_fields').select('*')\
+        .eq('event_id', event['id']).eq('is_archived', False)\
+        .order('sort_order').execute().data or []
+    missing = missing_required(fields, answers, event)
+    if not missing:
+        return None
+    # 講出是哪幾題 —— 只說「請填寫所有必填欄位」的話，畫面上那一題
+    # 可能是剛剛才因為年齡跳出來的，使用者根本不知道在講哪一格。
+    return '還沒填：' + '、'.join(missing)
+
+
 @event_bp.route('/event/<event_id>/register', methods=['POST'])
 @login_required
 def event_register(event_id):
@@ -1009,6 +1089,16 @@ def _do_event_register(event_id):
             }).execute()
         return jsonify({'success': True, 'waitlisted': True})
 
+    # 答案檢查一律在寫入之前：先 insert 再擋的話，被擋下的那一筆已經在名單上佔著名額
+    answers = (request.get_json() or {}).get('answers', [])
+    _bad = _reject_bad_id_numbers(event_id, answers)
+    if _bad:
+        return jsonify({'success': False, 'error': _bad}), 400
+    _normalize_guardian_answers(event_id, answers)
+    _bad = _reject_missing_required(event, answers)
+    if _bad:
+        return jsonify({'success': False, 'error': _bad}), 400
+
     if event.get('allow_multiple'):
         # 允許重複報名：直接建立新紀錄
         reg_result = supabase.table('registrations').insert({
@@ -1070,7 +1160,6 @@ def _do_event_register(event_id):
 
     # 寫入自訂欄位答案
     data = request.get_json() or {}
-    answers = data.get('answers', [])  # [{ field_id, answer }]
     for ans in answers:
         if ans.get('field_id') and ans.get('answer', '') != '':
             supabase.table('registration_answers').insert({
@@ -1205,6 +1294,15 @@ def _do_external_register(event_id):
     if not guest_name:
         return jsonify({'error': '請填寫姓名'}), 400
 
+    _ext_answers = data.get('answers') or []
+    _bad = _reject_bad_id_numbers(event_id, _ext_answers)
+    if _bad:
+        return jsonify({'success': False, 'error': _bad}), 400
+    _normalize_guardian_answers(event_id, _ext_answers)
+    _bad = _reject_missing_required(event, _ext_answers)
+    if _bad:
+        return jsonify({'success': False, 'error': _bad}), 400
+
     # 檢查人數上限，決定狀態
     reg_status = 'registered'
     if event.get('capacity'):
@@ -1234,7 +1332,7 @@ def _do_external_register(event_id):
     reg_id = reg_result.data[0]['id']
 
     # 寫入自訂欄位答案
-    for ans in (data.get('answers') or []):
+    for ans in _ext_answers:
         if ans.get('field_id') and ans.get('answer', '') != '':
             supabase.table('registration_answers').insert({
                 'registration_id': reg_id,

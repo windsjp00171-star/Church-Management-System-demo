@@ -156,3 +156,17 @@ def _src(path):
 
 
 
+
+
+def test_the_backend_rejects_a_bad_id():
+    """★ 前端擋得掉手誤，但擋不掉「JS 沒跑」和「直接打 API」。
+
+    而一個錯的證號在名冊上看起來跟對的一模一樣。
+    """
+    assert 'def _reject_bad_id_numbers' in _src('routes/event.py')
+    # ★ 每一個寫入答案的地方都要驗 —— 用「數幾次」的話，每加一個寫入點
+    #   就要回來改數字，而忘記改的後果是有人把數字加一了事。
+    from tests.test_auto_tier import _answer_writers
+    for path, fn in _answer_writers():
+        assert '_reject_bad_id_numbers(' in fn, \
+            f'{path} 有一個寫入答案的地方沒有驗身分證字號'
