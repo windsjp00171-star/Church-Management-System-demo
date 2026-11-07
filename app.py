@@ -1,6 +1,7 @@
 # Flask 主程式 — 整合型教會行政系統
 from flask import Flask, session, request, redirect, url_for, jsonify, g
 import hmac
+import os
 import secrets
 import time
 import uuid
@@ -248,6 +249,15 @@ def create_app():
         return session['_csrf_token']
 
     app.jinja_env.globals['csrf_token']        = get_csrf_token
+
+    def asset(path):
+        # shortcut: 以檔案修改時間當版本號（不算內容 hash），目前無 service worker 快取，夠用
+        try:
+            v = int(os.path.getmtime(os.path.join(app.static_folder, path)))
+        except OSError:
+            return url_for('static', filename=path)
+        return url_for('static', filename=path, v=v)
+    app.jinja_env.globals['asset'] = asset
     app.jinja_env.globals['line_liff_id']      = Config.LINE_LIFF_ID
     # 展示站：用品牌示範名稱，避免顯示佔位字「您的教會名稱」
     _DEMO_CHURCH_NAME = '教會整合管理系統'

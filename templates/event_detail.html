@@ -185,7 +185,7 @@
                  style="margin-bottom:16px;">
                 <label style="display:block; font-weight:600; margin-bottom:8px; color:var(--text-1); font-size:0.9rem;">
                     {{ field.label }}
-                    {% if field.is_required %}<span style="color:var(--red);">*</span>{% endif %}
+                    {% if field.is_required %}<span class="req-tag" style="color:var(--red);">*</span>{% endif %}
                 </label>
                 {% if field.field_type == 'radio' %}
                     <div style="display:flex; flex-direction:column; gap:6px;">
@@ -359,7 +359,7 @@
              style="margin-bottom:16px;">
             <label style="display:block; font-weight:600; margin-bottom:8px; color:var(--text-1); font-size:0.9rem;">
                 {{ field.label }}
-                {% if field.is_required %}<span style="color:var(--red);">*</span>{% endif %}
+                {% if field.is_required %}<span class="req-tag" style="color:var(--red);">*</span>{% endif %}
             </label>
 
             {% if field.field_type == 'radio' %}
@@ -536,104 +536,9 @@
 {% endif %}{# end: outer if my_regs #}
 
 
+<script src="{{ asset('js/form-fields.js') }}"></script>
 <script>
-// ===================================================
-// 輔助：取得 wrapper 的 field_id
-// ===================================================
-function getWrapperId(wrapper) {
-    return wrapper.dataset.fieldId
-        || wrapper.querySelector('[data-field-id]')?.dataset.fieldId
-        || null;
-}
-
-// ===================================================
-// 輔助：取得 wrapper 目前填寫的值（支援所有類型）
-// ===================================================
-function getWrapperValue(wrapper) {
-    const type = wrapper.dataset.fieldType || 'text';
-
-    if (type === 'radio') {
-        const checked = wrapper.querySelector('input[type="radio"]:checked');
-        if (!checked) return '';
-        if (checked.value === '__other__') {
-            const text = checked.closest('label').querySelector('.other-text')?.value.trim();
-            return text ? '其他：' + text : '其他';
-        }
-        return checked.value;
-    }
-
-    if (type === 'checkbox') {
-        const checked = Array.from(wrapper.querySelectorAll('input[type="checkbox"]:checked'));
-        const values = checked.map(c => {
-            if (c.value === '__other__') {
-                const text = c.closest('label').querySelector('.other-text')?.value.trim();
-                return text ? '其他：' + text : '其他';
-            }
-            return c.value;
-        }).filter(Boolean);
-        return values.join('、');
-    }
-
-    // text / textarea / select / number / date
-    const input = wrapper.querySelector(
-        'select[data-field-id], input[data-field-id], textarea[data-field-id]'
-    );
-    return input ? input.value.trim() : '';
-}
-
-// ===================================================
-// 切換「其他」文字輸入框（radio 先清掉同 group 其他的）
-// ===================================================
-function toggleOtherText(input) {
-    const textInput = input.closest('label').querySelector('.other-text');
-    if (!textInput) return;
-    if (input.type === 'radio') {
-        // 隱藏同 name 下所有 other-text
-        document.querySelectorAll(`input[name="${input.name}"]`).forEach(r => {
-            const t = r.closest('label').querySelector('.other-text');
-            if (t) { t.style.display = 'none'; t.value = ''; }
-        });
-        if (input.checked) {
-            textInput.style.display = 'inline-block';
-            textInput.focus();
-        }
-    } else {
-        // checkbox
-        textInput.style.display = input.checked ? 'inline-block' : 'none';
-        if (input.checked) textInput.focus();
-        else textInput.value = '';
-    }
-}
-
-// ===================================================
-// 跳題條件邏輯（支援 select / radio 當觸發問題）
-// ===================================================
-function evaluateConditions() {
-    const allWrappers = Array.from(document.querySelectorAll('.field-wrapper'));
-    allWrappers.forEach(wrapper => {
-        const condStr = wrapper.dataset.condition;
-        if (!condStr) return;
-        let cond;
-        try { cond = JSON.parse(condStr); } catch { return; }
-        const triggerWrapper = allWrappers.find(
-            w => parseInt(w.dataset.sortOrder) === cond.trigger_sort_order
-        );
-        if (!triggerWrapper) return;
-        const currentValue = getWrapperValue(triggerWrapper);
-        const matched = (currentValue === cond.trigger_value);
-        wrapper.style.display = matched ? 'block' : 'none';
-        if (!matched) {
-            // 清空所有輸入
-            wrapper.querySelectorAll('input[type="radio"], input[type="checkbox"]')
-                .forEach(i => i.checked = false);
-            wrapper.querySelectorAll('.other-text')
-                .forEach(t => { t.value = ''; t.style.display = 'none'; });
-            const inp = wrapper.querySelector('[data-field-id]');
-            if (inp) { inp.value = ''; inp.style.borderColor = '#ddd'; }
-        }
-    });
-}
-document.addEventListener('DOMContentLoaded', evaluateConditions);
+document.addEventListener('DOMContentLoaded', () => evaluateConditions());
 
 // ===================================================
 // 幫另一位報名：切換顯示追加表單
@@ -689,34 +594,17 @@ function submitReg() {
         return;
     }
 
-    const allWrappers = document.querySelectorAll('.field-wrapper');
-    const answers = [];
-    let hasError = false;
-
-    allWrappers.forEach(wrapper => {
-        if (wrapper.style.display === 'none') return;
-        const fieldId = getWrapperId(wrapper);
-        if (!fieldId) return;
-
-        const isRequired = wrapper.dataset.required === 'true';
-        const value = getWrapperValue(wrapper);
-
-        if (isRequired && !value) {
-            hasError = true;
-            wrapper.style.outline = '2px solid #e53935';
-            wrapper.style.borderRadius = '8px';
-            const inp = wrapper.querySelector('[data-field-id]');
-            if (inp) inp.style.borderColor = '#e53935';
-        } else {
-            wrapper.style.outline = '';
-            const inp = wrapper.querySelector('[data-field-id]');
-            if (inp) inp.style.borderColor = '#ddd';
-        }
-
-        if (value) answers.push({ field_id: fieldId, answer: value });
+    const missing = missingRequiredFields();
+    document.querySelectorAll('.field-wrapper').forEach(wrapper => {
+        const bad = wrapper.dataset.required === 'true' && isFieldVisible(wrapper) && !isFieldFilled(wrapper);
+        wrapper.style.outline = bad ? '2px solid #e53935' : '';
+        if (bad) wrapper.style.borderRadius = '8px';
+        const inp = wrapper.querySelector('[data-field-id]');
+        if (inp) inp.style.borderColor = bad ? '#e53935' : '#ddd';
     });
+    const answers = collectFieldAnswers().filter(a => a.answer);
 
-    if (hasError) { showError('請填寫所有必填欄位'); return; }
+    if (missing.length) { showError('請填寫：' + missing.join('、')); return; }
 
     const submitBtn = document.querySelector('[onclick="submitReg()"]');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = '送出中…'; }
