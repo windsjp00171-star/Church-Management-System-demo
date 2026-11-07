@@ -87,3 +87,25 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 - `tests/test_roll_call_db.py`、schema 的真實 Postgres 測試需要 root＋Postgres 16，沒有就略過。
 - 動 `tests/structure_baseline.json` 要手動確認差異；`python tests/structure_scan.py` 會**直接覆寫基準**，會把增加也吃進去，不要盲目執行。
 - 啟動煙霧測試在子行程執行，不汙染其他測試；新增需要權限的頁面，到 `tests/smoke_boot.py` 的 `PROBES` 加一行。
+
+## 9. ★ 與成熟版 `event-registration-`（安南正式在用）的功能落差
+
+**這個 demo repo 缺少成熟版大約 75 個模組**（對照 `routes/` 檔案清單，2026-11-07 查證）。使用者發現的第一個是「引導式開活動」。
+成熟版 `CLAUDE.md` 是最完整的功能說明，要搬哪一項先讀那一節。
+
+| 缺的功能 | 成熟版檔案（`routes/`） | 備註 |
+|---|---|---|
+| **引導式開活動**（「我陪你開一場」） | `guided.py`、`setting_deps.py`、`templates/admin/event_guided.html`，路由在 `admin_events.py` | 使用者明確要求。它產生的欄位需要下面「報名表單強化」才跑得動 |
+| 報名表單強化：分級收費、生日、身分證（檢查碼）、監護人、依生日自動判身分別、跳題條件、必填由伺服器驗證 | `field_types.py`、`event_fields.py`、`auto_tier.py`、`guardian.py`、`conditions.py`、`roc.py`、`tw_id.py`、`tw_phone.py`、`tw_time.py`、`option_caps.py`、`static/js/form-fields.js`、`admin_events.py` | **目前 demo 只支援 7 種基本欄位型別**（文字、長文字、單選、多選、下拉、數字、日期），成熟版有 11 種 |
+| 推播、PWA 續登 | `push.py`、`pwa_session.py`、`pwa_apps.py`、`reminders.py`、`quiet_hours.py`、`tasks.py` | |
+| 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | |
+| 365 讀經計畫、經文朗讀、主日信息（YouTube） | `bible_plan.py`、`bible_text.py`、`reading_*.py`、`sermons.py`、`admin_sermons.py` | |
+| 行事曆訂閱、結業證書、門訓平板簽到、教材 | `calendar_feed.py`、`certificate.py`、`courses_kiosk.py`、`courses_materials.py` | |
+| 首頁個人化待辦、生日祝賀、使用數據 | `my_todos.py`、`todos.py`、`birthday.py`、`usage_stats.py`、`module_views.py` | |
+| 效能快取、公開端點防護 | `cache.py`、`guard.py` | |
+
+**反過來**，這個 demo 有而成熟版沒有的：聚會點名、功能模組登記表、備份登記制、天父日記／檔案分享／小組回報（來自另外三個 repo）、`person.py`、啟動煙霧測試與授權探針。
+
+**待使用者決定的做法**（尚未決定，先不要動手）：
+- A. 逐批把成熟版功能搬進這個 repo（建議第一批：報名表單強化＋引導式開活動）；
+- B. 改以成熟版為底，把 demo 獨有的搬過去（與先前「就地重構」的決定不同，要使用者重新同意）。
