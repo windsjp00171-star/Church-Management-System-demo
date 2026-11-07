@@ -1843,6 +1843,18 @@ def edit_registration(event_id, reg_id):
     if not reg.data:
         return jsonify({'error': '找不到此報名紀錄'}), 404
 
+    answers = data.get('answers', [])  # [{field_id, answer}]
+    if answers:
+        from routes.event import (_normalize_guardian_answers,
+                                  _reject_bad_id_numbers, _reject_missing_required)
+        ev = supabase.table('events').select('*').eq('id', event_id).execute().data
+        bad = _reject_bad_id_numbers(event_id, answers)
+        if not bad:
+            _normalize_guardian_answers(event_id, answers)
+            bad = ev and _reject_missing_required(ev[0], answers)
+        if bad:
+            return jsonify({'error': bad}), 400
+
     is_guest = not reg.data[0].get('user_id')
 
     # 外部報名才能改名字和電話
@@ -1856,7 +1868,6 @@ def edit_registration(event_id, reg_id):
             supabase.table('registrations').update(update_data).eq('id', reg_id).execute()
 
     # 補填 / 更新自訂欄位答案（先刪再寫，確保乾淨）
-    answers = data.get('answers', [])  # [{field_id, answer}]
     if answers:
         supabase.table('registration_answers').delete().eq('registration_id', reg_id).execute()
         for ans in answers:
