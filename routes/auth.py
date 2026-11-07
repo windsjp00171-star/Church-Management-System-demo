@@ -69,6 +69,43 @@ def _populate_session(user):
     session['_perm_checked_at'] = _now_ts()
 
 
+# ── PWA 續登（機制說明見 routes/pwa_session.py）──────────────────────────
+def load_user_for_pwa(user_id):
+    """PWA 續登用：依 id 撈使用者。
+
+    ★★ **查詢失敗要丟例外，不可以回 `None`。** 兩者都回 `None` 的話，「Supabase 抖了一下」跟
+      「這個帳號被停用」走同一條路 —— 而那條路是把他丟回 LINE 登入頁、要他輸入註冊 email 和密碼
+      （幾乎沒有人記得那組）。「PWA 會偶發性卡登入」就是這個形狀：偶發、重開一次又好了、系統裡沒有記錄。
+    ★ 先重試一次再放棄：這條路一次 PWA 啟動只走一次（不是每個請求），一次抖動的代價是他被要求輸入
+      一組他不記得的密碼，這筆交換很划算。
+    """
+    last = None
+    for attempt in (1, 2):
+        try:
+            rows = supabase.table('users').select('*')\
+                .eq('id', user_id).execute().data or []
+            break
+        except Exception as exc:       # noqa: PERF203 — 只有兩次
+            last = exc
+    else:
+        raise last                      # ★ 丟出去，讓呼叫端分得出是誰的問題
+    if not rows or rows[0].get('is_blocked'):
+        return None                     # 這一種才是「本來就不給登入」
+    return rows[0]
+
+
+def record_pwa_problem(why, user_id):
+    """PWA 續登沒成功時留一筆（原本完全沒有記錄，使用者回報「偶發卡登入」時手上一個數字都沒有）。
+
+    三種原因處理方式完全不同，所以分開記：bad_token（manifest 舊了／SECRET_KEY 換過，重新登入就好）、
+    not_allowed（查無此人或已停用，本來就不該登入）、load_failed（我們自己的問題，資料庫連不上）。
+    ★ `actor_id` 會是 None，那是對的 —— 這一刻沒有人登入，身分只存在網址那個 token 裡，所以放進 detail。
+    ★ 不可以丟例外：留記錄失敗不可以讓登入失敗（呼叫端也包了一層）。
+    """
+    from routes.audit import log_action
+    log_action('pwa.login_failed', 'user', user_id, {'why': why})
+
+
 # ── 權限撤銷要立即生效 ──────────────────────────
 #
 # session 很長（使用者族群有一半是長輩，常常重登會直接放棄）。代價是「登入時算一次」的東西

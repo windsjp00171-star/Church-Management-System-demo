@@ -103,7 +103,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 | ✅ | 經文內嵌與朗讀 | `bible_text.py`、`static/js/speech-queue.js` | #95 |
 | ✅ | 公開端點防護（速率限制、蜜罐、身分證字號重複檢查） | `guard.py` | 本批：`compute-tier`／`compute-age`／外部報名。**沒搬**：沒有身分證欄位時退回姓名＋電話的重複比對（這邊外部報名沒有電話欄位）、`find` 查詢端點限流（沒有 `find`） |
 | ⬜ | 手機推播 | `push.py`、`reading_nudge.py`、`reminders.py`、`quiet_hours.py`、`tasks.py` | 未做；讀經推播依賴它 |
-| ⬜ | PWA 續登（裝完被要求輸入 LINE 帳密的問題） | `pwa_session.py`、`pwa_apps.py` | 未做 |
+| ✅ | PWA 續登（裝完被要求輸入 LINE 帳密的問題） | `pwa_session.py`（`pwa_apps.py` 未搬，為別的專案用） | 已做 |
 | ⬜ | 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | 未做 |
 | ⬜ | 主日信息（YouTube 按週分組） | `sermons.py`、`admin_sermons.py` | 未做 |
 | ⬜ | 行事曆訂閱（.ics） | `calendar_feed.py` | 未做 |

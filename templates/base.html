@@ -7,7 +7,9 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="manifest" href="/manifest.json">
+    {# ★ crossorigin="use-credentials" 一定要有：瀏覽器抓 manifest 預設不帶 cookie，後端讀不到登入狀態、
+     start_url 就不會夾帶續登 token —— 整套 PWA 續登靜默失效，而且沒有任何錯誤訊息 #}
+    <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
     <meta name="theme-color" content="#1a3a5c">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
