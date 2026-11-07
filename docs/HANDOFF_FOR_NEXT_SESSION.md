@@ -107,7 +107,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 | ⬜ | 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | 未做 |
 | ⬜ | 主日信息（YouTube 按週分組） | `sermons.py`、`admin_sermons.py` | 未做 |
 | ✅ | 行事曆訂閱（.ics） | `calendar_feed.py` | 已做 |
-| ⬜ | 門訓結業證書 | `certificate.py` | 未做。**卡點**：demo 的 `course_certifications` 沒有 `passed` 欄位（成熟版靠它擋「沒通過不發證」），而且 demo 沒有任何程式會寫這張表（只有 `event.py` 在讀）＝沒有「認證」流程，搬了也不會有證書。要先決定：補 `passed` 欄位（需 SQL 同意）＋同工認證入口 |
+| 🚫 | 門訓結業證書 | `certificate.py` | **使用者決定不做**（2026-11-07），不要再提 |
 | ⬜ | 門訓平板簽到 | `courses_kiosk.py` | 未做 |
 | ⬜ | 門訓教材 | `courses_materials.py` | 未做 |
 | ⬜ | 首頁個人化待辦 | `my_todos.py`、`todos.py` | 未做（成熟版刻意**不做催繳**，見其 CLAUDE.md） |
