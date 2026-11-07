@@ -155,6 +155,11 @@
   <!-- ── 快速入口 ─────────────────────────────── -->
   <div class="sw-section-label" style="margin-top:32px; margin-bottom:10px;">快速入口</div>
   <div class="quick-grid">
+    {% if module_on('/roll-call') %}<a href="/roll-call" class="quick-card">
+      <div class="quick-icon">✅</div>
+      <div class="quick-name">聚會點名</div>
+      <div class="quick-desc">主日與各聚會的點名單</div>
+    </a>{% endif %}
     {% if module_on('/cell-report/staff-dashboard') %}<a href="/cell-report/staff-dashboard" class="quick-card">
       <div class="quick-icon">📊</div>
       <div class="quick-name">小組回報總覽</div>
