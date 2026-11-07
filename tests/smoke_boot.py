@@ -125,7 +125,7 @@ PROBES = {
 }
 probe = {role: {u: client(ROLES[role]).get(u).status_code for u in urls} for role, urls in PROBES.items()}
 # 入口探針：功能做好卻沒有入口，等於不存在（頁面在、測試綠，但沒有人走得到）
-ENTRIES = {'/': ['href="/roll-call"'], '/staff': ['href="/roll-call"']}
+ENTRIES = {'/': ['data-rollcall', 'href="/roll-call"', '開始：建立'], '/staff': ['href="/roll-call"']}
 entries = {}
 for url, needles in ENTRIES.items():
     html = client(ROLES['admin']).get(url).get_data(as_text=True)

@@ -121,6 +121,43 @@ def home():
                            is_admin=_is_admin(), can_edit={s['id']: can_mark(s, _is_admin(), _is_staff()) for s in sessions})
 
 
+def portal_rollcall():
+    """首頁「本週點名」卡片要的資料（同工以上才會被呼叫）。**只讀、不寫**，出任何錯都回 None，不可以拖垮首頁。
+
+    state：no_type（還沒開始）／no_session（還沒有任何一欄）／no_members（名冊是空的）／ready
+    顯示的那一欄＝今天的；今天還沒有就顯示最近一次。
+    """
+    try:
+        mtype, _ = _sheet_type()
+        today = _today_taipei()
+        info = {'state': 'no_type', 'type': mtype, 'today': today, 'auto_add': False, 'members': [],
+                'session': None, 'records': {}, 'editable': False, 'present': 0, 'is_today': False}
+        if not mtype:
+            info['auto_add'] = today.weekday() == 6
+            return info
+        rows = supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])\
+            .order('starts_at', desc=True).limit(SHEET_COLUMNS).execute().data or []
+        for r in rows:
+            r['_local'] = to_taipei(r['starts_at'])
+        cur = next((r for r in rows if r['_local'].date() == today), None) or (rows[0] if rows else None)
+        info['auto_add'] = today.weekday() == 6 and not any(r['_local'].date() == today for r in rows)
+        if not cur:
+            info['state'] = 'no_session'
+            return info
+        members = _active_members()
+        recs = supabase.table('rc_records').select('*').eq('session_id', cur['id']).execute().data or []
+        records = {r['member_id']: r['status'] for r in recs}
+        info.update(session=cur, members=members, records=records, is_today=cur['_local'].date() == today,
+                    editable=can_mark(cur, _is_admin(), _is_staff()),
+                    present=sum(1 for m in members if records.get(m['id']) == 'present'),
+                    state='ready' if members else 'no_members')
+        return info
+    except Exception:
+        import logging
+        logging.getLogger(__name__).warning('首頁點名卡片讀取失敗', exc_info=True)
+        return None
+
+
 @roll_call_bp.route('/api/roll-call/sheet/add-column', methods=['POST'])
 @staff_required
 def api_sheet_add_column():
