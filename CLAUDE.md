@@ -300,9 +300,10 @@ python app.py      # debug=True, port 5000
 | 015 | `migrations/015_report_submitter_columns.sql` | 聚會人數回報的 `submitted_by`／`updated_at`、`visitor_forms.uploaded_by`（程式一直在寫，schema 原本沒有） |
 | 016 | `migrations/016_missing_columns.sql` | 補上程式一直在讀寫、schema 原本沒有的欄位（禱讀本收費、教材封面、代禱匿名／蒙應允／封存、日記登入寫入）；`diary_plan.plan_date` 改名為程式用的 `date`（只在舊欄位存在時） |
 
+| 018 | `migrations/018_event_field_types.sql` | `event_fields` 允許 birthday／id_number／fee／guardian 四種欄位型別，並新增 `auto_tier`（報名表單強化、引導式開活動的前置） |
 | 017 | `migrations/017_users_line_user_id_nullable.sql` | `users.line_user_id` 允許為空（手動建立的會員、合併後清空 LINE 身分的列；舊 schema 寫成 NOT NULL 會讓兩者失敗） |
 
-新專案只需執行整份 `schema.sql`（已含 012～017）。**程式寫入的每個欄位 `schema.sql` 都必須有**（`tests/test_schema_guards.py` 掃 AST 守著；新增欄位要同時補 schema 與 migration）。
+新專案只需執行整份 `schema.sql`（已含 012～018）。**程式寫入的每個欄位 `schema.sql` 都必須有**（`tests/test_schema_guards.py` 掃 AST 守著；新增欄位要同時補 schema 與 migration）。
 
 ## 多教會部署架構與開發者權限原則
 

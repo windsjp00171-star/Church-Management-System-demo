@@ -188,3 +188,50 @@ def test_migration_017_relaxes_an_old_database_and_is_repeatable():
         assert psql("insert into users (real_name) values ('x')").returncode == 0
     finally:
         stop()
+
+
+# ── 報名表單新欄位型別（生日、身分證、分級收費、監護人）──────────────────
+NEW_TYPES = ('birthday', 'id_number', 'fee', 'guardian')
+
+
+def _event_and_field_sql(ftype):
+    return ("insert into events (title) values ('e') on conflict do nothing; "
+            f"insert into event_fields (event_id, label, field_type) select id, 'x', '{ftype}' from events limit 1")
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_fresh_schema_accepts_the_new_field_types_and_rejects_nonsense():
+    psql, stop = pg_helper.start(55439)
+    try:
+        psql(ROLES)
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        for t in NEW_TYPES + ('text', 'date'):
+            r = psql(_event_and_field_sql(t))
+            assert r.returncode == 0, (t, r.stderr)
+        assert psql(_event_and_field_sql('bogus')).returncode != 0          # 白名單還在
+        assert psql("update event_fields set auto_tier = '{\"enabled\": true}'::jsonb").returncode == 0
+    finally:
+        stop()
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_migration_018_upgrades_an_old_database_and_is_repeatable():
+    psql, stop = pg_helper.start(55440)
+    try:
+        psql(ROLES)
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        # 模擬舊資料庫：只有 7 種型別、沒有 auto_tier
+        assert psql('ALTER TABLE event_fields DROP COLUMN auto_tier').returncode == 0
+        assert psql('ALTER TABLE event_fields DROP CONSTRAINT event_fields_field_type_check').returncode == 0
+        assert psql("ALTER TABLE event_fields ADD CONSTRAINT event_fields_field_type_check CHECK (field_type IN "
+                    "('text','textarea','select','checkbox','radio','number','date'))").returncode == 0
+        assert psql(_event_and_field_sql('guardian')).returncode != 0          # 升級前被擋
+        mig = str(ROOT / 'migrations' / '018_event_field_types.sql')
+        for _ in range(2):                                                      # 可重複執行
+            r = psql(file=mig)
+            assert r.returncode == 0, r.stderr
+        for t in NEW_TYPES:
+            assert psql(_event_and_field_sql(t)).returncode == 0, t
+        assert psql("update event_fields set auto_tier = '{}'::jsonb").returncode == 0
+    finally:
+        stop()
