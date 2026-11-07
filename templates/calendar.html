@@ -147,6 +147,76 @@
 </div>
 
 <!-- 月份導覽 -->
+{# 訂閱到自己的手機日曆。
+   ★ 跟上面那行一樣做成低調的一行 —— 這一頁的主目的是看行事曆。
+   ★ 用 <details>：不自己寫開合的 JS（鍵盤和螢幕閱讀器都是現成的，
+     而且「JS 沒載到」不會變成整塊點不開）。
+   ★ 這件事的價值是**不用回來看** —— 訂閱之後教會的聚會直接排進他
+     自己的日曆，跟上班、接小孩排在一起。所以文案講的是那個結果，
+     不是「我們提供 iCal 格式」。 #}
+{% if feed_url %}
+<details id="cal-subscribe" style="margin:-4px 0 14px;">
+    <summary style="cursor:pointer; font-size:0.9rem; font-weight:600;
+                    color:var(--blue); list-style:none;">
+        📅 訂閱到我的手機日曆（之後不用回來看）
+    </summary>
+    <div style="margin-top:10px; background:var(--surface); border:1px solid var(--border);
+                border-radius:var(--radius-lg); padding:14px 15px; font-size:0.9rem;
+                line-height:1.9; color:var(--text-2);">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+            <input aria-label="網址" id="cal-feed-url" type="text" readonly value="{{ feed_url }}"
+                onclick="this.select()"
+                style="flex:1; min-width:0; padding:9px 10px; border:1px solid var(--border);
+                       border-radius:var(--radius); font-size:0.9rem; background:var(--bg);
+                       color:var(--text-2);">
+            <button type="button" onclick="copyFeedUrl(this)" class="btn btn-sm">複製</button>
+        </div>
+        <div style="margin-top:10px;">
+            <strong>iPhone</strong>：設定 → 日曆 → 帳號 → 加入帳號 → 其他 → 加入已訂閱的日曆 → 貼上<br>
+            <strong>Android／電腦</strong>：Google 日曆 → 其他日曆 ＋ → 以網址訂閱 → 貼上
+        </div>
+        {# ★ 這個網址沒有短效期（訂閱是裝一次用好幾年），所以一定要講
+             清楚它等於他的行事曆。不講的話他可能把網址貼進群組。 #}
+        <div style="margin-top:10px; color:var(--text-3);">
+            ⚠️ 這個網址<strong>等於你的行事曆</strong>（包含你的個人行程），
+            拿到的人不用登入就看得到 —— <strong>不要轉發給別人</strong>。
+        </div>
+        {# ★ 使用者回報：「我在系統新增好像不會即時新增行程到 GOOGLE 日曆」。
+             那不是壞了 —— **什麼時候來抓是日曆那邊決定的**，我們推不過去。
+             不寫清楚的話，他會以為訂閱沒設定成功而一直重加一次。 #}
+        <div style="margin-top:6px; color:var(--text-3);">
+            ⏳ <strong>不是即時的</strong>：教會改了時間，你的日曆
+            <strong>要等它自己回來抓</strong>才會跟著變 ——
+            Google 日曆大約<strong>幾小時到一天</strong>，iPhone 的日曆比較快。
+            這是日曆 App 決定的，系統這邊改不了。<br>
+            iPhone 可以自己調快：<strong>設定 → 日曆 → 帳號 →
+            （訂閱的那個）→ 更新頻率</strong>。<br>
+            ★ 真的要馬上知道的事（報名、繳費、活動快到了）
+            是走<strong>系統通知</strong>，不是走這條。
+        </div>
+    </div>
+</details>
+<script>
+function copyFeedUrl(btn) {
+    var el = document.getElementById('cal-feed-url');
+    /* ★ 先選起來再複製：iOS 的 LINE 內建瀏覽器可能擋掉 clipboard API，
+         擋掉的時候至少文字是選好的，他長按就能自己複製 ——
+         不留這一手的話按了完全沒反應，看起來像按鈕壞了。 */
+    el.focus(); el.select();
+    var done = function () {
+        var old = btn.textContent;
+        btn.textContent = '已複製';
+        setTimeout(function () { btn.textContent = old; }, 1600);
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(el.value).then(done, function () {});
+    } else {
+        try { document.execCommand('copy'); done(); } catch (e) {}
+    }
+}
+</script>
+{% endif %}
+
 <div class="pa" style="--d:90ms; display:flex; align-items:center; justify-content:center; gap:16px; margin-bottom:16px;">
     <button onclick="changeMonth(-1)" class="cal-nav-btn">‹ 上個月</button>
     <h3 id="month-label" style="margin:0; min-width:130px; text-align:center; font-size:1.1rem; font-weight:700; color:var(--text-1);"></h3>

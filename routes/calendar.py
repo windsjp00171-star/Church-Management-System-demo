@@ -33,7 +33,17 @@ def _to_taipei(s):
 @login_required
 def calendar_page():
     is_admin = session.get('is_admin', False)
-    return render_template('calendar.html', is_admin=is_admin)
+    # 訂閱網址（.ics）：一定要是完整網址（日曆 App 是把它貼到別處去抓）；算不出來就空字串，
+    # 模板整塊不畫 —— 訂閱是附加的，不可以讓行事曆打不開。
+    feed_url = ''
+    try:
+        from flask import current_app
+        from routes.calendar_feed import feed_url_for
+        feed_url = feed_url_for(current_app.secret_key, session.get('user_id'),
+                                base=request.url_root.rstrip('/'))
+    except Exception:
+        pass
+    return render_template('calendar.html', is_admin=is_admin, feed_url=feed_url)
 
 
 # ── 行事曆資料 API ─────────────────────────────────────────────────────

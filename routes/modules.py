@@ -36,7 +36,7 @@ MODULES = [
         '/payment', '/events/*/registrations/*/pay', '/admin/payments', '/admin/settings/payment'),
         '綠界／LINE Pay 付款（第一階段規格決定不做，保留給有需要的教會）'),
     Module('calendar', '教會行事曆', 'optional', (), (
-        '/calendar', '/api/calendar', '/admin/calendar', '/admin/api/calendar'), '行事曆與個人行程'),
+        '/calendar', '/calendar.ics', '/api/calendar', '/admin/calendar', '/admin/api/calendar'), '行事曆與個人行程'),
     Module('bulletins', '每週週報', 'optional', (), (
         '/bulletins', '/admin/bulletins', '/admin/api/upload-bulletin'), '週報與公告'),
     Module('prayer', '代禱牆', 'optional', (), ('/prayer', '/api/prayer'), '分享代禱需求、互相代禱'),

@@ -5,6 +5,8 @@
 ## [Unreleased]
 
 ### 新增
+- **行事曆訂閱（.ics，搬成熟版 `calendar_feed.py`）**：行事曆頁多一個「📅 訂閱到我的手機日曆」，貼到 iPhone／Google 日曆之後，教會行事、活動、自己的個人行程直接排進他自己的日曆，不用回來看。網址免登入（日曆 App 不帶 cookie），身分在網址的簽章 token（與 PWA 續登不同 salt，互相不能代用）；一行不超過 75 位元組且不切壞中文字、全天事件結束日 +1、有時間的一律 UTC、一筆壞資料不毀整份、一張表壞了另兩種照送。頁面明講「網址等於你的行事曆，不要轉發」與「**不是即時的**（Google 約數小時到一天）」。不需要新資料表。放回成熟版 `test_calendar_feed.py`（加上真的 app 端到端一條）。尚未做：行事曆頁的聚焦式教學（該頁本來就沒有）。
+
 - **PWA 續登（搬成熟版 `pwa_session.py`）**：iOS 的 PWA 有獨立的 cookie 容器，加到主畫面後第一次打開是未登入，接著被丟去 LINE 網頁登入頁、要求輸入註冊 email 與密碼（幾乎沒人記得）。現在 `/manifest.json` 對已登入的人在 `start_url` 夾帶簽章 token（不可被快取、`Vary: Cookie`），PWA 首次啟動驗章後直接登入；manifest 連結補 `crossorigin="use-credentials"`（少了它整套靜默失效）。兌換失敗分三種原因寫進操作記錄 `pwa.login_failed`（`bad_token` 舊了、`not_allowed` 本來就不給登入、`load_failed` 是我們資料庫的問題）；資料庫抖一下會重試一次、仍失敗丟例外，**不會再被當成「帳號被停用」**。放回成熟版 `test_pwa_login_failures.py` ＋ 新增 `test_pwa_manifest.py`。結構守衛 `routes/auth.py` 查 users 基準 16→17（登入路徑，正當新增）。
 
 ### 修正

@@ -63,6 +63,8 @@ def create_app():
 
     from routes.calendar import calendar_bp
     app.register_blueprint(calendar_bp)
+    from routes.calendar_feed import calendar_feed_bp
+    app.register_blueprint(calendar_feed_bp)  # 訂閱到自己的手機日曆（.ics，免登入、身分在網址簽章）
 
     from routes.bulletin import bulletin_bp
     app.register_blueprint(bulletin_bp)
