@@ -978,6 +978,9 @@ def events():
     )
 
 
+from routes.admin_events import _apply_guardian_conditions  # noqa: E402
+
+
 @admin_bp.route('/events/new', methods=['GET', 'POST'])
 @admin_required
 def event_new():
@@ -1025,20 +1028,31 @@ def event_new():
 
         # 建立自訂欄位
         try:
+            field = None  # except 要讀它；必須在 try 第一行綁好
             fields = data.get('fields', [])
-            for i, field in enumerate(fields):
-                if field.get('label'):
-                    supabase.table('event_fields').insert({
-                        'event_id': event_id,
-                        'label': field['label'],
-                        'field_type': field.get('field_type', 'text'),
-                        'options': field.get('options', ''),
-                        'is_required': field.get('is_required', False),
-                        'sort_order': i,
-                        'condition_json': field.get('condition_json') or None,
-                    }).execute()
+            guard_err = _apply_guardian_conditions(fields)
+            if guard_err:
+                return jsonify({'error': guard_err}), 400
+            # 只有有名字的欄位會存，編號也只能數這些：跳號的話跳題條件
+            # （存「畫面上第幾題」）會指到別題，而後台看起來設定正確。
+            _keep = [f for f in fields
+                     if f.get('label') and f.get('field_type') != 'group']
+            for i, field in enumerate(_keep):
+                supabase.table('event_fields').insert({
+                    'event_id': event_id,
+                    'label': field['label'],
+                    'field_type': field.get('field_type', 'text'),
+                    'options': field.get('options', ''),
+                    'is_required': field.get('is_required', False),
+                    'sort_order': i,
+                    'condition_json': field.get('condition_json') or None,
+                    'auto_tier': field.get('auto_tier') or None,
+                }).execute()
         except Exception as e:
-            return jsonify({'error': f'欄位建立失敗：{str(e)}'}), 500
+            # 資料庫 CHECK 約束擋下新型別時，換成一句能照著做的話
+            from routes.field_types import translate_db_error
+            hint = translate_db_error(e, (field or {}).get('field_type'))
+            return jsonify({'error': hint or f'欄位建立失敗：{str(e)}'}), 500
 
         return jsonify({'success': True, 'event_id': event_id})
 
@@ -1107,12 +1121,17 @@ def event_edit(event_id):
         # 更新欄位：永不 hard delete，移除的欄位改為 is_archived=True
         # 這樣既有報名答案永遠不會消失，名單頁仍可顯示歷史答案
         try:
+            field = None  # except 要讀它；必須在 try 第一行綁好
             fields = data.get('fields', [])
+            guard_err = _apply_guardian_conditions(fields)
+            if guard_err:
+                return jsonify({'error': guard_err}), 400
             submitted_ids = set()
 
-            for i, field in enumerate(fields):
-                if not field.get('label'):
-                    continue
+            # 編號只數有名字的欄位（理由同 event_new）
+            _keep = [f for f in fields
+                     if f.get('label') and f.get('field_type') != 'group']
+            for i, field in enumerate(_keep):
                 fid = field.get('id') or None
                 field_payload = {
                     'event_id': event_id,
@@ -1122,6 +1141,7 @@ def event_edit(event_id):
                     'is_required': field.get('is_required', False),
                     'sort_order': i,
                     'condition_json': field.get('condition_json') or None,
+                    'auto_tier': field.get('auto_tier') or None,
                     'is_archived': False,  # 出現在提交中 = 使用中
                 }
                 if fid:
@@ -1142,7 +1162,9 @@ def event_edit(event_id):
                         .eq('id', ef['id']).execute()
 
         except Exception as e:
-            return jsonify({'error': f'欄位更新失敗：{str(e)}'}), 500
+            from routes.field_types import translate_db_error
+            hint = translate_db_error(e, (field or {}).get('field_type'))
+            return jsonify({'error': hint or f'欄位更新失敗：{str(e)}'}), 500
 
         return jsonify({'success': True})
 
@@ -1188,6 +1210,7 @@ def event_clone(event_id):
             'is_required': f.get('is_required', False),
             'sort_order': f['sort_order'],
             'condition_json': f.get('condition_json'),
+            'auto_tier': f.get('auto_tier'),
         }).execute()
 
     return jsonify({'success': True, 'new_id': new_id})

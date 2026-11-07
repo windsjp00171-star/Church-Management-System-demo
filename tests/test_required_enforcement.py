@@ -280,3 +280,7 @@ def test_the_error_says_which_fields():
     fn = src[src.index('def _reject_missing_required'):]
     fn = fn[:fn.index('\ndef ')]
     assert "'、'.join(missing)" in fn
+
+
+# ── 後台擋掉「可以被繞過」的設定 ──────────────────────────
+

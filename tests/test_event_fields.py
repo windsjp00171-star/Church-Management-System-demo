@@ -309,6 +309,24 @@ def test_fee_answers_are_collected():
 from routes.field_types import FIELD_TYPES, TRIGGER_TYPES, translate_db_error
 
 
+@pytest.mark.parametrize('idx, which', [(0, '既有欄位'), (1, '新增欄位')])
+def test_the_admin_dropdown_offers_exactly_the_supported_types(idx, which):
+    """★ 下拉裡有、清單裡沒有的型別 = 沒人記得它存在，
+    包括「要不要放寬資料庫約束」也不會有人想到。
+
+    ★ 兩份下拉都要檢查。只看第一份的話，加在「新增欄位」那份的型別
+    完全不會被發現 —— 而新活動的每一個欄位都是走那一份。
+    （第一版就只檢查了一份，變異測試抓到。）
+    """
+    import re
+    src = open('templates/admin/event_form.html', encoding='utf-8').read()
+    blocks = src.split('class="f-type"')[1:]
+    assert len(blocks) == 2, f'型別下拉應該有兩份，找到 {len(blocks)} 份'
+    in_ui = set(re.findall(r'<option value="([a-z_]+)"', blocks[idx].split('</select>')[0]))
+    assert in_ui == set(FIELD_TYPES), (
+        f'{which}的型別下拉與 FIELD_TYPES 對不上\n'
+        f'下拉多的：{in_ui - set(FIELD_TYPES)}\n'
+        f'清單多的：{set(FIELD_TYPES) - in_ui}')
 
 
 def test_the_migration_covers_every_supported_type():
@@ -351,3 +369,7 @@ def test_unrelated_errors_are_left_alone():
     assert translate_db_error(ValueError('欄位太長'), 'text') is None
 
 
+def test_both_field_write_paths_translate_the_error():
+    """建立與編輯活動是兩條路徑，只改一條的話另一條照樣噴原始訊息"""
+    src = open('routes/admin.py', encoding='utf-8').read()
+    assert src.count('translate_db_error(e,') == 2

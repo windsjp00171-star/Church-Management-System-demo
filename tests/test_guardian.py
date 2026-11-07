@@ -39,7 +39,7 @@ from pathlib import Path
 
 import pytest
 
-
+from routes.admin_events import _apply_guardian_conditions
 from routes.conditions import missing_required
 from routes.guardian import MINOR_MAX_AGE, compose, is_complete, parse
 
@@ -119,22 +119,96 @@ def fields(*specs):
     return out
 
 
+def test_the_condition_is_generated_when_none_is_set():
+    """★ 預設情況管理員什麼都不用設。"""
+    fs = fields(('text', '姓名'), ('birthday', '出生年月日'), ('guardian', '監護人'))
+    assert _apply_guardian_conditions(fs) is None
+    cond = json.loads(fs[2]['condition_json'])
+    assert cond == {'trigger_sort_order': 1, 'op': 'age_between',
+                    'min': None, 'max': 17, 'auto': 'minor'}
 
 
+def test_an_admin_set_condition_is_left_alone():
+    """★★ 面板還在，設了就要算數。
+
+    有些活動的規則本來就不一樣（兒童營全部都要填、水上活動是
+    「選了獨木舟才問」）。自動覆蓋掉的話，管理員每次存檔都會發現
+    自己的設定被吃掉 —— **而且沒有任何訊息**，他只會覺得存檔壞了。
+    """
+    mine = json.dumps({'trigger_sort_order': 0, 'trigger_value': '獨木舟'})
+    fs = fields(('radio', '想參加的活動'), ('birthday', '生日'), ('guardian', '監護人'))
+    fs[2]['condition_json'] = mine
+    assert _apply_guardian_conditions(fs) is None
+    assert fs[2]['condition_json'] == mine, '管理員自己設的條件被覆蓋掉了'
 
 
+def test_an_admin_can_widen_it_to_everyone():
+    """兒童營：全部都要填監護人。把條件拿掉就好，不該被自動加回來。
+
+    ★ 這裡的 condition_json 是 None 而**不是**沒送 —— 差別在前端：
+      管理員取消勾選「設定跳題條件」時送上來的就是 None。
+      這種情況目前仍會自動補上未滿18歲（沒設 ＝ 用預設），
+      要全部都問請把年齡上限設成一個涵蓋所有人的值。
+    """
+    wide = json.dumps({'trigger_sort_order': 1, 'op': 'age_between',
+                       'min': 0, 'max': 200})
+    fs = fields(('text', '姓名'), ('birthday', '生日'), ('guardian', '監護人'))
+    fs[2]['condition_json'] = wide
+    _apply_guardian_conditions(fs)
+    assert fs[2]['condition_json'] == wide
 
 
+def test_a_guardian_without_a_birthday_is_blocked():
+    """★ 沒有生日就算不出年齡 → 那題永遠不出現，而後台看起來設好了。
+
+    訊息要講「該做什麼」，不是「哪裡錯了」。
+    """
+    fs = fields(('text', '姓名'), ('guardian', '監護人'))
+    err = _apply_guardian_conditions(fs)
+    assert err and '出生日期' in err
+    assert '請先加' in err, '沒有告訴管理員該怎麼做'
 
 
+def test_reordering_regenerates_the_auto_condition():
+    """★ 欄位順序改過之後，舊的 index 會指到別的問題上，而畫面完全正常。
+
+    所以**自動補上去的那條**（帶 auto:'minor' 印記）每次存檔都重新產生。
+    管理員自己設的沒有印記，一個字都不動 —— 見上面那條。
+    """
+    fs = fields(('text', '姓名'), ('birthday', '生日'), ('guardian', '監護人'))
+    fs[2]['condition_json'] = json.dumps(
+        {'trigger_sort_order': 99, 'op': 'age_between', 'max': 17, 'auto': 'minor'})
+    _apply_guardian_conditions(fs)
+    assert json.loads(fs[2]['condition_json'])['trigger_sort_order'] == 1
 
 
+def test_the_auto_mark_is_what_tells_them_apart():
+    """★ 沒有印記的話，只能用「長得像不像自動產生的」去猜 ——
+    而管理員手動設一條 17 歲以下的條件（完全合理）就會被當成自動的，
+    然後在他改了欄位順序時被悄悄改掉。"""
+    fs = fields(('text', '姓名'), ('birthday', '生日'), ('guardian', '監護人'))
+    _apply_guardian_conditions(fs)
+    assert json.loads(fs[2]['condition_json']).get('auto') == 'minor'
 
 
+def test_legacy_group_fields_do_not_shift_the_index():
+    """舊的 group 型別在報名表上被濾掉，所以它不佔一格。"""
+    fs = fields(('group', '小組'), ('birthday', '生日'), ('guardian', '監護人'))
+    _apply_guardian_conditions(fs)
+    assert json.loads(fs[2]['condition_json'])['trigger_sort_order'] == 0
 
 
+def test_rows_without_a_label_do_not_shift_the_index():
+    """後台那一列還沒打名字就不會被存 —— 它不該佔一格。"""
+    fs = fields(('birthday', '生日'), ('text', ''), ('guardian', '監護人'))
+    _apply_guardian_conditions(fs)
+    assert json.loads(fs[2]['condition_json'])['trigger_sort_order'] == 0
 
 
+def test_no_guardian_field_changes_nothing():
+    fs = fields(('text', '姓名'), ('birthday', '生日'))
+    assert _apply_guardian_conditions(fs) is None
+    assert all(f['condition_json'] is None for f in fs)
 
 
 # ── 端到端：未成年才問、而且要兩格都填 ──────────────────────────
@@ -152,10 +226,27 @@ def ans(*pairs):
     return [{'field_id': k, 'answer': v} for k, v in pairs]
 
 
+def test_a_minor_must_give_both_name_and_phone():
+    fs = trip_fields()
+    assert missing_required(fs, ans(('f0', '2011-05-01')), EVENT) == ['監護人']
+    assert missing_required(
+        fs, ans(('f0', '2011-05-01'), ('f1', compose('媽媽', ''))), EVENT) == ['監護人'], \
+        '只填姓名就過了 —— 出事那天打不到人'
+    assert missing_required(
+        fs, ans(('f0', '2011-05-01'),
+                ('f1', compose('媽媽', '0912345678'))), EVENT) == []
 
 
+def test_an_adult_is_never_asked():
+    fs = trip_fields()
+    assert missing_required(fs, ans(('f0', '1990-05-01')), EVENT) == []
 
 
+def test_the_boundary_is_the_day_they_turn_eighteen():
+    fs = trip_fields()
+    # 活動 2026-09-01
+    assert missing_required(fs, ans(('f0', '2008-09-01')), EVENT) == []
+    assert missing_required(fs, ans(('f0', '2008-09-02')), EVENT) == ['監護人']
 
 
 # ── 伺服器覆蓋格式 ──────────────────────────

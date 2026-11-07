@@ -45,7 +45,7 @@ from pathlib import Path
 
 import pytest
 
-
+from routes.admin_events import _apply_guardian_conditions
 from routes.conditions import missing_required, visibility
 from routes.guardian import (EVERYONE, MINOR, condition_mark,
                              everyone_condition)
@@ -102,16 +102,57 @@ def test_the_mark_has_no_trigger():
 
 # ══ 二、存檔時不可以被蓋掉 ═══════════════════════════
 
+def test_the_mark_survives_saving():
+    """★★★ 這一份的核心。
+
+    蓋掉的症狀：他勾了「每個人都要填」、存檔、後台看起來設好了，
+    而 18 歲以上的人看不到那一題。
+    """
+    fields = [_birthday(), _guardian(json.dumps(everyone_condition()))]
+    assert _apply_guardian_conditions(fields) is None
+    assert condition_mark(fields[1]['condition_json']) == EVERYONE
 
 
+def test_it_survives_even_without_a_birthday_field():
+    """★★ 勾了「每個人都要填」就不需要出生日期 ——
+    而擋下來的話，兒童營會為了過這一關加一題他不需要的問題。"""
+    fields = [_guardian(json.dumps(everyone_condition()))]
+    assert _apply_guardian_conditions(fields) is None, \
+        '勾了「每個人都要填」還被要求加出生日期欄位'
+    assert condition_mark(fields[0]['condition_json']) == EVERYONE
 
 
+def test_a_blank_guardian_still_gets_the_minor_default():
+    """★ 反面：沒設的還是要自動補 —— 不然預設行為就沒了。"""
+    fields = [_birthday(), _guardian(None)]
+    assert _apply_guardian_conditions(fields) is None
+    assert condition_mark(fields[1]['condition_json']) == MINOR
 
 
+def test_a_blank_guardian_without_a_birthday_is_still_blocked():
+    """★ 沒勾「每個人都要填」又沒有生日欄位 → 照樣要擋
+    （那題會永遠不出現，而後台看起來設好了）。"""
+    fields = [_guardian(None)]
+    msg = _apply_guardian_conditions(fields)
+    assert msg and '出生日期' in msg
 
 
+def test_that_message_names_the_new_way_out():
+    """★★ 訊息要講「該做什麼」，而現在有兩條路。
+
+    只講「請加一個出生日期欄位」的話，兒童營的人會照做 ——
+    加一題他不需要、而且會被填錯的問題。
+    """
+    msg = _apply_guardian_conditions([_guardian(None)])
+    assert '每個人都要填' in msg, f'訊息沒有指出另一條路：{msg}'
 
 
+def test_an_admin_condition_is_still_untouched():
+    """★ 自己設的一個字都不動（既有規則，不可以被這次的改動弄壞）。"""
+    own = json.dumps({'trigger_sort_order': 0, 'trigger_value': '要'})
+    fields = [_birthday(), _guardian(own)]
+    _apply_guardian_conditions(fields)
+    assert fields[1]['condition_json'] == own
 
 
 # ══ 三、伺服器求值：每個人都看得到 ═══════════════════
@@ -193,6 +234,13 @@ def test_both_evaluators_name_the_mark_explicitly():
         'form-fields.js 沒有「每個人都問」的明確分支'
 
 
+def test_the_shape_of_the_mark_is_not_retyped_in_python():
+    """★ 形狀只有一份（`everyone_condition`）。抄一份的話兩邊遲早不一樣，
+    而症狀是「勾了沒用」。"""
+    for name in ('conditions.py', 'admin_events.py'):
+        src = (ROOT / 'routes' / name).read_text(encoding='utf-8')
+        assert "'auto': 'everyone'" not in src, \
+            f'{name} 自己拼了一份印記'
 
 
 # ══ 五、表單上的即時提示要跟著改口 ═══════════════════

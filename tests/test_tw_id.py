@@ -146,6 +146,9 @@ def _src(path):
     return open(path, encoding='utf-8').read()
 
 
+def test_admin_can_pick_the_id_type():
+    assert _src('templates/admin/event_form.html').count('value="id_number"') == 2, \
+        '型別下拉少了身分證字號（既有 / 新增各一份）'
 
 
 def test_every_form_renders_the_id_input():
