@@ -145,3 +145,59 @@ def source_bundle(template):
             parts.append(f.read_text(encoding='utf-8'))
     return '\n'.join(parts)
 
+
+
+@pytest.fixture(autouse=True)
+def _no_real_bible_fetches():
+    """測試一律不去打聖經平台（別人的站）。要驗抓取行為的測試自己傳 `fetch=`，
+    這一道擋的是「忘了傳」而偷偷連出去的那一種。"""
+    from unittest.mock import patch
+
+    def _blocked(url, timeout=None):
+        raise AssertionError(f'測試不可以真的去抓 {url} —— 請傳 fetch= 進去')
+
+    try:
+        import routes.bible_text  # noqa: F401
+    except Exception:
+        yield
+        return
+    with patch('routes.bible_text._http_get', _blocked):
+        yield
+
+
+@pytest.fixture
+def client(fake_db):
+    """只掛聖經速讀藍圖的簡化 app 的 test client（這個 repo 的完整 app 不能和其他測試同一個行程，
+    所以跟 `app` fixture 一樣的做法）。測試自己用 patch 把資料庫那一層換掉。"""
+    from flask import Blueprint, Flask
+    for name in ('routes.bible_plan', 'routes.bible_text', 'routes.decorators'):
+        sys.modules.pop(name, None)
+    app = Flask(__name__, template_folder=os.path.join(ROOT, 'templates'),
+                static_folder=os.path.join(ROOT, 'static'))
+    app.secret_key = 'test'
+    app.config['TESTING'] = True
+    auth = Blueprint('auth', __name__)
+    auth.add_url_rule('/auth/login', 'login_page', lambda: 'login')
+    app.register_blueprint(auth)
+    app.jinja_env.globals.update(csrf_token=lambda: 't', module_on=lambda *_: True, church_name='測試教會',
+                                 church_short_name='測試', line_liff_id='', privacy_policy_url='',
+                                 card_names={}, can_see=lambda *_: True,
+                                 asset=lambda path: '/static/' + path)
+    from routes.bible_plan import bible_plan_bp
+    app.register_blueprint(bible_plan_bp)
+    return app.test_client()
+
+
+@pytest.fixture
+def logged_in_client(client):
+    with client.session_transaction() as s:
+        s.update(user_id='test-user-uuid', real_name='測試會友', line_id='U123456789', member_type='member')
+    return client
+
+
+@pytest.fixture
+def admin_client(client):
+    with client.session_transaction() as s:
+        s.update(user_id='admin-user-uuid', real_name='測試管理員', member_type='member', is_admin=True,
+                 _csrf_token='test-csrf-token')
+    return client

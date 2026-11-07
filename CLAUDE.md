@@ -49,6 +49,8 @@ routes/                 # Blueprint 模組
   devotional.py         # 禱讀本訂購（devotional_bp）
   staff_leave.py        # 全職同工差勤（請假／加班，原 attendance）
   roll_call.py          # 聚會點名（與使用者帳號脫鉤）
+  bible_plan.py         # 365 天聖經速讀（計畫在 data/bible_reading_plan_365.json，進度在 DB）
+  bible_text.py         # 經文內嵌（抓自聖經互動書平台、存快取）
 templates/              # Jinja2 模板
   base.html             # 共用基底模板
   diary/                # 天父日記模板（extends base.html）
@@ -302,9 +304,10 @@ python app.py      # debug=True, port 5000
 
 | 019 | `migrations/019_roll_call_open_edit_no_reason.sql` | `rc_save_record`：場次還沒鎖定時改打勾不用原因（點名單「取消打勾」才不會被擋），鎖定後仍要原因，每次修改仍寫稽核 |
 | 018 | `migrations/018_event_field_types.sql` | `event_fields` 允許 birthday／id_number／fee／guardian 四種欄位型別，並新增 `auto_tier`（報名表單強化、引導式開活動的前置） |
+| 020 | `migrations/020_bible_reading.sql` | 365 天聖經速讀：`bible_reading_progress`（每個人的打勾）、`bible_chapters`（經文快取） |
 | 017 | `migrations/017_users_line_user_id_nullable.sql` | `users.line_user_id` 允許為空（手動建立的會員、合併後清空 LINE 身分的列；舊 schema 寫成 NOT NULL 會讓兩者失敗） |
 
-新專案只需執行整份 `schema.sql`（已含 012～019）。**程式寫入的每個欄位 `schema.sql` 都必須有**（`tests/test_schema_guards.py` 掃 AST 守著；新增欄位要同時補 schema 與 migration）。
+新專案只需執行整份 `schema.sql`（已含 012～020）。**程式寫入的每個欄位 `schema.sql` 都必須有**（`tests/test_schema_guards.py` 掃 AST 守著；新增欄位要同時補 schema 與 migration）。
 
 ## 多教會部署架構與開發者權限原則
 

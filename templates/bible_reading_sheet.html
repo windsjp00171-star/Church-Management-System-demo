@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}365 天聖經速讀計畫表{% endblock %}
+{% block content %}
+
+<style>
+.sh-wrap { max-width: 900px; margin: 0 auto; }
+
+.sh-tools { margin-bottom: 16px; }
+
+/* ★★ 人來這一頁就是要**印出來／存成 PDF**（領證書用），所以那顆鈕
+     走全站共用的「唯一那顆主要動作」樣式 `.act-submit`，不是工具列上
+     一顆小鈕。使用者：「下載PDF的鈕做的明顯一點」。
+
+   ★ 這裡**只限縮在自己的容器裡**調尺寸，不去重新定義 `.act-submit`
+     本身 —— 裸的同名定義會蓋掉全域，後果是以後改全站按鈕樣式
+     這一頁不會跟，而畫面上看不出來（`tests/test_shared_styles.py` 在守）。 */
+.sh-tools .act-submit { margin-top: 0; max-width: 420px; }
+
+/* 次要的那些排在下面一行，刻意小一號 —— 兩排才有主次 */
+.sh-more { display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+           margin-top: 10px; }
+.sh-note { font-size: 0.9rem; color: var(--text-4); }
+.sh-btn { border: none; border-radius: 8px; padding: 8px 14px; cursor: pointer;
+          font-size: 0.9rem; font-weight: bold; text-decoration: none; }
+.sh-btn.ghost { background: var(--surface-2); color: var(--text-2); }
+
+/* ── 那張表 ── */
+.sh-paper { background: white; border-radius: 12px; padding: 22px 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+.sh-title { text-align: center; font-size: 1.25rem; font-weight: bold; color: var(--text-1);
+            letter-spacing: .05em; margin-bottom: 14px; }
+.sh-head { display: flex; gap: 26px; flex-wrap: wrap; font-size: 1rem; color: var(--text-2);
+           border-bottom: 1px solid var(--border); padding-bottom: 10px; margin-bottom: 14px; }
+.sh-head b { font-weight: normal; color: var(--text-4); margin-right: 6px; }
+.sh-fill { display: inline-block; min-width: 6.5em; border-bottom: 1px solid var(--border-strong);
+           padding: 0 4px; }
+
+.sh-testament { font-size: 0.9rem; font-weight: bold; color: var(--text-4); letter-spacing: .12em;
+                margin: 14px 0 6px; }
+
+/* ★ 九欄 —— 跟教會發的紙本同一個排法。
+     手機上放不下九欄，所以窄螢幕降成三欄；印出來一律九欄。 */
+.sh-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; }
+@media (min-width: 560px) { .sh-grid { grid-template-columns: repeat(5, 1fr); } }
+@media (min-width: 820px) { .sh-grid { grid-template-columns: repeat(9, 1fr); } }
+
+.sh-cell { border: 1px solid var(--border); border-radius: 9999px; padding: 5px 3px;
+           text-align: center; font-size: 0.9rem; line-height: 1.35;
+           color: var(--text-2); min-height: 2.9em; display: flex; flex-direction: column;
+           align-items: center; justify-content: center; position: relative; }
+.sh-no { font-size: 0.9rem; color: var(--text-4); }
+a.sh-cell { text-decoration: none; }   /* 連結：不要底線、顏色跟原本一樣 */
+/* 讀過的那一天。★ 比經文小、比編號明顯 —— 它是「記錄」，不是主角：
+     人在這張表上找的是經文範圍，日期是找到之後才看的第二眼。 */
+.sh-when { font-size: 0.9rem; color: var(--green-ink); margin-top: 1px; }
+.sh-cell.done { background: var(--green-bg); border-color: var(--green); }
+.sh-cell.done::after { content: "✓"; position: absolute; top: 1px; right: 3px;
+                       font-size: 0.9rem; color: var(--green-ink); font-weight: bold; }
+
+.sh-sum { margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--border);
+          font-size: 0.9rem; color: var(--text-2); text-align: right; }
+.sh-sum b { color: var(--green-ink); font-size: 1.1rem; }
+
+/* ── 印出來的樣子 ── */
+@media print {
+    /* ★ 全站共用的浮動元素（小舟、導覽、Toast…）由 base.css 的
+         @media print 統一收掉 —— 這裡**不要**再列一份。
+         原本這裡自己列了一串，而那串是用猜的：`#help-button`、
+         `#ask-help`、`.floating` 一個都不存在（真正的是 `#help-btn`），
+         所以小舟照樣印在每一頁上，而 CSS 對不到選擇器不會報錯。
+         這一頁只留自己的東西。 */
+    .sh-tools { display: none !important; }
+
+    .sh-paper { box-shadow: none; border-radius: 0; padding: 0; }
+    .sh-wrap { max-width: none; }
+    /* ★★ **不用擠進一張**。使用者的原話：
+         「我覺得沒有非得塞在一頁不可，像我們紙本就是兩頁啊，
+           只是不要有一些奇怪的東西塞進去」。
+
+         我原本把字壓到 7pt、格子擠成一行，就為了塞進一張 A4 ——
+         而**那個「一頁」的要求是我自己加的**，紙本本來就是兩頁。
+         代價落在讀的人身上：這個系統的使用者有一半是長輩。
+
+         ★ 所以這裡的規則是「**讀得到**」，不是「**塞得下**」。
+           真正要顧的是「奇怪的東西不要跑進來」，那由 base.css
+           的 @media print 負責（浮動鈕、登入異常那行…）。 */
+    .sh-grid { grid-template-columns: repeat(9, 1fr) !important; gap: 2px; }
+    .sh-cell { font-size: 7.4pt; min-height: 2.6em; page-break-inside: avoid; }
+    .sh-no { font-size: 6pt; }
+    /* ★ 打勾用邊框和符號，不要靠底色 —— 很多人印黑白，
+         灰底會把字壓掉，看起來像那一格是空的 */
+    .sh-cell.done { background: white !important; border: 2px solid #333 !important; }
+    .sh-cell.done::after { color: #000; }
+    /* ★ 印黑白時綠色會變成淺灰，小字直接消失 —— 日期印出來一律是黑的。
+         （跟上面「打勾不可以靠底色」同一個理由。） */
+    .sh-when { color: #000 !important; font-size: 6pt; }
+    @page { size: A4 portrait; margin: 10mm; }
+}
+</style>
+
+<div class="sh-wrap">
+
+<div class="sh-tools">
+    {# ★★ 主要動作排**第一個**、而且是唯一大聲的那一顆。
+         原本它夾在「← 回進度」後面、跟一行灰字並排，三個東西一樣大 ——
+         而這一頁只有一件事要做。 #}
+    <button class="act-submit" onclick="window.print()">🖨 列印 / 存成 PDF</button>
+    <div class="sh-more">
+        <a href="/reading" class="sh-btn ghost">← 回進度</a>
+        {# ★ 不要寫「印出來是幾頁」—— 那會隨版面變，而寫錯的症狀是
+             使用者以為自己印壞了。只講它跟紙本一樣、可以直接交。 #}
+        <span class="sh-note">A4 直印，跟教會發的那張一樣 —— 領證書時用得到</span>
+    </div>
+    <div class="sh-note" style="margin-top:6px;">👆 點任何一格就能打開來讀；讀過的格子可以重讀</div>
+</div>
+
+<div class="sh-paper">
+    <div class="sh-title">365 天聖經速讀計畫表</div>
+
+    {# ★ 小組和姓名 —— 紙本上就有這兩格，那是拿去交的憑據。
+         算不出來就留空白讓他自己寫，不要印一個猜的。 #}
+    <div class="sh-head">
+        <span><b>小組：</b><span class="sh-fill">{{ group or '' }}</span></span>
+        <span><b>姓名：</b><span class="sh-fill">{{ name }}</span></span>
+    </div>
+
+    {% set ns = namespace(t='') %}
+    {% for r in rows %}
+        {% if r.testament != ns.t %}
+        {% set ns.t = r.testament %}
+        {% if not loop.first %}</div>{% endif %}
+        <div class="sh-testament">{{ r.testament }}</div>
+        <div class="sh-grid">
+        {% endif %}
+        {# ★ 每一格都是連結：點進去就是那一格的經文（讀過的也一樣，是重讀）。
+             使用者：「不是直接從速讀列表那邊點範圍進去重讀嗎」—— 這張表就是他
+             看範圍的地方，格子卻點不了。列印時連結完全看不出來（見 a.sh-cell）。 #}
+        <a class="sh-cell {% if r.done %}done{% endif %}" href="/reading/{{ r.day_no }}">
+            <span class="sh-no">{{ r.day_no }}</span>
+            <span>{{ r.label }}</span>
+            {# ★ 讀過的那一天。使用者：「純粹是顯示、記錄自己 不是催別人讀經」
+                 —— 所以只印日期，沒有「幾天沒讀」也沒有空格等著被填。
+                 沒讀過的格子**不留位置**：留一條空線等於在說「這裡缺一個東西」。 #}
+            {% if r.read_label %}<span class="sh-when">{{ r.read_label }}</span>{% endif %}
+        </a>
+        {% if loop.last %}</div>{% endif %}
+    {% endfor %}
+
+    <div class="sh-sum">
+        已讀 <b>{{ stats.done }}</b> / {{ stats.total }} 格　·　共 {{ stats.chapters }} 章
+        {% if stats.done == stats.total %}　🎉 全部讀完{% endif %}
+    </div>
+</div>
+
+</div>
+{% endblock %}

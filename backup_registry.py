@@ -78,6 +78,8 @@ TABLES = [
     ('diary_plan', 'diary_admin', 'id'),
     ('admin_whitelist', 'diary_admin', 'id'),
     ('pastor_whitelist', 'diary_admin', 'id'),
+    # ── 聖經速讀（每個人讀完了哪一格；弄丟了回不來）──
+    ('bible_reading_progress', 'bible_reading', 'user_id,plan_key,day_no'),
     # ── 每日經文 ──
     ('daily_verses', 'verses', 'id'),
     ('daily_verse_draws', 'verses', 'id'),
@@ -102,6 +104,7 @@ TABLES = [
 # 刻意不備份的資料表（一定要寫理由）
 EXCLUDED = {
     'diary_entries': '隱私：私人靈修日記，超管匯出檔不應含有。要保存請用 Supabase 專案層級的備份。',
+    'bible_chapters': '可重抓的經文快取：備進去只是讓每個備份檔多背一整本聖經；弄丟了下次打開讀經頁會自動重抓。',
     'diary_share_grants': '隱私：誰把日記分享給誰，屬於私人靈修資料，超管匯出檔不應含有。',
     'notifications': '暫時性資料：站內通知，可由系統重新產生，不值得備份。',
     'contact_leads': '展示站專用：洽詢表單紀錄，正式教會部署不會有。',
@@ -125,6 +128,7 @@ MODULE_META = {
     'staff_leave_mgmt': ('🕐 全職同工差勤', '全職同工資料、請假、加班', False),
     'devotional': ('📖 禱讀本訂購', '訂購、各小組登記、登記變更記錄', False),
     'diary_admin': ('📔 天父日記設定', '讀經進度表與管理員／牧者白名單（不含私人日記）', False),
+    'bible_reading': ('📖 聖經速讀', '每個人的 365 天速讀打勾進度（經文快取不備份，可重抓）', False),
     'verses': ('✨ 每日經文', '經文、抽經文紀錄、自訂主題', False),
     'files': ('📁 檔案分享', '資料夾與檔案資訊（檔案本體在 R2，要另外備份）', False),
     'visitor_forms': ('📋 留名單', '留名單紀錄（照片在 Supabase Storage，要另外備份）', False),

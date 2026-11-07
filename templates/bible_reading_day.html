@@ -1,0 +1,302 @@
+{% extends "base.html" %}
+{% block title %}{{ day.label }}{% endblock %}
+{% block content %}
+
+<style>
+.rd-wrap { max-width: 720px; margin: 0 auto; }
+
+/* 朗讀控制列：捲動時跟著，因為聽的人不會一直停在最上面
+   ★★ `top` 一定是 `var(--nav-h)` **不是 0**。導覽列本身也是
+      `sticky; top: 0; z-index: 100` —— 設 0 的話這一條會整個躲在它底下，
+      而畫面上看起來只是「那排鈕不見了」。
+      使用者回報：「有時候要臨時暫停朗讀 還要滑到最上面有點麻煩」——
+      他其實不需要滑，那排鈕一直都在，只是被蓋住了。
+      （用真的瀏覽器問 `elementFromPoint` 才看得到，掃 CSS 看不到。） */
+.rd-bar {
+    position: sticky; top: var(--nav-h, 56px); z-index: 20;
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.96);
+    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+    border-radius: 12px; padding: 9px 11px; margin-bottom: 16px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+}
+.rd-btn {
+    border: none; border-radius: 12px; padding: 9px 14px; cursor: pointer;
+    font-size: 0.9rem; font-weight: bold; white-space: nowrap;
+}
+.rd-btn.play { background:var(--green); color:white; }
+.rd-btn.ghost { background: var(--surface-2); color: var(--text-2); }
+.rd-btn:disabled { opacity: .5; cursor: default; }
+.rd-rate { font-size: 0.9rem; color: var(--text-3); display: flex; align-items: center; gap: 5px; }
+.rd-rate input { width: 70px; }
+
+/* 聲音設定：收起來，因為多數人只會按「朗讀」就走 */
+.rd-voice {
+    background: white; border-radius: 12px; padding: 14px 16px; margin-bottom: 16px;
+    box-shadow:var(--shadow-sm);
+}
+.rd-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.rd-row:last-child { margin-bottom: 0; }
+.rd-row > label { font-size: 0.9rem; color: var(--text-3); flex-shrink: 0; min-width: 3.2em; }
+.rd-row select { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--border);
+                 border-radius: 8px; font-size: 0.9rem; background: white; }
+.rd-row input[type=range] { flex: 1; min-width: 0; }
+.rd-hint { font-size: 0.9rem; color: var(--text-4); line-height: 1.8; margin-top: 10px; }
+
+/* 經文本體。★ 字級和行距刻意放大 —— 一天四章，用眼睛讀很吃力，
+   而這個系統的使用者有一半是長輩。 */
+.rd-chapter { background: white; border-radius: 16px; padding: 20px 20px 24px;
+              margin-bottom: 16px; box-shadow:var(--shadow-sm); }
+.rd-chapter h2 { font-size: 1.1rem; color: var(--text-2); margin-bottom: 14px;
+                 padding-bottom: 10px; border-bottom: 1px solid var(--border); }
+.rd-verse { display: flex; gap: 9px; margin-bottom: 11px; line-height: 2.0; }
+.rd-num { flex-shrink: 0; min-width: 1.6em; text-align: right;
+          font-size: 0.9rem; color: var(--text-4); padding-top: 0.45em;
+          font-variant-numeric: tabular-nums; }
+.rd-text { flex: 1; font-size: 1.1rem; color: var(--text-1); }
+/* 朗讀到哪一節就標哪一節 —— 聽的人要知道現在在哪裡 */
+.rd-verse.speaking .rd-text { background: var(--warn-bg); border-radius: 8px;
+                              box-shadow: 0 0 0 4px #fff8d6; }
+
+.rd-miss { background: var(--warn-bg); border-radius: 12px; padding: 14px 16px;
+           color: var(--warn); line-height: 1.9; }
+
+/* 每一章讀完之後那條「到聖經站看這一章」。
+   ★ 位置在**每一章的最後**不是整頁最下面 —— 他要查的是剛剛讀的
+     那一章的名詞，而一格常常四章。放整頁最後的話，讀到第一章
+     想查一個名詞，得先捲過三章。 */
+.rd-more { margin-top: 18px; padding-top: 14px; border-top: 1px solid var(--border);
+           font-size: 0.9rem; line-height: 1.9; }
+.rd-more a { color: var(--info); text-decoration: none; font-weight: bold; }
+.rd-more span { color: var(--text-4); display: block; font-size: 0.9rem; }
+
+.rd-done-wrap { margin: 22px 0 8px; }
+.rd-done { width: 100%; border: none; border-radius: 12px; padding: 16px;
+           font-size: 1.1rem; font-weight: bold; cursor: pointer;
+           background: var(--green); color: white; }
+.rd-done.already { background: var(--green-bg); color: var(--green-ink); }
+
+/* 讀完之後「接下來去哪」的三張卡。
+   ★ 使用者定的：**做卡片，不要做連結** —— 原本「接下來：民 9-12 →　回首頁」
+     是兩行小字連結，在手機上又小又擠，而它們是這一頁讀完之後唯一的出口。
+
+   ★ 用全站共用的 `.card-sm`，這裡**只加版面，不重新定義它** ——
+     裸的同名定義會蓋掉全域，以後改全站卡片樣式這一頁不會跟，
+     而畫面上看不出來（`tests/test_shared_styles.py` 在守）。 */
+.rd-nav { margin-top: 18px; display: flex; flex-direction: column; gap: 10px; }
+.rd-navrow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.rd-navcard { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+/* ★★ 這一行少不得：`hidden` 靠的是瀏覽器預設的 `display:none`，
+      而**上面那行 `display:flex` 會贏過它** —— 症狀是 365 格讀完之後，
+      「接下來」那張卡照樣畫出來，標題是空的「接下來：」。
+      原始碼上完全看得不出來（`hidden` 明明寫著），要真的 render
+      才看得到。（是開 Chromium 量出來的，不是推論的。） */
+.rd-navcard[hidden] { display: none; }
+.rd-navicon { font-size: 1.25rem; flex-shrink: 0; }
+.rd-navtext { flex: 1; min-width: 0; }
+.rd-navtitle { display: block; font-weight: bold; color: var(--text-2); font-size: 1rem; }
+.rd-navsub { display: block; font-size: 0.9rem; color: var(--text-4); margin-top: 3px; }
+.rd-navgo { color: var(--info); font-size: 1.1rem; flex-shrink: 0; }
+/* ★ 「接下來」是這三張裡唯一有時效的 —— 其他兩張隨時都能點。
+      一頁只有一件事最大聲，而這一頁最大聲的是「我讀完了」，
+      所以這裡只用顏色分主次，不加大也不上底色。 */
+.rd-navcard.next .rd-navtitle { color: var(--info); }
+/* 很窄的手機（<360px）兩欄會擠成兩行字，改成上下排 */
+@media (max-width: 360px) { .rd-navrow { grid-template-columns: 1fr; } }
+</style>
+
+<div class="rd-wrap">
+
+<div style="margin-bottom:14px;">
+    <a href="/reading" style="font-size:0.9rem; color:var(--info); text-decoration:none;">← 全部進度</a>
+    <h1 style="font-size:1.5rem; margin-top:6px; color:var(--text-1);">
+        {{ day.book }} {{ day.chapter_start }}{% if day.chapter_end != day.chapter_start %}–{{ day.chapter_end }}{% endif %}
+    </h1>
+    {# ★ 不寫「第 N 格」——「格」是那張紙上 365 個方格的說法，而這一頁
+         上沒有那張表。使用者：「格是你的理解 他們理解都是經文範圍」。
+         上面那行 h1 已經寫著經文範圍了，這裡只要講它屬於哪個計畫。 #}
+    <div style="font-size:0.9rem; color:var(--text-4); margin-top:3px;">
+        365 天聖經速讀
+    </div>
+</div>
+
+{# ════ 朗讀 ════
+   ★ 用瀏覽器內建的語音合成：不用金鑰、不用付費、不上傳任何東西。
+     裝置沒有中文語音時要**講出來**，不然按了沒反應會被當成壞掉。 #}
+<div class="rd-bar" id="rd-bar" hidden>
+    <button class="rd-btn play" id="rd-play">🔊 朗讀</button>
+    <button class="rd-btn ghost" id="rd-stop" disabled>停止</button>
+    <button class="rd-btn ghost" id="rd-gear" aria-expanded="false"
+            aria-controls="rd-voice" title="聲音設定">⚙ 聲音</button>
+    <span id="rd-msg" style="font-size:0.9rem; color:var(--text-4); margin-left:auto;"></span>
+</div>
+
+{# ★ 聲音是**裝置給的**，我們只能從他已經裝了什麼裡面挑 ——
+     所以要把選單攤出來讓他自己選，不是替他猜一個。
+     多數台灣裝置預設只有一個中文女聲；音高調低會比較低沉。 #}
+<div class="rd-voice" id="rd-voice" hidden>
+    <div class="rd-row">
+        <label for="rd-voice-pick">聲音</label>
+        <select id="rd-voice-pick"></select>
+    </div>
+    <div class="rd-row">
+        <label for="rd-pitch">低沉</label>
+        <input type="range" id="rd-pitch" min="0.4" max="1.4" step="0.05" value="1">
+    </div>
+    <div class="rd-row">
+        <label for="rd-rate">語速</label>
+        <input type="range" id="rd-rate" min="0.6" max="1.4" step="0.05" value="0.9">
+    </div>
+    <div class="rd-row">
+        <button class="rd-btn ghost" id="rd-try">試聽一句</button>
+        <span id="rd-try-msg" style="font-size:0.9rem; color:var(--text-4);"></span>
+    </div>
+    <div class="rd-hint">
+        這裡列的是<strong>你這台裝置裝了的中文語音</strong>。
+        想要更多聲音（包含男聲）可以自己下載：<br>
+        iPhone → 設定 → 輔助使用 → 朗讀內容 → 語音 → 中文<br>
+        Android → 設定 → 搜尋「文字轉語音」→ 偏好引擎的設定 → 安裝語音資料
+    </div>
+</div>
+
+{# ════ 經文 ════ #}
+{% for sec in sections %}
+<div class="rd-chapter">
+    <h2>{{ day.book }} 第 {{ sec.chapter }} 章</h2>
+    {% if sec.verses %}
+    {% for v in sec.verses %}
+    <div class="rd-verse" data-speak="{{ v.text }}">
+        <span class="rd-num">{{ v.v }}</span>
+        <span class="rd-text">{{ v.text }}</span>
+    </div>
+    {% endfor %}
+    {% if sec.url %}
+    {# ★ 讀完這一章之後的一條路：到經文來源那個站看同一章。
+         使用者要的是那邊的**名詞解釋**（人名、地名、概念點得進去），
+         我們這一頁刻意只放純經文 —— 兩邊各做各的事。
+
+       ★ 網址走 `sec.url`（＝後台的 `bible_reader_url` 設定），不寫死。
+         設定被清空時 `sec.url` 是 None，這一整塊就不出現 ——
+         不會留一條點了跑到錯地方的連結。
+
+       ★ `target="_blank"`：留在這一頁才有朗讀和「我讀完了」。
+         把人帶走的話，他回來要重新找到第幾格。 #}
+    <div class="rd-more">
+        <a href="{{ sec.url }}" target="_blank" rel="noopener">📖 到聖經站看這一章 →</a>
+        <span>那邊的經文可以點名詞看解釋</span>
+    </div>
+    {% endif %}
+    {% else %}
+    {# ★ 抓不到要照實說，並且把外連給他 —— 一片空白跟
+         「這一章沒有經文」長得一模一樣。 #}
+    <div class="rd-miss">
+        這一章現在讀不到（{{ sec.error or '不知道為什麼' }}）。
+        {% if sec.url %}
+        <br><a href="{{ sec.url }}" target="_blank" rel="noopener"
+               style="color:var(--info); font-weight:bold;">到聖經站看這一章 →</a>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="rd-miss" style="margin-bottom:16px;">
+    現在讀不到經文內容。
+    {% if url %}
+    <br><a href="{{ url }}" target="_blank" rel="noopener"
+           style="color:var(--info); font-weight:bold;">到聖經站看 →</a>
+    {% endif %}
+</div>
+{% endfor %}
+
+{# ════ 讀完了 ════
+   ★ 擺在**最下面**：那是他真的讀完的地方。放最上面的話，
+     按下去的時候他還沒開始讀。 #}
+<div class="rd-done-wrap">
+    <button id="rd-done" class="rd-done {% if is_done %}already{% endif %}"
+            data-day="{{ day.day_no }}" data-done="{{ 'true' if is_done else 'false' }}">
+        {% if is_done %}✓ 已經讀過了（再按一次可取消）{% else %}我讀完了{% endif %}
+    </button>
+    {# ★ 重讀紀錄：只有這一格讀過、而且資料庫有那兩個欄位時才畫（`reread` 是 None 就整塊不出現）。
+         一天最多記一次（連點不會變成讀了三次），也不會動第一次讀的日期。 #}
+    {% if reread %}
+    <div id="rd-reread-box" style="margin-top:12px; text-align:center;">
+        <button type="button" id="rd-reread-btn" data-day="{{ day.day_no }}"
+                style="min-height:48px; padding:0 18px; border-radius:12px; cursor:pointer; font-size:1rem;
+                       font-weight:bold; border:1px solid var(--border); background:var(--surface);">
+            📚 我重讀完了（記一次）</button>
+        <div id="rd-reread-info" style="margin-top:6px; font-size:0.95rem; color:var(--text-3);">
+            {% if reread.count %}已重讀 {{ reread.count }} 次{% if reread.last %}，最近一次 {{ reread.last.isoformat() }}{% endif %}{% else %}還沒有重讀紀錄{% endif %}
+        </div>
+    </div>
+    {% endif %}
+    <div id="rd-after" style="display:none; margin-top:12px; text-align:center;
+                              font-size:0.9rem; color:var(--text-3);"></div>
+</div>
+
+<div style="text-align:center; margin-top:16px; font-size:0.9rem; color:var(--text-4);">
+    目前進度 <strong id="rd-count" style="color:var(--green-ink);">{{ stats.done }}</strong>/{{ stats.total }}
+</div>
+
+{# ════ 接下來去哪 ════
+
+   ★★ 速讀總覽表那一張**不綁在 `nxt` 上**。365 格全部打完之後 `nxt` 是
+      `None`，而**那個人正是最需要那張表的人**（讀完才去領證書）。
+      首頁踩過一模一樣的坑：那張卡原本綁 `reading.next`，讀完的人整張卡
+      連同速讀表入口一起消失，而沒有任何地方會紅（見 CLAUDE.md）。
+
+   ★ 「接下來」那張沒有下一格時是 `hidden`，而 `href` 仍然指向一個
+      **真的頁面**（`/reading` 全部進度）—— 不寫 `href="#"`：
+      JS 沒載齊那一次按下去會停在原地，而畫面上完全正常。 #}
+<div class="rd-nav">
+    {# ★★ 重讀：回頭讀已經讀過的範圍時，「接下來」不可以直接跳到最前面還沒讀
+         的地方 —— 他要的是這一段**接著往下重讀**。所以這一格和下一格都讀過時，
+         多一張「重讀下一格」；原本那張退成「回到我的進度」。
+       ★ 只在伺服器判斷（兩格都讀過）。JS 打勾／取消之後一律把它收起來，
+         不自己判斷下一格讀沒讀過（那一份判斷只准在伺服器）。 #}
+    {% if reread_next %}
+    <a class="card-sm rd-navcard next" id="rd-reread" href="/reading/{{ reread_next.day_no }}">
+        <span class="rd-navicon">📚</span>
+        <span class="rd-navtext">
+            <span class="rd-navtitle">重讀下一格：{{ reread_next.label }}</span>
+            <span class="rd-navsub">這一段讀過了，接著往下重讀</span>
+        </span>
+        <span class="rd-navgo">›</span>
+    </a>
+    {% endif %}
+    <a class="card-sm rd-navcard next" id="rd-next"
+       href="{% if nxt %}/reading/{{ nxt.day_no }}{% else %}/reading{% endif %}"
+       {% if not nxt %}hidden{% endif %}>
+        <span class="rd-navicon">📖</span>
+        <span class="rd-navtext">
+            <span class="rd-navtitle">接下來：<span id="rd-next-label">{{ nxt.label if nxt else '' }}</span></span>
+            <span class="rd-navsub" id="rd-next-sub">{% if reread_next %}回到我還沒讀的進度{% else %}繼續讀下一格{% endif %}</span>
+        </span>
+        <span class="rd-navgo">›</span>
+    </a>
+
+    <div class="rd-navrow">
+        <a class="card-sm rd-navcard" href="/reading/sheet">
+            <span class="rd-navicon">🧾</span>
+            <span class="rd-navtext">
+                <span class="rd-navtitle">我的速讀表</span>
+                <span class="rd-navsub">點範圍可回頭重讀、領證書用</span>
+            </span>
+        </a>
+        <a class="card-sm rd-navcard" href="/">
+            <span class="rd-navicon">🏠</span>
+            <span class="rd-navtext">
+                <span class="rd-navtitle">回首頁</span>
+                <span class="rd-navsub">看今天還有什麼</span>
+            </span>
+        </a>
+    </div>
+</div>
+
+</div>
+
+<script>
+window.READING_NEXT = {% if nxt %}{"day_no": {{ nxt.day_no }}, "label": {{ nxt.label|tojson }}}{% else %}null{% endif %};
+</script>
+<script src="{{ asset('js/speech-queue.js') }}" defer></script>
+<script src="{{ asset('js/bible-reading-day.js') }}" defer></script>
+{% endblock %}

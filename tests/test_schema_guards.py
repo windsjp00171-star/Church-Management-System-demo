@@ -259,3 +259,32 @@ def test_fresh_schema_lets_an_open_session_be_corrected_without_a_reason_but_not
         assert save('absent', "'更正'").returncode == 0
     finally:
         stop()
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_migration_020_bible_reading_matches_the_schema_and_is_repeatable():
+    """新專案跑整份 schema.sql 與舊專案跑 020 要得到同樣的兩張表；可重複執行；
+    一人一格一次（主鍵）；刪帳號時進度跟著走；兩張表都開了 RLS。"""
+    psql, stop = pg_helper.start(55460)
+    try:
+        psql(ROLES)
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        # 舊資料庫：還沒有這兩張表
+        assert psql('DROP TABLE bible_reading_progress; DROP TABLE bible_chapters').returncode == 0
+        mig = str(ROOT / 'migrations' / '020_bible_reading.sql')
+        for _ in range(2):
+            r = psql(file=mig)
+            assert r.returncode == 0, r.stderr
+        uid = '11111111-1111-1111-1111-111111111111'
+        assert psql(f"insert into users (id, line_user_id, real_name, display_name) values ('{uid}', 'U1', '測', '測')").returncode == 0
+        ins = f"insert into bible_reading_progress (user_id, plan_key, day_no, read_on) values ('{uid}', 'church365', 1, '2026-11-07')"
+        assert psql(ins).returncode == 0
+        assert psql(ins).returncode != 0                                         # 同一格不能有兩列
+        assert psql(f"insert into bible_reading_progress (user_id, plan_key, day_no) values ('{uid}', 'church365', 0)").returncode != 0
+        assert psql("insert into bible_chapters (book, chapter, verses) values ('創世記', 1, '[{\"v\":1,\"text\":\"x\"}]')").returncode == 0
+        assert psql(f"delete from users where id = '{uid}'").returncode == 0
+        assert psql('select count(*) from bible_reading_progress').stdout.strip() == '0'
+        rls = psql("select count(*) from pg_class where relname in ('bible_reading_progress','bible_chapters') and relrowsecurity").stdout.strip()
+        assert rls == '2'
+    finally:
+        stop()

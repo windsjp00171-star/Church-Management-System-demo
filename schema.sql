@@ -1292,6 +1292,29 @@ BEGIN
     END IF;
 END $$;
 
+-- ── 365 天聖經速讀（migrations/020_bible_reading.sql）──
+CREATE TABLE IF NOT EXISTS bible_reading_progress (
+    user_id         UUID        NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    plan_key        TEXT        NOT NULL,
+    day_no          INTEGER     NOT NULL CHECK (day_no >= 1),
+    read_on         DATE,                               -- 打勾的日期（台北）
+    reread_count    INTEGER     NOT NULL DEFAULT 0,     -- 這一格重讀過幾次
+    last_reread_on  DATE,                               -- 最近一次重讀（台北）
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, plan_key, day_no)
+);
+CREATE INDEX IF NOT EXISTS bible_reading_progress_user_idx ON bible_reading_progress (user_id, plan_key);
+
+CREATE TABLE IF NOT EXISTS bible_chapters (
+    book        TEXT        NOT NULL,                   -- 書卷全名，例：創世記
+    chapter     INTEGER     NOT NULL CHECK (chapter >= 1),
+    verses      JSONB       NOT NULL,                   -- [{"v":1,"text":"…"}, …]
+    source      TEXT,                                   -- 從哪個網址抓的
+    fetched_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (book, chapter)
+);
+
+
 -- ════════════════════════════════════════════════════════
 -- 安全強化（migrations/013_security_hardening.sql）：必須放在所有建表語句之後
 -- ════════════════════════════════════════════════════════

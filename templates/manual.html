@@ -371,6 +371,19 @@
       </div>{% endif %}
 
       <!-- 天父日記 -->
+      {% if module_on('reading') %}<div class="feature-block">
+        <h3 id="bible-reading">📖 聖經速讀 <span class="badge badge-gray" style="font-size:0.72rem;">/reading</span></h3>
+        <ol class="manual-steps">
+          <li>365 格，跟教會發的紙本同一份。每一格讀完按「我讀完了」就打勾，按錯可以取消</li>
+          <li>經文直接顯示在頁面上，可以按「朗讀」用手機內建的語音唸；聲音是你的裝置給的，可以在朗讀旁邊挑，也可以去手機設定下載更多聲音</li>
+          <li>「接下來要讀的」是你第一個還沒打勾的格子，不是日曆上的哪一天 —— <strong>系統不會說你落後幾天</strong></li>
+          <li>想印出來對著紙本領證書：進「速讀表」，用瀏覽器的列印（可以另存成 PDF）。表上只印你讀的日期，沒有日期的格子就是空白</li>
+        </ol>
+        <div class="callout callout-amber">
+          ⚠️ 紙本漏掉了哥林多前書 9-12 章，系統把它補回來：<strong>林前 9-16</strong> 是同一格，天數還是 365 天、編號跟紙本對得上。
+        </div>
+      </div>{% endif %}
+
       {% if module_on('diary') %}<div class="feature-block">
         <h3>📔 天父日記 <span class="badge badge-gray" style="font-size:0.72rem;">/diary</span></h3>
         <ul class="manual-ul">
