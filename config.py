@@ -27,6 +27,15 @@ class Config:
     LINE_TOKEN_URL   = 'https://api.line.me/oauth2/v2.1/token'
     LINE_PROFILE_URL = 'https://api.line.me/v2/profile'
 
+    # ── 推播（Web Push / VAPID）──────────────────────────────────
+    # ★ 沒設金鑰＝整個關掉（routes/push.is_enabled()），不是壞掉：畫面不畫「開啟通知」那顆鈕。
+    # ★ 公鑰會送到瀏覽器；私鑰只留在伺服器（外流＝別人能冒用我們的身分推播）。
+    VAPID_PUBLIC_KEY  = os.getenv('VAPID_PUBLIC_KEY', '')
+    VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
+    # 推播服務出問題時用它找人。用網址、不要用個人 email（email 會跟著每一次推播送到 Google／Apple）；
+    # 後面不可以有斜線或路徑，否則推播一則都送不出去。沒設就退回 Render 自己的網址。
+    VAPID_SUBJECT     = os.getenv('VAPID_SUBJECT') or os.getenv('RENDER_EXTERNAL_URL', '')
+
     # ── Supabase ───────────────────────────────────────────────────
     SUPABASE_URL = os.getenv('SUPABASE_URL')
     SUPABASE_KEY = os.getenv('SUPABASE_KEY')

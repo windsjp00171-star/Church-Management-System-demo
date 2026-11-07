@@ -80,6 +80,8 @@ TABLES = [
     ('pastor_whitelist', 'diary_admin', 'id'),
     # ── 聖經速讀（每個人讀完了哪一格；弄丟了回不來）──
     ('bible_reading_progress', 'bible_reading', 'user_id,plan_key,day_no'),
+    # ── 手機推播（弄丟了＝每個人都要自己再按一次開啟，而沒人會知道要去按）──
+    ('push_subscriptions', 'push', 'id'),
     # ── 每日經文 ──
     ('daily_verses', 'verses', 'id'),
     ('daily_verse_draws', 'verses', 'id'),
@@ -129,6 +131,7 @@ MODULE_META = {
     'devotional': ('📖 禱讀本訂購', '訂購、各小組登記、登記變更記錄', False),
     'diary_admin': ('📔 天父日記設定', '讀經進度表與管理員／牧者白名單（不含私人日記）', False),
     'bible_reading': ('📖 聖經速讀', '每個人的 365 天速讀打勾進度（經文快取不備份，可重抓）', False),
+    'push': ('📲 手機推播', '各裝置的推播訂閱（弄丟了每個人要重新開啟）', False),
     'verses': ('✨ 每日經文', '經文、抽經文紀錄、自訂主題', False),
     'files': ('📁 檔案分享', '資料夾與檔案資訊（檔案本體在 R2，要另外備份）', False),
     'visitor_forms': ('📋 留名單', '留名單紀錄（照片在 Supabase Storage，要另外備份）', False),

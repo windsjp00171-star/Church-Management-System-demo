@@ -27,6 +27,8 @@ def create_notification(user_id, title, body=None, type='info',
         }).execute()
     except Exception:
         logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 通知失敗不影響主流程
+    # 站內通知已經寫好了，推播只是錦上添花（先站內、再推播；失敗不往上炸）
+    _push([user_id], title, body, link, type)
 
 
 def batch_notify(user_ids, title, body=None, type='info',
@@ -46,7 +48,23 @@ def batch_notify(user_ids, title, body=None, type='info',
             supabase.table('notifications').insert(rows[i:i+100]).execute()
         except Exception:
             logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+    _push(user_ids, title, body, link, type)
     return len(rows)
+
+
+def _push(user_ids, title, body, link, type=None):
+    """順便推播到手機。推不推由 `push.should_push(type)` 決定（註冊表，不認得的一律不推）。
+
+    ★ 整支包起來：推播壞掉不可以讓發通知失敗。送出丟到背景執行緒：全體廣播要打外部 HTTPS，
+      同步跑會讓同工按下「發送公告」後等二十幾秒、再按一次，全教會收到兩則。
+    """
+    try:
+        from routes.push import send_in_background, should_push
+        if not should_push(type):
+            return
+        send_in_background(list(user_ids), title, body or '', link or '/')
+    except Exception:
+        pass
 
 
 # ══════════════════════════════════════════
