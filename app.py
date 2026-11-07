@@ -56,6 +56,8 @@ def create_app():
     app.register_blueprint(notifications_bp)
     from routes.push import push_bp
     app.register_blueprint(push_bp)  # 手機推播訂閱（Web Push）
+    from routes.tasks import tasks_bp
+    app.register_blueprint(tasks_bp)  # 內建排程（到期任務自己跑）
 
     # ── 可選模組：一律註冊；要不要開放由功能模組登記表在執行時決定（routes/modules.py）──
     # （原本用 ENABLE_* 環境變數在啟動時決定要不要註冊，關掉之後模板裡的連結會指向不存在的網址；
@@ -121,6 +123,17 @@ def create_app():
     # ── 功能模組登記表（各教會自己選要用哪些功能）──────────────────
     from routes.modules import modules_bp, enforce_modules, module_on
     app.register_blueprint(modules_bp)
+    # ── 內建排程：有請求進來時順便看有沒有到期任務（背景執行，不阻塞請求）──
+    @app.before_request
+    def run_scheduled_tasks():
+        if app.config.get('TESTING'):
+            return
+        try:
+            from routes.tasks import maybe_run_scheduled_tasks
+            maybe_run_scheduled_tasks()
+        except Exception:
+            pass  # 排程問題絕不影響正常請求
+
     app.before_request(enforce_modules)          # 關掉的模組，網址一律 404
     app.jinja_env.globals['module_on'] = module_on
 

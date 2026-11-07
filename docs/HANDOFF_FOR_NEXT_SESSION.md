@@ -102,7 +102,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 | ✅ | 365 天聖經速讀計畫 | `bible_plan.py`、`data/bible_reading_plan_365.json` | #95。**沒搬**：每日推播、換計畫後台、首頁卡片快速「讀完了」 |
 | ✅ | 經文內嵌與朗讀 | `bible_text.py`、`static/js/speech-queue.js` | #95 |
 | ✅ | 公開端點防護（速率限制、蜜罐、身分證字號重複檢查） | `guard.py` | 本批：`compute-tier`／`compute-age`／外部報名。**沒搬**：沒有身分證欄位時退回姓名＋電話的重複比對（這邊外部報名沒有電話欄位）、`find` 查詢端點限流（沒有 `find`） |
-| ✅ | 手機推播 | `push.py`、`sw.js`、`push-optin.js` | 已做（migration 021、VAPID 金鑰要使用者設）。**沒搬**：後台覆蓋率頁；排程（`tasks.py`）與 `reading_nudge.py`、`quiet_hours.py` 在下一批 |
+| ✅ | 手機推播 | `push.py`、`sw.js`、`push-optin.js` | 已做（migration 021、VAPID 金鑰要使用者設）。**沒搬**：後台覆蓋率頁；讀經推播＋排程已在下一個 PR 做完 |
 | ✅ | PWA 續登（裝完被要求輸入 LINE 帳密的問題） | `pwa_session.py`（`pwa_apps.py` 未搬，為別的專案用） | 已做 |
 | ⬜ | 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | 未做 |
 | ⬜ | 主日信息（YouTube 按週分組） | `sermons.py`、`admin_sermons.py` | 未做 |

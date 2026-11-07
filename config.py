@@ -27,6 +27,9 @@ class Config:
     LINE_TOKEN_URL   = 'https://api.line.me/oauth2/v2.1/token'
     LINE_PROFILE_URL = 'https://api.line.me/v2/profile'
 
+    # ── 排程手動觸發（/tasks/tick?token=…）；沒設就停用那個端點，排程本身照跑 ──
+    TASK_TOKEN = os.getenv('TASK_TOKEN', '')
+
     # ── 推播（Web Push / VAPID）──────────────────────────────────
     # ★ 沒設金鑰＝整個關掉（routes/push.is_enabled()），不是壞掉：畫面不畫「開啟通知」那顆鈕。
     # ★ 公鑰會送到瀏覽器；私鑰只留在伺服器（外流＝別人能冒用我們的身分推播）。

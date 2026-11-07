@@ -15,7 +15,7 @@ ROOT = Path(__file__).resolve().parent.parent
 CORE_PREFIXES = [
     '/', '/health', '/healthz', '/ping', '/robots.txt', '/manifest.json',
     '/auth', '/profile', '/onboarding', '/setup-wizard', '/manual', '/product-spec', '/guide', '/tutorial',
-    '/staff', '/api/notifications', '/api/push', '/sw.js',
+    '/staff', '/api/notifications', '/api/push', '/sw.js', '/tasks',
     '/admin', '/admin/api',                                   # 後台首頁與跨模組共用的 API（使用者、標籤、白名單、上傳）
     '/admin/permissions', '/admin/modules', '/admin/backup', '/admin/data-export', '/admin/data-import',
     '/admin/users', '/admin/groups', '/admin/logs',

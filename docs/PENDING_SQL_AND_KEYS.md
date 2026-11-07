@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS portal_link_clicks (
 | `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY` | 手機推播 | 在自己電腦 `pip install py-vapid` 後執行 `vapid --gen`，會產生一組金鑰 | **私鑰只放 Render，不要進 repo、不要貼到對話** |
 | `VAPID_SUBJECT` | 手機推播 | 填教會網站網址（`https://…`，後面不要加斜線或路徑） | 不要填個人 email |
 | `GEMINI_API_KEY` | 小舟 AI 助手 | Google AI Studio 申請 | 天父日記已經用同一把；有就不用再設。選填 `GEMINI_MODEL` |
+| `TASK_TOKEN` | 手動觸發排程 `/tasks/tick?token=…` | 自己隨便取一串夠長的亂數 | 選填；沒設只是不能手動觸發，排程照跑 |
 | `LINE_LIFF_ID` | 「用瀏覽器開啟」按鈕 | LIFF 網址 `https://liff.line.me/<這一段>` | 沒設會靜默失效，且 Safari 私密瀏覽登不進來時沒有備援 |
 
 主日信息、行事曆訂閱、PWA 續登、讀經計畫：**不需要新金鑰**（PWA／行事曆用 `FLASK_SECRET_KEY` 簽章，**換了這把，所有人的訂閱網址與 PWA 續登會一起失效**）。
