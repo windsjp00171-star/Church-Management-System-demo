@@ -536,5 +536,24 @@ def test_new_this_week_only_counts_this_week():
     assert cov['devices'] == 2 and cov['recent'] == 1
 
 
+def test_batch_notify_rows_uses_each_rows_own_type():
+    """★ 這一支每一列的 type 可能不同，拿整批的第一個去判是錯的。"""
+    from routes import notifications
+    sent, p = _fake_push()
+    rows = [
+        {'user_id': 'u1', 'title': 'A', 'type': 'reminder', 'link': '/a'},
+        {'user_id': 'u2', 'title': 'B', 'type': 'info', 'link': '/b'},
+    ]
+    with patch('routes.notifications.supabase', MagicMock()), p:
+        notifications.batch_notify_rows(rows)
+    assert sent == [['u1']], f'只有 u1 那一列該推，實際 {sent}'
 
 
+def test_a_hundred_notifications_do_not_start_a_hundred_threads():
+    """★★ 這就是那個 bug 本身。"""
+    from routes import notifications
+    with patch('routes.notifications.supabase', MagicMock()), \
+         patch('routes.push.is_enabled', return_value=True), \
+         patch('routes.push.threading.Thread') as T:
+        notifications.batch_notify_rows(_many_rows(114))
+    assert T.call_count == 1, f'開了 {T.call_count} 條執行緒'

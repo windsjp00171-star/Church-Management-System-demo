@@ -303,9 +303,8 @@ def _visible_text(path):
 
 @pytest.mark.parametrize('page', ['templates/bible_reading.html',
                                   'routes/bible_plan.py',
+                                  'routes/reading_nudge.py',      # 每天一則推播，最可能罵人的地方
                                   'templates/portal.html'])
-                                  # shortcut: 成熟版還有 routes/reading_nudge.py（每天一則推播，最可能罵人），
-                                  #   這個 repo 沒搬推播；搬進來時要把它加回這個清單
 def test_it_never_tells_anyone_they_are_behind(page):
     """★★ 教會那張紙沒有日期，系統就不可以發明日期。
 
