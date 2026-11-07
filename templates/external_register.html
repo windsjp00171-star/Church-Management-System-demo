@@ -128,6 +128,9 @@
         <div class="event-meta">
             {% if event.event_start %}📅 {{ event.event_start[:10] }}{% endif %}
             {% if event.location %}&nbsp;·&nbsp;📍 {{ event.location }}{% endif %}
+            {# 費用要含分級收費的自訂欄位，否則成人 800 的活動會標成「免費」 #}
+            {% set fee_kind, fee_text = fee_display(event.fee, fields) %}
+            &nbsp;·&nbsp;💰 {% if fee_kind == 'free' %}{{ fee_text }}{% else %}{{ fee_text }}{% if fee_kind == 'range' %}（依所選項目）{% endif %}{% endif %}
         </div>
 
         <div class="identity-selector" style="background: #F7FAFC; border: 2px solid #E2E8F0; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
@@ -163,18 +166,21 @@
                 {% if field.is_required %}<span class="req-tag" style="color:var(--red);">*</span>{% endif %}
             </label>
 
-            {% if field.field_type == 'radio' %}
-                {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+            {% if field.field_type == 'fee' and (field.auto_tier or {}).enabled %}
+                {% include '_auto_tier_field.html' %}
+            {% elif field.field_type in ['radio', 'fee'] %}
+                {% for opt in field_options(field.options) %}
                 <label class="radio-opt">
-                    <input type="radio" name="field_{{ field.id }}" value="{{ opt.strip() }}"
-                        onchange="evaluateConditions()">
-                    <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                    <input type="radio" name="field_{{ field.id }}" value="{{ opt.label }}" {% if opt.price is not none %}data-price="{{ opt.price }}"{% endif %}
+                        onchange="evaluateConditions(); updateFeeTotal()">
+                    <span style="font-size:0.9rem;">{{ opt.label }}</span>
+                    {% if opt.price is not none %}<span style="font-size:0.9rem; font-weight:800; color:var(--green-ink, #1a5e3e); flex-shrink:0;">${{ opt.price }}</span>{% endif %}
                 </label>
                 {% endfor %}
                 {% if field.options and '__other__' in field.options %}
                 <label class="radio-opt" style="flex-wrap:wrap;">
                     <input type="radio" name="field_{{ field.id }}" value="__other__"
-                        onchange="evaluateConditions(); toggleOtherText(this)">
+                        onchange="evaluateConditions(); updateFeeTotal(); toggleOtherText(this)">
                     <span style="font-size:0.9rem;">其他（請填寫）</span>
                     <input type="text" class="other-text"
                         style="display:none; padding:6px 10px; border:1px solid var(--border); border-radius:var(--radius); font-size:0.9rem; min-width:160px; flex:1; margin-top:6px;"
@@ -183,11 +189,11 @@
                 {% endif %}
 
             {% elif field.field_type == 'checkbox' %}
-                {% for opt in field.options.split('\n') if field.options and opt.strip() and opt.strip() != '__other__' %}
+                {% for opt in field_options(field.options) %}
                 <label class="check-opt">
-                    <input type="checkbox" value="{{ opt.strip() }}"
+                    <input type="checkbox" value="{{ opt.label }}"
                         style="width:17px; height:17px; accent-color:var(--green); flex-shrink:0;">
-                    <span style="font-size:0.9rem;">{{ opt.strip() }}</span>
+                    <span style="font-size:0.9rem;">{{ opt.label }}</span>
                 </label>
                 {% endfor %}
                 {% if field.options and '__other__' in field.options %}
@@ -210,10 +216,10 @@
             {% elif field.field_type == 'select' %}
                 <select data-field-id="{{ field.id }}"
                     {% if field.is_required %}data-required="true"{% endif %}
-                    onchange="evaluateConditions()">
+                    onchange="evaluateConditions(); updateFeeTotal()">
                     <option value="">請選擇...</option>
-                    {% for opt in field.options.split('\n') if field.options and opt.strip() %}
-                    <option value="{{ opt.strip() }}">{{ opt.strip() }}</option>
+                    {% for opt in field_options(field.options) %}
+                    <option value="{{ opt.label }}"{% if opt.price is not none %} data-price="{{ opt.price }}"{% endif %}>{{ opt.label }}{% if opt.price is not none %}（${{ opt.price }}）{% endif %}</option>
                     {% endfor %}
                 </select>
 
@@ -226,7 +232,19 @@
                 <input type="date" data-field-id="{{ field.id }}"
                     {% if field.is_required %}data-required="true"{% endif %}>
 
-            {% else %}
+            {% elif field.field_type == 'birthday' %}
+                {% include '_roc_date_field.html' %}
+            {% elif field.field_type == 'guardian' %}
+                {% include '_guardian_field.html' %}
+            {% elif field.field_type == 'id_number' %}
+                <input aria-label="例：A123456789" type="text" data-field-id="{{ field.id }}" class="id-input"
+                    {% if field.is_required %}data-required="true"{% endif %}
+                    inputmode="latin" autocapitalize="characters"
+                    oninput="checkTwId(this)"
+                    placeholder="例：A123456789"
+                    style="width:100%; padding:11px; border:1px solid var(--border); border-radius:var(--radius); font-size:1.1rem; font-weight:700; letter-spacing:1px; text-transform:uppercase; box-sizing:border-box;">
+                <div class="id-hint" style="margin-top:5px; font-size:0.9rem; font-weight:600;"></div>
+                        {% else %}
                 <input type="text" data-field-id="{{ field.id }}"
                     {% if field.is_required %}data-required="true"{% endif %}
                     placeholder="{{ field.label }}">
@@ -235,6 +253,17 @@
         {% endfor %}
 
         <p style="font-size:0.78rem; color:#aaa; margin-bottom:12px;">本表單所收集之個人資料僅供本次活動行政作業使用，不另作他用。</p>
+        {# 分級收費的即時合計：只有真的有標價的欄位存在時才會出現（fee-total.js 判斷）。 #}
+<div class="fee-total" style="display:none; align-items:center; justify-content:space-between;
+     gap:12px; padding:13px 16px; margin-bottom:14px; border-radius:var(--radius);
+     background:var(--green-bg, #eef7f1); border:1px solid var(--green-border, #cfe6d8);"
+     data-base-fee="{{ event.fee or 0 }}">
+    <span style="font-size:0.9rem; font-weight:600;">
+        應繳金額{% if event.fee %}（含基本費 ${{ event.fee }}）{% endif %}
+    </span>
+    <span class="fee-total-val" style="font-size:1.25rem; font-weight:800;">$0</span>
+</div>
+
         <div id="error-msg"></div>
         <button class="btn-submit" onclick="submitExternal()">確認報名</button>
         <span class="back-link" onclick="history.back()">← 返回</span>
@@ -261,7 +290,9 @@
         </div>
     </div>
 
-    <script src="{{ asset('js/form-fields.js') }}"></script>
+    <script>window.APP_CONFIG = Object.assign(window.APP_CONFIG || {}, {eventId: {{ event.id | tojson }}});</script>
+<script src="{{ asset('js/form-fields.js') }}"></script>
+<script src="{{ asset('js/fee-total.js') }}"></script>
     <script>
         const eventId = {{ event.id | tojson }};
 

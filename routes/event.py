@@ -936,6 +936,62 @@ def event_detail(event_id):
         return f'<pre>活動詳情頁錯誤：\n{traceback.format_exc()}</pre>', 500
 
 
+def _enforce_auto_tiers(event, answers):
+    """把開了「依生日自動判定」的欄位，用伺服器算出來的結果**覆蓋掉**。
+
+    ★ 為什麼一定要在伺服器端再算一次
+
+      身分別決定金額。前端送什麼就存什麼的話，任何人都能把
+      「成人 $800」改成「國小以下孩童 $500」—— 而畫面上完全正常、
+      名冊上完全正常，只是那個人少付了 300 塊。
+
+      前端算是為了「填的當下看得到」，這裡算才是真的。
+
+    ★ 使用者勾的「特殊身分別」是唯一要沿用前端的東西 ——
+      那是本人申報，系統算不出來。從送上來的答案是不是等於
+      special_label 反推。
+
+    answers : [{field_id, answer}]（會就地修改）
+    回 [(欄位標籤, 前端送的, 伺服器算的)] —— 不一致的那幾筆，給呼叫端記錄。
+    """
+    from routes.auto_tier import is_enabled, resolve
+    from routes.event_fields import parse_options
+
+    fields = supabase.table('event_fields').select('*')\
+        .eq('event_id', event['id']).eq('is_archived', False).execute().data or []
+    auto = [f for f in fields if is_enabled(f.get('auto_tier'))]
+    if not auto:
+        return []
+
+    by_id = {a.get('field_id'): a for a in answers if a.get('field_id')}
+
+    # 生日：一份表單通常只有一個生日欄位
+    birthday = None
+    for f in fields:
+        if f.get('field_type') == 'birthday':
+            got = by_id.get(f['id'])
+            if got and got.get('answer'):
+                birthday = str(got['answer']).strip()
+                break
+
+    changed = []
+    for f in auto:
+        options = parse_options(f.get('options'))
+        special_label = (f.get('auto_tier') or {}).get('special_label')
+        sent = str((by_id.get(f['id']) or {}).get('answer') or '').strip()
+        has_special = bool(special_label and sent == special_label)
+        label, _age, _note = resolve(f, options, birthday, event,
+                                     has_special=has_special)
+        final = label or ''
+        if sent != final:
+            changed.append((f.get('label'), sent, final))
+        if f['id'] in by_id:
+            by_id[f['id']]['answer'] = final
+        elif final:
+            answers.append({'field_id': f['id'], 'answer': final})
+    return changed
+
+
 def _reject_bad_id_numbers(event_id, answers):
     """身分證字號欄位：後端也要驗一次。
 
@@ -1091,6 +1147,7 @@ def _do_event_register(event_id):
 
     # 答案檢查一律在寫入之前：先 insert 再擋的話，被擋下的那一筆已經在名單上佔著名額
     answers = (request.get_json() or {}).get('answers', [])
+    _enforce_auto_tiers(event, answers)
     _bad = _reject_bad_id_numbers(event_id, answers)
     if _bad:
         return jsonify({'success': False, 'error': _bad}), 400
@@ -1295,6 +1352,7 @@ def _do_external_register(event_id):
         return jsonify({'error': '請填寫姓名'}), 400
 
     _ext_answers = data.get('answers') or []
+    _enforce_auto_tiers(event, _ext_answers)
     _bad = _reject_bad_id_numbers(event_id, _ext_answers)
     if _bad:
         return jsonify({'success': False, 'error': _bad}), 400
@@ -1358,3 +1416,97 @@ def event_cancel_waitlist(event_id):
     supabase.table('registrations').update({'status': 'cancelled'})\
         .eq('id', result.data[0]['id']).execute()
     return jsonify({'success': True})
+
+
+@event_bp.route('/event/<event_id>/compute-tier', methods=['POST'])
+def compute_tier(event_id):
+    """依生日算出身分別與金額。給前台即時顯示用。
+
+    ★ 免登入：外部報名頁也要用，而且它只回傳「這份表單本來就看得到的
+      選項」對應到哪一個，沒有多洩漏任何東西。
+    """
+    # shortcut: 沒有 guard 的速率限制（成熟版有），尚未搬；公開部署前要補
+    data = request.get_json() or {}
+    ev = supabase.table('events').select('id, event_start, fee').eq('id', event_id).execute().data
+    if not ev:
+        return jsonify({'error': '找不到此活動'}), 404
+    event = ev[0]
+
+    fields = supabase.table('event_fields').select('*')\
+        .eq('event_id', event_id).eq('is_archived', False)\
+        .order('sort_order').execute().data or []
+
+    from routes.auto_tier import is_enabled, resolve
+    from routes.event_fields import parse_options
+
+    birthday = (data.get('birthday') or '').strip() or None
+    specials = data.get('specials') or {}      # {field_id: true/false}
+
+    out = {}
+    for f in fields:
+        if not is_enabled(f.get('auto_tier')):
+            continue
+        options = parse_options(f.get('options'))
+        label, age, note = resolve(f, options, birthday, event,
+                                   has_special=bool(specials.get(f['id'])))
+        price = next((o['price'] for o in options if o['label'] == label), None)
+        # ★ note ＝「你勾的那一項比較貴，系統讓開了」。一定要回給畫面 ——
+        #   不講的話他勾了什麼都沒變，看起來像勾選框壞了。
+        out[f['id']] = {'label': label, 'price': price, 'age': age, 'note': note}
+    return jsonify({'tiers': out})
+
+
+@event_bp.route('/compute-age', methods=['POST'])
+def compute_age():
+    """一批生日 → 一批年齡。給「依年齡的跳題條件」用。
+
+    ## 為什麼是伺服器算，明明前端減一下就有了
+
+    因為基準日的規則不只是「今天」：年齡基準是**活動當日**（跨日活動用
+    第一天），而且 2/29 出生的人在平年要落在 3/1 才算生日。這些規則已經
+    在 `routes/roc.age_on` 裡了，也是 `auto_tier` 判身分別用的同一支。
+
+    前端自己減一份的話，兩份會開始各自演化 —— 而症狀是「身分別算成人、
+    監護人欄位卻跳出來」，兩邊都看起來完全正常。這個專案已經被
+    「同一件事有兩份實作」咬過好幾次。
+
+    ## 為什麼跟 compute-tier 分開
+
+    不是每場活動都有分級收費欄位。合併的話，一場只想問「未滿18歲要填
+    監護人」的活動得先建一個它不需要的收費欄位才算得出年齡。
+
+    ## 基準日
+
+    帶 `event_id` → 基準日一律由伺服器從活動撈（權威）。
+    只帶 `basis` → 給後台預覽用，那時候活動還沒存，日期只在表單裡。
+
+    ★ 免登入，跟 compute-tier 一樣：它只是日期算術，回傳的東西
+      呼叫端本來就有（生日是他自己填的）。
+    """
+    from routes.roc import age_on
+    from routes.auto_tier import event_basis_date
+    data = request.get_json() or {}
+    birthdays = data.get('birthdays') or {}
+    if not isinstance(birthdays, dict):
+        return jsonify({'error': 'birthdays 要是物件'}), 400
+    if len(birthdays) > 50:
+        return jsonify({'error': '一次最多 50 筆'}), 400
+
+    basis = None
+    event_id = (data.get('event_id') or '').strip()
+    if event_id:
+        ev = supabase.table('events').select('id, event_start')\
+            .eq('id', event_id).execute().data
+        if not ev:
+            return jsonify({'error': '找不到此活動'}), 404
+        basis = event_basis_date(ev[0])
+    else:
+        basis = (data.get('basis') or '').strip() or None
+
+    ages = {}
+    for fid, iso in birthdays.items():
+        value = str(iso or '').strip()
+        # age_on 算不出來就回 None —— 呼叫端不可以當成 0 或猜一個，
+        # 前端拿到 null 的處理是「這個條件不成立」，不是「0 歲」。
+        ages[str(fid)] = age_on(value, basis) if value else None
+    return jsonify({'ages': ages, 'basis': basis})

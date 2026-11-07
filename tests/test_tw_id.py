@@ -148,14 +148,43 @@ def _src(path):
 
 
 
+def test_every_form_renders_the_id_input():
+    """★ 三個報名入口都要有。少改一個的話，那個入口進來的人看到的是
+    普通文字框 —— 沒有檢查、沒有提示，而畫面完全正常。"""
+    for path in ('templates/event_detail.html', 'templates/external_register.html'):
+        src = _src(path)
+        assert "field_type == 'id_number'" in src, f'{path} 不認得 id_number'
+        assert 'checkTwId(this)' in src, f'{path} 沒有接上即時檢查'
 
 
+def test_the_frontend_and_backend_use_the_same_table():
+    """★ 兩邊各有一份字母對照表，不一致的話前端說「格式正確」
+    但後端擋下來（或反過來）—— 使用者只會看到送不出去，看不出為什麼。
+
+    對照表不是規律的（I/O/W/X/Y/Z 特別跳號），最容易在「順手改成連續」
+    的時候壞掉。
+    """
+    js = _src('static/js/fee-total.js')
+    for letter, value in _LETTER.items():
+        assert f'{letter}:{value}' in js.replace(' ', ''), \
+            f'JS 的對照表少了或寫錯 {letter}={value}'
 
 
+def test_the_js_loop_covers_exactly_the_weighted_digits():
+    """★ 這條記錄一個真的發生過的錯。
 
+    WEIGHTS 只有 8 個元素（索引 0–7）。JS 的迴圈原本跑到 i=9，
+    拿到 undefined → 整個和變 NaN → **所有號碼都被判成無效**，
+    而且檢查碼被算了兩次。
 
-
-
+    1000 組隨機值的瀏覽器交叉比對抓到 48 組跟後端不一致；
+    靜態的「對照表一不一樣」那條完全沒反應 —— 表是對的，錯的是迴圈。
+    """
+    js = _src('static/js/fee-total.js')
+    body = js.split('window.isValidTwId')[1]
+    assert 'for (var i = 2; i <= 8; i++)' in body, \
+        'JS 的加權迴圈範圍不對 —— 會拿到 undefined 讓整個和變 NaN'
+    assert len(_WEIGHTS) == 8
 
 
 def test_the_backend_rejects_a_bad_id():
@@ -170,3 +199,10 @@ def test_the_backend_rejects_a_bad_id():
     for path, fn in _answer_writers():
         assert '_reject_bad_id_numbers(' in fn, \
             f'{path} 有一個寫入答案的地方沒有驗身分證字號'
+
+
+def test_the_error_message_says_what_is_actually_wrong():
+    """★ 講「格式錯誤」沒有用 —— 格式看起來明明是對的，
+    使用者會一直盯著看不出問題在哪。要講「檢查碼不對」。"""
+    assert '檢查碼不對' in _src('routes/event.py')
+    assert '檢查碼不對' in _src('static/js/fee-total.js')

@@ -172,8 +172,30 @@ import pytest as _pytest
 _PRICED_EVENT_OPTIONS = '成人|800\n敬老|600\n12歲以下孩童|400'
 
 
+def test_templates_never_split_options_by_hand():
+    """★ 選項一律走 field_options()。
+
+    自己 split('\\n') 的話會拿到整行「成人|800」當答案 ——
+    跳題條件比對不到、後端也查不到價格，而畫面完全正常。
+    """
+    offenders = []
+    for path in ('templates/event_detail.html', 'templates/external_register.html'):
+        src = open(path, encoding='utf-8').read()
+        if 'field.options.split' in src:
+            offenders.append(path)
+    assert not offenders, f'這些模板還在自己拆選項：{offenders}'
 
 
+@_pytest.mark.parametrize('path', [
+    'templates/event_detail.html',
+    'templates/external_register.html',
+])
+def test_every_form_renders_prices(path):
+    """有標價的選項要帶 data-price，前端才算得出合計"""
+    src = open(path, encoding='utf-8').read()
+    assert 'data-price' in src, f'{path} 沒有把價格畫出來'
+    assert 'updateFeeTotal()' in src, f'{path} 沒有在選擇時更新合計'
+    assert 'fee-total' in src, f'{path} 沒有應繳金額列'
 
 
 
@@ -241,8 +263,30 @@ def test_there_is_only_one_editor_now():
 
 
 
+def test_every_form_renders_fee_fields_as_radio():
+    """fee 就是帶價格的單選。少改一份表單的話，那個入口進來的人
+    看不到選項（畫面完全正常，只是那一題不見了）。"""
+    for path in ('templates/event_detail.html', 'templates/external_register.html'):
+        src = open(path, encoding='utf-8').read()
+        assert "field.field_type in ['radio', 'fee']" in src, f'{path} 不認得 fee'
 
 
+def test_fee_answers_are_collected():
+    """★ 收值漏掉 fee 的話會落到預設分支去找 radio 沒有的屬性 →
+    回空字串 → 收費選項永遠不會被送出，而畫面完全正常。
+
+    ★ 三個入口都要驗。外部報名就是漏了這一個，而且同時把必填檢查
+      一起漏掉，結果那場活動的外部報名完全送不出去
+      （選好了還是跳「請填寫所有必填欄位」）。
+
+    用 source_bundle 而不是直接讀 .html —— 邏輯已經搬到
+    static/js/form-fields.js，讀死檔案的話測試會綠得很安靜。
+    """
+    from tests.conftest import source_bundle
+    for path in ('event_detail.html', 'external_register.html'):
+        src = source_bundle(path)
+        assert "type === 'radio' || type === 'fee'" in src, \
+            f'{path} 的收值不認得 fee'
 
 
 # ══ 資料庫的白名單 ══════════════════════════════════

@@ -1,0 +1,36 @@
+{# 出生日期：收民國年、存西元 —— 四個入口共用這一份
+
+   ★ 抽成 partial 的理由跟 _guardian_field.html / _auto_tier_field.html
+     一樣：這個專案反覆被「同一件事有好幾份實作」咬到。原本這段markup
+     在三個報名入口各抄了一份（三份當時剛好一模一樣），後台的「編輯報名
+     資料」彈窗則**整個沒有**——它掉到預設分支變成一個普通文字框，
+     於是同一筆生日：名單頁印民國、Excel 印民國、編輯彈窗跳西元
+     `1969-10-20`，而那個框還可以讓人直接改成任何字串。
+
+   ★ 真正被送出的是隱藏的 .roc-iso（帶 data-field-id），值一律是西元
+     `YYYY-MM-DD`。收值邏輯（getWrapperValue 的預設分支）因此不用改。
+     民國是**顯示格式不是資料**：存民國的話，每次算年齡、排序、換一家
+     保險公司改格式都得先反轉一次。
+
+   ★ .roc-hint 一定要跟 .roc-date 同一層（syncRocDate 是用
+     box.parentElement 往上找它的）。自己另外發明一個回顯元素的話，
+     「這一天不存在」「年份看起來不對」那些訊息會整組消失，
+     而畫面上看起來只是少了一行字。 #}
+<div class="roc-date" style="display:flex; align-items:center; gap:7px; flex-wrap:wrap;">
+    <span style="font-size:0.9rem; color:var(--text-3); font-weight:600;">民國</span>
+    <input aria-label="88" type="number" class="roc-y" inputmode="numeric" placeholder="88" min="1" max="{{ this_roc_year() }}"
+        oninput="syncRocDate(this)"
+        style="width:78px; padding:10px 8px; border:1px solid var(--border); border-radius:var(--radius); font-size:1.1rem; font-weight:700; text-align:center;">
+    <span style="font-size:0.9rem; color:var(--text-3);">年</span>
+    <input aria-label="3" type="number" class="roc-m" inputmode="numeric" placeholder="3" min="1" max="12"
+        oninput="syncRocDate(this)"
+        style="width:62px; padding:10px 8px; border:1px solid var(--border); border-radius:var(--radius); font-size:1.1rem; font-weight:700; text-align:center;">
+    <span style="font-size:0.9rem; color:var(--text-3);">月</span>
+    <input aria-label="5" type="number" class="roc-d" inputmode="numeric" placeholder="5" min="1" max="31"
+        oninput="syncRocDate(this)"
+        style="width:62px; padding:10px 8px; border:1px solid var(--border); border-radius:var(--radius); font-size:1.1rem; font-weight:700; text-align:center;">
+    <span style="font-size:0.9rem; color:var(--text-3);">日</span>
+    <input type="hidden" data-field-id="{{ field.id }}" class="roc-iso"
+        {% if field.is_required %}data-required="true"{% endif %}>
+</div>
+<div class="roc-hint" style="margin-top:6px; font-size:0.9rem; font-weight:600; color:var(--text-3);"></div>

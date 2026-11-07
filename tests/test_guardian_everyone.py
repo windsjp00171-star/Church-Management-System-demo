@@ -45,6 +45,7 @@ from pathlib import Path
 
 import pytest
 
+
 from routes.conditions import missing_required, visibility
 from routes.guardian import (EVERYONE, MINOR, condition_mark,
                              everyone_condition)

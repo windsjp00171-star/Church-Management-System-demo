@@ -30,7 +30,7 @@ Module = namedtuple('Module', 'key label kind requires prefixes desc needs', def
 #  kind：optional（教會自己選）／demo_only（只在 DEMO_MODE 才有）
 MODULES = [
     Module('events', '活動報名與簽到', 'optional', (), (
-        '/events', '/event', '/checkin', '/my-history', '/admin/events'),
+        '/events', '/event', '/compute-age', '/checkin', '/my-history', '/admin/events'),
         '活動、報名、QR 簽到、我的出席紀錄'),
     Module('payments', '線上金流', 'optional', ('events',), (
         '/payment', '/events/*/registrations/*/pay', '/admin/payments', '/admin/settings/payment'),

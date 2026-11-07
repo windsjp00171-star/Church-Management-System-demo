@@ -258,6 +258,21 @@ def create_app():
             return url_for('static', filename=path)
         return url_for('static', filename=path, v=v)
     app.jinja_env.globals['asset'] = asset
+
+    # 報名表單：選項（含價格）解析、費用顯示、依生日自動判定的說明、民國年上限
+    from routes.event_fields import parse_options as _field_options
+    from routes.event_fields import fee_display as _fee_display, fee_range as _fee_range
+    from routes.auto_tier import describe as _at_describe
+    app.jinja_env.globals['field_options']      = _field_options
+    app.jinja_env.globals['fee_display']        = _fee_display
+    app.jinja_env.globals['fee_range']          = _fee_range
+    app.jinja_env.globals['auto_tier_describe'] = _at_describe
+
+    def this_roc_year():
+        """民國年輸入框的 max。台灣時間 —— 用 UTC 的話跨年那一刻會差一年。"""
+        from datetime import datetime, timedelta, timezone
+        return datetime.now(timezone(timedelta(hours=8))).year - 1911
+    app.jinja_env.globals['this_roc_year'] = this_roc_year
     app.jinja_env.globals['line_liff_id']      = Config.LINE_LIFF_ID
     # 展示站：用品牌示範名稱，避免顯示佔位字「您的教會名稱」
     _DEMO_CHURCH_NAME = '教會整合管理系統'
