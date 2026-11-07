@@ -88,27 +88,36 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 - 動 `tests/structure_baseline.json` 要手動確認差異；`python tests/structure_scan.py` 會**直接覆寫基準**，會把增加也吃進去，不要盲目執行。
 - 啟動煙霧測試在子行程執行，不汙染其他測試；新增需要權限的頁面，到 `tests/smoke_boot.py` 的 `PROBES` 加一行。
 
-## 9. ★ 與成熟版 `event-registration-`（安南正式在用）的功能落差
+## 9. ★ 與成熟版 `event-registration-`（安南正式在用）的功能落差：**進度表**
 
-**這個 demo repo 缺少成熟版大約 75 個模組**（對照 `routes/` 檔案清單，2026-11-07 查證）。使用者發現的第一個是「引導式開活動」。
-成熟版 `CLAUDE.md` 是最完整的功能說明，要搬哪一項先讀那一節。
+成熟版比這個 demo 多約 75 個模組（對照 `routes/` 檔案清單，2026-11-07 查證）。成熟版 `CLAUDE.md` 是最完整的功能說明，要搬哪一項先讀那一節。
+使用者選的做法：**A，逐批搬進這個 repo**（不改以成熟版為底；先前「就地重構」的決定不變）。
 
-| 缺的功能 | 成熟版檔案（`routes/`） | 備註 |
-|---|---|---|
-| **引導式開活動**（「我陪你開一場」） | `guided.py`、`setting_deps.py`、`templates/admin/event_guided.html`，路由在 `admin_events.py` | 使用者明確要求。它產生的欄位需要下面「報名表單強化」才跑得動 |
-| 報名表單強化：分級收費、生日、身分證（檢查碼）、監護人、依生日自動判身分別、跳題條件、必填由伺服器驗證 | `field_types.py`、`event_fields.py`、`auto_tier.py`、`guardian.py`、`conditions.py`、`roc.py`、`tw_id.py`、`tw_phone.py`、`tw_time.py`、`option_caps.py`、`static/js/form-fields.js`、`admin_events.py` | **目前 demo 只支援 7 種基本欄位型別**（文字、長文字、單選、多選、下拉、數字、日期），成熟版有 11 種 |
-| 推播、PWA 續登 | `push.py`、`pwa_session.py`、`pwa_apps.py`、`reminders.py`、`quiet_hours.py`、`tasks.py` | |
-| 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | |
-| 365 讀經計畫、經文朗讀、主日信息（YouTube） | `bible_plan.py`、`bible_text.py`、`reading_*.py`、`sermons.py`、`admin_sermons.py` | |
-| 行事曆訂閱、結業證書、門訓平板簽到、教材 | `calendar_feed.py`、`certificate.py`、`courses_kiosk.py`、`courses_materials.py` | |
-| 首頁個人化待辦、生日祝賀、使用數據 | `my_todos.py`、`todos.py`、`birthday.py`、`usage_stats.py`、`module_views.py` | |
-| 效能快取、公開端點防護 | `cache.py`、`guard.py` | |
+**表上列的 17 項功能，目前完成 5 項（約 3 成）**（更新：2026-11-07；做完一項就改這張表）
+
+| 狀態 | 功能 | 成熟版檔案（`routes/`） | 這個 repo 的狀況 |
+|---|---|---|---|
+| ✅ | 引導式開活動 | `guided.py`、`setting_deps.py`、`templates/admin/event_guided.html` | #91、#92：頁面、草稿、設定依賴即時提示（`setting_deps` 少 2 條沒對應設定的規則） |
+| ✅ | 報名表單強化（分級收費、生日、身分證、監護人、依生日判身分別、跳題、必填由伺服器驗證） | `field_types.py`、`event_fields.py`、`auto_tier.py`、`guardian.py`、`conditions.py`、`roc.py`、`tw_id.py`… | #81～#90（見第 10 節）。**還欠**：報名名單編輯彈窗／匯出認得新型別、報名確認頁摘要 |
+| ✅ | 365 天聖經速讀計畫 | `bible_plan.py`、`data/bible_reading_plan_365.json` | #95。**沒搬**：每日推播、換計畫後台、首頁卡片快速「讀完了」 |
+| ✅ | 經文內嵌與朗讀 | `bible_text.py`、`static/js/speech-queue.js` | #95 |
+| ✅ | 公開端點防護（速率限制、蜜罐、身分證字號重複檢查） | `guard.py` | 本批：`compute-tier`／`compute-age`／外部報名。**沒搬**：沒有身分證欄位時退回姓名＋電話的重複比對（這邊外部報名沒有電話欄位）、`find` 查詢端點限流（沒有 `find`） |
+| ⬜ | 手機推播 | `push.py`、`reading_nudge.py`、`reminders.py`、`quiet_hours.py`、`tasks.py` | 未做；讀經推播依賴它 |
+| ⬜ | PWA 續登（裝完被要求輸入 LINE 帳密的問題） | `pwa_session.py`、`pwa_apps.py` | 未做 |
+| ⬜ | 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | 未做 |
+| ⬜ | 主日信息（YouTube 按週分組） | `sermons.py`、`admin_sermons.py` | 未做 |
+| ⬜ | 行事曆訂閱（.ics） | `calendar_feed.py` | 未做 |
+| ⬜ | 門訓結業證書 | `certificate.py` | 未做 |
+| ⬜ | 門訓平板簽到 | `courses_kiosk.py` | 未做 |
+| ⬜ | 門訓教材 | `courses_materials.py` | 未做 |
+| ⬜ | 首頁個人化待辦 | `my_todos.py`、`todos.py` | 未做（成熟版刻意**不做催繳**，見其 CLAUDE.md） |
+| ⬜ | 生日祝賀 | `birthday.py` | 未做 |
+| ⬜ | 使用數據 | `usage_stats.py`、`module_views.py` | 未做 |
+| ⬜ | 效能快取 | `cache.py` | 未做（成熟版的 `Procfile` 另有 `--threads 8`，見其 CLAUDE.md「效能」） |
 
 **反過來**，這個 demo 有而成熟版沒有的：聚會點名、功能模組登記表、備份登記制、天父日記／檔案分享／小組回報（來自另外三個 repo）、`person.py`、啟動煙霧測試與授權探針。
 
-**待使用者決定的做法**（尚未決定，先不要動手）：
-- A. 逐批把成熟版功能搬進這個 repo（建議第一批：報名表單強化＋引導式開活動）；
-- B. 改以成熟版為底，把 demo 獨有的搬過去（與先前「就地重構」的決定不同，要使用者重新同意）。
+**搬一批的流程**（照第 10 節那批的做法）：先讀成熟版 `CLAUDE.md` 對應段落 → 動資料庫先給使用者看完整 SQL 並等同意 → 用成熟版的測試當驗收（需要完整 app 的測試改用 `tests/editor_server.py` 子行程或簡化 app）→ mutation 驗證 → CHANGELOG → 合併。
 
 ## 10. 搬成熟版報名表單＋引導式開活動：**已完成**（使用者選 A：逐批搬進這個 repo）
 
@@ -125,7 +134,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 | #93 | 活動管理的聚焦式教學（`data-tour`）與手冊 |
 
 **這一批刻意沒搬／還欠的（有需要再做）**
-- `compute-tier`／`compute-age` **沒有速率限制**（成熟版的 `routes/guard.py` 沒搬）——公開部署前要補。
+- ~~`compute-tier`／`compute-age` 沒有速率限制~~：已補（`routes/guard.py`，見第 9 節）。
 - 報名名單編輯彈窗、Excel 匯出、名冊顯示對新型別（生日轉民國等）的支援；成熟版對應測試（`test_roc`、`test_event_fields` 的名單／匯出部分）還沒放回。
 - 報名確認頁（`form-confirm.js`）與預覽「試按送出」的答案摘要；`test_auto_tier` 裡確認對話框那十條。
 - `setting_deps` 兩條沒搬（外部報名姓名／電話欄位、會友保留名額）：這個 repo 沒有對應設定，檔案裡有 `shortcut:` 註解。課程表單的依賴提示也還沒接。

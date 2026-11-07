@@ -8,6 +8,14 @@ import random
 import re
 from routes.notifications import create_notification
 from routes.decorators import login_required
+from routes.guard import looks_automated, rate_limited
+
+# 兩支「填表時一直打」的計算端點（compute-tier / compute-age）的上限。
+# 跟報名端點不一樣：報名是一個人一次，這兩支是打字的時候打的（改一次生日就一次）。
+# ★ 要開很寬：行動網路多半走 CGNAT，公告完一整群人同時填表，在伺服器眼裡是同一個 IP。
+#   撞到的後果不是「慢一點」而是「填不出去」（年齡拿不到 → 監護人欄位消失 → 送出時被伺服器擋），
+#   所以這條線畫在「一支腳本才做得到」的量級。
+CALC_LIMITS = [(600, 60), (6000, 3600)]
 
 
 def _extract_youtube_id(url: str) -> str | None:
@@ -1015,6 +1023,37 @@ def _reject_bad_id_numbers(event_id, answers):
     return None
 
 
+def _reject_duplicate_person(event_id, answers):
+    """同一場活動、同一個身分證字號，只能有一筆。回錯誤訊息，沒問題回 None。
+
+    ★ 身分證字號是最好的鑰匙：它有唯一性、系統本來就在收也在驗檢查碼，所以同一個人報兩次一定撞在一起，
+      要灌 500 筆假資料得先生出 500 個通過檢查碼的號碼。
+    ★ 寧可少擋、不要擋錯人：沒有身分證欄位的活動就不做這道檢查，**不退回比姓名或電話**
+      （同名的人不少；一支手機幫全家報名是正常的）。
+    ★ 擋下來要給下一步：多數撞到的人不是壞人，是以為自己沒送出去（手滑連按、想改資料卻重填一份）。
+    # shortcut: 成熟版沒有身分證的活動會退回「姓名＋電話都一樣」；這個 repo 外部報名沒有電話欄位，先不搬。
+    """
+    from routes.tw_id import normalize as _norm_id
+    id_fields = {f['id'] for f in (supabase.table('event_fields').select('id')
+                 .eq('event_id', event_id).eq('field_type', 'id_number').execute().data or [])}
+    if not id_fields:
+        return None
+    mine = next((_norm_id(a.get('answer')) for a in (answers or [])
+                 if a.get('field_id') in id_fields and a.get('answer')), '')
+    if not mine:
+        return None
+    regs = supabase.table('registrations').select('id')\
+        .eq('event_id', event_id).neq('status', 'cancelled').execute().data or []
+    ids = [r['id'] for r in regs]
+    if not ids:
+        return None
+    rows = supabase.table('registration_answers').select('field_id, answer')\
+        .in_('registration_id', ids).in_('field_id', list(id_fields)).execute().data or []
+    if any(_norm_id(r.get('answer')) == mine for r in rows):
+        return '這個身分證字號已經報名過這場活動了。要查看、修改或取消，請回到活動頁面看你的報名。'
+    return None
+
+
 def _normalize_guardian_answers(event_id, answers):
     """監護人欄位：把送上來的東西重新正規化成「姓名／電話」。
 
@@ -1148,7 +1187,7 @@ def _do_event_register(event_id):
     # 答案檢查一律在寫入之前：先 insert 再擋的話，被擋下的那一筆已經在名單上佔著名額
     answers = (request.get_json() or {}).get('answers', [])
     _enforce_auto_tiers(event, answers)
-    _bad = _reject_bad_id_numbers(event_id, answers)
+    _bad = _reject_bad_id_numbers(event_id, answers) or _reject_duplicate_person(event_id, answers)
     if _bad:
         return jsonify({'success': False, 'error': _bad}), 400
     _normalize_guardian_answers(event_id, answers)
@@ -1335,6 +1374,19 @@ def event_external_register(event_id):
         return jsonify({'error': '系統錯誤，請稍後再試'}), 500
 
 def _do_external_register(event_id):
+    # ── 這一支是公開的（免登入、連結到處貼）──
+    # 真正會痛的不是資料庫塞不塞得下，是名額：80 個位子被腳本幾秒佔滿，真的要報名的人就報不進來，
+    # 而畫面上完全正常（就是額滿）。三層，職責不同（見 routes/guard.py）：
+    #   蜜罐 → 笨機器人；速率限制 → 手滑連按、隨手寫的迴圈；重複檢查 → 同一個人報兩次（見 _reject_duplicate_person）
+    # 放在查資料庫之前：擋的就是「一直打」，擋之前先查資料庫等於沒擋。
+    _payload = request.get_json(silent=True) or {}
+    if looks_automated(_payload):
+        return jsonify({'error': '表單驗證沒通過，請重新整理頁面再送一次'}), 400
+    # 開得很寬（理由同 CALC_LIMITS）
+    _busy = rate_limited('external-register', [(60, 600), (200, 3600)])
+    if _busy:
+        return jsonify({'error': _busy}), 429
+
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
     if not event_result.data:
         return jsonify({'error': '找不到此活動'}), 404
@@ -1353,7 +1405,7 @@ def _do_external_register(event_id):
 
     _ext_answers = data.get('answers') or []
     _enforce_auto_tiers(event, _ext_answers)
-    _bad = _reject_bad_id_numbers(event_id, _ext_answers)
+    _bad = _reject_bad_id_numbers(event_id, _ext_answers) or _reject_duplicate_person(event_id, _ext_answers)
     if _bad:
         return jsonify({'success': False, 'error': _bad}), 400
     _normalize_guardian_answers(event_id, _ext_answers)
@@ -1425,7 +1477,10 @@ def compute_tier(event_id):
     ★ 免登入：外部報名頁也要用，而且它只回傳「這份表單本來就看得到的
       選項」對應到哪一個，沒有多洩漏任何東西。
     """
-    # shortcut: 沒有 guard 的速率限制（成熟版有），尚未搬；公開部署前要補
+    _busy = rate_limited('compute-tier', CALC_LIMITS)
+    if _busy:
+        return jsonify({'error': _busy}), 429
+
     data = request.get_json() or {}
     ev = supabase.table('events').select('id, event_start, fee').eq('id', event_id).execute().data
     if not ev:
@@ -1485,6 +1540,9 @@ def compute_age():
     """
     from routes.roc import age_on
     from routes.auto_tier import event_basis_date
+    _busy = rate_limited('compute-age', CALC_LIMITS)
+    if _busy:
+        return jsonify({'error': _busy}), 429
     data = request.get_json() or {}
     birthdays = data.get('birthdays') or {}
     if not isinstance(birthdays, dict):
