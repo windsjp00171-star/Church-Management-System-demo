@@ -145,6 +145,16 @@
             </div>
         </div>
 
+        {# 蜜罐：人看不到、不會填，笨機器人會填（見 routes/guard.py）。
+           ★ tabindex=-1 與 autocomplete=off 少一個，真的使用者用鍵盤 tab 過去、或被瀏覽器自動填入就會被擋 #}
+        <div aria-hidden="true"
+             style="position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden;">
+            <label>暱稱（請勿填寫）
+                <input type="text" id="hp-nickname" name="nickname_confirm"
+                       tabindex="-1" autocomplete="off">
+            </label>
+        </div>
+
         <div class="section-title">外部朋友報名表</div>
 
         <!-- 姓名必填 -->
@@ -326,6 +336,8 @@
                 body: JSON.stringify({
                     guest_name: guestName,
                     answers: collectFieldAnswers(),
+                    // 蜜罐：人不會填到它（在畫面外、tabindex=-1）
+                    nickname_confirm: (document.getElementById('hp-nickname') || {}).value || '',
                 }),
             })
             .then(r => r.json())
