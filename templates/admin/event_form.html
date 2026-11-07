@@ -123,6 +123,12 @@
                 <input id="fee" data-tour="fee" type="number" min="0" oninput="togglePaymentEnabledSection(this)"
                     value="{{ event.fee if event else 0 }}"
                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
+                <button type="button" onclick="addTieredFeeField()"
+                    style="margin-top:7px; padding:6px 12px; background:var(--info-bg, #e3f2fd); color:var(--info, #1565c0);
+                           border:1px solid var(--info-border, #90caf9); border-radius:8px; cursor:pointer;
+                           font-size:0.9rem; font-weight:600; font-family:inherit;">
+                    ＋ 依身分別分級收費（成人／敬老／孩童…）
+                </button>
             </div>
             <div>
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">⏰ 繳費提醒（天前）</label>
@@ -134,12 +140,6 @@
         </div>
         {# 這一格和分級收費是「相加」的，不是二選一：兩邊都填 800 就是每個成人收 1600，
            而兩個數字分別看都對。所以在他改動的當下講出來（不擋，報名費＋票價是合理的）。 #}
-        <button type="button" onclick="addTieredFeeField()"
-            style="margin-top:7px; padding:6px 12px; background:var(--info-bg, #e3f2fd); color:var(--info, #1565c0);
-                   border:1px solid var(--info-border, #90caf9); border-radius:8px; cursor:pointer;
-                   font-size:0.9rem; font-weight:600; font-family:inherit;">
-            ＋ 依身分別分級收費（成人／敬老／孩童…）
-        </button>
         <div id="fee-conflict" class="dep-hint" data-dep="fee_adds_to_tiers"></div>
         <div class="dep-hint" data-dep="money_needs_primary_groups"></div>
         <!-- 線上繳費開關（只在 fee > 0 時有意義） -->

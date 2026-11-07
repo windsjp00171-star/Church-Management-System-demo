@@ -2034,7 +2034,12 @@ def export_registrations(event_id):
         ]
         # 自訂欄位答案
         for field in fields:
-            row_data.append(answers.get(field['id'], ''))
+            value = answers.get(field['id'], '')
+            if field.get('field_type') == 'birthday' and value:
+                # 跟名冊同一支（routes.roc.to_roc）：生日存西元、給人和保險公司看的是民國
+                from routes.roc import to_roc
+                value = to_roc(value) or value
+            row_data.append(value)
 
         for col, value in enumerate(row_data, 1):
             ws.cell(row=row_idx, column=col, value=value)

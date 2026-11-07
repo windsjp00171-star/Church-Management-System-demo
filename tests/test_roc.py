@@ -142,8 +142,29 @@ BIRTHDAY_FORMS = (
 )
 
 
+def test_birthday_is_a_real_field_type():
+    """四個報名表單都要認得 birthday。
+
+    少改一個的話，那個入口進來的人看到的是普通文字框 ——
+    沒有民國年、沒有驗證，而畫面完全正常。
+    """
+    for path in BIRTHDAY_FORMS:
+        src = _rendered_source(path)
+        assert "field_type == 'birthday'" in src, f'{path} 不認得 birthday'
+        assert 'syncRocDate(this)' in src, f'{path} 沒有接上民國年輸入'
+        assert 'this_roc_year()' in src, f'{path} 的年份欄沒有上限'
 
 
+def test_birthday_stores_the_western_year():
+    """★ 存的一定是西元。
+
+    三個框收的是民國，但送出去的是那個 hidden 的 ISO 值。
+    存成民國的話，之後算年齡、排序、換保險公司格式都得先反轉一次。
+    """
+    for path in BIRTHDAY_FORMS:
+        src = _rendered_source(path)
+        assert 'class="roc-iso"' in src, f'{path} 沒有存西元的 hidden input'
+        assert 'type="hidden" data-field-id' in src,             f'{path} 的 hidden input 沒帶 data-field-id —— 送出時收不到值'
 
 
 def test_admin_can_pick_the_birthday_type():
