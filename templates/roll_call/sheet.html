@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% block title %}聚會點名{% endblock %}
 {% block content %}
-<div style="max-width:960px; margin:0 auto; padding:16px 12px 60px;">
+<div style="max-width:1000px; margin:0 auto; padding:16px 12px 60px;">
   <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
     <h2 style="margin:0;">📝 {{ mtype.name if mtype else '聚會' }}點名單</h2>
     <div style="display:flex; gap:8px; flex-wrap:wrap;">
       {% if mtype %}<a href="/roll-call/report" style="padding:10px 14px; border:1px solid #c7d2fe; background:#fff; color:#4338ca; border-radius:8px; text-decoration:none;">📊 出席統計</a>{% endif %}
-      {% if mtype %}<button type="button" data-tour="add-col" onclick="addColumn()" style="padding:10px 14px; border:1px solid #4F46E5; background:#4F46E5; color:#fff; border-radius:8px; font-weight:bold;">＋ 加今天這一欄</button>{% endif %}
+      {% if mtype %}<button type="button" data-tour="add-col" onclick="addColumn(null)" style="padding:10px 14px; border:1px solid #c7d2fe; background:#fff; color:#4338ca; border-radius:8px;">＋ 加臨時聚會（今天）</button>{% endif %}
       <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:10px 14px; border:1px solid #c7d2fe; background:#eef2ff; border-radius:8px;">？ 教學</button>
     </div>
   </div>
@@ -21,8 +21,8 @@
 
   {% if not mtype %}
     <div style="padding:24px; border:1px dashed #c7d2fe; border-radius:12px; background:#fff; text-align:center;">
-      <p style="margin:0 0 12px;">還沒有點名單。按一下就會建立「主日」點名單，並加上今天這一欄。</p>
-      <button type="button" onclick="addColumn()" style="padding:12px 20px; border:0; background:#4F46E5; color:#fff; border-radius:8px; font-weight:bold; font-size:1rem;">開始：建立主日點名單</button>
+      <p style="margin:0 0 12px;">還沒有點名單。按一下就會建立「主日」點名單，並排好這一季的主日。</p>
+      <button type="button" onclick="addColumn(ADD_DATE)" style="padding:12px 20px; border:0; background:#4F46E5; color:#fff; border-radius:8px; font-weight:bold; font-size:1rem;">開始：建立主日點名單</button>
     </div>
   {% elif not members %}
     <div style="padding:24px; border:1px dashed #fcd34d; border-radius:12px; background:#fffbeb;">
@@ -36,50 +36,52 @@
       找不到「<span id="sh-none-q"></span>」。<button type="button" onclick="useAsNewcomer()" style="margin-left:6px; padding:8px 12px; border:0; background:#16a34a; color:#fff; border-radius:8px; font-weight:bold;">把他加為新朋友</button>
     </div>
   </div>
-  <div data-tour="sheet" style="overflow-x:auto; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
-    <table style="border-collapse:separate; border-spacing:0; width:100%; min-width:{{ 120 + sessions|length * 64 }}px;">
+
+  <div id="sheet-box" data-tour="sheet" style="overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+    <table style="border-collapse:separate; border-spacing:0; width:100%; min-width:{{ 130 + columns|length * 62 }}px;">
       <thead>
         <tr>
           <th style="position:sticky; left:0; z-index:2; background:#f9fafb; text-align:left; padding:10px 12px; border-bottom:1px solid #e5e7eb; min-width:110px;">姓名</th>
-          {% for s in sessions %}
-          <th style="background:#f9fafb; padding:8px 6px; border-bottom:1px solid #e5e7eb; text-align:center; font-weight:600; min-width:60px; {{ 'color:#4F46E5;' if s.id == today_col }}">
-            {{ s._local.strftime('%-m/%-d') }}{% if s.status == 'locked' %} 🔒{% endif %}
+          {% for c in columns %}
+          <th {% if c.is_current %}id="col-current"{% endif %} style="padding:8px 4px; border-bottom:1px solid #e5e7eb; text-align:center; font-weight:600; min-width:58px; {% if c.editable %}background:#eef2ff; color:#4F46E5; border-left:2px solid #c7d2fe; border-right:2px solid #c7d2fe;{% else %}background:#f3f4f6; color:#9ca3af;{% endif %}">
+            {{ c.label }}{% if c.session and c.session.status == 'locked' %} 🔒{% endif %}
+            <div style="font-size:.7rem; font-weight:400;">{% if c.is_current %}本週{% else %}（{{ c.weekday }}）{% endif %}</div>
           </th>
           {% endfor %}
-          <th style="background:#f9fafb; padding:8px 8px; border-bottom:1px solid #e5e7eb; text-align:center; min-width:56px;">到</th>
         </tr>
       </thead>
       <tbody>
         {% for m in members %}
         <tr data-name="{{ m.name|lower }}">
           <td style="position:sticky; left:0; background:#fff; padding:6px 12px; border-bottom:1px solid #f3f4f6; font-size:1.05rem;">{{ m.name }}{% if m.status == 'left' %} <span style="color:#9ca3af; font-size:.8rem;">（已離開）</span>{% endif %}</td>
-          {% for s in sessions %}
-          {% set on = records.get((s.id, m.id)) == 'present' %}
-          <td style="padding:2px; border-bottom:1px solid #f3f4f6; text-align:center;">
-            <button type="button" class="cell" data-sid="{{ s.id }}" data-mid="{{ m.id }}" data-on="{{ '1' if on else '0' }}"
-                    {% if not can_edit[s.id] %}disabled{% endif %}
-                    aria-label="{{ m.name }} {{ s._local.strftime('%-m/%-d') }}" aria-pressed="{{ 'true' if on else 'false' }}"
+          {% for c in columns %}
+          {% set on = c.session and records.get((c.session.id, m.id)) == 'present' %}
+          <td style="padding:2px; border-bottom:1px solid #f3f4f6; text-align:center; {% if c.editable %}border-left:2px solid #e0e7ff; border-right:2px solid #e0e7ff;{% else %}background:#f9fafb;{% endif %}">
+            <button type="button" class="cell" {% if c.session %}data-sid="{{ c.session.id }}"{% endif %} data-mid="{{ m.id }}" data-on="{{ '1' if on else '0' }}"
+                    {% if not c.editable %}disabled{% endif %}
+                    aria-label="{{ m.name }} {{ c.label }}" aria-pressed="{{ 'true' if on else 'false' }}"
                     onclick="toggle(this)"
-                    style="width:52px; height:44px; border:1px solid #e5e7eb; border-radius:8px; font-size:1.4rem; background:{{ '#dcfce7' if on else '#fff' }}; color:#15803d;">{{ '✓' if on else '' }}</button>
+                    style="width:50px; height:44px; border:1px solid {{ '#e5e7eb' if c.editable else '#e5e7eb' }}; border-radius:8px; font-size:1.4rem;
+                           background:{{ '#dcfce7' if on and c.editable else '#e5e7eb' if on else '#fff' if c.editable else '#f3f4f6' }};
+                           color:{{ '#15803d' if c.editable else '#9ca3af' }}; {% if not c.editable %}cursor:not-allowed;{% endif %}">{{ '✓' if on else '' }}</button>
           </td>
           {% endfor %}
-          <td class="rowcount" style="text-align:center; border-bottom:1px solid #f3f4f6; color:#374151; font-weight:600;"></td>
         </tr>
         {% endfor %}
         <tr>
           <td style="position:sticky; left:0; background:#f9fafb; padding:10px 12px; font-weight:700;">人數</td>
-          {% for s in sessions %}<td class="colcount" data-sid="{{ s.id }}" style="background:#f9fafb; text-align:center; font-weight:700;"></td>{% endfor %}
-          <td style="background:#f9fafb;"></td>
+          {% for c in columns %}<td {% if c.session %}class="colcount" data-sid="{{ c.session.id }}"{% endif %} style="background:#f9fafb; text-align:center; font-weight:700; {{ 'color:#9ca3af;' if not c.editable }}">{% if not c.session %}<span style="color:#d1d5db;">—</span>{% endif %}</td>{% endfor %}
         </tr>
       </tbody>
     </table>
   </div>
+
   <div data-tour="newcomer" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
     <label for="nc-name" style="font-weight:600;">新朋友</label>
     <input id="nc-name" type="text" maxlength="30" placeholder="輸入姓名" autocomplete="off" style="flex:1; min-width:140px; padding:12px; font-size:1rem; border:1px solid #d1d5db; border-radius:8px;">
-    <button type="button" onclick="addNewcomer()" style="padding:12px 16px; border:0; background:#16a34a; color:#fff; border-radius:8px; font-weight:bold; font-size:1rem;">加入{% if today_col %}並打勾{% endif %}</button>
+    <button type="button" onclick="addNewcomer()" style="padding:12px 16px; border:0; background:#16a34a; color:#fff; border-radius:8px; font-weight:bold; font-size:1rem;">加入{% if cur_session_id %}並打勾{% endif %}</button>
   </div>
-  <p style="color:#6b7280; font-size:.85rem; margin-top:10px;">點一下打勾，再點一下取消。沒打勾就是沒來。鎖定的欄（🔒）只有管理員能改。</p>
+  <p style="color:#6b7280; font-size:.85rem; margin-top:10px;">整季的主日都排好了，<strong>只有「本週」那一欄能點</strong>，其他反灰（過去的看得到、還沒到的先排著）。點一下打勾，再點一下取消，沒打勾就是沒來。要改過去的紀錄，請管理員到「進階」補登。</p>
   <p style="font-size:.85rem;"><a href="/roll-call/sessions">進階：逐場次、只記人數、補登、列印名冊</a></p>
   {% endif %}
 </div>
@@ -87,9 +89,9 @@
 {% block extra_js %}
 <script src="/static/tour.js"></script>
 <script>
-const TODAY_COL = {{ (today_col or '')|tojson }};
+const ADD_DATE = {{ add_date|tojson }};
+const CUR_SESSION = {{ (cur_session_id or '')|tojson }};
 const AUTO_ADD = {{ 'true' if auto_add else 'false' }};
-const NEED_TYPE = {{ 'true' if not mtype else 'false' }};
 function say(t) { document.getElementById('msg').textContent = t || ''; }
 async function post(url, body) {
   const r = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body || {}) });
@@ -98,16 +100,12 @@ async function post(url, body) {
   return j;
 }
 function recount() {
-  document.querySelectorAll('tbody tr').forEach(tr => {
-    const n = tr.querySelectorAll('.cell[data-on="1"]').length;
-    const c = tr.querySelector('.rowcount'); if (c) c.textContent = n;
-  });
   document.querySelectorAll('.colcount').forEach(td => {
     td.textContent = document.querySelectorAll('.cell[data-sid="' + td.dataset.sid + '"][data-on="1"]').length;
   });
 }
 async function toggle(btn) {
-  if (btn.dataset.busy) return;
+  if (btn.disabled || btn.dataset.busy) return;
   const was = btn.dataset.on === '1', now = !was;
   btn.dataset.busy = '1';
   paint(btn, now);                                   // 先畫上去，手指離開就看到結果
@@ -121,14 +119,14 @@ function paint(btn, on) {
   btn.dataset.on = on ? '1' : '0'; btn.textContent = on ? '✓' : '';
   btn.style.background = on ? '#dcfce7' : '#fff'; btn.setAttribute('aria-pressed', on ? 'true' : 'false');
 }
-async function addColumn() {
-  try { await post('/api/roll-call/sheet/add-column', {}); location.reload(); } catch (e) { say(e.message); }
+async function addColumn(date) {
+  try { await post('/api/roll-call/sheet/add-column', date ? { date: date } : {}); location.reload(); } catch (e) { say(e.message); }
 }
 async function addNewcomer(confirmed) {
   const name = document.getElementById('nc-name').value.trim();
   if (!name) { say('請輸入姓名'); return; }
   const r = await fetch('/api/roll-call/members/quick-add', { method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ name: name, session_id: TODAY_COL || null, confirm: confirmed === true }) });
+    body: JSON.stringify({ name: name, session_id: CUR_SESSION || null, confirm: confirmed === true }) });
   const j = await r.json().catch(() => ({ error: '連線失敗' }));
   if (r.status === 409 && j.data && j.data.similar) {
     if (confirm('名冊裡有「' + j.data.similar + '」，跟「' + name + '」很像。確定是不同的人，要新增嗎？')) return addNewcomer(true);
@@ -158,14 +156,25 @@ const _sh = document.getElementById('sh-search');
 if (_sh) _sh.addEventListener('input', filterNames);
 function startTour() {
   RollTour.start([
-    { target: 'sheet', text: '這就是紙本點名單：左邊是姓名，上面是日期。來了就點一下打勾，再點一下取消。' },
+    { target: 'sheet', text: '這是整季的主日點名單。只有「本週」那一欄可以點，其他反灰。來了就點一下打勾，再點一下取消。' },
     { target: 'search', text: '名單很長的時候，在這裡打名字的一部分，就只會留下符合的人。' },
-    { target: 'newcomer', text: '臨時來了新朋友，直接在這裡打名字加入，今天這一欄會順手幫他打勾。' },
-    { target: 'add-col', text: '每週日打開這頁會自動加上今天這一欄；其他日子的聚會，按這裡加。' },
+    { target: 'newcomer', text: '臨時來了新朋友，直接在這裡打名字加入，本週這一欄會順手幫他打勾。' },
+    { target: 'add-col', text: '平常的主日不用加；如果有臨時加開的聚會，按這裡加今天這一欄。' },
     { target: 'help-btn', text: '隨時可以按這裡重看教學。' }
   ]);
 }
 recount();
-if (AUTO_ADD && !TODAY_COL) { addColumn(); }           // 週日第一次打開：自動加上今天這一欄
+// 本週主日這一欄還沒建立：自動建立（整季其他的主日只是先排著，點到才會用到的時候不需要，只有本週需要）
+// 防呆：15 秒內已經自動建立過一次還是沒有，就不要再重新整理（避免意外變成無限重整）
+let _auto = 0; try { _auto = Number(sessionStorage.getItem('rc_auto_add') || 0); } catch (e) {}
+if (AUTO_ADD && Date.now() - _auto > 15000) {
+  try { sessionStorage.setItem('rc_auto_add', String(Date.now())); } catch (e) {}
+  addColumn(ADD_DATE);
+}
+else if (AUTO_ADD) { say('本週的點名欄建立失敗，請重新整理再試；還是不行請通知管理員。'); }
+if (!AUTO_ADD) {                                           // 手機上把「本週」捲到看得到的位置
+  const cur = document.getElementById('col-current'), box = document.getElementById('sheet-box');
+  if (cur && box) box.scrollLeft = Math.max(0, cur.offsetLeft - 140);
+}
 </script>
 {% endblock %}

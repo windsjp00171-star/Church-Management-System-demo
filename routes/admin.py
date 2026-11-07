@@ -2386,6 +2386,7 @@ _PORTAL_CARDS_DEFAULT = [
     {'key': 'cell_report',  'name': '小組回報',  'emoji': '👥', 'subtitle': '填寫本週小組聚會回報',   'url': '/cell-report/portal',           'visible_to': 'cell_leader', 'is_active': True, 'sort_order': 90},
     {'key': 'pastor_report','name': '牧者查閱',  'emoji': '📊', 'subtitle': '查看各小組回報與統計',   'url': '/cell-report/pastor-dashboard', 'visible_to': 'pastor',      'is_active': True, 'sort_order': 100},
     {'key': 'staff_report', 'name': '同工查閱',  'emoji': '📋', 'subtitle': '各區小組回報總覽',       'url': '/cell-report/staff-dashboard',  'visible_to': 'staff',       'is_active': True, 'sort_order': 110},
+    {'key': 'roll_call',    'name': '聚會點名',  'emoji': '✅', 'subtitle': '主日與各聚會的點名單',   'url': '/roll-call',                    'visible_to': 'staff',       'is_active': True, 'sort_order': 115},
     {'key': 'pastor_diary', 'name': '查閱日記',  'emoji': '🔍', 'subtitle': '已授權的會友日記',       'url': '/diary/pastor',                 'visible_to': 'pastor',      'is_active': True, 'sort_order': 120},
     {'key': 'files',        'name': '檔案管理',  'emoji': '📁', 'subtitle': '教會資料夾與檔案',       'url': '/files',                        'visible_to': 'admin',       'is_active': True, 'sort_order': 130},
     {'key': 'admin',        'name': '後台管理',  'emoji': '⚙️', 'subtitle': '使用者、活動、系統設定', 'url': '/admin',                        'visible_to': 'admin',       'is_active': True, 'sort_order': 140},
@@ -2427,6 +2428,7 @@ INSERT INTO portal_cards (key, name, emoji, subtitle, url, visible_to, sort_orde
   ('cell_report', '小組回報', '👥', '填寫本週小組聚會回報', '/cell-report/portal', 'cell_leader', 90),
   ('pastor_report', '牧者查閱', '📊', '查看各小組回報與統計', '/cell-report/pastor-dashboard', 'pastor', 100),
   ('staff_report', '同工查閱', '📋', '各區小組回報總覽', '/cell-report/staff-dashboard', 'staff', 110),
+  ('roll_call', '聚會點名', '✅', '主日與各聚會的點名單', '/roll-call', 'staff', 115),
   ('pastor_diary', '查閱日記', '🔍', '已授權的會友日記', '/diary/pastor', 'pastor', 120),
   ('files', '檔案管理', '📁', '教會資料夾與檔案', '/files', 'admin', 130),
   ('admin', '後台管理', '⚙️', '使用者、活動、系統設定', '/admin', 'admin', 140)

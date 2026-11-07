@@ -39,6 +39,19 @@ const { chromium } = require('playwright');
     // 搜尋欄固定在最上面：捲到很下面還看得到
     await page.evaluate(() => window.scrollTo(0, 100000));
     r.search_visible_after_scroll = await page.evaluate(() => { const b = document.getElementById('sh-search').getBoundingClientRect(); return b.top >= 0 && b.bottom <= window.innerHeight; });
+    // 本週那一欄：手機上要自動捲到看得到；反灰的欄點下去什麼都不會發生
+    await page.evaluate(() => window.scrollTo(0, 0));
+    r.current_col_visible = await page.evaluate(() => {
+      const c = document.getElementById('col-current').getBoundingClientRect();
+      const box = document.getElementById('sheet-box').getBoundingClientRect();
+      return c.left >= box.left - 1 && c.right <= box.right + 1;
+    });
+    r.enabled_cells = await page.$$eval('button.cell:not([disabled])', b => b.length);
+    r.greyed_click_changes_nothing = await page.evaluate(async () => {
+      const b = document.querySelector('button.cell[disabled]'); const before = b.dataset.on;
+      b.click(); await new Promise(r => setTimeout(r, 50));
+      return b.dataset.on === before && !document.getElementById('msg').textContent;
+    });
     r.no_horizontal_page_scroll = await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
     out[name] = r;
     await page.close();
@@ -50,7 +63,9 @@ const { chromium } = require('playwright');
 
 
 @pytest.mark.skipif(not HAVE, reason='沒有 node／playwright')
-def test_search_filters_300_people_on_phone_and_tablet(fake_db, client_as):
+def test_search_filters_300_people_on_phone_and_tablet(fake_db, client_as, monkeypatch):
+    import datetime
+    monkeypatch.setattr(sys.modules['routes.roll_call'], '_today_taipei', lambda: datetime.date(2026, 11, 8))
     names = [f'王{i:04d}' if i % 3 == 0 else f'李{i:04d}' for i in range(300)]
     fake_db.tables.update(
         rc_meeting_types=[{'id': 't1', 'name': '主日', 'record_mode': 'individual', 'created_at': '2026-01-01'}],
@@ -77,4 +92,7 @@ def test_search_filters_300_people_on_phone_and_tablet(fake_db, client_as):
         assert r['after_nomatch'] == 0 and r['none_visible'] and r['none_text'] == '不存在的人', (size, r)
         assert r['after_clear'] == 300 and r['none_hidden_again'], (size, r)
         assert r['search_visible_after_scroll'], (size, r)            # 300 人捲到底，搜尋欄還在
+        assert r['current_col_visible'], (size, r)                    # 手機上本週那一欄一打開就看得到
+        assert r['enabled_cells'] == 300, (size, r)                   # 只有本週那一欄可以點（300 人 × 1 欄）
+        assert r['greyed_click_changes_nothing'], (size, r)           # 反灰的格子點了沒反應
         assert r['no_horizontal_page_scroll'], (size, r)              # 整頁不可以左右晃（表格自己捲）
