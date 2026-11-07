@@ -316,18 +316,90 @@ def _admin():
     return (ROOT / 'templates' / 'admin' / 'event_form.html').read_text(encoding='utf-8')
 
 
+def test_the_condition_panel_stays_for_guardians():
+    """★★ 面板不可以拿掉。
+
+    有些活動的規則本來就不一樣（兒童營全部都要填、水上活動是「選了
+    獨木舟才問」）。拿掉的話那些活動只能繞路，而繞路的做法一定比較差。
+    """
+    import re
+    fn = _admin().split('function applyGuardianRow')[1].split('\n}\n')[0]
+    # ★ 比一個寫死的字串太好騙 —— 換個變數名就繞過去了（mutation 抓到）。
+    #   改成：任何從 .condition-section 取出來的變數，都不可以被拿去設 display。
+    for var in re.findall(r"(?:const|let|var)\s+(\w+)\s*=\s*row\.querySelector\("
+                          r"\s*'\.condition-section'\s*\)", fn):
+        assert f'{var}.style.display' not in fn, \
+            f'又把監護人的跳題面板藏起來了（{var}）'
+    assert 'condition-section' not in fn or 'insertBefore' in fn, \
+        'applyGuardianRow 動了跳題面板，但不是為了插入說明'
 
 
+def test_the_admin_says_what_the_default_is():
+    """預設行為看不見（條件是伺服器補的），所以一定要寫出來 ——
+    不然管理員會以為自己漏設了，然後手動再設一條一模一樣的。"""
+    fn = _admin().split('function applyGuardianRow')[1].split('\n}\n')[0]
+    assert '未滿 18 歲' in fn and '姓名＋電話' in fn
+    assert '以你設的為準' in fn, '沒講「自己設了就照你的」'
 
 
+def test_the_auto_condition_does_not_come_back_as_a_manual_one():
+    """★ 打勾顯示成「管理員設的」的話，它就變成手動的了 ——
+    之後改欄位順序不會再重新產生，而 index 已經指到別的問題上。"""
+    src = _admin()
+    restore = src.split('data-saved-condition')[2]
+    assert "cond.auto === 'minor'" in restore[:900]
 
 
+def test_a_required_guardian_needs_a_required_birthday():
+    """★ 監護人必填、但「出生年月日」沒勾必填 ＝ 整條規則可以被繞過。
+
+    不填生日 → 算不出年齡 → 監護人那題不出現 → 也就不用填。於是
+    「未成年一定要填監護人」變成「不想填的人不要填生日就好」，而後台
+    看起來設定得好好的，名冊上那一格就是空的，沒有任何徵兆。
+
+    使用者的判斷是「生日本來就會勾必填（保險要用）」—— 所以這是一道
+    保險，不是每次都會遇到的東西。它要在**存檔的當下**講，不是等到
+    有人真的繞過去之後才發現。
+    """
+    fn = _admin().split('function conditionProblem')[1].split('\n}\n')[0]
+    assert "=== 'guardian'" in fn, '完全沒有檢查監護人這種情況'
+    assert "bd.querySelector('.f-required')?.checked" in fn, \
+        '沒有看出生日期那一題是不是必填'
+    assert '也勾必填' in fn, '沒有告訴管理員該怎麼修'
 
 
+def test_the_guardian_check_only_fires_when_it_is_required():
+    """★ 監護人是選填的話，生日沒必填不構成問題 —— 那是管理員的選擇。
+
+    無差別擋的話，一個沒做錯任何事的人會被擋在存檔頁上，
+    而他看不出為什麼。
+    """
+    fn = _admin().split('function conditionProblem')[1].split('\n}\n')[0]
+    guard = fn[:fn.index('const rows')]
+    assert "row.querySelector('.f-required')?.checked" in guard, \
+        '沒有先確認這一題是必填'
 
 
+def test_the_block_happens_before_saving():
+    """存下去之後才發現的話，那場活動已經開放報名了。
+
+    ★ 要看**那個 if 區塊裡面**有沒有 return，不是整個 submitForm 裡有沒有
+      —— submitForm 前面本來就有別的 return（活動名稱沒填那條），掃整段的
+      話拿掉這個 return 測試照樣綠。第一版就是那樣寫的，mutation 抓到。
+    """
+    src = _admin()
+    assert 'conditionProblem(row)' in src.split('function submitForm')[1][:1200]
+    block = src.split('if (badConds.length) {')[1].split('\n    }')[0]
+    assert 'alert(' in block, '沒有把問題講出來'
+    assert 'return;' in block, '只提醒沒有擋下來，還是存進去了'
 
 
+def test_the_preview_applies_the_same_auto_condition():
+    """★ 預覽不補的話會顯示「每個人都要填監護人」，而實際只問未成年 ——
+    預覽 certify 一個不存在的行為，比沒有預覽更糟。"""
+    fn = _admin().split('function conditionJsonFromRow')[1].split('\n}\n')[0]
+    assert "=== 'guardian'" in fn
+    assert "op: 'age_between'" in fn
 
 
 def test_all_three_entry_points_share_one_renderer():

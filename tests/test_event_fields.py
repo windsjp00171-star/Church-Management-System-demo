@@ -198,8 +198,29 @@ def test_every_form_renders_prices(path):
     assert 'fee-total' in src, f'{path} 沒有應繳金額列'
 
 
+def test_admin_editor_strips_price_from_condition_values():
+    """★ 後台的跳題觸發值必須只取標籤。
+
+    放整行（成人|800）的話條件永遠不成立 —— 那個欄位只是再也不出現，
+    沒有任何錯誤訊息。
+    """
+    src = open('templates/admin/event_form.html', encoding='utf-8').read()
+    assert 'function optionLabel' in src
+    assert re.search(r'\.map\(l => optionLabel\(l\)\)', src), \
+        '觸發值下拉沒有用 optionLabel 去掉價格'
 
 
+def test_admin_and_backend_agree_on_the_price_syntax():
+    """★ 前端（JS）和後端（Python）各有一份解析規則，必須一致。
+
+    兩邊不一致的話，後台預覽顯示「會收 800」但後端算不到 ——
+    或反過來。這種分歧不會報錯，只會讓金額對不上。
+    """
+    js = open('templates/admin/event_form.html', encoding='utf-8').read()
+    # JS 那份用的是 \d{1,7}，跟 Python 的 _PRICED 同一個上限
+    assert r'\d{1,7}' in js, 'JS 的價格規則跟 Python 的 _PRICED 不一致'
+    from routes.event_fields import _PRICED
+    assert r'\d{1,7}' in _PRICED.pattern
 
 
 
@@ -218,6 +239,14 @@ def test_every_form_renders_prices(path):
 
 
 
+def test_the_one_click_entry_produces_a_usable_field():
+    """按下去要直接可用：型別是分級收費、編輯器打開、範例已填好"""
+    src = open('templates/admin/event_form.html', encoding='utf-8').read()
+    fn = src.split('function addTieredFeeField')[1].split('function addField')[0]
+    assert "type.value = 'fee'" in fn, '沒有把型別設成分級收費'
+    assert 'toggleOptions(type)' in fn, '沒有把收費編輯器打開 —— 按了看起來沒反應'
+    assert "['成人', 800]" in fn, '沒有填入範例項目'
+    assert 'addOptionRow(row, label, price)' in fn, '沒有用列式編輯器建範例'
 
 
 # ══ 選項編輯器：一列一個，不用 textarea ══════════════
@@ -236,8 +265,19 @@ def _admin():
     return open('templates/admin/event_form.html', encoding='utf-8').read()
 
 
+def test_the_options_textarea_is_hidden():
+    """★ textarea 還在（它是儲存來源），但不該讓人直接打字。"""
+    src = _admin()
+    assert src.count('class="f-options" style="display:none;"') == 2, \
+        '選項 textarea 沒有藏起來（既有 / 新增各一份）'
+    assert 'oninput="renderOptionPreview' not in src, '還留著要人打字的舊 textarea'
 
 
+def test_both_editors_have_the_row_ui():
+    """兩份模板都要有 —— 只加一份的話，新活動看不到（這個坑踩過了）"""
+    src = _admin()
+    assert src.count('class="opt-rows"') == 2
+    assert src.count('addOptionRow(this.closest') == 2
 
 
 def test_there_is_only_one_editor_now():
@@ -251,16 +291,75 @@ def test_there_is_only_one_editor_now():
         assert gone not in src, f'舊的收費編輯器還留著 {gone}'
 
 
+def test_the_editor_writes_back_the_same_storage_format():
+    """★ 存進資料庫的還是每行一個選項（收費的是「名稱|金額」）。
+
+    改了儲存格式的話，既有活動的選項會全部失效 —— 而畫面完全正常，
+    只是報名時那一題不見了。
+    """
+    fn = _admin().split('function syncOptionRows')[1].split('\n}')[0]
+    # 沒有價格的選項 → 只寫標籤。（原本寫死比對 `lines.push(label)`，
+    # 但那一行後來要多判斷「舊活動的價格要保住」，形狀變了意思沒變。）
+    assert "? label :" in fn, '沒有價格的選項應該只寫回標籤'
+    assert "label + '|'" in fn, '收費選項沒有寫回「名稱|金額」'
+    assert "lines.push('__other__')" in fn, '「其他」選項沒有寫回去'
 
 
+def test_a_blank_price_becomes_zero_not_missing():
+    """★ 金額留白＝免費（0 元），不是「沒有價格」。
+
+    沒有價格的選項在名冊上不計費，那跟免費是兩件事 ——
+    差別會直接反映在應收合計上。
+    """
+    fn = _admin().split('function syncOptionRows')[1].split('\n}')[0]
+    assert "raw === '' ? 0" in fn
 
 
+def test_editing_an_existing_field_loads_the_rows_back():
+    """★ 漏了這步的話，編輯舊活動會看到空白的選項編輯器 ——
+    一按儲存原本的選項就全沒了，而畫面上完全正常。"""
+    src = _admin()
+    assert 'function loadOptionRows' in src
+    assert 'if (type) toggleOptions(type);' in src, '既有欄位載入時沒有把選項拆成列'
 
 
+def test_switching_type_rewrites_the_storage_format():
+    """★ 單選改成收費時，儲存格式要從「葷食」變成「葷食|0」。
+
+    少了這一步：畫面上金額欄已經出現、但送出去的還是沒價格的舊格式，
+    而兩邊看起來都正常。
+    """
+    fn = _admin().split('function toggleOptions')[1].split('\n}')[0]
+    assert 'syncOptionRows(row)' in fn
 
 
+def test_a_fee_field_can_trigger_a_jump_condition():
+    """★★ 這條守一個真的發生過的 bug（使用者回報「這邊跳題有問題」）。
+
+    分級收費底下就是單選，當然可以當觸發問題。漏掉它的話：
+    身分別一改成收費型別，「選了孩童才問監護人」那條跳題就再也設不起來 ——
+    而畫面上只是下拉裡少了一個選項，看不出是系統不給還是自己沒建那一題。
+    """
+    src = _admin()
+    # ★ 從 TRIGGER_TYPES 推出來，不要在這裡再寫死一份名單 ——
+    #   寫死的話，之後往單一來源加型別（例如 birthday）會讓這條紅，
+    #   而紅的原因跟它要守的東西無關，改法就會變成「把新型別塞進字串」。
+    from routes.field_types import TRIGGER_TYPES
+    expected = '[' + ', '.join(f"'{t}'" for t in TRIGGER_TYPES) + '].includes(type)'
+    assert expected in src, \
+        f'觸發型別白名單跟 TRIGGER_TYPES 對不上，應該是 {expected}'
+    assert '分級收費' in src.split('觸發問題需為')[1][:80], \
+        '提示文字沒有跟著更新，使用者會以為收費欄位不能當觸發'
 
 
+def test_a_fee_field_offers_no_free_text_option():
+    """★ 收費欄位不給「其他（請填寫）」。
+
+    自由填的答案對不到任何價格，那個人的金額會算不出來 ——
+    而名冊上只顯示「選項對不上」，看不出是報名者亂填還是管理員改過選項。
+    """
+    fn = _admin().split('function applyOptionMode')[1].split('\n}')[0]
+    assert "other.style.display = fee ? 'none' : 'flex'" in fn
 
 
 def test_every_form_renders_fee_fields_as_radio():

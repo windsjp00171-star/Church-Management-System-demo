@@ -284,3 +284,13 @@ def test_the_error_says_which_fields():
 
 # ── 後台擋掉「可以被繞過」的設定 ──────────────────────────
 
+def test_admin_blocks_a_required_field_whose_birthday_is_optional():
+    """★ 監護人必填、生日選填 ＝ 不填生日就跳過整條規則。
+
+    後台看起來設定得好好的，而名冊上那一格就是空的。
+    """
+    src = open('templates/admin/event_form.html', encoding='utf-8').read()
+    fn = src.split('function conditionProblem')[1].split('\n}\n')[0]
+    assert "row.querySelector('.f-required')?.checked" in fn, \
+        '沒有看這一題是不是必填'
+    assert '也設成必填' in fn, '沒有告訴管理員該怎麼修'

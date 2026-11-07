@@ -260,12 +260,41 @@ def _ctx(fields):
 CODE = FORM.read_text(encoding='utf-8')
 
 
+def test_the_admin_has_a_checkbox_for_it():
+    """★★★ 表達不出來的功能等於不存在。
+
+    伺服器認得這個印記，但如果後台沒有地方勾，那管理員還是只能
+    「把條件清掉」—— 也就是這一整份要修的那個 bug。
+    """
+    assert 'f-guardian-everyone' in CODE
+    assert '每個人都要填' in CODE
 
 
+def test_the_checkbox_actually_produces_the_mark():
+    """★★ 勾了要**存下去**。回空字串的話伺服器會把「未滿18歲」補回去，
+    而畫面上他明明勾了。"""
+    fn = CODE.split('function conditionJsonFromRow')[1].split('\n}\n')[0]
+    assert 'f-guardian-everyone' in fn, '存檔時沒有讀那個勾勾'
+    assert "auto: 'everyone'" in fn, '勾了沒有存成印記'
 
 
+def test_the_saved_mark_is_restored_when_editing():
+    """★★ 打開編輯頁要把勾勾還原。
+
+    不還原的症狀最陰：看起來像沒設過，他什麼都沒動、按一下儲存，
+    就變回「未滿18歲才問」了。
+    """
+    block = CODE.split('data-saved-condition')[-1]
+    assert "cond.auto === 'everyone'" in block, '編輯頁沒有還原那個勾勾'
 
 
+def test_the_two_answers_are_mutually_exclusive():
+    """★ 「每個人都問」和「自己設條件」不可以同時打勾 ——
+    兩個都勾的話畫面上有兩個互相矛盾的設定，而只有一個會生效。"""
+    fn = CODE.split('function syncGuardianWhen')[1].split('\n}\n')[0]
+    assert 'f-has-condition' in fn
+    fn2 = CODE.split('function toggleConditionPanel')[1].split('\n}\n')[0]
+    assert 'f-guardian-everyone' in fn2, '反方向沒有互斥'
 
 
 def test_the_condition_panel_is_still_there():
@@ -275,5 +304,17 @@ def test_the_condition_panel_is_still_there():
     assert 'f-has-condition' in CODE
 
 
+def test_the_admin_is_told_the_birthday_field_is_not_needed():
+    """★ 勾了之後那個「請先加出生日期」的擋不會出現，
+    但他不會知道 —— 除非那句話寫在勾勾旁邊。"""
+    note = CODE.split('function applyGuardianRow')[1].split('\n}\n')[0]
+    assert '不需要出生日期' in note
 
 
+def test_the_check_stops_nagging_about_birthdays():
+    """★★ 勾了「每個人都要填」之後，前端那個「這場活動還沒有出生日期
+    欄位」的提醒不可以再跳 —— 它的前提在那種活動上是假的。"""
+    fn = CODE.split('function conditionProblem')[1].split('\n}\n')[0]
+    head = fn[:fn.index("f-required")]
+    assert 'f-guardian-everyone' in head, \
+        'conditionProblem 沒有先讓「每個人都要填」通過'
