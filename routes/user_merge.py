@@ -63,6 +63,7 @@ REFS = [
     Ref('notifications', 'user_id'),
     Ref('overtime_records', 'user_id'),
     Ref('personal_events', 'user_id'),
+    Ref('push_subscriptions', 'user_id'),                               # UNIQUE 的是 endpoint 不是 user_id，直接搬
     Ref('prayer_comments', 'user_id'),
     Ref('prayer_reactions', 'user_id', dedupe=('prayer_id',)),          # UNIQUE (prayer_id, user_id)
     Ref('prayers', 'user_id'),

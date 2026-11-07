@@ -426,6 +426,11 @@ function openExternalBrowser() {
 })();
 </script>
 
+{# ★ 開啟手機通知的流程全站載（沒有那顆鈕的頁面只是不接線，不是錯誤）；沒設金鑰時整個不載。 #}
+{% if push_enabled %}
+<script src="{{ asset('js/sw-register.js') }}"></script>
+<script src="{{ asset('js/push-optin.js') }}" defer></script>
+{% endif %}
 {% block extra_js %}{% endblock %}
 
 {% if session.user_id or session.line_id %}

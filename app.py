@@ -54,6 +54,8 @@ def create_app():
     app.register_blueprint(checkin_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(notifications_bp)
+    from routes.push import push_bp
+    app.register_blueprint(push_bp)  # 手機推播訂閱（Web Push）
 
     # ── 可選模組：一律註冊；要不要開放由功能模組登記表在執行時決定（routes/modules.py）──
     # （原本用 ENABLE_* 環境變數在啟動時決定要不要註冊，關掉之後模板裡的連結會指向不存在的網址；
@@ -293,6 +295,24 @@ def create_app():
     app.jinja_env.globals['church_name']       = _DEMO_CHURCH_NAME if Config.DEMO_MODE else Config.CHURCH_NAME
     app.jinja_env.globals['church_short_name'] = _DEMO_CHURCH_SHORT if Config.DEMO_MODE else (Config.CHURCH_SHORT_NAME or Config.CHURCH_NAME)
     app.jinja_env.globals['privacy_policy_url'] = Config.PRIVACY_POLICY_URL
+
+    # ── Context processor：推播有沒有開（全域，不是每個 route 自己傳）──
+    # ★ Jinja 的 undefined 是假值：某個 route 忘了傳，那一塊會整塊安靜地不出現，看起來像推播沒開。
+    @app.context_processor
+    def _push_flag():
+        from routes.push import is_enabled
+        return {'push_enabled': is_enabled()}
+
+    # ── Service Worker 一定要從網站根目錄送出來 ───────────────
+    # ★ 掛在 /static/sw.js 的話 scope 是 /static/，不控制任何真正的頁面：
+    #   `navigator.serviceWorker.ready` 永遠不會 resolve，使用者看到「處理中…」卡住，沒有任何錯誤。
+    @app.route('/sw.js')
+    def service_worker():
+        from flask import send_from_directory
+        resp = send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
+        resp.headers['Cache-Control'] = 'no-cache'          # 瀏覽器靠重抓這支檔案判斷要不要更新
+        resp.headers['Service-Worker-Allowed'] = '/'
+        return resp
 
     # ── Context processor：門戶卡片名稱（全域可用） ───────────
     @app.context_processor
