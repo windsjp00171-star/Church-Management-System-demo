@@ -58,7 +58,10 @@
     </div>
 
     <!-- 基本資料 -->
-    <h3 style="margin-bottom:16px; color:#333;">📋 基本資料</h3>
+    <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:16px;">
+    <h3 style="margin:0; color:#333;">📋 基本資料</h3>
+    <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:8px 16px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer; min-height:44px;">？ 教學</button>
+    </div>
 
     <div style="display:grid; gap:16px;">
         <div>
@@ -117,7 +120,7 @@
             </div>
             <div>
                 <label style="font-weight:bold; display:block; margin-bottom:6px;">費用（元，免費填 0）</label>
-                <input id="fee" type="number" min="0" oninput="togglePaymentEnabledSection(this)"
+                <input id="fee" data-tour="fee" type="number" min="0" oninput="togglePaymentEnabledSection(this)"
                     value="{{ event.fee if event else 0 }}"
                     style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:1rem;">
             </div>
@@ -234,7 +237,7 @@
     <!-- 自訂欄位 -->
     <div style="display:flex; justify-content:space-between; align-items:center; margin:28px 0 8px;">
         <h3 style="color:#333; margin:0;">🔧 自訂報名欄位</h3>
-        <button type="button" onclick="openPreview()"
+        <button type="button" data-tour="preview" onclick="openPreview()"
             style="padding:8px 18px; background:#e3f2fd; color:#1565c0; border:1px solid #90caf9; border-radius:8px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
             👁 預覽表單
         </button>
@@ -252,7 +255,7 @@
     <div class="dep-hint" data-dep="guardian_needs_birthday"></div>
     <div class="dep-hint" data-dep="required_age_jump_needs_required_birthday"></div>
 
-    <div id="fieldList">
+    <div id="fieldList" data-tour="fields">
         {% for field in fields %}
         <div class="field-row"
              data-saved-condition="{{ field.condition_json or '' }}"
@@ -388,7 +391,7 @@
         {% endfor %}
     </div>
 
-    <button onclick="addField()"
+    <button onclick="addField()" data-tour="add-field"
         style="margin-top:8px; padding:10px 20px; background:#f5f5f5; border:1px dashed #ccc;
                border-radius:8px; cursor:pointer; color:#555; font-size:0.95rem; width:100%;">
         + 新增欄位
@@ -510,7 +513,7 @@
 
     <!-- 送出 -->
     <div style="margin-top:32px; display:flex; gap:12px;">
-        <button onclick="submitForm(this)"
+        <button onclick="submitForm(this)" data-tour="save"
             style="padding:12px 32px; background:#06C755; color:white; border:none;
                    border-radius:8px; font-size:1rem; font-weight:bold; cursor:pointer; min-height:44px;">
             {{ '儲存變更' if event else '建立活動' }}
@@ -2227,6 +2230,19 @@ function removePoster() {
 </script>
 {% endblock %}
 {% block extra_js %}
+<script src="/static/tour.js"></script>
+<script>
+function startTour() {
+  RollTour.start([
+    { target: 'fee', text: '基本費用。如果要依身分別收不同的錢（成人／孩童／敬老），不要填這裡，請在下面用「分級收費」欄位，兩個一起填會相加。' },
+    { target: 'fields', text: '報名者要填的欄位。除了文字、單選、多選，還有分級收費、出生日期（收民國年）、身分證字號（自動檢查）、監護人（只問未滿 18 歲）。橘色提示是設定之間互相需要的東西，改到哪一格就在那一格旁邊提醒。' },
+    { target: 'add-field', text: '新增欄位。分級收費的選項每一列填名稱和金額，免費的金額填 0。' },
+    { target: 'preview', text: '預覽就是報名者看到的畫面，可以直接試填，跳題和金額跑的是同一份程式，只是不會真的送出。' },
+    { target: 'save', text: '儲存後可以再回來改，已經報名的人的答案不會消失。' },
+    { target: 'help-btn', text: '隨時可以回來重看這個教學。' }
+  ]);
+}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/zh_tw.js"></script>
 <script>
