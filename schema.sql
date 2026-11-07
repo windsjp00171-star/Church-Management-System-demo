@@ -112,11 +112,13 @@ CREATE TABLE IF NOT EXISTS event_fields (
     event_id       UUID NOT NULL REFERENCES events(id),
     label          TEXT NOT NULL,
     field_type     TEXT NOT NULL CHECK (field_type IN
-                       ('text','textarea','select','checkbox','radio','number','date')),
+                       ('text','textarea','select','checkbox','radio','number','date',
+                        'birthday','id_number','fee','guardian')),
     options        TEXT,
     is_required    BOOLEAN NOT NULL DEFAULT false,
     sort_order     INTEGER NOT NULL DEFAULT 0,
     condition_json JSONB,
+    auto_tier      JSONB,                  -- 分級收費：依生日自動判定身分別的設定
     is_archived    BOOLEAN NOT NULL DEFAULT false,
     created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
