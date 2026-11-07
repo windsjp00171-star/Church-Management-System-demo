@@ -471,6 +471,14 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% endif %}
 {% endif %}
 
+{# ════ 聚會點名入口（同工）════ #}
+{% if (is_staff or is_pastor or is_admin) and module_on('/roll-call') %}
+<a href="/roll-call" class="card pa" style="--d:40ms; display:flex; align-items:center; gap:12px; padding:16px 20px; margin-bottom:16px; text-decoration:none; color:inherit;">
+  <span style="font-size:1.6rem;">📝</span>
+  <span><strong>聚會點名</strong><br><span style="font-size:.8rem;color:#6b7280;">選場次、替組員點名</span></span>
+</a>
+{% endif %}
+
 {# ════ 聚會人數總覽 ════ #}
 {% if 'attendance_summary' not in hidden_sections %}
 {% if is_staff or is_pastor or is_admin %}
