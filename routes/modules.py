@@ -139,6 +139,9 @@ def _load_state():
 
 
 def bust():
+    # 開關存在 settings 表，而 settings_store 也有一層快取：兩層一起清，才是真的「重新讀」
+    from routes import cache
+    cache.bust('settings_all')
     _cache.update(at=0.0, state=None)
 
 

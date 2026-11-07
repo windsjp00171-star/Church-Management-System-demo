@@ -16,7 +16,11 @@ def start(port):
     os.chmod(base, 0o777)
     run = lambda *a: subprocess.run(['runuser', '-u', 'postgres', '--', *a], capture_output=True)
     run(str(BIN / 'initdb'), '-D', f'{base}/data', '-A', 'trust')
-    run(str(BIN / 'pg_ctl'), '-D', f'{base}/data', '-o', f'-p {port} -k {base}', '-l', f'{base}/log', 'start')
+    r = run(str(BIN / 'pg_ctl'), '-D', f'{base}/data', '-o', f'-p {port} -k {base}', '-l', f'{base}/log', '-w', 'start')
+    # -w：等伺服器真的起來，不然機器忙的時候第一個 psql 會連不上；起不來就把原因講出來（不然只看到「連不上」）
+    if r.returncode != 0:
+        log = Path(f'{base}/log').read_text(errors='replace')[-800:] if Path(f'{base}/log').exists() else ''
+        raise RuntimeError(f'臨時 Postgres 起不來（port {port}）：{r.stderr.decode(errors="replace")[-300:]}\n{log}')
 
     def psql(sql=None, file=None):
         args = ['psql', '-h', base, '-p', str(port), '-U', 'postgres', '-q', '-t', '-A', '-v', 'ON_ERROR_STOP=1']

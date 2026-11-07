@@ -201,3 +201,17 @@ def admin_client(client):
         s.update(user_id='admin-user-uuid', real_name='測試管理員', member_type='member', is_admin=True,
                  _csrf_token='test-csrf-token')
     return client
+
+
+@pytest.fixture(autouse=True)
+def _fresh_process_caches():
+    """行程內快取（routes/cache.py）是全站共用的：前一條測試放進去的東西，
+    不可以被後一條（換了一個假資料庫）讀到。"""
+    try:
+        from routes import cache
+    except Exception:
+        yield
+        return
+    cache.clear()
+    yield
+    cache.clear()

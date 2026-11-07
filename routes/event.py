@@ -9,6 +9,7 @@ import re
 from routes.notifications import create_notification
 from routes.decorators import login_required
 from routes.guard import looks_automated, rate_limited
+from routes import cache as _cache
 
 # 兩支「填表時一直打」的計算端點（compute-tier / compute-age）的上限。
 # 跟報名端點不一樣：報名是一個人一次，這兩支是打字的時候打的（改一次生日就一次）。
@@ -157,6 +158,13 @@ def is_registration_open(event):
     return True
 
 
+def _custom_themes():
+    """啟用中的自訂經文底圖（整張小表；首頁與經文頁都問它，所以快取。後台新增／刪除時 bust）。"""
+    return _cache.get('verse_custom_themes_active', lambda: supabase.table('verse_custom_themes')
+        .select('name,image_url,symbol,text_mode')
+        .eq('is_active', True).order('sort_order').execute().data or [])
+
+
 @event_bp.route('/')
 @login_required
 def portal():
@@ -196,8 +204,8 @@ def portal():
 
     # 快捷連結從 DB 載入
     try:
-        portal_links = supabase.table('portal_links')\
-            .select('*').eq('is_active', True).order('sort_order').execute().data or []
+        portal_links = _cache.get('portal_links_active', lambda: supabase.table('portal_links')
+            .select('*').eq('is_active', True).order('sort_order').execute().data or [])
     except Exception:
         portal_links = []
 
@@ -279,7 +287,8 @@ def portal():
     # 嘗試從 portal_cards 表載入（新系統）；失敗時回退到舊 portal_card_settings
     portal_cards_config = {}
     try:
-        pc_rows = supabase.table('portal_cards').select('*').order('sort_order').execute().data or []
+        pc_rows = _cache.get('portal_cards', lambda: supabase.table('portal_cards')
+            .select('*').order('sort_order').execute().data or [])
         if pc_rows:
             portal_cards_config = {r['key']: r for r in pc_rows}
     except Exception:
@@ -362,7 +371,8 @@ def portal():
             card_settings[key] = base_active and (key not in _effective_hidden)
     else:
         try:
-            rows = supabase.table('portal_card_settings').select('*').execute().data or []
+            rows = _cache.get('portal_card_settings', lambda: supabase.table('portal_card_settings')
+                .select('*').execute().data or [])
             for r in rows:
                 card_settings[r['key']] = r['is_visible']
         except Exception:
@@ -372,8 +382,8 @@ def portal():
     all_portal_links = portal_links
     if is_super:
         try:
-            all_portal_links = supabase.table('portal_links')\
-                .select('*').order('sort_order').execute().data or []
+            all_portal_links = _cache.get('portal_links_all', lambda: supabase.table('portal_links')
+                .select('*').order('sort_order').execute().data or [])
         except Exception:
             logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
@@ -472,9 +482,7 @@ def portal():
     # ── Hero 主題（與今日經文同步）──
     today_tw = datetime.now(timezone(timedelta(hours=8))).date().isoformat()
     try:
-        _hc_raw = supabase.table('verse_custom_themes')\
-            .select('name,image_url,symbol,text_mode')\
-            .eq('is_active', True).order('sort_order').execute().data or []
+        _hc_raw = _custom_themes()
         _hero_custom = [{'name': t['name'], 'image_url': t['image_url'],
                          'symbol': t['symbol'], 'text_mode': t['text_mode']} for t in _hc_raw]
     except Exception:
@@ -667,9 +675,7 @@ def daily_verse():
 
     verse = verses[verse_index % len(verses)]
     try:
-        raw_custom = supabase.table('verse_custom_themes')\
-            .select('name,image_url,symbol,text_mode')\
-            .eq('is_active', True).order('sort_order').execute().data or []
+        raw_custom = _custom_themes()
     except Exception:
         raw_custom = []
     custom_themes = [{'name': t['name'], 'image_url': t['image_url'],
@@ -716,9 +722,7 @@ def api_verse_data():
 
     verse = verses[verse_index % len(verses)]
     try:
-        raw_custom = supabase.table('verse_custom_themes')\
-            .select('name,image_url,symbol,text_mode').eq('is_active', True)\
-            .order('sort_order').execute().data or []
+        raw_custom = _custom_themes()
     except Exception:
         raw_custom = []
     custom_themes = [{'name': t['name'], 'image_url': t['image_url'],
