@@ -1,0 +1,615 @@
+{% extends "base.html" %}
+{% block title %}引導式建立活動{% endblock %}
+{% block content %}
+
+{# 引導式開活動。
+   ★ 規矩一：只問他心裡已經有答案的問題。
+   ★ 規矩二：每一題都要讓他知道「之後改得到」——
+     不講的話每一題都變成不可逆的決定，他會在小事上卡住，
+     而卡住的人不是慢慢想，是整個退出去。
+   判斷全部在 routes/guided.py，這一頁只負責問和收。 #}
+
+<style>
+  .gw { max-width: 620px; margin: 0 auto; }
+  .gw-head { display:flex; align-items:baseline; justify-content:space-between;
+             gap:12px; margin-bottom:6px; flex-wrap:wrap; }
+  .gw-head h2 { margin:0; }
+  .gw-step { font-size:0.9rem; color:var(--text-3); font-variant-numeric: tabular-nums; }
+  .gw-bar { height:4px; background:var(--surface-2); border-radius:9999px; overflow:hidden;
+            margin:10px 0 22px; }
+  .gw-bar i { display:block; height:100%; background:var(--green); width:0;
+              }
+
+  .gw-card { background:var(--surface); border:1px solid var(--border); border-radius:12px;
+             padding:22px 24px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+  .gw-q { font-size:1.1rem; font-weight:700; line-height:1.65; margin:0 0 4px;
+          color:var(--text-1); }
+  .gw-help { font-size:0.9rem; color:var(--text-3); line-height:1.8; margin:0 0 16px; }
+  .gw-help:empty { display:none; }
+
+  .gw-row { display:flex; flex-wrap:wrap; gap:10px; margin-bottom:12px; }
+  .gw-row label { font-size:0.9rem; font-weight:700; color:var(--text-2);
+                  display:block; margin-bottom:5px; }
+  .gw-f { flex:1; min-width:150px; }
+  .gw-f input, .gw-f select, .gw-f textarea {
+    width:100%; padding:10px; border:1px solid var(--border); border-radius:8px;
+    font-size:1rem; font-family:inherit; background:var(--surface); color:var(--text-1);
+  }
+
+  /* 選項：一顆一顆，點了就是答案 */
+  .gw-opts { display:grid; gap:9px; }
+  .gw-opt {
+    display:flex; align-items:flex-start; gap:10px; cursor:pointer;
+    padding:12px 15px; border:1px solid var(--border); border-radius:12px;
+    background:var(--surface); text-align:left; font-family:inherit; font-size:1rem;
+    color:var(--text-1); line-height:1.7; width:100%;
+  }
+  .gw-opt:hover { border-color:var(--green); background:var(--surface-2); }
+  .gw-opt.on { border-color:var(--green); background:var(--green-bg); font-weight:700; }
+  .gw-opt small { display:block; font-weight:400; color:var(--text-3); font-size:0.9rem; }
+  .gw-opt.quiet { border-style:dashed; color:var(--text-3); }
+
+  /* 系統接話：做了什麼、為什麼 */
+  .gw-said { background:var(--warn-bg); border:1px solid var(--warn-border); border-radius:12px;
+             padding:12px 15px; margin:12px 0 0; font-size:0.9rem;
+             color:var(--warn); line-height:1.85; }
+  .gw-said b, .gw-said strong { color:var(--warn); }
+  .gw-warn { background:var(--danger-bg); border:1px solid var(--danger-border); border-radius:12px;
+             padding:12px 15px; margin:12px 0 0; font-size:0.9rem;
+             color:var(--danger); line-height:1.85; }
+
+  .gw-nav { display:flex; gap:10px; align-items:center; margin-top:20px;
+            flex-wrap:wrap; }
+  .gw-back { background:none; border:none; color:var(--text-3); cursor:pointer;
+             font-size:0.9rem; font-family:inherit; padding:8px 4px; }
+  .gw-quit { margin-left:auto; font-size:0.9rem; color:var(--text-3); }
+
+  .gw-tier { display:grid; grid-template-columns: 1fr 96px 88px 88px 34px;
+             gap:8px; align-items:center; margin-bottom:8px; }
+  .gw-tier input { padding:8px 10px; border:1px solid var(--border); border-radius:8px;
+                   font-size:0.9rem; font-family:inherit; width:100%; }
+  .gw-tier .x { background:none; border:none; color:var(--danger); cursor:pointer;
+                font-size:1.1rem; }
+  .gw-tier-head { font-size:0.9rem; color:var(--text-3); font-weight:700; }
+  @media (max-width: 560px) {
+    .gw-tier { grid-template-columns: 1fr 1fr; }
+    .gw-tier-head { display:none; }
+  }
+
+  .gw-sum { display:grid; gap:2px; background:var(--surface-2); border:1px solid var(--border);
+            border-radius:12px; overflow:hidden; margin-bottom:14px; }
+  .gw-sum div { background:var(--surface); padding:10px 14px; display:grid;
+                grid-template-columns: 108px 1fr; gap:12px; font-size:0.9rem; }
+  .gw-sum dt { color:var(--text-3); margin:0; }
+  .gw-sum dd { margin:0; color:var(--text-1); font-weight:500; }
+</style>
+
+<div class="gw">
+  <div class="gw-head">
+    <h2>✨ 我陪你開一場活動</h2>
+    <span class="gw-step" id="gw-step"></span>
+  </div>
+  <div class="gw-bar"><i id="gw-bar"></i></div>
+
+  <div class="gw-card" id="gw-card"></div>
+
+  <div class="gw-nav">
+    <button type="button" class="gw-back" id="gw-back" onclick="gwBack()">← 上一題</button>
+    <a class="gw-quit" href="/admin/events/new">我自己填表單就好 →</a>
+  </div>
+</div>
+
+<script>
+// ==========================================
+// 引導式開活動
+// ==========================================
+//
+// ★ 這一頁**不判斷任何事**。「要保險要加哪些欄位」「監護人條件怎麼掛」
+//   全部在 routes/guided.py —— 這裡只把答案送過去，把回來的草稿畫出來。
+//   在這裡再判一次的話，改了規則畫面不會跟，而兩邊都看起來正常。
+
+const USES = {{ uses | map(attribute='key') | list | tojson }};
+const USE_LABELS = {{ uses | map(attribute='label') | list | tojson }};
+const CUSTOM_TYPES = {{ custom_types | tojson }};
+const TYPE_NAMES = {{ type_names | tojson }};
+
+const A = {           // 他的答案
+  title: '', event_start: '', event_end: '', location: '',
+  capacity: '', capacity_pending: false, waitlist: false,
+  fee_mode: '', fee: '', tiers: [], tier_ages: {}, tier_special: '',
+  uses: [], guardian_scope: 'minor', custom: [],
+  reg_end: '', reg_end_pending: false,
+  payment_deadline: '', payment_deadline_pending: false,
+  checkin: false, open_checkin: false,
+  who: 'anyone',
+};
+
+let step = 0;
+
+// ── 題目 ────────────────────────────────────────
+//
+// when: 這一題要不要出現。★ 依賴在這裡變成**順序**，不是警告 ——
+//   沒有人數上限就不會問到候補，所以「開了候補卻沒上限」在引導式裡
+//   不可能發生。
+const STEPS = [
+  { key: 'basic',    render: qBasic,    valid: () => A.title.trim() && A.event_start },
+  { key: 'capacity', render: qCapacity, valid: () => A.capacity_pending || A.capacity !== '' },
+  { key: 'waitlist', render: qWaitlist, when: () => !A.capacity_pending && A.capacity !== '' },
+  { key: 'fee',      render: qFee,      valid: () => !!A.fee_mode },
+  { key: 'tiers',    render: qTiers,    when: () => A.fee_mode === 'tiered',
+                     valid: () => A.tiers.some(t => (t.label || '').trim()) },
+  { key: 'ages',     render: qAges,     when: () => A.fee_mode === 'tiered' },
+  { key: 'uses',     render: qUses },
+  { key: 'guardian', render: qGuardian, when: () => A.uses.includes('guardian') },
+  { key: 'custom',   render: qCustom },
+  { key: 'dates',    render: qDates,
+                     valid: () => A.reg_end_pending || A.reg_end },
+  { key: 'checkin',  render: qCheckin },
+  { key: 'who',      render: qWho },
+  { key: 'confirm',  render: qConfirm },
+];
+
+function visible() { return STEPS.filter(s => !s.when || s.when()); }
+
+function gwRender() {
+  const list = visible();
+  if (step >= list.length) step = list.length - 1;
+  if (step < 0) step = 0;
+  const s = list[step];
+  document.getElementById('gw-step').textContent = `${step + 1} / ${list.length}`;
+  document.getElementById('gw-bar').style.width =
+      Math.round((step / (list.length - 1)) * 100) + '%';
+  document.getElementById('gw-back').style.visibility = step ? 'visible' : 'hidden';
+  document.getElementById('gw-card').innerHTML = s.render();
+  const first = document.querySelector('#gw-card input, #gw-card select');
+  if (first) first.focus();
+}
+
+function gwNext() {
+  const s = visible()[step];
+  if (s.valid && !s.valid()) { alert('這一題還沒填完'); return; }
+  step++;
+  gwRender();
+}
+function gwBack() { step--; gwRender(); }
+
+/** 下一步那顆。★ 每一題都有，位置固定 —— 每題長不一樣的話他要重新找。 */
+function nextBtn(label) {
+  return `<div style="margin-top:18px;">
+    <button type="button" class="act-submit" style="width:auto; margin-top:0;
+      padding:11px 30px;" onclick="gwNext()">${label || '下一步'}</button></div>`;
+}
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = String(s == null ? '' : s);
+  return d.innerHTML;
+}
+/** 註冊表的 effect 用 **這樣** 標重點 —— 先跳脫再加粗，順序不能反。 */
+function rich(s) { return esc(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); }
+
+function set(k, v) { A[k] = v; }
+function pick(k, v) { A[k] = v; gwNext(); }
+
+// ── 1 活動名稱、時間 ────────────────────────────
+function qBasic() {
+  return `
+    <p class="gw-q">這場活動叫什麼名字？什麼時候？</p>
+    <p class="gw-help">建立之後每一項都還改得到，先填你現在知道的就好。</p>
+    <div class="gw-row"><div class="gw-f">
+      <label>活動名稱</label>
+      <input aria-label="例：2026秋之旅" id="i-title" value="${esc(A.title)}"
+        oninput="set('title', this.value)" placeholder="例：2026秋之旅">
+    </div></div>
+    <div class="gw-row">
+      <div class="gw-f"><label>開始</label>
+        <input aria-label="開始時間" type="datetime-local" value="${esc(A.event_start)}"
+          oninput="set('event_start', this.value)"></div>
+      <div class="gw-f"><label>結束（跨天才要填）</label>
+        <input aria-label="結束時間" type="datetime-local" value="${esc(A.event_end)}"
+          oninput="set('event_end', this.value)"></div>
+    </div>
+    <div class="gw-row"><div class="gw-f">
+      <label>地點（還沒訂就先空著）</label>
+      <input aria-label="地點" value="${esc(A.location)}" oninput="set('location', this.value)">
+    </div></div>
+    ${nextBtn()}`;
+}
+
+// ── 2 人數 ──────────────────────────────────────
+function qCapacity() {
+  return `
+    <p class="gw-q">這場活動有位子上限嗎？</p>
+    <div class="gw-row"><div class="gw-f">
+      <label>限幾人</label>
+      <input aria-label="人數上限" type="number" min="1" value="${esc(A.capacity)}"
+        oninput="A.capacity_pending=false; set('capacity', this.value)">
+    </div></div>
+    <div class="gw-opts">
+      <button type="button" class="gw-opt ${A.capacity === '' && !A.capacity_pending ? 'on' : ''}"
+        onclick="A.capacity=''; A.capacity_pending=false; pick('waitlist', false)">
+        沒有上限<small>不會額滿，也不會有候補</small></button>
+      <button type="button" class="gw-opt quiet ${A.capacity_pending ? 'on' : ''}"
+        onclick="A.capacity=''; A.capacity_pending=true; pick('waitlist', false)">
+        還不確定<small>先不設，之後在活動設定裡補</small></button>
+    </div>
+    ${nextBtn()}`;
+}
+
+function qWaitlist() {
+  return `
+    <p class="gw-q">額滿之後，還想讓人排隊嗎？</p>
+    <p class="gw-help">有人取消時系統會自動遞補，並且通知他。</p>
+    <div class="gw-opts">
+      <button type="button" class="gw-opt ${A.waitlist ? 'on' : ''}"
+        onclick="pick('waitlist', true)">要，開放候補</button>
+      <button type="button" class="gw-opt ${A.waitlist ? '' : 'on'}"
+        onclick="pick('waitlist', false)">不用，額滿就結束</button>
+    </div>`;
+}
+
+// ── 3 收費 ──────────────────────────────────────
+function qFee() {
+  return `
+    <p class="gw-q">要跟報名的人收錢嗎？</p>
+    <div class="gw-opts">
+      <button type="button" class="gw-opt ${A.fee_mode === 'none' ? 'on' : ''}"
+        onclick="A.fee=''; A.tiers=[]; pick('fee_mode', 'none')">不收</button>
+      <button type="button" class="gw-opt ${A.fee_mode === 'flat' ? 'on' : ''}"
+        onclick="A.tiers=[]; pick('fee_mode', 'flat')">
+        要，每個人一樣多</button>
+      <button type="button" class="gw-opt ${A.fee_mode === 'tiered' ? 'on' : ''}"
+        onclick="A.fee=''; pick('fee_mode', 'tiered')">
+        要，看身分別不一樣<small>成人／孩童／敬老…各自訂價</small></button>
+    </div>
+    ${A.fee_mode === 'flat' ? `<div class="gw-row" style="margin-top:14px;">
+      <div class="gw-f"><label>每人多少錢</label>
+      <input aria-label="每人金額" type="number" min="0" value="${esc(A.fee)}"
+        oninput="set('fee', this.value)"></div></div>${nextBtn()}` : ''}`;
+}
+
+// ★ 三選一，所以基本費和分級收費不可能同時有值 ——
+//   「基本費 800 ＋ 成人 800 ＝ 收 1600」那個坑是被**問法**填掉的。
+function qTiers() {
+  if (!A.tiers.length) A.tiers = [{ label: '', price: '' }];
+  const rows = A.tiers.map((t, i) => `
+    <div class="gw-tier">
+      <input aria-label="名稱，例：成人" placeholder="名稱，例：成人" value="${esc(t.label)}"
+        oninput="A.tiers[${i}].label=this.value">
+      <input aria-label="金額" type="number" min="0" placeholder="金額" value="${esc(t.price)}"
+        oninput="A.tiers[${i}].price=this.value">
+      <span></span><span></span>
+      <button type="button" class="x" onclick="A.tiers.splice(${i},1); gwRender()"
+        title="刪掉這一級">✕</button>
+    </div>`).join('');
+  return `
+    <p class="gw-q">有哪些身分別？各收多少？</p>
+    ${rows}
+    <button type="button" class="gw-opt quiet" style="width:auto; padding:7px 14px;"
+      onclick="A.tiers.push({label:'',price:''}); gwRender()">＋ 再加一級</button>
+    ${nextBtn()}`;
+}
+
+function qAges() {
+  const labels = A.tiers.map(t => (t.label || '').trim()).filter(Boolean);
+  const rows = labels.map(l => {
+    const v = A.tier_ages[l] || [null, null];
+    return `
+      <div class="gw-tier">
+        <span style="font-size:0.9rem;">${esc(l)}</span>
+        <input aria-label="幾歲以上" type="number" min="0" placeholder="幾歲以上" value="${v[0] ?? ''}"
+          oninput="gwAge('${esc(l)}', 0, this.value)">
+        <input aria-label="幾歲以下" type="number" min="0" placeholder="幾歲以下" value="${v[1] ?? ''}"
+          oninput="gwAge('${esc(l)}', 1, this.value)">
+        <span></span><span></span>
+      </div>`;
+  }).join('');
+  const specials = labels.map(l => `
+    <button type="button" class="gw-opt ${A.tier_special === l ? 'on' : ''}"
+      style="padding:8px 13px;" onclick="set('tier_special', A.tier_special===
+      '${esc(l)}' ? '' : '${esc(l)}'); gwRender()">${esc(l)}</button>`).join('');
+  return `
+    <p class="gw-q">每一種各是幾歲到幾歲？</p>
+    <p class="gw-help">
+      填了年齡的，系統會依報名者的生日自動判定 —— 他不用自己選，也就不會選錯。<br>
+      兩格都空著的那一種，就是「其他年齡」都算它。全部空著＝不自動判定。
+    </p>
+    <div class="gw-tier gw-tier-head">
+      <span>身分別</span><span>幾歲以上</span><span>幾歲以下</span><span></span><span></span>
+    </div>
+    ${rows}
+    <p class="gw-q" style="font-size:1rem; margin-top:20px;">
+      有沒有哪一種是年齡看不出來、只能請他自己勾的？</p>
+    <p class="gw-help">例如持證明的、工作人員 —— 依你們這場的規定。點一下選，再點一下取消。</p>
+    <div class="gw-opts" style="grid-auto-flow:column; grid-auto-columns:max-content;
+      overflow-x:auto; padding-bottom:4px;">${specials}</div>
+    ${nextBtn()}`;
+}
+
+function gwAge(label, idx, val) {
+  const v = A.tier_ages[label] || [null, null];
+  v[idx] = val === '' ? null : parseInt(val, 10);
+  if (v[0] === null && v[1] === null) delete A.tier_ages[label];
+  else A.tier_ages[label] = v;
+}
+
+// ── 4 要拿什麼資料（核心）──────────────────────
+//
+// ★★ 問「為什麼要拿資料」，不是給一張欄位清單讓他勾。
+//    問用途才問得出「保險」，而「保險」才推得出身分證＋生日。
+//    給欄位清單的話他會勾一堆，然後漏掉最重要的那兩個 ——
+//    而名冊看起來完全正常，要到送保單那天才發現。
+function qUses() {
+  const opts = USES.map((k, i) => `
+    <button type="button" class="gw-opt ${A.uses.includes(k) ? 'on' : ''}"
+      onclick="gwToggleUse('${k}')">${esc(USE_LABELS[i])}</button>`).join('');
+  return `
+    <p class="gw-q">這場活動需要知道報名者的什麼資料嗎？</p>
+    <p class="gw-help">照用途選就好，欄位我來配。可以複選，也可以都不選。</p>
+    <div class="gw-opts">${opts}</div>
+    ${nextBtn()}`;
+}
+function gwToggleUse(k) {
+  const i = A.uses.indexOf(k);
+  if (i < 0) A.uses.push(k); else A.uses.splice(i, 1);
+  gwRender();
+}
+
+function qGuardian() {
+  return `
+    <p class="gw-q">家長聯絡方式是每個人都要填，還是只有未成年？</p>
+    <div class="gw-opts">
+      <button type="button" class="gw-opt ${A.guardian_scope === 'minor' ? 'on' : ''}"
+        onclick="pick('guardian_scope', 'minor')">
+        只有未滿 18 歲的<small>系統依生日自動判斷，成年人不會看到那題</small></button>
+      <button type="button" class="gw-opt ${A.guardian_scope === 'everyone' ? 'on' : ''}"
+        onclick="pick('guardian_scope', 'everyone')">
+        每個人都要填<small>兒童、青少年的活動選這個</small></button>
+    </div>`;
+}
+
+// ── 5 自己加題目 ────────────────────────────────
+//
+// ★ 用途清單再怎麼補都會有漏的（例如「您是從哪裡得知活動消息」）。
+//   沒有這條路的話，那種活動一遇到就得整個退出去用空白表單，
+//   而他退出去之後就不會再用引導式了。
+function qCustom() {
+  const rows = A.custom.map((c, i) => `
+    <div style="border:1px solid var(--border); border-radius:12px; padding:12px 14px;
+                margin-bottom:10px;">
+      <div class="gw-row">
+        <div class="gw-f" style="flex:2;"><label>題目</label>
+          <input aria-label="例：您是從哪裡得知活動消息呢" value="${esc(c.label)}" placeholder="例：您是從哪裡得知活動消息呢"
+            oninput="A.custom[${i}].label=this.value"></div>
+        <div class="gw-f" style="flex:1; max-width:130px;"><label>怎麼填</label>
+          <select aria-label="題目類型" onchange="A.custom[${i}].field_type=this.value; gwRender()">
+            ${CUSTOM_TYPES.map(([v, n]) => `<option value="${v}"
+              ${c.field_type === v ? 'selected' : ''}>${esc(n)}</option>`).join('')}
+          </select></div>
+      </div>
+      ${c.field_type === 'radio' ? `<div class="gw-row"><div class="gw-f">
+        <label>選項（一行一個；要收費、限名額的寫成「搭車|200|20」＝ 收 200 元、最多 20 人）</label>
+        <textarea aria-label="教會門外海報 親友告知" rows="3" oninput="A.custom[${i}].options=this.value"
+          placeholder="教會門外海報&#10;親友告知">${esc(c.options || '')}</textarea>
+      </div></div>` : ''}
+      <label style="display:flex; align-items:center; gap:8px; font-size:0.9rem;
+                    cursor:pointer; color:var(--text-2);">
+        <input type="checkbox" ${c.is_required ? 'checked' : ''}
+          onchange="A.custom[${i}].is_required=this.checked"> 一定要填
+      </label>
+      <button type="button" class="gw-back" style="color:var(--danger);"
+        onclick="A.custom.splice(${i},1); gwRender()">刪掉這一題</button>
+    </div>`).join('');
+  return `
+    <p class="gw-q">還有別的要問報名者嗎？</p>
+    <p class="gw-help">
+      姓名我一定會加，上一題選的用途也都配好了。這裡是給那些只有你們這場才要問的。
+    </p>
+    ${rows}
+    <button type="button" class="gw-opt quiet" style="width:auto; padding:7px 14px;"
+      onclick="A.custom.push({label:'',field_type:'text',options:'',is_required:false});
+               gwRender()">＋ 加一題</button>
+    ${nextBtn(A.custom.length ? '下一步' : '沒有了，下一步')}`;
+}
+
+// ── 6 兩個時間 ──────────────────────────────────
+//
+// ★ 直接讓他 key 日期，不給「活動前兩週」那種相對選項 ——
+//   那是替他決定一個他沒說過的天數，而他會照著按。
+function qDates() {
+  const money = A.fee_mode === 'flat' || A.fee_mode === 'tiered';
+  return `
+    <p class="gw-q">那報名截止日呢？</p>
+    <p class="gw-help">
+      要保險或訂餐的話，記得留作業時間 —— 名單得先送出去。<br>
+      截止之後就報不進來了，但臨時要加人，在報名名單頁可以直接新增。
+    </p>
+    <div class="gw-row"><div class="gw-f">
+      <input aria-label="報名截止" type="datetime-local" value="${esc(A.reg_end)}"
+        oninput="A.reg_end_pending=false; set('reg_end', this.value)">
+    </div></div>
+    <div class="gw-opts">
+      <button type="button" class="gw-opt quiet ${A.reg_end_pending ? 'on' : ''}"
+        onclick="A.reg_end=''; A.reg_end_pending=!A.reg_end_pending; gwRender()">
+        待定<small>先不設，報名會一直開著</small></button>
+    </div>
+    ${money ? `
+      <p class="gw-q" style="font-size:1rem; margin-top:22px;">繳費期限呢？</p>
+      <p class="gw-help">到期前系統會提醒還沒繳的人。</p>
+      <div class="gw-row"><div class="gw-f">
+        <input aria-label="繳費期限" type="datetime-local" value="${esc(A.payment_deadline)}"
+          oninput="A.payment_deadline_pending=false; set('payment_deadline', this.value)">
+      </div></div>
+      <div class="gw-opts">
+        <button type="button" class="gw-opt quiet
+          ${A.payment_deadline_pending ? 'on' : ''}"
+          onclick="A.payment_deadline='';
+                   A.payment_deadline_pending=!A.payment_deadline_pending; gwRender()">
+          待定<small>先不設，不會發繳費提醒</small></button>
+      </div>` : ''}
+    ${nextBtn()}`;
+}
+
+// ── 7 簽到、誰可以報名 ──────────────────────────
+function qCheckin() {
+  return `
+    <p class="gw-q">活動當天要用 QR Code 簽到嗎？</p>
+    <div class="gw-opts">
+      <button type="button" class="gw-opt ${A.checkin ? 'on' : ''}"
+        onclick="pick('checkin', true)">要</button>
+      <button type="button" class="gw-opt ${A.checkin ? '' : 'on'}"
+        onclick="A.open_checkin=false; pick('checkin', false)">不用</button>
+    </div>
+    ${A.checkin ? `
+      <p class="gw-q" style="font-size:1rem; margin-top:22px;">
+        沒報名的人當天直接來，要讓他掃碼加入嗎？</p>
+      <div class="gw-opts">
+        <button type="button" class="gw-opt ${A.open_checkin ? 'on' : ''}"
+          onclick="set('open_checkin', true); gwRender()">
+          要<small>適合開放的聚會</small></button>
+        <button type="button" class="gw-opt ${A.open_checkin ? '' : 'on'}"
+          onclick="set('open_checkin', false); gwRender()">
+          不要，只有報名過的人能簽到</button>
+      </div>${nextBtn()}` : ''}`;
+}
+
+function qWho() {
+  return `
+    <p class="gw-q">誰可以報名這場活動？</p>
+    <div class="gw-opts">
+      <button type="button" class="gw-opt ${A.who === 'anyone' ? 'on' : ''}"
+        onclick="pick('who', 'anyone')">
+        任何人<small>沒有 LINE 帳號的朋友也能報</small></button>
+      <button type="button" class="gw-opt ${A.who === 'members' ? 'on' : ''}"
+        onclick="pick('who', 'members')">只有教會會友</button>
+    </div>`;
+}
+
+// ── 8 確認 ──────────────────────────────────────
+//
+// ★ 不要問完直接建立。系統做了六、七個推論，沒攤開看過就存的話，
+//   他不知道自己有什麼、也不知道哪些是可以改的。
+let DRAFT = null;
+
+function qConfirm() {
+  gwLoadDraft();
+  return `<p class="gw-q">我照你說的填好了，你看一下。</p>
+          <p class="gw-help" id="gw-loading">整理中…</p>
+          <div id="gw-confirm"></div>`;
+}
+
+function gwLoadDraft() {
+  fetch('/admin/events/guided/draft', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(A),
+  })
+  .then(r => r.json())
+  .then(d => { DRAFT = d; gwDrawConfirm(d); })
+  .catch(() => {
+    const el = document.getElementById('gw-loading');
+    if (el) el.textContent = '整理不出來 —— 連線出了問題，按「上一題」再回來試一次。';
+  });
+}
+
+function gwDrawConfirm(d) {
+  const box = document.getElementById('gw-confirm');
+  if (!box) return;
+  const load = document.getElementById('gw-loading');
+  if (load) load.remove();
+  const ev = d.event || {};
+  const rows = [
+    ['活動', ev.title || '（沒填名稱）'],
+    ['時間', [ev.event_start, ev.event_end].filter(Boolean).join(' – ') || '—'],
+    ['地點', ev.location || '—'],
+    ['人數', ev.capacity ? `限 ${ev.capacity} 人` + (ev.waitlist_enabled ? '，額滿可候補' : '') : '沒有上限'],
+    ['費用', gwFeeText(d)],
+    ['報名截止', ev.reg_end || '沒有截止日'],
+    ['誰能報名', ev.allow_external_reg ? '任何人（含外部朋友）' : '只有教會會友'],
+    ['現場簽到', ev.checkin_enabled ? (ev.checkin_mode === 'open' ? '開放掃碼' : '限已報名者') : '不用'],
+  ];
+  const said = (d.said || []).map(s => `<div class="gw-said">${rich(s)}</div>`).join('');
+  const pend = (d.pending || []).map(p =>
+    `<div>⚠️ <strong>${esc(p.label)}</strong>：${esc(p.effect)}</div>`).join('');
+
+  box.innerHTML = `
+    <div class="gw-sum">
+      ${rows.map(([k, v]) => `<div><dt>${esc(k)}</dt><dd>${esc(v)}</dd></div>`).join('')}
+    </div>
+    <p class="gw-q" style="font-size:1rem;">報名表單會問這些</p>
+    <div class="gw-sum">
+      ${(d.fields || []).map(f => `<div><dt>${esc(f.label)}</dt>
+        <dd style="font-weight:400; color:var(--text-3);">
+          ${esc(gwTypeName(f.field_type))}${f.is_required ? '・一定要填' : ''}
+        </dd></div>`).join('')}
+    </div>
+    ${said}
+    ${pend ? `<div class="gw-warn">${pend}
+      <div style="margin-top:8px;">補的地方：<strong>活動管理 → 點這場活動 → 編輯</strong>。</div>
+    </div>` : ''}
+    <div class="gw-said">
+      建立之後<strong>每一項都還改得到</strong> ——
+      按下去我直接帶你到這場活動的編輯頁，海報、報名開始時間、保留名額那些都在那裡。
+    </div>
+    <div style="margin-top:20px; display:flex; gap:10px; flex-wrap:wrap;">
+      <button type="button" class="act-submit" id="gw-create"
+        style="width:auto; margin-top:0; padding:12px 32px;"
+        onclick="gwCreate()">建立活動</button>
+    </div>`;
+}
+
+// ★ 型別的中文名字從 routes/field_types.FIELD_TYPES 來，不在這裡抄一份。
+//   抄一份的話，加了新型別這一頁會顯示原始的英文 key（`id_number`），
+//   而畫面上只是「有一格看起來怪怪的」。
+function gwTypeName(t) { return TYPE_NAMES[t] || t; }
+
+function gwFeeText(d) {
+  const ev = d.event || {};
+  const tier = (d.fields || []).find(f => f.field_type === 'fee');
+  if (tier) {
+    return (tier.options || '').split('\n').filter(Boolean)
+      .map(l => l.replace('|', ' ')).join('／');
+  }
+  return ev.fee ? `每人 ${ev.fee} 元` : '不收費';
+}
+
+// ★ 建立走**既有的** /admin/events/new —— 所有伺服器端的驗證一條都不繞過
+//   （必填、身分證檢查碼、監護人要有生日、名額結算…）。
+//   引導式自己開一條寫入路徑的話，那些檢查會少掉一份。
+function gwCreate() {
+  const btn = document.getElementById('gw-create');
+  if (!DRAFT) return;
+  if (btn) { btn.disabled = true; btn.textContent = '建立中…'; }
+  // ★ created_via / created_uses 只是**記錄**用的，不會進 events 表。
+  //   兩條路走同一支建立端點是刻意的（驗證不繞過），代價是事後分不出
+  //   一場活動是怎麼開的 —— 而「有沒有人用」正是要決定要不要把引導式
+  //   推到別的模組時唯一該看的數字。
+  //   uses 記下來是為了回答「用途清單漏了什麼」，那是設計時唯一沒有資料的地方。
+  fetch('/admin/events/new', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(Object.assign({}, DRAFT.event, {
+      created_via: 'guided', created_uses: A.uses,
+    })),
+  })
+  .then(res => res.text().then(t => {
+    try { return JSON.parse(t); }
+    catch { throw new Error('伺服器錯誤：' + t.substring(0, 300)); }
+  }))
+  .then(data => {
+    if (!data.success) {
+      alert('建立失敗：' + (data.error || '未知錯誤'));
+      if (btn) { btn.disabled = false; btn.textContent = '建立活動'; }
+      return;
+    }
+    // ★ 直接進編輯頁 —— 「之後可以回來改」的那個地方就是它。
+    //   丟回列表的話他還要自己找，而找不到＝改不到。
+    location.href = `/admin/events/${data.event_id}/edit`;
+  })
+  .catch(e => {
+    alert('建立失敗：' + e.message);
+    if (btn) { btn.disabled = false; btn.textContent = '建立活動'; }
+  });
+}
+
+gwRender();
+</script>
+{% endblock %}

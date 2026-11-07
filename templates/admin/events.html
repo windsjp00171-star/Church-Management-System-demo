@@ -7,7 +7,12 @@
         <a href="/admin" class="breadcrumb">← 返回後台</a>
         <div class="page-title">🎉 活動管理</div>
     </div>
-    <a href="/admin/events/new" class="btn btn-primary">＋ 建立活動</a>
+    {# 引導式擺前面、而且是主要的那一顆：第一次開活動的人不知道空白表單怎麼填，
+       把它放第二順位的話，需要它的人正好最不會去找它。熟手要直接開表單的路就在旁邊。 #}
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <a href="/admin/events/guided" class="btn btn-primary" data-tour="guided">✨ 我陪你開一場</a>
+        <a href="/admin/events/new" class="btn">＋ 直接填表單</a>
+    </div>
 </div>
 
 {% if events %}
