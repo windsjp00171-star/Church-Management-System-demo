@@ -93,7 +93,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 成熟版比這個 demo 多約 75 個模組（對照 `routes/` 檔案清單，2026-11-07 查證）。成熟版 `CLAUDE.md` 是最完整的功能說明，要搬哪一項先讀那一節。
 使用者選的做法：**A，逐批搬進這個 repo**（不改以成熟版為底；先前「就地重構」的決定不變）。
 
-**表上列的 17 項功能，目前完成 6 項（約 3.5 成）**（更新：2026-11-07；做完一項就改這張表）
+**表上列的 17 項功能，目前完成 8 項（約 4.5 成）**（更新：2026-11-07；做完一項就改這張表）
 
 | 狀態 | 功能 | 成熟版檔案（`routes/`） | 這個 repo 的狀況 |
 |---|---|---|---|
@@ -107,7 +107,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 | ⬜ | 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | 未做 |
 | ⬜ | 主日信息（YouTube 按週分組） | `sermons.py`、`admin_sermons.py` | 未做 |
 | ✅ | 行事曆訂閱（.ics） | `calendar_feed.py` | 已做 |
-| ⬜ | 門訓結業證書 | `certificate.py` | 未做 |
+| ⬜ | 門訓結業證書 | `certificate.py` | 未做。**卡點**：demo 的 `course_certifications` 沒有 `passed` 欄位（成熟版靠它擋「沒通過不發證」），而且 demo 沒有任何程式會寫這張表（只有 `event.py` 在讀）＝沒有「認證」流程，搬了也不會有證書。要先決定：補 `passed` 欄位（需 SQL 同意）＋同工認證入口 |
 | ⬜ | 門訓平板簽到 | `courses_kiosk.py` | 未做 |
 | ⬜ | 門訓教材 | `courses_materials.py` | 未做 |
 | ⬜ | 首頁個人化待辦 | `my_todos.py`、`todos.py` | 未做（成熟版刻意**不做催繳**，見其 CLAUDE.md） |
