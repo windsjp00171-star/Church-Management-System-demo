@@ -1,0 +1,309 @@
+"""分級收費：選項帶價格
+
+教會旅遊的景點門票要分級（成人 800 / 敬老 600 / 身障 600 / 12歲以下 400），
+但 events.fee 只有單一數字。這裡是那個缺口的地基。
+
+★ 這一整份最重要的是「對不上的時候要回 None，不能回 0」。
+  管理員把選項改名（成人 → 成人票）之後，舊答案就對不到價格了 ——
+  回 0 的話那個人在名冊上靜靜地變成不用繳錢，畫面完全正常，
+  沒有人會發現，直到對帳少一筆。
+"""
+import pytest
+
+from routes.event_fields import (
+    amount_for, has_prices, is_unmatched, label_only,
+    parse_option, parse_options, price_of,
+)
+
+TRIP = '成人|800\n敬老|600\n身障|600\n12歲以下孩童|400'
+PLAIN = '葷食\n素食'
+
+
+# ── 解析 ──────────────────────────
+
+@pytest.mark.parametrize('line, label, price', [
+    ('成人|800', '成人', 800),
+    ('成人 | 800', '成人', 800),          # 手打的空格
+    ('  敬老|600  ', '敬老', 600),
+    ('葷食', '葷食', None),               # 沒標價
+    ('免費場次|0', '免費場次', 0),         # 0 是有效價格，不是「沒價格」
+    ('', None, None),
+    ('   ', None, None),
+])
+def test_parse_option(line, label, price):
+    assert parse_option(line) == (label, price)
+
+
+def test_a_label_containing_a_pipe_is_not_mangled():
+    """「A|B 方案」這種標籤本來就含 | —— 只有行尾是 |數字 才算價格"""
+    assert parse_option('A|B 方案') == ('A|B 方案', None)
+
+
+def test_only_a_trailing_number_counts_as_price():
+    assert parse_option('成人|八百') == ('成人|八百', None)
+    assert parse_option('成人|800元') == ('成人|800元', None)
+
+
+def test_other_marker_is_skipped():
+    opts = parse_options('成人|800\n__other__')
+    assert [o['label'] for o in opts] == ['成人']
+
+
+def test_blank_lines_are_skipped():
+    assert len(parse_options('成人|800\n\n\n敬老|600')) == 2
+
+
+# ── 有沒有標價 ──────────────────────────
+
+def test_has_prices():
+    assert has_prices(TRIP) is True
+    assert has_prices(PLAIN) is False
+    assert has_prices('') is False
+    assert has_prices(None) is False
+
+
+def test_partially_priced_counts_as_priced():
+    """有些標價有些沒標 —— 也算是收費欄位，沒標的那個就是 0 元"""
+    assert has_prices('成人|800\n工作人員') is True
+
+
+# ── 查價 ──────────────────────────
+
+@pytest.mark.parametrize('answer, expected', [
+    ('成人', 800),
+    ('敬老', 600),
+    ('12歲以下孩童', 400),
+    (' 成人 ', 800),        # 前後空白
+])
+def test_price_of(answer, expected):
+    assert price_of(TRIP, answer) == expected
+
+
+def test_price_of_returns_none_not_zero_when_unmatched():
+    """★ 這條是整份最重要的。
+
+    回 0 的話呼叫端會把它當成「這個人不用繳錢」而且完全不會發現。
+    """
+    assert price_of(TRIP, '成人票') is None
+    assert price_of(TRIP, None) is None
+    assert price_of(PLAIN, '葷食') is None      # 這個欄位本來就沒標價
+
+
+def test_zero_price_is_not_none():
+    """0 元和「查不到」是兩件事，不能混在一起"""
+    assert price_of('免費|0', '免費') == 0
+
+
+# ── 對不上 ──────────────────────────
+
+def test_unmatched_is_detected():
+    """管理員把「成人」改名成「成人票」之後，舊答案就對不上了"""
+    assert is_unmatched(TRIP, '成人') is False
+    assert is_unmatched(TRIP, '成人票') is True
+
+
+def test_plain_field_is_never_unmatched():
+    """沒標價的欄位不參與收費，答案是什麼都無所謂"""
+    assert is_unmatched(PLAIN, '隨便什麼') is False
+
+
+def test_empty_answer_is_not_unmatched():
+    """還沒填 ≠ 填錯。沒填的人不該出現在「對不上」清單裡"""
+    assert is_unmatched(TRIP, '') is False
+    assert is_unmatched(TRIP, None) is False
+
+
+# ── 一筆報名的總額 ──────────────────────────
+
+FIELDS = [
+    {'id': 'f-tier', 'options': TRIP},
+    {'id': 'f-meal', 'options': PLAIN},
+    {'id': 'f-shirt', 'options': '要|150\n不要|0'},
+]
+
+
+def test_amount_sums_only_priced_fields():
+    total, bad = amount_for(FIELDS, {'f-tier': '成人', 'f-meal': '素食', 'f-shirt': '要'})
+    assert (total, bad) == (950, [])
+
+
+def test_amount_ignores_unanswered():
+    total, bad = amount_for(FIELDS, {'f-tier': '敬老'})
+    assert (total, bad) == (600, [])
+
+
+def test_unmatched_is_excluded_and_reported():
+    """★ 猜一個數字比留白更危險 —— 不計入總額，但要回報是哪個欄位"""
+    total, bad = amount_for(FIELDS, {'f-tier': '成人票', 'f-shirt': '要'})
+    assert total == 150
+    assert bad == ['f-tier']
+
+
+def test_amount_handles_empty_input():
+    assert amount_for([], {}) == (0, [])
+    assert amount_for(None, None) == (0, [])
+
+
+# ── 條件下拉用的純標籤 ──────────────────────────
+
+def test_label_only_strips_prices():
+    """★ 跳題條件比對的是答案文字，而答案存的是標籤。
+
+    這裡若回整行（成人|800），條件永遠不成立 —— 而且畫面完全正常，
+    那個欄位只是再也不出現。典型的靜默失效。
+    """
+    assert label_only(TRIP) == '成人\n敬老\n身障\n12歲以下孩童'
+
+
+def test_label_only_leaves_unpriced_alone():
+    assert label_only(PLAIN) == '葷食\n素食'
+
+
+# ══ 端對端：三個報名表單都要把價格畫出來 ══════════════
+#
+# 三個表單各自 render 一份選項（自己報名 / 幫別人報名 / 外部報名）。
+# 少改一個的話，那個入口進來的人看不到價格、也不會被計費 ——
+# 而且畫面完全正常，只是金額悄悄變成 0。
+
+import re
+
+import pytest as _pytest
+
+_PRICED_EVENT_OPTIONS = '成人|800\n敬老|600\n12歲以下孩童|400'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ══ 後台找得到嗎 ══════════════════════════════════
+#
+# ★ 這一段是使用者實際回報「我沒有看到收費設定在哪裡」之後補的。
+#
+# 功能做好了、測試也綠，但**在建立新活動時完全看不到** ——
+# 因為欄位編輯器有兩份：伺服器 render 的（既有欄位）和 JS 產生的
+# （新增欄位），而價格說明只加在前者。新活動的每一個欄位都是後者。
+#
+# 這是這個專案反覆出現的同一類 bug：兩份複製，只改了一份。
+
+
+
+
+
+# ══ 選項編輯器：一列一個，不用 textarea ══════════════
+#
+# ★ 使用者原話：「我真的很討厭那個 TEXTBOX」「用 textarea 設定問題跟
+#   分隔問題的真的很麻煩」「你這樣邏輯繞一大圈」。
+#
+# 換行當分隔、| 當價格分隔，都是為了「一個欄位存一串字」發明的規則 ——
+# 是實作方便，不該轉嫁成使用者要記的東西。
+#
+# 但**存進資料庫的格式沒變**：隱藏的 .f-options 就是儲存來源，
+# 每次改動都同步過去，所以送出、跳題條件那些讀它的地方一行都沒改。
+
+
+def _admin():
+    return open('templates/admin/event_form.html', encoding='utf-8').read()
+
+
+
+
+
+
+def test_there_is_only_one_editor_now():
+    """★ 收費專用的那份編輯器已經併掉了。
+
+    留著兩套的話，改一套忘另一套 —— 這個專案反覆出現的同一類。
+    """
+    src = _admin()
+    for gone in ('fee-area', 'fee-rows', 'addFeeRow', 'collectFeeRows',
+                 'loadFeeRows', 'renderOptionPreview', 'opt-preview'):
+        assert gone not in src, f'舊的收費編輯器還留著 {gone}'
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ══ 資料庫的白名單 ══════════════════════════════════
+#
+# ★★ 這一段是使用者實際撞到之後補的（正式環境，建活動建到一半）：
+#
+#     建立失敗：欄位建立失敗：{'message': 'new row for relation "event_fields"
+#     violates check constraint "event_fields_field_type_check"', 'code': '23514'}
+#
+# event_fields.field_type 有一條 CHECK 約束是白名單。程式端加了三種新型別，
+# 後台下拉、前台渲染、送出、名冊全部做好、859 條測試全綠 ——
+# **但沒有人記得去放寬那條約束**。
+#
+# ★ 為什麼測試抓不到：所有測試都 mock 掉 Supabase。那是 mock 的固有盲區 ——
+#   它驗的是「我們有沒有照計畫呼叫」，不是「資料庫會不會接受」。
+#   再多的單元測試也補不上這一格。
+#
+# 所以這裡守的是兩件補得上的事：清單只有一份、錯誤訊息看得懂。
+
+from routes.field_types import FIELD_TYPES, TRIGGER_TYPES, translate_db_error
+
+
+
+
+def test_the_migration_covers_every_supported_type():
+    """★ 新增型別時最容易漏的第四步：放寬資料庫的 CHECK 約束。
+
+    migrations/ 那份是給人照著執行的 —— 它少了哪一種，
+    那一種就會在「使用者按下儲存的當下」失敗。
+    """
+    import glob
+    # ★ 不要寫死檔名。約束是「最後跑到的那一份說了算」，而每次加型別
+    #   都會多一個 migration 檔 —— 寫死的話，新檔案裡加對了這條還是紅，
+    #   而修法會變成「回來改檔名」，下一個人再加型別時又要改一次。
+    files = sorted(f for f in glob.glob('migrations/*.sql')
+                   if 'event_fields_field_type_check' in open(f, encoding='utf-8').read())
+    assert files, '找不到定義 event_fields_field_type_check 的 migration'
+    latest = files[-1]          # 檔名有日期前綴，依序執行，最後一份是最終狀態
+    sql = open(latest, encoding='utf-8').read()
+    missing = [t for t in FIELD_TYPES if f"'{t}'" not in sql]
+    assert not missing, f'{latest} 的白名單少了：{missing}'
+
+
+def test_fee_can_trigger_a_jump():
+    """收費底下就是單選，當然能當觸發問題"""
+    assert 'fee' in TRIGGER_TYPES
+
+
+def test_the_constraint_error_becomes_something_actionable():
+    """★ 原始訊息看得出「失敗了」，但看不出「該做什麼」——
+    而看不出該做什麼的錯誤訊息，等於沒有訊息。"""
+    err = {'message': 'new row for relation "event_fields" violates check '
+                      'constraint "event_fields_field_type_check"', 'code': '23514'}
+    msg = translate_db_error(err, 'birthday')
+    assert msg and '出生日期' in msg, '沒有講清楚是哪一種欄位'
+    assert 'migrations/' in msg, '沒有告訴人該去哪裡修'
+
+
+def test_unrelated_errors_are_left_alone():
+    """★ 什麼錯誤都翻成同一句的話，真正的問題會被蓋掉"""
+    assert translate_db_error('connection timeout', 'birthday') is None
+    assert translate_db_error(ValueError('欄位太長'), 'text') is None
+
+
