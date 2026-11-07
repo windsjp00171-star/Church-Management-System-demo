@@ -979,6 +979,50 @@ def events():
 
 
 from routes.admin_events import _apply_guardian_conditions  # noqa: E402
+from routes.setting_deps import entries as setting_deps_entries  # noqa: E402
+
+
+def external_form_warnings(event_data, fields):
+    """存檔後回給前端的提醒。**規則不在這裡** —— 在 `routes/setting_deps`。
+
+    ## 為什麼搬走
+
+    這一支原本自己實作「開了外部報名但沒有姓名／電話欄位」那兩條。
+    它是**唯一**被寫出來的依賴檢查，而系統其實有 11 條 ——
+    另外七條完全沒有人講。
+
+    一條一條補 `if` 的話，同一批規則會在四個地方各長一份：
+    引導式問答的分支、表單上的即時提示、存檔的檢查、小舟的回答。
+    所以規則收成一張註冊表，這裡只負責**在存檔後把它們念出來**。
+
+    ★ 名字保留不改：兩個呼叫端和它們的測試都認這個名字，
+      而這一次要換的是**規則放哪裡**，不是換介面。
+
+    ★ 只提醒，不擋存檔（監護人那條例外，它在 `_apply_guardian_conditions`
+      擋，也登記在註冊表裡）：活動常常編一半先存起來，
+      擋下來會把管理員卡在一個他還沒要處理的問題上。
+    """
+    from routes.setting_deps import messages
+    return messages('events', {
+        'event': event_data or {},
+        'fields': fields or [],
+        #  ★ 主標籤小組要先撈好 —— 註冊表的 predicate 是純的，
+        #    它不會自己去查資料庫（理由見那份模組的 docstring）。
+        'primary_groups': _primary_group_names_safe(),
+    })
+
+
+def _primary_group_names_safe():
+    """主標籤小組名稱。查不到就回空的 —— 提醒壞掉不可以讓存檔一起壞。"""
+    try:
+        rows = supabase.table('groups').select('name')\
+            .eq('is_primary', True).execute().data or []
+        return [r['name'] for r in rows]
+    except Exception:
+        #  ★ 回空的話「沒有主標籤」那條會誤報一次。兩害相權：
+        #    誤報一句提醒 vs 整個活動存不進去 —— 前者輕得多。
+        return []
+
 
 
 #  引導式和空白表單走的是**同一支**建立端點（刻意的：伺服器端的驗證
@@ -1122,6 +1166,36 @@ def preview_tier():
     return jsonify({'tiers': tiers, 'rules': rules})
 
 
+@admin_bp.route('/events/check-deps', methods=['POST'])
+@admin_required
+def check_deps():
+    """表單上的即時提示 —— 拿**現在畫面上的草稿**去問註冊表。
+
+    ## 為什麼是伺服器算，不是前端自己判
+
+    這 11 條規則已經有一份實作了（`routes/setting_deps.py`）。前端再寫一份
+    的話，改了規則畫面上不會跟 —— 而兩邊都看起來正常，那正是這個專案
+    最貴的那一種 bug。所以前端只送草稿、只負責把回來的字放到對的位置。
+
+    ★ 送上來的形狀跟存檔那支**一模一樣**（前端共用同一個 `collectDraft()`）。
+      提示讀的值和存進去的值不一樣的話，提示會對著一個不存在的設定講話。
+
+    ## 為什麼不用 `/admin/events/preview-tier` 那種「只在按鈕按下時算」
+
+    這幾條的共同點是「設定完看起來是好的」。要等他按什麼才講的話，
+    多數情況他不會按 —— 他不知道有問題，為什麼要按。
+
+    ★ 這支**不寫任何東西**，也不需要活動 id（新建的活動還沒有 id）。
+    """
+    data = request.get_json(silent=True) or {}
+    fields = data.get('fields') or []
+    return jsonify({'deps': setting_deps_entries('events', {
+        'event': data,
+        'fields': fields[:100],
+        'primary_groups': _primary_group_names_safe(),
+    })})
+
+
 @admin_bp.route('/events/new', methods=['GET', 'POST'])
 @admin_required
 def event_new():
@@ -1196,7 +1270,8 @@ def event_new():
             hint = translate_db_error(e, (field or {}).get('field_type'))
             return jsonify({'error': hint or f'欄位建立失敗：{str(e)}'}), 500
 
-        return jsonify({'success': True, 'event_id': event_id})
+        return jsonify({'success': True, 'event_id': event_id,
+                        'form_hints': external_form_warnings(event_data, fields)})
 
     return render_template('admin/event_form.html', event=None, fields=[])
 
@@ -1308,7 +1383,8 @@ def event_edit(event_id):
             hint = translate_db_error(e, (field or {}).get('field_type'))
             return jsonify({'error': hint or f'欄位更新失敗：{str(e)}'}), 500
 
-        return jsonify({'success': True})
+        return jsonify({'success': True,
+                        'form_hints': external_form_warnings(event_data, fields)})
 
     event = _ev.data[0]
     # 編輯表單只顯示未封存的欄位（封存欄位不再讓管理員看到/編輯）

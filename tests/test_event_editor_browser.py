@@ -79,6 +79,10 @@ const { chromium } = require('playwright');
     rows[1].querySelector('.f-label').value = '監護人'; rows[1].querySelector('.f-type').value = 'guardian';
     rows[1].querySelector('.f-required').checked = true;     // 生日沒勾必填
   });
+  // 開候補但沒填人數上限 → 即時提示要出現在候補那一格旁邊（dep-hints.js 打 /admin/events/check-deps）
+  await pg.evaluate(() => { const w = document.getElementById('waitlist_enabled'); w.checked = true; w.dispatchEvent(new Event('change', { bubbles: true })); });
+  await pg.waitForTimeout(1200);
+  out.dep_hint = await pg.evaluate(() => document.querySelector('.dep-hint[data-dep="waitlist_needs_capacity"]').textContent);
   payload = null; out.dialogs.length = 0;
   await pg.evaluate(() => submitForm(document.querySelector('button[onclick^="submitForm"]')));
   await pg.waitForTimeout(400);
@@ -149,3 +153,7 @@ def test_the_payload_carries_everything_the_server_needs(result):
 def test_a_required_guardian_with_an_optional_birthday_is_blocked_before_saving(result):
     assert result['blocked']['payload'] is None
     assert any('不是必填' in d for d in result['blocked']['dialogs'])
+
+
+def test_the_live_dependency_hint_shows_next_to_the_setting(result):
+    assert '人數上限' in result['dep_hint']

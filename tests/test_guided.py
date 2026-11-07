@@ -68,6 +68,18 @@ def test_every_template_is_a_real_field_type(tpl):
     assert tpl['field_type'] in FIELD_TYPES
 
 
+def test_custom_types_stay_out_of_the_dependency_web():
+    """★★ 自己加題目只給三種型別，而那三種**不參與任何一條依賴**。
+
+    放進分級收費或生日的話，「自己加一題」這個出口就會把前面整理好的
+    依賴弄亂 —— 例如他自己加了一個分級收費欄位，而年齡判定沒有生日可用。
+    """
+    from routes.setting_deps import DEPENDENCIES
+    risky = {'fee', 'birthday', 'id_number', 'guardian'}
+    assert not (set(CUSTOM_TYPES) & risky)
+    #  依賴表確實在管那幾種 —— 不然上面那條是在防一件不存在的事
+    assert any('birthday' in (d.effect + d.label) or 'birthday' in d.key
+               for d in DEPENDENCIES)
 
 
 # ══ 二、基準案例：秋之旅 ═══════════════════════════

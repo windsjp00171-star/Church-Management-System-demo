@@ -1108,3 +1108,24 @@ select.form-control { cursor: pointer; }
   white-space: nowrap;
   border: 0;
 }
+
+/* ── 設定之間的依賴提示（routes/setting_deps.py）──────────────
+ * 行為在 static/js/dep-hints.js，位置的對照表在各模板的 data-dep="<key>"。
+ * 沒有內容的空盒子不佔位：常態是全部都空的，留白框會讓表單平白多出一堆空格子。
+ * 會擋存檔的那幾條（目前只有活動的監護人）用紅的，跟「只是提醒」分開。 */
+.dep-hint:empty { display: none; }
+.dep-hint {
+    margin-top: 8px;
+    padding: 9px 12px;
+    background: #fff8e1;
+    border: 1px solid #ffe082;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    color: #8a5a00;
+    line-height: 1.7;
+}
+.dep-hint.blocks {
+    background: #ffebee;
+    border-color: #ef9a9a;
+    color: #c62828;
+}
