@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}聖經速讀計畫{% endblock %}
+{% block content %}
+
+<script>
+window.PAGE_TOUR_KEY = "bible-reading";
+window.PAGE_TOUR_STEPS = [
+    { sel: "#next-card", title: "接下來要讀的",
+      text: "這裡永遠是你還沒讀的第一格。讀完按一下「我讀完了」就記起來了。", spot: 8 },
+    { sel: "#progress-card", title: "你的進度",
+      text: "這個數字只會往前，不會倒退。中間隔幾天沒讀也不影響。", spot: 8 },
+    { sel: "#book-list", title: "依經卷回頭補",
+      text: "跳著讀、或想補之前的，點開任一卷書就看得到那幾格。", spot: 6 }
+];
+</script>
+
+<style>
+.br-wrap { max-width: 760px; margin: 0 auto; }
+.br-card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); }
+
+/* 進度 */
+.br-bar { height: 10px; border-radius: 9999px; background: var(--surface-2); overflow: hidden; }
+.br-bar > i { display: block; height: 100%; background: var(--green);
+              border-radius: 9999px; }
+.br-num { font-size: 2rem; font-weight: bold; color: var(--green-ink); line-height: 1.1;
+          font-variant-numeric: tabular-nums; }
+
+/* 接下來要讀的 */
+.br-next-label { font-size: 0.9rem; color: var(--text-4); letter-spacing: .05em; }
+.br-next-ref { font-size: 1.5rem; font-weight: bold; color: var(--text-1); line-height: 1.3; margin-top: 2px; }
+.br-actions { display: flex; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.br-btn { flex: 1 1 150px; text-align: center; padding: 14px 16px; border-radius: 12px;
+          font-size: 1rem; font-weight: bold; text-decoration: none; cursor: pointer;
+          border: none; }
+.br-btn.open { background: var(--green-bg); color: var(--green-ink); }
+.br-btn.done { background: var(--green); color: white; }
+.br-btn:disabled { opacity: .6; cursor: default; }
+
+/* 經卷列表 */
+.br-book { border-bottom: 1px solid var(--border); }
+.br-book:last-child { border-bottom: 0; }
+.br-book > summary { list-style: none; cursor: pointer; padding: 14px 18px;
+                     display: flex; align-items: center; gap: 12px; }
+.br-book > summary::-webkit-details-marker { display: none; }
+.br-book-name { font-weight: bold; color: var(--text-2); flex: 1; min-width: 0; }
+.br-book-count { font-size: 0.9rem; color: var(--text-4); font-variant-numeric: tabular-nums;
+                 flex-shrink: 0; }
+.br-book-count.full { color: var(--green-ink); font-weight: bold; }
+.br-mini { width: 54px; height: 6px; border-radius: 9999px; background: var(--surface-2);
+           overflow: hidden; flex-shrink: 0; }
+.br-mini > i { display: block; height: 100%; background: var(--green); }
+
+/* 每一格：第 N 天小字在上、經文範圍大字在下 */
+.br-day { display: flex; align-items: center; gap: 12px; padding: 11px 18px 11px 30px;
+          border-top: 1px solid var(--border); }
+.br-day-body { flex: 1; min-width: 0; }
+.br-day-no { font-size: 0.9rem; color: var(--text-4); font-variant-numeric: tabular-nums; }
+.br-day-ref { font-size: 1.1rem; color: var(--text-2); font-weight: 500; }
+.br-day.is-done .br-day-ref { color: var(--green-ink); }
+.br-open { font-size: 0.9rem; color: var(--info); text-decoration: none; flex-shrink: 0;
+           padding: 6px 8px; }
+/* ★ 切換做成一整塊可以點的區域，不是一個小勾勾 ——
+     這個系統的使用者有一半是長輩，小勾勾在手機上點不準。 */
+.br-toggle { flex-shrink: 0; width: 46px; height: 28px; border-radius: 9999px;
+             background: var(--border); border: none; position: relative; cursor: pointer;
+             transition: background .18s ease; padding: 0; }
+.br-toggle::after { content: ""; position: absolute; top: 3px; left: 3px;
+                    width: 22px; height: 22px; border-radius: 50%; background: white;
+                    box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s ease; }
+.br-toggle[aria-pressed="true"] { background: var(--green); }
+.br-toggle[aria-pressed="true"]::after { transform: translateX(18px); }
+
+.br-testament { font-size: 0.9rem; font-weight: bold; color: var(--text-4); letter-spacing: .1em;
+                padding: 16px 18px 6px; }
+</style>
+
+<div class="br-wrap">
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">聖經速讀計畫</h1>
+        <p class="page-subtitle">教會那張 365 格的速讀表，讀完一格就按一下。</p>
+    </div>
+</div>
+
+{# ════ 進度 ════
+   ★ 只講「讀了幾格」，不講「落後幾天」。
+     那張紙本來就沒有日期 —— 系統不該發明一個會讓人放棄的數字。 #}
+<div id="progress-card" class="br-card" style="padding:20px; margin-bottom:16px;">
+    <div style="display:flex; align-items:flex-end; gap:12px; margin-bottom:12px;">
+        <div>
+            <span id="stat-done" class="br-num">{{ stats.done }}</span>
+            <span style="color:var(--text-4); font-size:1rem;"> / {{ stats.total }} 格</span>
+        </div>
+        <div style="margin-left:auto; text-align:right; color:var(--text-4); font-size:0.9rem;">
+            已讀 <strong id="stat-chapters" style="color:var(--text-2);">{{ stats.chapters }}</strong> 章
+        </div>
+    </div>
+    <div class="br-bar"><i id="stat-bar" style="width:{{ stats.percent }}%;"></i></div>
+    <p style="font-size:0.9rem; color:var(--text-4); margin:10px 0 0; line-height:1.7;">
+        這個數字只會往前。中間隔幾天沒讀不會少掉什麼，接著讀就好。
+    </p>
+</div>
+
+{# ════ 接下來要讀的 ════ #}
+<div id="next-card" class="br-card" style="padding:20px; margin-bottom:22px;">
+    {% if nxt %}
+    <div class="br-next-label">接下來要讀的 · 第 {{ nxt.day_no }} 格</div>
+    <div class="br-next-ref" id="next-ref">{{ nxt.book }} {{ nxt.chapter_start }}{% if nxt.chapter_end != nxt.chapter_start %}–{{ nxt.chapter_end }}{% endif %}</div>
+    {# ★ 「翻開經文」走**站內**的閱讀頁（經文就在那裡，還可以朗讀），
+         不再跳去外部的聖經站。外連只留在那一頁抓不到經文時的備援。 #}
+    <div class="br-actions">
+        <a class="br-btn open" id="next-open" href="/reading/{{ nxt.day_no }}">翻開經文</a>
+        <button class="br-btn done" id="next-done" data-day="{{ nxt.day_no }}">我讀完了</button>
+    </div>
+    {% else %}
+    <div style="text-align:center; padding:10px 0;">
+        <div style="font-size:1.25rem; font-weight:bold; color:var(--green-ink);">整本讀完了 🎉</div>
+        <p style="color:var(--text-3); margin-top:8px; line-height:1.8;">
+            365 格全部打勾。想回頭重讀的話，到下面挑一卷書、按那一格的「重讀」就可以，已讀的紀錄不會動。
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+{# ════ 依經卷 ════ #}
+{# ★ 印出來那張表的入口。速讀完會發證書，而證書要對著一張看得到
+     全部 365 格的表 —— 下面那份「依經卷」是給手機捲的，印出來會變四十幾頁。 #}
+<a href="/reading/sheet" style="display:flex; align-items:center; gap:10px;
+      background:white; border-radius:12px; padding:13px 15px; margin-bottom:18px;
+      text-decoration:none; box-shadow:var(--shadow-sm);">
+    <span style="font-size:1.25rem;">🧾</span>
+    <span style="flex:1; min-width:0;">
+        <span style="display:block; font-weight:bold; color:var(--text-2);">列印我的速讀表</span>
+        <span style="display:block; font-size:0.9rem; color:var(--text-4);">
+            跟教會發的那張一樣，上面有小組和姓名 —— 領證書、點任何一格也能回頭重讀
+        </span>
+    </span>
+    <span style="color:var(--info); font-size:1.25rem;">›</span>
+</a>
+
+<div class="section-label" style="margin-bottom:10px;">全部進度（依經卷）</div>
+{# ★ 回頭重讀的入口：原本要在 66 卷的收合清單裡自己找。挑一卷就直接展開、捲到那裡。
+     已讀紀錄一個字都不動 —— 這只是「打開來再讀一次」。 #}
+<div style="display:flex; align-items:center; gap:10px; margin-bottom:12px;">
+    <label for="jump-book" style="font-weight:bold; color:var(--text-2); white-space:nowrap;">回頭重讀</label>
+    <select id="jump-book" style="flex:1; min-width:0; min-height:44px; padding:0 10px; border-radius:12px;
+            border:1px solid var(--border); font-size:1rem; background:var(--surface);">
+        <option value="">挑一卷書…</option>
+        {% for b in books %}<option value="{{ b.book }}">{{ b.book }}（{{ b.done }}/{{ b.total }}）</option>{% endfor %}
+    </select>
+</div>
+<div id="book-list" class="br-card" style="overflow:hidden;">
+    {% set ns = namespace(t='') %}
+    {% for b in books %}
+        {% if b.testament != ns.t %}
+        {% set ns.t = b.testament %}
+        <div class="br-testament">{{ b.testament }}</div>
+        {% endif %}
+        <details class="br-book" data-book="{{ b.book }}">
+            <summary>
+                <span class="br-book-name">{{ b.book }}</span>
+                <span class="br-mini"><i style="width:{{ (b.done * 100 / b.total)|round }}%;"></i></span>
+                <span class="br-book-count {% if b.done == b.total %}full{% endif %}"
+                      data-total="{{ b.total }}">{{ b.done }}/{{ b.total }}</span>
+            </summary>
+            {% for d in b.days %}
+            <div class="br-day {% if d.done %}is-done{% endif %}" data-day="{{ d.day_no }}">
+                <div class="br-day-body">
+                    <div class="br-day-no">第 {{ d.day_no }} 格</div>
+                    <div class="br-day-ref">{{ d.label }}</div>
+                </div>
+                <a class="br-open" href="/reading/{{ d.day_no }}">{% if d.done %}重讀{% else %}翻開{% endif %}</a>
+                <button class="br-toggle" aria-pressed="{{ 'true' if d.done else 'false' }}"
+                        aria-label="標記第 {{ d.day_no }} 格為已讀"></button>
+            </div>
+            {% endfor %}
+        </details>
+    {% endfor %}
+</div>
+
+{# ★ 「跟紙本有一處不一樣」那段拿掉了（使用者：「這個拿掉！」）——
+     每天在讀的人不需要每次都看到它。
+     ★ 但修正本身**沒有變成默默改掉**：記錄留在
+       `data/bible_reading_plan_365.json` 的 corrections，
+       以及使用手冊第 10 節 —— 需要看到它的是「下次印那張表的人」。 #}
+
+</div>
+
+<script>
+const CSRF = '{{ csrf_token() }}';
+
+// 回頭重讀：挑一卷書 → 展開那一卷、捲過去
+(function () {
+    var sel = document.getElementById('jump-book');
+    if (!sel) return;
+    sel.addEventListener('change', function () {
+        if (!sel.value) return;
+        var books = document.querySelectorAll('#book-list details.br-book');
+        for (var i = 0; i < books.length; i++) {
+            if (books[i].dataset.book === sel.value) {
+                books[i].open = true;
+                books[i].scrollIntoView({ block: 'start' });
+                return;
+            }
+        }
+    });
+})();
+
+async function setDay(dayNo, done) {
+    const res = await fetch('/reading/mark', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF},
+        body: JSON.stringify({day_no: dayNo, done: done}),
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.error || '存不進去');
+    return d;
+}
+
+// ★ 進度條、章數、「接下來要讀的」全部用**伺服器回來的**數字更新，
+//   不在前端自己加一。自己算一份的話，重新整理才會發現兩邊不一樣，
+//   而兩邊各自看都正常。
+function applyStats(d) {
+    document.getElementById('stat-done').textContent = d.stats.done;
+    document.getElementById('stat-chapters').textContent = d.stats.chapters;
+    document.getElementById('stat-bar').style.width = d.stats.percent + '%';
+
+    const ref = document.getElementById('next-ref');
+    const open = document.getElementById('next-open');
+    const btn = document.getElementById('next-done');
+    if (!ref) return;
+    if (d.next) {
+        ref.textContent = d.next.label;
+        btn.dataset.day = d.next.day_no;
+        btn.disabled = false;
+        btn.textContent = '我讀完了';
+        const label = ref.previousElementSibling;
+        if (label) label.textContent = '接下來要讀的 · 第 ' + d.next.day_no + ' 格';
+        if (open) open.href = '/reading/' + d.next.day_no;
+    } else {
+        ref.textContent = '整本讀完了 🎉';
+        btn.disabled = true;
+        btn.textContent = '全部完成';
+    }
+}
+
+function syncRow(dayNo, done) {
+    const row = document.querySelector('.br-day[data-day="' + dayNo + '"]');
+    if (!row) return;
+    row.classList.toggle('is-done', done);
+    row.querySelector('.br-toggle').setAttribute('aria-pressed', done ? 'true' : 'false');
+
+    // 那一卷的小計和迷你進度條要跟著動
+    const book = row.closest('details');
+    const rows = book.querySelectorAll('.br-day');
+    let n = 0;
+    rows.forEach(function (r) { if (r.classList.contains('is-done')) n++; });
+    const count = book.querySelector('.br-book-count');
+    const tot = parseInt(count.dataset.total, 10);
+    count.textContent = n + '/' + tot;
+    count.classList.toggle('full', n === tot);
+    book.querySelector('.br-mini > i').style.width = (n * 100 / tot) + '%';
+}
+
+document.getElementById('next-done')?.addEventListener('click', async function () {
+    const btn = this;
+    if (btn.disabled) return;
+    const dayNo = parseInt(btn.dataset.day, 10);
+    btn.disabled = true;
+    btn.textContent = '記錄中…';
+    try {
+        const d = await setDay(dayNo, true);
+        syncRow(dayNo, true);
+        applyStats(d);
+    } catch (e) {
+        btn.disabled = false;
+        btn.textContent = '我讀完了';
+        alert(e.message);
+    }
+});
+
+document.getElementById('book-list').addEventListener('click', async function (ev) {
+    const btn = ev.target.closest('.br-toggle');
+    if (!btn) return;
+    const row = btn.closest('.br-day');
+    const dayNo = parseInt(row.dataset.day, 10);
+    const want = btn.getAttribute('aria-pressed') !== 'true';
+
+    // 先動畫面（按下去要有反應），失敗再退回去
+    syncRow(dayNo, want);
+    try {
+        applyStats(await setDay(dayNo, want));
+    } catch (e) {
+        syncRow(dayNo, !want);
+        alert(e.message);
+    }
+});
+</script>
+{% endblock %}

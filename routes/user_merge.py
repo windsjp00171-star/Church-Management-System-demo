@@ -55,6 +55,7 @@ REFS = [
     Ref('course_certificates', 'user_id'),                              # UNIQUE (user_id, category_id)：內容不同就中止
     Ref('course_certifications', 'user_id'),                            # 同上
     Ref('course_enrollments', 'user_id'),                               # UNIQUE (course_id, user_id)：撞到就中止
+    Ref('bible_reading_progress', 'user_id', dedupe=('plan_key', 'day_no')),  # PK (user_id, plan_key, day_no)：同一格兩邊都讀過就合成一格
     Ref('daily_verse_draws', 'user_id', dedupe=('drawn_date',)),        # UNIQUE (user_id, drawn_date)
     Ref('group_members', 'user_id', dedupe=('group_id',),
         key=('group_id',)),                                             # PK (group_id, user_id)，沒有 id 欄

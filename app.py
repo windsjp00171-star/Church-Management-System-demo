@@ -144,6 +144,9 @@ def create_app():
     from routes.payment import payment_bp
     app.register_blueprint(payment_bp)
 
+    from routes.bible_plan import bible_plan_bp
+    app.register_blueprint(bible_plan_bp)  # 365 天聖經速讀計畫
+
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',

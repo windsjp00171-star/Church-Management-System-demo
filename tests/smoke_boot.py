@@ -119,7 +119,7 @@ for role, flags in ROLES.items():
 PROBES = {
     'anon': ['/cell-report/sunday', '/cell-report/children', '/cell-report/prayer', '/cell-report/morning-prayer', '/cell-report/pastor-dashboard', '/cell-report/staff-dashboard', '/admin/users', '/admin/backup/',
              '/admin/modules', '/admin/permissions', '/admin/data-export', '/roll-call', '/admin/roll-call',
-             '/diary/export', '/staff', '/my-history', '/admin/events/guided'],
+             '/diary/export', '/staff', '/my-history', '/admin/events/guided', '/reading', '/reading/sheet'],
     'member': ['/cell-report/sunday', '/cell-report/children', '/cell-report/prayer', '/cell-report/morning-prayer', '/cell-report/pastor-dashboard', '/cell-report/staff-dashboard', '/admin/users', '/admin/backup/',
                '/admin/modules', '/admin/permissions', '/admin/data-export', '/admin/roll-call', '/staff', '/admin/events/guided'],
 }

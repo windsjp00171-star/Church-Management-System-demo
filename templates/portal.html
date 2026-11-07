@@ -829,6 +829,19 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         </div>
         {% endif %}
 
+        {# 聖經速讀（365 天）#}
+        {% if session.user_id and not is_visitor %}
+        <div class="fi-wrap ti" data-key="reading" data-type="fixed" style="--d:{{ base_d + 265 }}ms">
+            {% if module_on('/reading') %}<a href="/reading" class="fg-tile fg-devotional">
+                <div class="fg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+                </div>
+                <div class="fg-name">聖經速讀</div>
+                <div class="fg-sub">365 天，讀完就打勾</div>
+            </a>{% endif %}
+        </div>
+        {% endif %}
+
         {# 電子簽到記錄 #}
         {% if session.user_id or session.line_id %}
         {% if card_settings.get('my_history', true) or is_super_admin %}
