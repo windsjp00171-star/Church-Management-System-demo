@@ -339,17 +339,6 @@ def create_app():
         from flask import Response
         return Response('User-agent: *\nDisallow: /\n', mimetype='text/plain')
 
-    # ── 健康檢查（保溫用，不查 DB / 不打 API）─────────────────
-    @app.route('/ping')
-    def ping():
-        return 'ok', 200
-
-    # ── robots.txt（私有系統，全站禁止爬蟲索引）────────────────
-    @app.route('/robots.txt')
-    def robots_txt():
-        from flask import Response
-        return Response('User-agent: *\nDisallow: /\n', mimetype='text/plain')
-
     # ── PWA manifest ─────────────────────────────────────────
     @app.route('/manifest.json')
     def pwa_manifest():
