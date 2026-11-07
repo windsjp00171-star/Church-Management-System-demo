@@ -471,12 +471,37 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% endif %}
 {% endif %}
 
-{# ════ 聚會點名入口（同工）════ #}
+{# ════ 本週點名（同工）：直接在首頁點名 ════ #}
 {% if (is_staff or is_pastor or is_admin) and module_on('/roll-call') %}
-<a href="/roll-call" class="card pa" style="--d:40ms; display:flex; align-items:center; gap:12px; padding:16px 20px; margin-bottom:16px; text-decoration:none; color:inherit;">
-  <span style="font-size:1.6rem;">📝</span>
-  <span><strong>聚會點名</strong><br><span style="font-size:.8rem;color:#6b7280;">選場次、替組員點名</span></span>
-</a>
+<div class="card pa" data-rollcall style="--d:40ms; padding:16px 18px; margin-bottom:16px;">
+  <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:10px;">
+    <strong style="font-size:1.05rem;">📝 {{ rollcall.type.name if rollcall and rollcall.type else '聚會' }}點名{% if rollcall and rollcall.session %}　<span style="font-weight:400; color:#6b7280; font-size:.9rem;">{{ rollcall.session._local.strftime('%-m/%-d') }}{% if not rollcall.is_today %}（最近一次）{% endif %}</span>{% endif %}</strong>
+    {% if module_on('/roll-call') %}<a href="/roll-call" style="font-size:.85rem; color:#4F46E5; text-decoration:none; white-space:nowrap;">完整點名單 ›</a>{% endif %}
+  </div>
+  <div id="rc-msg" role="status" style="min-height:1.1em; color:#b91c1c; font-size:.85rem;"></div>
+  {% if not rollcall %}
+    <p style="margin:0; color:#6b7280;">點名暫時讀不到，請按「完整點名單」。</p>
+  {% elif rollcall.state == 'no_type' or rollcall.state == 'no_session' %}
+    <p style="margin:0 0 10px; color:#6b7280;">還沒有{{ '今天這一欄' if rollcall.state == 'no_session' else '點名單' }}。按一下就會建立。</p>
+    <button type="button" id="rc-start" style="padding:10px 16px; border:0; background:#4F46E5; color:#fff; border-radius:8px; font-weight:bold;">開始：建立{{ '' if rollcall.state == 'no_session' else '主日點名單與' }}今天這一欄</button>
+  {% elif rollcall.state == 'no_members' %}
+    <p style="margin:0; color:#6b7280;">名冊還是空的。{% if is_admin %}請到 {% if module_on('/admin/roll-call') %}<a href="/admin/roll-call">後台 → 聚會點名</a>{% else %}後台聚會點名{% endif %} 貼上姓名。{% else %}請管理員先貼上名冊姓名。{% endif %}</p>
+  {% else %}
+    <div style="display:grid; grid-template-columns:repeat(auto-fill, minmax(104px, 1fr)); gap:8px;">
+      {% for m in rollcall.members %}
+      {% set on = rollcall.records.get(m.id) == 'present' %}
+      <button type="button" class="rc-chip" data-sid="{{ rollcall.session.id }}" data-mid="{{ m.id }}" data-on="{{ '1' if on else '0' }}"
+              {% if not rollcall.editable %}disabled{% endif %} aria-pressed="{{ 'true' if on else 'false' }}"
+              style="display:flex; align-items:center; justify-content:space-between; gap:6px; padding:10px 12px; min-height:46px; border:1px solid {{ '#86efac' if on else '#e5e7eb' }}; border-radius:10px; background:{{ '#dcfce7' if on else '#fff' }}; font-size:1rem; text-align:left;">
+        <span>{{ m.name }}</span><span class="rc-tick" style="color:#15803d; font-weight:700;">{{ '✓' if on else '' }}</span>
+      </button>
+      {% endfor %}
+    </div>
+    <p style="margin:10px 0 0; color:#6b7280; font-size:.85rem;">到場 <strong id="rc-count">{{ rollcall.present }}</strong> / {{ rollcall.members|length }} 人。點名字打勾，再點取消。{% if not rollcall.editable %}（這一欄已鎖定，只有管理員能改）{% endif %}</p>
+  {% endif %}
+  <script>window.RC_AUTO_ADD = {{ 'true' if rollcall and rollcall.auto_add else 'false' }};</script>
+  <script src="/static/portal-rollcall.js" defer></script>
+</div>
 {% endif %}
 
 {# ════ 聚會人數總覽 ════ #}

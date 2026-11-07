@@ -105,3 +105,58 @@ def test_sunday_column_that_already_exists_is_not_added_again(fake_db, client_as
 
 def test_old_session_list_still_reachable_for_headcount_and_backfill(fake_db, client_as):
     assert client_as(is_staff=True).get('/roll-call/sessions').status_code == 200
+
+
+# ── 首頁「本週點名」──
+def _portal(app, **flags):
+    rc = sys.modules['routes.roll_call']
+    with app.test_request_context():
+        from flask import session
+        session.update(user_id='u1', real_name='同工', **flags)
+        return rc.portal_rollcall()
+
+
+def test_portal_card_states(fake_db, app, monkeypatch):
+    rc = sys.modules['routes.roll_call']
+    monkeypatch.setattr(rc, '_today_taipei', lambda: datetime.date(2026, 11, 9))          # 週一
+    assert _portal(app, is_staff=True)['state'] == 'no_type'
+    fake_db.tables['rc_meeting_types'] = [TYPE]
+    assert _portal(app, is_staff=True)['state'] == 'no_session'
+    fake_db.tables['rc_sessions'] = [_sess('s1', '2026-11-08T02:00:00+00:00')]
+    assert _portal(app, is_staff=True)['state'] == 'no_members'
+    fake_db.tables['rc_members'] = [{'id': 'm1', 'name': '甲', 'status': 'active'}, {'id': 'm2', 'name': '乙', 'status': 'active'}]
+    fake_db.tables['rc_records'] = [{'session_id': 's1', 'member_id': 'm1', 'status': 'present'}]
+    info = _portal(app, is_staff=True)
+    assert info['state'] == 'ready' and info['present'] == 1 and len(info['members']) == 2
+    assert info['is_today'] is False and info['editable'] is True                         # 週一看到的是「最近一次」
+
+
+def test_portal_card_prefers_todays_column_and_is_read_only(fake_db, app, monkeypatch):
+    rc = sys.modules['routes.roll_call']
+    monkeypatch.setattr(rc, '_today_taipei', lambda: datetime.date(2026, 11, 8))
+    fake_db.tables.update(rc_meeting_types=[TYPE], rc_members=[{'id': 'm1', 'name': '甲', 'status': 'active'}],
+                          rc_sessions=[_sess('today', '2026-11-08T02:00:00+00:00'), _sess('old', '2026-11-01T02:00:00+00:00')])
+    info = _portal(app, is_staff=True)
+    assert info['session']['id'] == 'today' and info['is_today'] is True and info['auto_add'] is False
+    assert not fake_db.writes                                   # 讀首頁資料不可以寫資料庫
+
+
+def test_portal_card_sunday_without_a_column_asks_to_add_one(fake_db, app, monkeypatch):
+    rc = sys.modules['routes.roll_call']
+    monkeypatch.setattr(rc, '_today_taipei', lambda: datetime.date(2026, 11, 8))
+    fake_db.tables.update(rc_meeting_types=[TYPE], rc_sessions=[_sess('old', '2026-11-01T02:00:00+00:00')])
+    assert _portal(app, is_staff=True)['auto_add'] is True
+
+
+def test_portal_card_never_breaks_the_home_page(fake_db, app, monkeypatch):
+    rc = sys.modules['routes.roll_call']
+    monkeypatch.setattr(rc, '_sheet_type', lambda *a, **k: (_ for _ in ()).throw(RuntimeError('db down')))
+    assert _portal(app, is_staff=True) is None
+
+
+def test_portal_template_and_script_are_wired():
+    from pathlib import Path
+    root = Path(__file__).resolve().parent.parent
+    tpl = (root / 'templates' / 'portal.html').read_text(encoding='utf-8')
+    assert 'data-rollcall' in tpl and '/static/portal-rollcall.js' in tpl
+    assert (root / 'static' / 'portal-rollcall.js').exists()

@@ -1,5 +1,6 @@
 import logging
 # 活動相關路由
+from routes.modules import is_enabled
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify, flash
 from db import supabase
 from datetime import datetime, timezone, date, timedelta
@@ -492,7 +493,14 @@ def portal():
         except Exception:
             logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
+    # ── 首頁「本週點名」（同工以上；聚會點名模組關掉就沒有）──
+    rollcall = None
+    if (is_staff or is_pastor or session.get('is_admin')) and is_enabled('roll_call'):
+        from routes.roll_call import portal_rollcall
+        rollcall = portal_rollcall()
+
     return render_template('portal.html',
+        rollcall=rollcall,
         open_events=open_events,
         open_courses=open_courses,
         portal_links=all_portal_links,
