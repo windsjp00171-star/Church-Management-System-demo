@@ -129,6 +129,16 @@
                 <p style="font-size:0.78rem; color:#aaa; margin-top:4px;">活動前幾天提醒未付款者，預設 3 天（有費用才會通知）</p>
             </div>
         </div>
+        {# 這一格和分級收費是「相加」的，不是二選一：兩邊都填 800 就是每個成人收 1600，
+           而兩個數字分別看都對。所以在他改動的當下講出來（不擋，報名費＋票價是合理的）。 #}
+        <button type="button" onclick="addTieredFeeField()"
+            style="margin-top:7px; padding:6px 12px; background:var(--info-bg, #e3f2fd); color:var(--info, #1565c0);
+                   border:1px solid var(--info-border, #90caf9); border-radius:8px; cursor:pointer;
+                   font-size:0.9rem; font-weight:600; font-family:inherit;">
+            ＋ 依身分別分級收費（成人／敬老／孩童…）
+        </button>
+        <div id="fee-conflict" class="dep-hint" data-dep="fee_adds_to_tiers"></div>
+        <div class="dep-hint" data-dep="money_needs_primary_groups"></div>
         <!-- 線上繳費開關（只在 fee > 0 時有意義） -->
         <div id="payment_enabled_section"
              style="display:{{ 'flex' if event and event.fee else 'none' }}; align-items:flex-start; gap:10px; background:#f0fff4; padding:12px 16px; border-radius:8px; border:1px solid #a5d6a7; margin-top:4px;">
@@ -173,6 +183,10 @@
                 <p style="font-size:0.82rem; color:#888; margin-top:3px;">
                     額滿後允許會友加入候補，有人取消時自動晉升。
                 </p>
+                {# 擺在候補區塊最上面，不擺進下面會被收起來的 deadline 區：
+                   「設了截止時間卻沒開候補」正好就是那一區被收起來的狀況 #}
+                <div class="dep-hint" data-dep="waitlist_needs_capacity"></div>
+                <div class="dep-hint" data-dep="waitlist_deadline_needs_waitlist"></div>
                 <div id="waitlist_deadline_section" style="display:{{ 'block' if event and event.waitlist_enabled else 'none' }}; margin-top:10px;">
                     <label style="font-size:0.85rem; font-weight:bold; display:block; margin-bottom:4px;">候補截止時間（選填，過期後自動關閉候補）</label>
                     <input id="waitlist_deadline" type="text" class="flatpickr-dt"
@@ -226,11 +240,17 @@
         </button>
     </div>
     <p style="color:#666; font-size:0.9rem; margin-bottom:10px;">
-        支援文字、長文字、單選、多選、下拉選單、數字、日期。<strong>下拉選單與單選</strong>可設定跳題條件。
+        支援文字、長文字、單選、多選、下拉選單、數字、日期，以及分級收費、出生日期、身分證字號、監護人。<strong>下拉選單、單選、分級收費、出生日期</strong>可設定跳題條件。
     </p>
     <div style="background:#fff8e1; border:1px solid #ffe082; border-radius:8px; padding:10px 14px; margin-bottom:16px; font-size:0.85rem; color:#795548;">
         💡 <strong>請記得</strong>：第一個欄位名稱填 <strong>「參加者姓名」</strong>（文字類型、必填），簽到名單才能正確顯示每位參加者的名字，代報時也不會顯示代報者的名字。
     </div>
+
+    {# 欄位之間的依賴：都是「A 欄位要靠 B 欄位才算得出來」，擺在欄位清單前面
+       （要加的那個欄位還不存在，沒有別的地方可以掛） #}
+    <div class="dep-hint" data-dep="auto_tier_needs_birthday"></div>
+    <div class="dep-hint" data-dep="guardian_needs_birthday"></div>
+    <div class="dep-hint" data-dep="required_age_jump_needs_required_birthday"></div>
 
     <div id="fieldList">
         {% for field in fields %}
@@ -380,6 +400,9 @@
         選一個適合的情境，系統自動幫你設好。
     </p>
 
+    {# 「全開放」「掃碼即自動簽到」設好了但簽到沒開，那兩個設定不會被讀到 #}
+    <div class="dep-hint" data-dep="checkin_options_need_checkin"></div>
+
     <!-- 隱藏的實際輸入，由 JS 維護 -->
     <div style="display:none;">
         <input type="checkbox" id="checkin_enabled"
@@ -502,6 +525,8 @@
 
 {# 預覽跑的是報名者在跑的同一份 JS（跳題、金額、身分證檢查碼、監護人格式）——
    自己另外寫一份的話，預覽會 certify 一個不存在的行為。 #}
+{# 設定之間的依賴即時提示：一定要排在下面呼叫 initDepHints 的 inline script 之前 #}
+<script src="{{ asset('js/dep-hints.js') }}"></script>
 <script src="{{ asset('js/form-fields.js') }}"></script>
 <script src="{{ asset('js/fee-total.js') }}"></script>
 
@@ -1304,6 +1329,32 @@ function addField() {
     document.getElementById('fieldList').appendChild(div);
 }
 
+// ==========================================
+// 設定之間的依賴：即時提示（規則在 routes/setting_deps.py，這裡只收草稿、放位置）
+// ==========================================
+initDepHints({
+    endpoint: '/admin/events/check-deps',
+    collect: collectDraft,
+    action: depAction,
+});
+
+/** 少數幾條可以「一鍵處理掉」。只有動作在這裡，說法還是伺服器的。 */
+function depAction(key) {
+    if (key !== 'fee_adds_to_tiers') return '';
+    // 刻意不自己算總額：金額怎麼加只有 fee_range 和 fee-total.js 說了算
+    return `<br><span style="color:#888;">實際金額按「👁 預覽表單」看得到（跑的就是報名者那一份）。</span><br>` +
+           `<button type="button" onclick="clearBaseFee()"
+             style="margin-top:6px; padding:4px 12px; background:#fff; color:#e65100;
+                    border:1px solid #e65100; border-radius:8px; cursor:pointer;
+                    font-size:0.9rem; font-weight:700; font-family:inherit;">
+             把「費用」這格改成 0</button>`;
+}
+
+function clearBaseFee() {
+    const f = document.getElementById('fee');
+    if (f) { f.value = 0; syncDepHints(); }
+}
+
 // ── 餐點格子（與課程表單共用相同邏輯）────────────────────
 const MEAL_TYPES_EV = ['早餐','午餐','晚餐'];
 const EXISTING_MEAL_EV = {{ (event.meal_options | tojson) if event and event.meal_options else 'null' }};
@@ -1383,26 +1434,8 @@ window.addEventListener('DOMContentLoaded', initMealConfig);
 // ==========================================
 // 送出表單
 // ==========================================
-function submitForm(btn) {
-    const title = document.getElementById('title').value.trim();
-    if (!title) { showToast('請填寫活動名稱', 'warning'); document.getElementById('title').focus(); return; }
-    // 條件設壞的那一題會「永遠不顯示」，存下去之後完全沒有徵兆，所以在這裡就擋
-    const badConds = [];
-    document.querySelectorAll('.field-row').forEach((row, i) => {
-        const problem = conditionProblem(row);
-        if (problem) {
-            const label = row.querySelector('.f-label').value.trim() || `第 ${i + 1} 題`;
-            badConds.push(`「${label}」：${problem}`);
-        }
-    });
-    if (badConds.length) {
-        alert('跳題條件有問題，請先修好這幾題：\n\n' + badConds.join('\n'));
-        return;
-    }
-
-    const origLabel = btn.textContent;
-    btn.disabled = true; btn.textContent = '送出中…';
-
+// 表單現在的草稿（送出用；設定之間的依賴提示也用同一份，提示讀的就是即將存進去的值）
+function collectDraft() {
     const fields = [];
     document.querySelectorAll('.field-row').forEach((row, index) => {
         // ★ 跟預覽共用同一支（conditionJsonFromRow）—— 各寫一份的話，
@@ -1439,7 +1472,7 @@ function submitForm(btn) {
     const allowOpenCheckin = allowOpenCheckinEl ? allowOpenCheckinEl.checked : false;
 
     const payload = {
-        title,
+        title: document.getElementById('title').value.trim(),
         description: document.getElementById('description').value.trim(),
         location: document.getElementById('location').value.trim(),
         event_start: document.getElementById('event_start').value || null,
@@ -1468,6 +1501,30 @@ function submitForm(btn) {
         } : null,
         fields,
     };
+    return payload;
+}
+
+function submitForm(btn) {
+    const title = document.getElementById('title').value.trim();
+    if (!title) { showToast('請填寫活動名稱', 'warning'); document.getElementById('title').focus(); return; }
+    // 條件設壞的那一題會「永遠不顯示」，存下去之後完全沒有徵兆，所以在這裡就擋
+    const badConds = [];
+    document.querySelectorAll('.field-row').forEach((row, i) => {
+        const problem = conditionProblem(row);
+        if (problem) {
+            const label = row.querySelector('.f-label').value.trim() || `第 ${i + 1} 題`;
+            badConds.push(`「${label}」：${problem}`);
+        }
+    });
+    if (badConds.length) {
+        alert('跳題條件有問題，請先修好這幾題：\n\n' + badConds.join('\n'));
+        return;
+    }
+
+    const origLabel = btn.textContent;
+    btn.disabled = true; btn.textContent = '送出中…';
+
+    const payload = collectDraft();
 
     const url = '{{ "/admin/events/" + event.id + "/edit" if event else "/admin/events/new" }}';
     fetch(url, {

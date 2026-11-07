@@ -249,10 +249,41 @@ def _ctx(fields):
     return {'event': {}, 'fields': fields, 'primary_groups': ['小組A']}
 
 
+def test_the_form_hint_stops_asking_for_a_birthday():
+    """★★★ 提示和伺服器不可以講不同的話。
+
+    `guardian_needs_birthday` 是**唯一擋存檔**的一條，所以它跳出來時是
+    紅色的、寫著「會擋下來」。勾了「每個人都要填」之後伺服器其實讓他
+    存了 —— 這時還跳的話，他會為了消掉那行紅字，
+    **加一題他不需要的出生日期**（而那一題還會被填錯）。
+    """
+    from routes.setting_deps import unmet
+    fields = [_guardian(json.dumps(everyone_condition()))]
+    keys = {d.key for d in unmet('events', _ctx(fields))}
+    assert 'guardian_needs_birthday' not in keys
 
 
+def test_it_still_asks_when_the_default_is_in_play():
+    """★ 對照組：沒勾的照樣要提醒（而且照樣擋）。"""
+    from routes.setting_deps import blocking, unmet
+    fields = [_guardian(None)]
+    keys = {d.key for d in unmet('events', _ctx(fields))}
+    assert 'guardian_needs_birthday' in keys
+    assert blocking('events', _ctx(fields)), '這條本來就是擋存檔的那一條'
 
 
+def test_one_marked_everyone_does_not_cover_for_another_one():
+    """★★ 兩題監護人、只有一題勾了「每個人都要填」——
+    另一題還是靠年齡判斷，所以提醒要照跳。
+
+    `any()` 寫成「全部都勾了才不提醒」跟「有一題勾了就不提醒」差一個字，
+    而後者的症狀是**那一題永遠不出現**，沒有任何地方會紅。
+    """
+    from routes.setting_deps import unmet
+    other = dict(_guardian(None), id='f-guard2', label='家長聯絡方式')
+    fields = [_guardian(json.dumps(everyone_condition())), other]
+    keys = {d.key for d in unmet('events', _ctx(fields))}
+    assert 'guardian_needs_birthday' in keys
 
 
 # ══ 六、後台設得起來（不然上面全部是死程式碼）═════════
