@@ -981,6 +981,97 @@ def events():
 from routes.admin_events import _apply_guardian_conditions  # noqa: E402
 
 
+#  引導式和空白表單走的是**同一支**建立端點（刻意的：伺服器端的驗證
+#  一條都不繞過）。代價是事後完全分不出一場活動是怎麼開出來的。
+#
+#  ★★ 而「分不出來」在這個專案是一件大事：最貴的失敗不是壞掉，
+#     是**「做了但沒人用」**，而它跟「壞了」在數據上長得一模一樣。
+#     沒有這個數字，要不要把引導式推到別的模組就只能用猜的。
+#
+#  ★ 只記兩件事：走哪條路，以及（引導式才有）他選了哪些用途 ——
+#    後者直接回答「用途清單漏了什麼」，那是設計時唯一沒有資料的地方。
+#
+#  ★ 這兩個 key **不會進 events 表**：`event_data` 是逐個欄位列出來的，
+#    多送的東西不會被寫進去（`test_the_marker_never_reaches_the_events_table`
+#    在守）。
+CREATED_VIA = ('guided', 'form')
+
+
+def _log_how_it_was_created(event_id, data):
+    """一場活動是走引導式還是空白表單開的。
+
+    ★★ 整個包在 try 裡。`log_action` 自己會吞資料庫的例外
+      （見 `routes/audit.py`），但**這裡自己算 detail 也會炸** ——
+      `data['fields']` 送上來是個數字的話 `len()` 就丟 TypeError，
+      於是一個純粹記錄用的東西把建立活動整個弄壞。
+
+      這不是推論，是測試抓到的：我原本寫「log_action 會吞，所以不用再包」，
+      而那句話只涵蓋了它裡面的那一段。
+    """
+    try:
+        via = data.get('created_via')
+        if via not in CREATED_VIA:
+            #  沒帶標記＝空白表單。★ 預設成 'form' 而不是 'unknown'：
+            #  舊的前端、或任何直接打 API 的，本來就都不是引導式。
+            via = 'form'
+        fields = data.get('fields')
+        detail = {'via': via,
+                  'fields': len(fields) if isinstance(fields, list) else None}
+        if via == 'guided':
+            uses = data.get('created_uses')
+            detail['uses'] = uses if isinstance(uses, list) else []
+        log_action('event.create', target_type='event', target_id=event_id,
+                   detail=detail)
+    except Exception:
+        #  記錄是加值的東西，壞掉不可以讓人開不了活動。
+        pass
+
+
+@admin_bp.route('/events/guided')
+@admin_required
+def guided_new_event():
+    """引導式開活動的那一頁。
+
+    ★ 這一支只是把「問句和選項」交給模板 —— 判斷一律在
+      `routes/guided.py`，畫面一個欄位都不自己拼。
+    """
+    from routes.guided import CUSTOM_TYPES, USES
+    from routes.field_types import FIELD_TYPES
+    return render_template(
+        'admin/event_guided.html',
+        uses=USES,
+        custom_types=[(t, FIELD_TYPES[t]) for t in CUSTOM_TYPES],
+        #  ★ 型別的中文名字只有一份（`routes/field_types`）——
+        #    頁面自己抄一份的話，加了新型別那一頁會顯示英文 key，
+        #    而畫面上只是「有一格看起來怪怪的」。
+        type_names=FIELD_TYPES)
+
+
+@admin_bp.route('/events/guided/draft', methods=['POST'])
+@admin_required
+def guided_draft():
+    """答案 → 草稿。**不建立任何東西。**
+
+    ## 為什麼是伺服器算
+
+    「要保平安險」要加身分證＋生日、兩個都設必填 —— 那是行為，
+    前端再寫一份的話就有兩個地方在決定「保險要哪些欄位」。
+
+    ## 為什麼不直接建立活動
+
+    使用者的規矩：系統做了六、七個推論，**沒攤開來看過就存的話，
+    他不知道自己有什麼、也不知道哪些是可以改的**。所以這一支只回草稿，
+    畫面上攤開讓他看，按下去才走既有的 `/admin/events/new`。
+
+    ★ 走既有那一支＝所有伺服器端的驗證一條都不繞過
+      （必填、身分證檢查碼、監護人要有生日、名額結算…）。
+      引導式自己開一條寫入路徑的話，那些檢查會少掉一份。
+    """
+    from routes.guided import build_draft
+    return jsonify(build_draft(request.get_json(silent=True) or {}))
+
+
+
 @admin_bp.route('/events/preview-tier', methods=['POST'])
 @admin_required
 def preview_tier():
@@ -1075,6 +1166,7 @@ def event_new():
         except Exception as e:
             return jsonify({'error': f'建立失敗：{str(e)}'}), 500
         event_id = event_result.data[0]['id']
+        _log_how_it_was_created(event_id, data)
 
         # 建立自訂欄位
         try:

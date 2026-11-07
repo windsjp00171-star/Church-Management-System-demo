@@ -119,9 +119,9 @@ for role, flags in ROLES.items():
 PROBES = {
     'anon': ['/cell-report/sunday', '/cell-report/children', '/cell-report/prayer', '/cell-report/morning-prayer', '/cell-report/pastor-dashboard', '/cell-report/staff-dashboard', '/admin/users', '/admin/backup/',
              '/admin/modules', '/admin/permissions', '/admin/data-export', '/roll-call', '/admin/roll-call',
-             '/diary/export', '/staff', '/my-history'],
+             '/diary/export', '/staff', '/my-history', '/admin/events/guided'],
     'member': ['/cell-report/sunday', '/cell-report/children', '/cell-report/prayer', '/cell-report/morning-prayer', '/cell-report/pastor-dashboard', '/cell-report/staff-dashboard', '/admin/users', '/admin/backup/',
-               '/admin/modules', '/admin/permissions', '/admin/data-export', '/admin/roll-call', '/staff'],
+               '/admin/modules', '/admin/permissions', '/admin/data-export', '/admin/roll-call', '/staff', '/admin/events/guided'],
 }
 probe = {role: {u: client(ROLES[role]).get(u).status_code for u in urls} for role, urls in PROBES.items()}
 # 入口探針：功能做好卻沒有入口，等於不存在（頁面在、測試綠，但沒有人走得到）
