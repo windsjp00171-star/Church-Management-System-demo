@@ -946,6 +946,8 @@ def sunday():
     service_count = cfg.get('service_count', 2)
 
     if request.method == 'POST':
+        if _raw_linked('adult_sunday', date_str):          # 以點名為準：不收手填（回報頁已經是唯讀）
+            return jsonify({'success': False, 'error': '這場的人數由「聚會點名」帶入，請到點名那邊填（這裡不用再填一次）'}), 409
         try:
             data = json.loads(request.data.decode('utf-8'))
         except Exception:
@@ -972,6 +974,9 @@ def sunday():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_sunday_report(date_str)
+    if (report or {}).get('_linked') is not None:
+        return render_template('cell_report/linked_count.html', report=report, date=date_obj,
+                               label=cfg.get('label', 'adult_sunday'), key='adult_sunday')
     submitter_name = _get_submitter_name(report)
     return render_template('cell_report/sunday_form.html',
                            report=report or {}, date=date_obj,
@@ -988,6 +993,8 @@ def children():
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
+        if _raw_linked('children_sunday', date_str):          # 以點名為準：不收手填（回報頁已經是唯讀）
+            return jsonify({'success': False, 'error': '這場的人數由「聚會點名」帶入，請到點名那邊填（這裡不用再填一次）'}), 409
         try:
             data = json.loads(request.data.decode('utf-8'))
         except Exception:
@@ -1010,6 +1017,9 @@ def children():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_children_report(date_str)
+    if (report or {}).get('_linked') is not None:
+        return render_template('cell_report/linked_count.html', report=report, date=date_obj,
+                               label=cfg.get('label', 'children_sunday'), key='children_sunday')
     submitter_name = _get_submitter_name(report)
     return render_template('cell_report/children_sunday_form.html',
                            report=report or {}, date=date_obj,
@@ -1025,6 +1035,8 @@ def prayer():
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
+        if _raw_linked('prayer', date_str):          # 以點名為準：不收手填（回報頁已經是唯讀）
+            return jsonify({'success': False, 'error': '這場的人數由「聚會點名」帶入，請到點名那邊填（這裡不用再填一次）'}), 409
         try:
             data = json.loads(request.data.decode('utf-8'))
         except Exception:
@@ -1047,6 +1059,9 @@ def prayer():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_prayer_report(date_str)
+    if (report or {}).get('_linked') is not None:
+        return render_template('cell_report/linked_count.html', report=report, date=date_obj,
+                               label=cfg.get('label', 'prayer'), key='prayer')
     submitter_name = _get_submitter_name(report)
     return render_template('cell_report/prayer_form.html',
                            report=report or {}, date=date_obj,
@@ -1062,6 +1077,8 @@ def morning_prayer():
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
+        if _raw_linked('morning_prayer', date_str):          # 以點名為準：不收手填（回報頁已經是唯讀）
+            return jsonify({'success': False, 'error': '這場的人數由「聚會點名」帶入，請到點名那邊填（這裡不用再填一次）'}), 409
         try:
             data = json.loads(request.data.decode('utf-8'))
         except Exception:
@@ -1084,6 +1101,9 @@ def morning_prayer():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_morning_prayer_report(date_str)
+    if (report or {}).get('_linked') is not None:
+        return render_template('cell_report/linked_count.html', report=report, date=date_obj,
+                               label=cfg.get('label', 'morning_prayer'), key='morning_prayer')
     submitter_name = _get_submitter_name(report)
     return render_template('cell_report/morning_prayer_form.html',
                            report=report or {}, date=date_obj,
@@ -1113,6 +1133,8 @@ def admin_meeting_settings():
                 'service_count': service_count,
                 'label': label,
                 'emoji': emoji,
+                # 連結到哪一種「聚會點名」；空＝不連結（照舊在回報頁手填）
+                'rc_type_id': (request.form.get(f'{key}_rc_type') or '').strip() or None,
             }, ensure_ascii=False)
             supabase.table('settings').upsert({'key': f'meeting.{key}', 'value': payload}).execute()
 
@@ -1160,7 +1182,13 @@ def admin_meeting_settings():
 
     settings = _get_meeting_settings()
     module_cfg = _get_module_settings()
+    try:
+        rc_types = supabase.table('rc_meeting_types').select('id, name, record_mode')\
+            .eq('is_active', True).order('name').execute().data or []
+    except Exception:
+        rc_types = []
     return render_template('cell_report/admin_meeting_settings.html',
+                           rc_types=rc_types,
                            settings=settings,
                            weekday_names=WEEKDAY_NAMES,
                            defaults=MEETING_DEFAULTS,
@@ -1245,28 +1273,58 @@ def _get_submitter_name(report: Optional[Dict]) -> Optional[str]:
     return None
 
 
-def _get_sunday_report(date_str: str) -> Optional[Dict]:
+def _raw_linked(key: str, date_str: str) -> bool:
+    """這個聚會這一天，人數是不是由點名帶出來的（POST 擋手填用）。"""
+    from routes.roll_call_link import linked_counts
+    return linked_counts(key, date_str, _get_meeting_settings().get(key, {})) is not None
+
+
+def _raw_sunday_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('sunday_reports').select('*').eq('date', date_str).execute()
     return (res.data or [None])[0]
 
 
-def _get_children_report(date_str: str) -> Optional[Dict]:
+def _get_sunday_report(date_str: str) -> Optional[Dict]:
+    # 以點名為準：點名那邊有數字就蓋上去（見 routes/roll_call_link.py）；沒連結／還沒點就是原本那一列
+    from routes.roll_call_link import overlay
+    return overlay('adult_sunday', date_str, _raw_sunday_report(date_str))
+
+
+def _raw_children_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('children_sunday_reports').select('*').eq('date', date_str).execute()
     return (res.data or [None])[0]
 
 
-def _get_prayer_report(date_str: str) -> Optional[Dict]:
+def _get_children_report(date_str: str) -> Optional[Dict]:
+    # 以點名為準：點名那邊有數字就蓋上去（見 routes/roll_call_link.py）；沒連結／還沒點就是原本那一列
+    from routes.roll_call_link import overlay
+    return overlay('children_sunday', date_str, _raw_children_report(date_str))
+
+
+def _raw_prayer_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('prayer_reports').select('*').eq('date', date_str).execute()
     return (res.data or [None])[0]
 
 
-def _get_morning_prayer_report(date_str: str) -> Optional[Dict]:
+def _get_prayer_report(date_str: str) -> Optional[Dict]:
+    # 以點名為準：點名那邊有數字就蓋上去（見 routes/roll_call_link.py）；沒連結／還沒點就是原本那一列
+    from routes.roll_call_link import overlay
+    return overlay('prayer', date_str, _raw_prayer_report(date_str))
+
+
+def _raw_morning_prayer_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('morning_prayer_reports').select('*').eq('date', date_str).execute()
     return (res.data or [None])[0]
 
 
+def _get_morning_prayer_report(date_str: str) -> Optional[Dict]:
+    # 以點名為準：點名那邊有數字就蓋上去（見 routes/roll_call_link.py）；沒連結／還沒點就是原本那一列
+    from routes.roll_call_link import overlay
+    return overlay('morning_prayer', date_str, _raw_morning_prayer_report(date_str))
+
+
 def _get_or_create_sunday_report(date_str: str) -> Dict:
-    existing = _get_sunday_report(date_str)
+    existing = _raw_sunday_report(date_str)
     if existing:
         return existing
     try:
@@ -1277,11 +1335,11 @@ def _get_or_create_sunday_report(date_str: str) -> Dict:
             return res.data[0]
     except Exception:
         logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
-    return _get_sunday_report(date_str) or {}
+    return _raw_sunday_report(date_str) or {}
 
 
 def _get_or_create_children_report(date_str: str) -> Dict:
-    existing = _get_children_report(date_str)
+    existing = _raw_children_report(date_str)
     if existing:
         return existing
     try:
@@ -1290,11 +1348,11 @@ def _get_or_create_children_report(date_str: str) -> Dict:
             return res.data[0]
     except Exception:
         logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
-    return _get_children_report(date_str) or {}
+    return _raw_children_report(date_str) or {}
 
 
 def _get_or_create_prayer_report(date_str: str) -> Dict:
-    existing = _get_prayer_report(date_str)
+    existing = _raw_prayer_report(date_str)
     if existing:
         return existing
     try:
@@ -1303,11 +1361,11 @@ def _get_or_create_prayer_report(date_str: str) -> Dict:
             return res.data[0]
     except Exception:
         logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
-    return _get_prayer_report(date_str) or {}
+    return _raw_prayer_report(date_str) or {}
 
 
 def _get_or_create_morning_prayer_report(date_str: str) -> Dict:
-    existing = _get_morning_prayer_report(date_str)
+    existing = _raw_morning_prayer_report(date_str)
     if existing:
         return existing
     try:
@@ -1316,7 +1374,7 @@ def _get_or_create_morning_prayer_report(date_str: str) -> Dict:
             return res.data[0]
     except Exception:
         logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
-    return _get_morning_prayer_report(date_str) or {}
+    return _raw_morning_prayer_report(date_str) or {}
 
 
 def _build_group_data(groups: List[Dict], sunday: datetime.date) -> List[Dict]:

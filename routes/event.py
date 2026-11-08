@@ -466,6 +466,11 @@ def portal():
                 'prayer':   _by_date('prayer_reports',          prayer_date,   'date','attendance_count'),
                 'morning':  _by_date('morning_prayer_reports',  morning_date,  'date','attendance_count'),
             }
+            # 以點名為準：點名那邊有數字就蓋上去（沒連結／還沒點就是原本手填的）
+            from routes.roll_call_link import overlay as _rc_overlay
+            for _k, _key, _d in (('sunday', 'adult_sunday', sunday_date), ('children', 'children_sunday', children_date),
+                                 ('prayer', 'prayer', prayer_date), ('morning', 'morning_prayer', morning_date)):
+                attendance_summary[_k] = _rc_overlay(_key, _d, attendance_summary[_k], cfg=mcfg.get(_key, {}))
         except Exception:
             logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 

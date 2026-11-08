@@ -123,6 +123,23 @@ window.PAGE_TOUR_STEPS = [
     {% endif %}
 </div>
 
+{# 小組長／管理員／牧者才看得到：看組員讀了幾格（依週間小組）。 #}
+{% if can_see_groups %}
+<a href="/reading/group" style="display:flex; align-items:center; gap:10px;
+      background:white; border-radius:12px; padding:13px 15px; margin-bottom:12px;
+      text-decoration:none; box-shadow:var(--shadow-sm);">
+    <span style="font-size:1.25rem;">👥</span>
+    <span style="flex:1; min-width:0;">
+        <span style="display:block; font-weight:bold; color:var(--text-2);">小組讀經進度</span>
+        <span style="display:block; font-size:0.9rem; color:var(--text-4);">看各週間小組的組員讀了幾格（只有數字，不排名）</span>
+    </span>
+    <span style="color:var(--info); font-size:1.25rem;">›</span>
+</a>
+{% endif %}
+{% if in_group %}
+<p style="color:var(--text-4); font-size:0.85rem; margin:0 0 12px;">小組長看得到你讀了幾格（只有數字）。</p>
+{% endif %}
+
 {# ════ 依經卷 ════ #}
 {# ★ 印出來那張表的入口。速讀完會發證書，而證書要對著一張看得到
      全部 365 格的表 —— 下面那份「依經卷」是給手機捲的，印出來會變四十幾頁。 #}

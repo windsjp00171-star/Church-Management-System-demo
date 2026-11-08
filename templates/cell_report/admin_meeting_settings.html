@@ -88,6 +88,23 @@
                  style="width:80px; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:1.1rem; text-align:center; box-sizing:border-box;">
         </div>
 
+        {# ★ 以點名為準：選了之後，這個聚會的人數由「聚會點名」那一場帶出來，回報頁不用再填第二次。
+             沒有選＝照舊在回報頁手填。點名那邊還沒有數字時，回報頁也還是能手填。 #}
+        <div style="grid-column: 1 / -1;">
+          <label style="display:block; font-size:.8rem; font-weight:700; color:#555; margin-bottom:6px;">人數來源（聚會點名）</label>
+          <select name="{{ key }}_rc_type"
+                  style="width:100%; padding:9px 12px; border:1.5px solid #e0e0e0; border-radius:8px; font-size:.9rem; background:white; cursor:pointer;">
+            <option value="">不連結 —— 在回報頁手填</option>
+            {% for t in rc_types %}
+            <option value="{{ t.id }}" {% if cfg.get('rc_type_id') == t.id %}selected{% endif %}>{{ t.name }}（{{ '只記人數' if t.record_mode == 'headcount' else '逐人點名' }}）</option>
+            {% endfor %}
+          </select>
+          <p style="font-size:.78rem; color:#888; margin:6px 0 0; line-height:1.6;">
+            選了之後，人數直接用點名那場的：只記人數的場次用填的人數，逐人點名的場次算「到」＋「遲到」的人。
+            {% if has_service_count %}成人主日有幾堂就要有幾場點名（依開始時間排序，最早的是第一堂）。{% endif %}
+          </p>
+        </div>
+
       </div>
     </div>
     {% endfor %}
