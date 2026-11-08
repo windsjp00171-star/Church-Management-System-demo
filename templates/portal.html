@@ -570,24 +570,25 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
    任務層 — 我的近期活動 + 開放報名
 ════════════════════════════════════════════ #}
 
-{# ── 我的近期活動 ── #}
+{# ── 我的近期提醒 ──
+   ★ 一則一行：圖示＋「今天／明天／還有 N 天」＋名稱，底下是具體日期（「還有 3 天」要人自己去數哪一天）。
+   ★ 活動那一行留「已報名 ✓」：這一區跟下面「開放報名」是互斥的，這張卡是全首頁唯一提到「你已經報名了」的地方，
+     拿掉的話他會把它讀成「有一場活動」而再報一次。
+   ★ 這裡不講缺席、不講還能缺幾堂、不講錢（不催繳是使用者定的）。 #}
 {% if 'upcoming_events' not in hidden_sections %}
-{% if my_upcoming %}
-<div class="pa" style="--d:60ms; margin-bottom:28px;">
-    <div class="section-label" style="margin-bottom:12px;">我的近期活動</div>
+{% if my_todos %}
+<div class="pa" style="--d:60ms; margin-bottom:28px;" data-tour="my-todos">
+    <div class="section-label" style="margin-bottom:12px;">我的近期提醒</div>
     <div style="display:flex;flex-direction:column;gap:8px;">
-        {% for e in my_upcoming %}
-        {% if module_on('/event/x') %}<a href="/event/{{ e.id }}" class="upcoming-strip">
+        {% for t in my_todos %}
+        <a href="{{ t.link }}" class="upcoming-strip">
             <div class="us-dot"></div>
             <div class="us-body">
-                <div class="us-title">{{ e.title }}</div>
-                <div class="us-meta">
-                    {% if e.event_start %}{{ e.event_start[:10] }}{% endif %}
-                    {% if e.location %} · {{ e.location }}{% endif %}
-                </div>
+                <div class="us-title">{{ t.icon }} {{ t.title }}</div>
+                <div class="us-meta">{{ t.detail }}</div>
             </div>
-            <span class="badge badge-green" style="flex-shrink:0;">已報名 ✓</span>
-        </a>{% endif %}
+            {% if t.icon == '🎪' %}<span class="badge badge-green" style="flex-shrink:0;">已報名 ✓</span>{% endif %}
+        </a>
         {% endfor %}
     </div>
 </div>

@@ -54,8 +54,9 @@ def test_roll_call_has_an_entry_for_staff_and_not_for_plain_members(result):
 # 一般會友開首頁的資料庫往返預算。★ 數字是「量出來的實際值＋1」，不是「不准加」：
 # 加一個 supabase.table(...) 在畫面上沒有任何變化，只是每個人每次開首頁多等 100 毫秒
 # （Supabase 在雪梨）；有預算的話那一下變成看得見的決定 —— 要加就把這個數字改大，並說為什麼。
-# 沒快取時是 16 趟，現在（第二次請求，快取已填）是 10 趟。
-PORTAL_ROUND_TRIPS_BUDGET = 11
+# 沒快取時是 16 趟，加「我的近期提醒」之前（第二次請求，快取已填）是 10 趟；
+# 現在是 13 趟：多的 3 趟是提醒的代價（修課、報名的活動、教會行事＋個人行程），空資料庫下量到的值。
+PORTAL_ROUND_TRIPS_BUDGET = 14
 
 
 def test_the_home_page_stays_within_its_round_trip_budget(result):

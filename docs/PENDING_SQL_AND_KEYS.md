@@ -1,8 +1,8 @@
 # 你要處理的 SQL 與金鑰（2026-11-07）
 
-> 這份只列「**現在就能做、而且不會壞東西**」的。每一段 SQL 都可重複執行（`IF NOT EXISTS`），
-> 在 Supabase → SQL Editor 貼上執行即可。**這些功能的程式碼都還沒搬進來**；
-> 你執行 SQL 不會改變現有畫面。要搬哪一項，告訴我「同意 ○○」，我再動程式。
+> **2026-11-08 更新**：推播（B1）、主日信息（B2）、讀經推播、首頁近期提醒**程式都已經合併**，
+> 對應的 SQL 就是 `migrations/021_push_subscriptions.sql`、`migrations/022_sermons.sql`（可重複執行，直接在 Supabase → SQL Editor 貼上）。
+> 生日祝賀（B3）、使用數據（B4）**決定不搬**，可忽略。
 
 ## A. 已經合併、需要你在正式站執行（不執行＝新功能不會動或存不進去）
 
@@ -81,7 +81,6 @@ CREATE TABLE IF NOT EXISTS portal_link_clicks (
 |---|---|---|---|
 | `VAPID_PUBLIC_KEY`、`VAPID_PRIVATE_KEY` | 手機推播 | 在自己電腦 `pip install py-vapid` 後執行 `vapid --gen`，會產生一組金鑰 | **私鑰只放 Render，不要進 repo、不要貼到對話** |
 | `VAPID_SUBJECT` | 手機推播 | 填教會網站網址（`https://…`，後面不要加斜線或路徑） | 不要填個人 email |
-| `GEMINI_API_KEY` | 小舟 AI 助手 | Google AI Studio 申請 | 天父日記已經用同一把；有就不用再設。選填 `GEMINI_MODEL` |
 | `TASK_TOKEN` | 手動觸發排程 `/tasks/tick?token=…` | 自己隨便取一串夠長的亂數 | 選填；沒設只是不能手動觸發，排程照跑 |
 | `LINE_LIFF_ID` | 「用瀏覽器開啟」按鈕 | LIFF 網址 `https://liff.line.me/<這一段>` | 沒設會靜默失效，且 Safari 私密瀏覽登不進來時沒有備援 |
 

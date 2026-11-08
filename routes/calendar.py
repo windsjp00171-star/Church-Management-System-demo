@@ -10,6 +10,10 @@ calendar_bp = Blueprint('calendar', __name__)
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
 
+# 行事「提前幾天提醒」最多設多少天；查詢窗用它，所以設幾天就是幾天（窗寫死會讓設定靜默失效）
+MAX_REMIND_DAYS = 30
+
+
 def _to_taipei(s):
     """UTC ISO 字串 → 台灣時間 datetime"""
     if not s:

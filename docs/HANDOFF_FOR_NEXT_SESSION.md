@@ -93,7 +93,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 成熟版比這個 demo 多約 75 個模組（對照 `routes/` 檔案清單，2026-11-07 查證）。成熟版 `CLAUDE.md` 是最完整的功能說明，要搬哪一項先讀那一節。
 使用者選的做法：**A，逐批搬進這個 repo**（不改以成熟版為底；先前「就地重構」的決定不變）。
 
-**表上列的 17 項功能，目前完成 6 項（約 3.5 成）**（更新：2026-11-07；做完一項就改這張表）
+**表上列的 17 項功能，目前完成 11 項，其餘 6 項使用者決定不做／不搬**（更新：2026-11-08；做完一項就改這張表）
 
 | 狀態 | 功能 | 成熟版檔案（`routes/`） | 這個 repo 的狀況 |
 |---|---|---|---|
@@ -104,15 +104,15 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 | ✅ | 公開端點防護（速率限制、蜜罐、身分證字號重複檢查） | `guard.py` | 本批：`compute-tier`／`compute-age`／外部報名。**沒搬**：沒有身分證欄位時退回姓名＋電話的重複比對（這邊外部報名沒有電話欄位）、`find` 查詢端點限流（沒有 `find`） |
 | ✅ | 手機推播 | `push.py`、`sw.js`、`push-optin.js` | 已做（migration 021、VAPID 金鑰要使用者設）。**沒搬**：後台覆蓋率頁；讀經推播＋排程已在下一個 PR 做完 |
 | ✅ | PWA 續登（裝完被要求輸入 LINE 帳密的問題） | `pwa_session.py`（`pwa_apps.py` 未搬，為別的專案用） | 已做 |
-| ⬜ | 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | 未做 |
+| 🚫 | 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | **使用者決定不搬**（2026-11-08：「其他不搬」）；要做再說 |
 | ✅ | 主日信息（YouTube 按週分組） | `sermons.py`、`admin_sermons.py` | 已做（migration 022）。**沒搬**：首頁「最新一部」卡片、小組討論影片按了才載入 |
 | ✅ | 行事曆訂閱（.ics） | `calendar_feed.py` | 已做 |
-| ⬜ | 門訓結業證書 | `certificate.py` | 未做 |
-| ⬜ | 門訓平板簽到 | `courses_kiosk.py` | 未做 |
-| ⬜ | 門訓教材 | `courses_materials.py` | 未做 |
-| ⬜ | 首頁個人化待辦 | `my_todos.py`、`todos.py` | 未做（成熟版刻意**不做催繳**，見其 CLAUDE.md） |
-| ⬜ | 生日祝賀 | `birthday.py` | 未做 |
-| ⬜ | 使用數據 | `usage_stats.py`、`module_views.py` | 未做 |
+| 🚫 | 門訓結業證書 | `certificate.py` | **使用者決定不做**（2026-11-07），不要再提 |
+| 🚫 | 門訓平板簽到 | `courses_kiosk.py` | **使用者決定不搬**（2026-11-08：「其他不搬」）；要做再說 |
+| 🚫 | 門訓教材 | `courses_materials.py` | **使用者決定不搬**（2026-11-08：「其他不搬」）；要做再說 |
+| ✅ | 首頁個人化待辦 | `my_todos.py` | 已做（會友那一側，不改資料庫；沒搬後台同工待辦／輪播／代報）。成熟版刻意**不做催繳** |
+| 🚫 | 生日祝賀 | `birthday.py` | **使用者決定不搬**（2026-11-08：「其他不搬」）；要做再說 |
+| 🚫 | 使用數據 | `usage_stats.py`、`module_views.py` | **使用者決定不搬**（2026-11-08：「其他不搬」）；要做再說 |
 | ✅ | 效能快取 | `cache.py` | 本批：`routes/cache.py` ＋ `settings_store` 與首頁的小表（快捷連結、磁磚設定、經文底圖）；首頁往返 16→10 趟。`Procfile` 的 `--threads 8` 本來就有。**沒搬**：`warm()`（要排程）、`reading_plans.forget_missing`、其他頁的查詢預算 |
 
 **反過來**，這個 demo 有而成熟版沒有的：聚會點名、功能模組登記表、備份登記制、天父日記／檔案分享／小組回報（來自另外三個 repo）、`person.py`、啟動煙霧測試與授權探針。
@@ -141,3 +141,9 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 - 成熟版需要完整 app 假資料庫的路由測試，這個 repo 的架構不能這樣做，改由 `tests/editor_server.py`（子行程跑真的 app）＋ `test_guided_endpoints`／`test_check_deps_endpoint`／`test_event_editor_browser` 涵蓋；陌生人／一般會友的授權探針在 `tests/smoke_boot.py`。
 
 **回到第 9 節的落差表挑下一批**（讀經計畫、推播、小舟…）。讀經計畫需要新表（`bible_reading_progress`、`bible_chapters`），動手前先把完整 SQL 給使用者看。
+
+
+## 11. 使用者提過、還沒做的（2026-11-08）
+
+1. **點名（`rc_*`）與聚會人數回報（`sunday_reports` 等）並存，兩邊都在記人數，想串接。** 已回覆可行，等使用者選方向（見 session 回覆）；不要自己決定以哪一邊為準。
+2. **讀經進度讓小組長看到組員的**（未來）。要先確定「組員」從哪來（`cell_group_leaders`＋`cell_members` 是姓名、不是 users；`group_members`／主標籤是 users），並遵守速讀的規矩：只講「讀了幾格」、**不講落後**、不排名；也要先問使用者組員是否同意被看到（隱私）。

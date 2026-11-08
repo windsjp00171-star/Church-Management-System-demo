@@ -234,24 +234,14 @@ def portal():
     except Exception:
         logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
-    # 撈使用者自己的近期已報名活動
-    # 利用已撈到的 all_events，只需一個額外的 registrations query
-    my_upcoming: list = []
+    # ── 我的近期提醒：報名的活動、上的課、有設提醒的行事（只看得到自己的；時間過了自動消失）──
+    # ★ 之前只有「活動」，而且報名一截止那張卡就不見；正在上的課、快到的行事完全沒有出現在首頁。
+    my_todos: list = []
     uid = session.get('user_id')
     if uid:
         try:
-            my_regs = supabase.table('registrations')\
-                .select('event_id')\
-                .eq('user_id', uid)\
-                .eq('status', 'registered')\
-                .execute().data or []
-            my_event_ids = {r['event_id'] for r in my_regs}
-            today = now[:10]  # YYYY-MM-DD
-            my_upcoming = [
-                e for e in all_events
-                if e['id'] in my_event_ids
-                and (e.get('event_end') or e.get('event_start') or '') >= now
-            ][:3]
+            from routes.my_todos import collect_my_todos
+            my_todos = collect_my_todos(uid)
         except Exception:
             logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
@@ -524,7 +514,7 @@ def portal():
         latest_bulletin=latest_bulletin,
         is_admin=session.get('is_admin', False),
         is_super_admin=is_super,
-        my_upcoming=my_upcoming,
+        my_todos=my_todos,
         group_discussion=group_discussion,
         card_settings=card_settings,
         portal_cards_config=portal_cards_config,
