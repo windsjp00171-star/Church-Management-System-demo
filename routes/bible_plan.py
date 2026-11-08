@@ -342,6 +342,94 @@ from flask import (Blueprint, render_template, session, redirect,  # noqa: E402
 
 from routes.decorators import login_required  # noqa: E402
 
+# ─────────────────────────────────────────────────────────
+#  小組長看組員的讀經進度（依「週間小組」分組）
+#
+#  使用者（2026-11-08）：「讀經部分，未來讓小組長可以看到組員的讀經進度」「用週間小組去分組」。
+#
+#  ★★ 這一頁只講「讀了幾格」，**不講落後、不排名、不標紅**（跟速讀一貫的規矩：
+#    365 天計畫的頭號死因是被人說落後。組長看到的是關心的線索，不是成績單）。名單照姓名排。
+#  ★ 組員來源：`cell_members`（小組回報的組員）裡**已確認**、而且**連結了帳號**的人。
+#    沒連結帳號的看不到進度（只告訴組長「有幾位還沒連結」），不用姓名去猜是哪個帳號 ——
+#    猜錯的話組長看到的是別人的進度，而畫面完全正常。
+#  ★ 組長是誰：`cell_group_leaders`；管理員／牧者看得到全部週間小組。
+# ─────────────────────────────────────────────────────────
+
+def viewable_groups(user_id, is_all=False, sb=None):
+    """這個人可以看哪幾個週間小組（兒童小組不在內）。`[{id, name, weekly_gather_day}]`。查不到回 []。"""
+    sb = sb or _sb()
+    try:
+        if is_all:
+            rows = sb.table('cell_groups').select('id, name, weekly_gather_day, is_children_group')\
+                .eq('is_active', True).order('name').execute().data or []
+        else:
+            links = sb.table('cell_group_leaders').select('group_id').eq('user_id', user_id).execute().data or []
+            ids = [r['group_id'] for r in links if r.get('group_id')]
+            if not ids:
+                return []
+            rows = sb.table('cell_groups').select('id, name, weekly_gather_day, is_children_group')\
+                .in_('id', ids).eq('is_active', True).order('name').execute().data or []
+    except Exception:
+        return []
+    return [g for g in rows if not g.get('is_children_group')]
+
+
+def in_confirmed_group(user_id, sb=None):
+    """他是不是某個週間小組的（已確認）組員 —— 是的話，速讀頁要老實告訴他「小組長看得到你讀了幾格」。"""
+    try:
+        rows = (sb or _sb()).table('cell_members').select('id').eq('user_id', user_id)\
+            .eq('is_active', True).eq('is_confirmed', True).limit(1).execute().data
+    except Exception:
+        return False
+    return bool(rows)
+
+
+def _done_counts(user_ids, sb):
+    """`{user_id: 讀了幾格}`。★ 要分頁：一個人最多 365 列，十個人就超過 PostgREST 一次 1000 筆的上限，
+    不分頁的話排在後面的人會被當成「讀得比較少」，而畫面完全正常。"""
+    counts, start, page = {}, 0, 1000
+    key = active_plan_key()
+    for _page_no in range(200):         # 有上界：漏掉 .range() 時永遠拿到同一批，不能讓這一頁卡死
+        rows = sb.table(TABLE).select('user_id, day_no').eq('plan_key', key)\
+            .in_('user_id', user_ids).range(start, start + page - 1).execute().data or []
+        for r in rows:
+            counts[r['user_id']] = counts.get(r['user_id'], 0) + 1
+        if len(rows) < page:
+            return counts
+        start += page
+    raise RuntimeError('讀經進度分頁超過上界')      # → group_progress 當成「暫時查不到」，不印假數字
+
+
+def group_progress(groups, sb=None):
+    """每個小組的組員進度。`[{group, members: [{name, done}], unlinked}]`；查不到進度時 members 的 done 是 None。"""
+    sb = sb or _sb()
+    if not groups:
+        return []
+    ids = [g['id'] for g in groups]
+    try:
+        members = sb.table('cell_members').select('group_id, name, user_id')\
+            .in_('group_id', ids).eq('is_active', True).eq('is_confirmed', True)\
+            .order('name').execute().data or []
+    except Exception:
+        members = []
+    uids = [m['user_id'] for m in members if m.get('user_id')]
+    try:
+        counts = _done_counts(uids, sb) if uids else {}
+    except Exception:
+        counts = None                       # 查不到 ≠ 0：畫面講「暫時查不到」，不印 0
+    out = []
+    for g in groups:
+        mine = [m for m in members if m['group_id'] == g['id']]
+        linked = [m for m in mine if m.get('user_id')]
+        out.append({
+            'group': g,
+            'members': [{'name': m['name'],
+                         'done': (None if counts is None else counts.get(m['user_id'], 0))} for m in linked],
+            'unlinked': len(mine) - len(linked),
+        })
+    return out
+
+
 bible_plan_bp = Blueprint('bible_plan', __name__)
 
 
@@ -354,7 +442,23 @@ def reading_page():
                            plan=load_plan(),
                            stats=summarise(done),
                            nxt=next_unread(done),
-                           books=by_book(done))
+                           books=by_book(done),
+                           can_see_groups=bool(viewable_groups(uid, _sees_all_groups())),
+                           in_group=in_confirmed_group(uid))
+
+
+def _sees_all_groups():
+    return bool(session.get('is_admin') or session.get('is_super_admin') or session.get('is_pastor'))
+
+
+@bible_plan_bp.route('/reading/group')
+@login_required
+def reading_group():
+    """小組長看組員的讀經進度（依週間小組）。不是組長／管理員／牧者的人回到自己的速讀頁。"""
+    groups = viewable_groups(session['user_id'], _sees_all_groups())
+    if not groups:
+        return redirect(url_for('bible_plan.reading_page'))
+    return render_template('bible_group.html', cards=group_progress(groups), total=total())
 
 
 @bible_plan_bp.route('/reading/mark', methods=['POST'])

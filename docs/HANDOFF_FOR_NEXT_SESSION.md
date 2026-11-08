@@ -143,7 +143,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 **回到第 9 節的落差表挑下一批**（讀經計畫、推播、小舟…）。讀經計畫需要新表（`bible_reading_progress`、`bible_chapters`），動手前先把完整 SQL 給使用者看。
 
 
-## 11. 使用者提過、還沒做的（2026-11-08）
+## 11. 使用者提過的（2026-11-08，**兩項都已做完**）
 
-1. **點名（`rc_*`）與聚會人數回報（`sunday_reports` 等）並存，兩邊都在記人數，想串接。** 已回覆可行，等使用者選方向（見 session 回覆）；不要自己決定以哪一邊為準。
-2. **讀經進度讓小組長看到組員的**（未來）。要先確定「組員」從哪來（`cell_group_leaders`＋`cell_members` 是姓名、不是 users；`group_members`／主標籤是 users），並遵守速讀的規矩：只講「讀了幾格」、**不講落後**、不排名；也要先問使用者組員是否同意被看到（隱私）。
+1. **點名（`rc_*`）與聚會人數回報並存**：使用者選方向 A（以點名為準）→ `routes/roll_call_link.py`。回報頁／同工查閱／首頁摘要都過 `overlay()`；設定在「聚會設定」頁每個聚會的「人數來源」。人數＝逐人模式的「到」＋「遲到」（這是**我定的**，使用者沒講過；要改看 `roll_call_link.PRESENT_STATUSES`）。
+2. **小組長看組員讀經進度（依週間小組）**：`/reading/group`，組員來源是 `cell_members`（已確認＋有 `user_id`）。只講幾格、不排名。
