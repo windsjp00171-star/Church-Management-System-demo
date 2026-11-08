@@ -58,10 +58,25 @@ def _job_warm_bible_chapters():
     return bible_text.warm()
 
 
+def _job_fetch_sermons():
+    """去 YouTube 讀播放清單，把沒看過的影片存進來。
+
+    ★ 排程每 15 分鐘轉一次，但這一支自己節流到 `sermons.REFRESH_HOURS`（6 小時）——
+      主日一週一次，每 15 分鐘去敲 YouTube 換不到任何東西。
+    """
+    from routes import sermons
+    if not sermons.due_for_refresh():
+        return {'skipped': '還沒到下一次抓取時間'}
+    if not sermons.is_configured():
+        return {'skipped': '還沒設定播放清單'}
+    return sermons.refresh_throttled()
+
+
 JOBS = [
     ('warm_bible_chapters', _job_warm_bible_chapters),
     ('reading_nudge', _job_reading_nudge),
     ('close_expired_courses', _job_close_expired_courses),
+    ('fetch_sermons', _job_fetch_sermons),
 ]
 
 

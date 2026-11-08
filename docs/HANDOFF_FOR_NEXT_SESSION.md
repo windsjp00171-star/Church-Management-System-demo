@@ -105,7 +105,7 @@ Flask + Supabase（PostgreSQL）+ LINE Login + Render。整合自四個子系統
 | ✅ | 手機推播 | `push.py`、`sw.js`、`push-optin.js` | 已做（migration 021、VAPID 金鑰要使用者設）。**沒搬**：後台覆蓋率頁；讀經推播＋排程已在下一個 PR 做完 |
 | ✅ | PWA 續登（裝完被要求輸入 LINE 帳密的問題） | `pwa_session.py`（`pwa_apps.py` 未搬，為別的專案用） | 已做 |
 | ⬜ | 小舟 AI 助手 | `ai_help.py`、`help_*.py`、`assistant_identity.py` | 未做 |
-| ⬜ | 主日信息（YouTube 按週分組） | `sermons.py`、`admin_sermons.py` | 未做 |
+| ✅ | 主日信息（YouTube 按週分組） | `sermons.py`、`admin_sermons.py` | 已做（migration 022）。**沒搬**：首頁「最新一部」卡片、小組討論影片按了才載入 |
 | ✅ | 行事曆訂閱（.ics） | `calendar_feed.py` | 已做 |
 | ⬜ | 門訓結業證書 | `certificate.py` | 未做 |
 | ⬜ | 門訓平板簽到 | `courses_kiosk.py` | 未做 |

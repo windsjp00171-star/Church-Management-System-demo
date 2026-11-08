@@ -49,6 +49,7 @@ MODULES = [
         '課程、出席、認證、教材庫存'),
     Module('devotional', '禱讀本訂購', 'optional', (), ('/devotional', '/admin/devotional'), '各小組登記與簽收'),
     Module('reading', '聖經速讀', 'optional', (), ('/reading',), '365 天聖經速讀計畫：打勾、經文、朗讀、列印速讀表'),
+    Module('sermons', '主日信息', 'optional', (), ('/sermons', '/admin/sermons'), '教會 YouTube 主日影片，按週分組（影片自動抓進來）'),
     Module('diary', '天父日記', 'optional', (), ('/diary', '/api/diary'), '每日靈修日記'),
     Module('files', '檔案分享', 'optional', (), (
         '/files', '/folders', '/admin/files', '/admin/api/files'), '教會資料夾與檔案（需要 R2）'),

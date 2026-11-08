@@ -445,6 +445,17 @@
         </div>
       </div>
 
+      <!-- 主日信息 -->
+      {% if module_on('sermons') %}<div class="feature-block">
+        <h3>📺 主日信息 <span class="badge badge-gray" style="font-size:0.72rem;">/sermons</span></h3>
+        <ul class="manual-ul">
+          <li>錯過主日、或想再聽一次，都在這裡；影片留在教會的 YouTube，<strong>在頁面上直接播放</strong>，不會跳出去</li>
+          <li>整頁是一條<strong>一週一行</strong>的日期清單，最新那一週是打開的；要聽哪一週，點那個日期就展開</li>
+          <li>每一行會寫那一週講的主題，不用打開就知道</li>
+          <li>影片是系統<strong>自動</strong>從 YouTube 抓進來的，同工不需要每週手動貼</li>
+        </ul>
+      </div>{% endif %}
+
       <!-- 手機通知 -->
       <div class="feature-block">
         <h3 id="push-notify">📲 手機通知 <span class="badge badge-gray" style="font-size:0.72rem;">/profile</span></h3>

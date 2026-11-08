@@ -28,6 +28,7 @@ ADMIN_MODULES = [
     ('courses',       '門訓課程/認證/教材', ['/admin/courses', '/admin/course-categories',
                                              '/admin/certifications', '/admin/materials']),
     ('devotional',    '禱讀本管理',         ['/admin/devotional']),
+    ('sermons',       '主日信息',           ['/admin/sermons']),
     ('backup',        '資料備份/匯出入',    ['/admin/backup', '/admin/data-export', '/admin/data-import']),
     ('members',       '會友管理',           ['/admin/users', '/admin/api/users', '/admin/api/whitelist']),
     ('groups',        '小組（標籤）管理',   ['/admin/groups', '/admin/api/groups']),

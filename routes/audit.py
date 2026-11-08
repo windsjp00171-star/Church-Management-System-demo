@@ -6,6 +6,7 @@ from db import supabase
 logger = logging.getLogger(__name__)
 
 ACTION_LABELS = {
+    'sermons.playlists':    '修改主日信息播放清單',
     'pwa.login_failed':     'PWA 續登沒成功',
     # 帳號
     'user.create':           '新增手動帳號',

@@ -108,6 +108,16 @@
     </a>
     {% endif %}
 
+    {% if can_see('/admin/sermons') %}
+    <a href="/admin/sermons" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#ecfdf5; color:#047857;">📺</div>
+            <div class="admin-card-name">主日信息</div>
+            <div class="admin-card-desc">影片從 YouTube 自動抓，這裡看抓得順不順</div>
+        </div>
+    </a>
+    {% endif %}
+
     {% if can_see('/admin/devotional') %}
     <a href="/admin/devotional" style="text-decoration:none;">
         <div class="admin-card">

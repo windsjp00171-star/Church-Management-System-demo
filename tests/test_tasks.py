@@ -25,8 +25,8 @@ def _reset():
     tasks._last_run, tasks._running = None, False
 
 
-def test_the_three_jobs_are_registered():
-    assert [n for n, _ in tasks.JOBS] == ['warm_bible_chapters', 'reading_nudge', 'close_expired_courses']
+def test_the_jobs_are_registered():
+    assert [n for n, _ in tasks.JOBS] == ['warm_bible_chapters', 'reading_nudge', 'close_expired_courses', 'fetch_sermons']
 
 
 def test_one_failing_job_does_not_stop_the_others(monkeypatch):
