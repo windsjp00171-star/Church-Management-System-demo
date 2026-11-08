@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% block title %}主日信息{% endblock %}
+
+{% block content %}
+<div style="max-width:900px; margin:0 auto;">
+
+<h1 style="font-size:1.5rem; margin-bottom:6px;">📺 主日信息</h1>
+<p style="color:var(--text-3); font-size:0.9rem; margin-bottom:20px; line-height:1.7;">
+    影片留在 YouTube，系統只記「有這一部、它是什麼時候的」。
+    <strong>不需要有人每週手動貼</strong> —— 設好播放清單之後新影片會自己出現。
+</p>
+
+{# ════ 抓取來源：每一行各自的狀態 ════
+   ★ 只講「設定好了」是不夠的。三行裡有一行打錯時，畫面上還是有影片
+     （另外兩行抓得到），少的那一年要等到有人去找去年的講道才會發現。 #}
+<div style="background:white; border-radius:12px; padding:18px 20px; margin-bottom:18px;
+            box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    <div style="display:flex; justify-content:space-between; align-items:center;
+                flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+        <strong style="color:var(--text-2);">抓取來源</strong>
+    </div>
+
+    {% if not sources %}
+    <div style="background:var(--warn-bg); border-radius:8px; padding:14px 16px;
+                color:var(--warn); font-size:0.9rem; line-height:1.7;">
+        還沒有設定任何播放清單，所以<strong>前台的「主日信息」整頁不會出現</strong>。<br>
+        在下面的框把 YouTube 播放清單網址貼進去（一行一個，可以放很多年份）。
+    </div>
+    {% else %}
+    <div id="source-list">
+        {% for s in sources %}
+        <div style="display:flex; align-items:flex-start; gap:10px; padding:8px 0;
+                    border-bottom:1px solid var(--border); font-size:0.9rem;">
+            <span style="flex-shrink:0;">
+                {% if s.problem == 'unknown' %}⛔{% elif s.problem == 'lookup' %}🔎{% else %}✅{% endif %}
+            </span>
+            <div style="min-width:0; flex:1;">
+                <div style="word-break:break-all; color:var(--text-2);">{{ s.raw }}</div>
+                {% if s.problem == 'unknown' %}
+                <div style="color:var(--danger); margin-top:3px;">
+                    這不像 YouTube 的播放清單或頻道網址 —— 這一行抓不到任何東西
+                </div>
+                {% elif s.problem == 'lookup' %}
+                <div style="color:var(--warn); margin-top:3px;">
+                    這是頻道代號，抓的時候要多連一次網去查頻道 ID。
+                    改貼「播放清單」的網址會更準，也不會把詩歌、活動花絮一起抓進來
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
+    {# ★ 播放清單設定就放在這一頁：這裡本來就是看「抓得怎麼樣」的地方，改完當場按「立刻重新抓取」就看得到結果。
+         一年一個播放清單，所以是一行一個、可以放很多行（只收一條的話，每年一月要有人記得回來換）。 #}
+    <div style="margin-top:14px;">
+        <label for="playlist-block" style="font-weight:600; font-size:0.9rem; color:var(--text-2);">
+            播放清單網址（一行一個）
+        </label>
+        <textarea id="playlist-block" rows="3"
+                  style="width:100%; margin-top:6px; padding:10px 12px; border:1px solid var(--border);
+                         border-radius:8px; font-size:0.9rem; box-sizing:border-box;"
+                  placeholder="https://www.youtube.com/playlist?list=PL...">{{ block }}</textarea>
+        <button id="btn-save-playlists" type="button" class="btn btn-sm" style="margin-top:8px;">儲存</button>
+        <span id="playlist-msg" style="margin-left:10px; font-size:0.9rem;"></span>
+    </div>
+
+    <div style="margin-top:14px;">
+        <button id="btn-refresh" class="btn"
+                style="background:var(--green); color:white; border:none; padding:10px 18px;
+                       border-radius:8px; font-size:0.9rem; cursor:pointer;">
+            立刻重新抓取
+        </button>
+        <span id="refresh-msg" style="margin-left:10px; font-size:0.9rem;"></span>
+    </div>
+    <div id="refresh-detail" style="display:none; margin-top:12px; font-size:0.9rem;
+                                    line-height:1.8; background:var(--surface-2); border-radius:8px;
+                                    padding:12px 14px;"></div>
+
+    {# ════ 日期是從哪裡來的 ════
+         ★ 前台按「一週一組」排，而那個日期是**從標題結尾讀**的
+           （教會的命名就是「…講員:某某2026-09-06」）。讀不到時會安靜地
+           退回上傳時間 —— 那是對的行為，但也代表**命名哪天改了，
+           整頁的日期會悄悄換一個來源**，而畫面上完全正常。
+
+         ★ 這裡不用紅字：偶爾一部漏打日期很正常，不是錯誤。
+           它是一個**數字** —— 平常是 0，哪天變成一整批就知道命名改了。 #}
+    {% if sermons %}
+    <div id="date-source" style="margin-top:14px; padding:11px 14px; border-radius:8px;
+                background:{% if dates.from_upload or dates.unknown %}var(--warn-bg){% else %}var(--surface-2){% endif %};
+                font-size:0.9rem; line-height:1.8;
+                color:{% if dates.from_upload or dates.unknown %}var(--warn){% else %}var(--green-ink){% endif %};">
+        📅 前台的「一週一組」用的是<strong>標題結尾的日期</strong>（講道那天），
+        不是上傳時間。
+        <br>目前 <strong>{{ dates.from_title }}</strong> 部從標題讀到日期{% if dates.from_upload %}、
+        <strong>{{ dates.from_upload }}</strong> 部讀不到而用<strong>上傳時間</strong>推{% endif %}{% if dates.unknown %}、
+        <strong>{{ dates.unknown }}</strong> 部兩邊都算不出來{% endif %}。
+        {% if dates.guessed %}
+        <details style="margin-top:6px;">
+            <summary style="cursor:pointer;">看是哪幾部</summary>
+            <ul style="margin:6px 0 0; padding-left:20px;">
+                {% for t in dates.guessed[:10] %}<li style="word-break:break-all;">{{ t }}</li>{% endfor %}
+            </ul>
+            <div style="margin-top:6px;">
+                ★ 一兩部沒關係（用上傳時間推出來的日期多半只差一兩天）。
+                <strong>如果整批都在這裡</strong>，表示 YouTube 上的命名改了 ——
+                跟我說一聲，系統要跟著調。
+            </div>
+        </details>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# ★ 這兩個限制一定要寫出來。不寫的話同工會以為是抓壞了，一直按重新抓取。 #}
+    <p style="font-size:0.9rem; color:var(--text-4); margin:14px 0 0; line-height:1.7;">
+        一個播放清單一次讀得到<strong>最多 100 部</strong>，
+        超過的（很舊的那些）不會自己跑進來，那不是抓壞了。<br>
+        另外，<strong>新抓進來的影片沒有「上傳時間」</strong>——
+        YouTube 現在不給了。日期改成從<strong>標題結尾</strong>讀
+        （教會的命名本來就是那樣），所以標題結尾要留著日期。
+    </p>
+</div>
+
+{# ════ 影片清單 ════ #}
+{% if sermons is none %}
+<div style="background:var(--danger-bg); border-radius:12px; padding:16px 20px; color:var(--danger);">
+    現在讀不到影片清單（資料庫沒回應）。這一頁本來就是拿來查問題的，
+    所以它不會整個掛掉 —— 過一下再重新整理看看。
+</div>
+{% elif not sermons %}
+<div style="background:white; border-radius:12px; padding:24px 20px; text-align:center;
+            color:var(--text-3); box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    還沒有抓到任何影片。<br>
+    <span style="font-size:0.9rem; color:var(--text-4);">
+        設好播放清單之後按上面那顆「立刻重新抓取」，不用等排程。
+    </span>
+</div>
+{% else %}
+<div style="background:white; border-radius:12px; padding:6px 0; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+    {% for s in sermons %}
+    <div class="sermon-row" data-id="{{ s.id }}"
+         style="padding:14px 18px; border-bottom:1px solid var(--border);
+                {% if s.is_hidden %}opacity:0.5;{% endif %}">
+        <div style="display:flex; gap:12px; align-items:flex-start;">
+            <img src="{{ s.thumbnail_url }}" alt="" loading="lazy"
+                 style="width:96px; aspect-ratio:16/9; object-fit:cover; border-radius:8px;
+                        flex-shrink:0; background:var(--surface-2);">
+            <div style="min-width:0; flex:1;">
+                <a href="{{ s.watch_url }}" target="_blank" rel="noopener"
+                   style="font-weight:bold; color:var(--text-2); text-decoration:none; line-height:1.5;">
+                    {{ s.title }}
+                </a>
+                <div style="font-size:0.9rem; color:var(--text-4); margin-top:4px;">
+                    {% if s.published_at %}{{ s.published_at | tw_date }}{% else %}沒有日期{% endif %}
+                </div>
+                <div style="display:flex; gap:8px; margin-top:8px; flex-wrap:wrap;">
+                    <input aria-label="講員（選填）" class="f-speaker" placeholder="講員（選填）" value="{{ s.speaker or '' }}"
+                           maxlength="40"
+                           style="flex:1; min-width:110px; padding:6px 10px; border:1px solid var(--border);
+                                  border-radius:8px; font-size:0.9rem;">
+                    <input aria-label="經文（選填）" class="f-scripture" placeholder="經文（選填）" value="{{ s.scripture or '' }}"
+                           maxlength="60"
+                           style="flex:1; min-width:110px; padding:6px 10px; border:1px solid var(--border);
+                                  border-radius:8px; font-size:0.9rem;">
+                </div>
+                <div style="margin-top:8px; display:flex; align-items:center; gap:14px;
+                            flex-wrap:wrap; font-size:0.9rem;">
+                    <button class="btn-save"
+                            style="background:var(--green); color:white; border:none; padding:5px 14px;
+                                   border-radius:8px; cursor:pointer; font-size:0.9rem;">儲存</button>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer; color:var(--text-3);">
+                        <input type="checkbox" class="f-hidden" {% if s.is_hidden %}checked{% endif %}
+                               style="width:16px; height:16px;">
+                        不要顯示在前台
+                    </label>
+                    <span class="row-msg" style="color:var(--green-ink);"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+</div>
+
+<script>
+const CSRF = '{{ csrf_token() }}';
+
+document.getElementById('btn-refresh')?.addEventListener('click', async function () {
+    const btn = this;
+    const msg = document.getElementById('refresh-msg');
+    const detail = document.getElementById('refresh-detail');
+    if (btn.disabled) return;
+    btn.disabled = true;
+    msg.style.color = 'var(--text-3)';
+    msg.textContent = '抓取中…';
+    detail.style.display = 'none';
+
+    try {
+        const res = await fetch('/admin/sermons/refresh', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF},
+        });
+        const d = await res.json();
+
+        // ★ 把結果照實講出來，不要只說成功／失敗。
+        //   「抓到 45 部、新增 0 部」和「一條清單掛了」是兩件不同的事，
+        //   而前者完全正常（就是沒有新影片）。
+        const lines = [];
+        lines.push('讀了 ' + d.sources + ' 個清單，抓到 ' + d.fetched +
+                   ' 部影片，其中 <strong>' + d.added + ' 部是新的</strong>。');
+        if (d.added === 0 && !(d.problems || []).length) {
+            lines.push('<span style="color:var(--text-4);">沒有新的不代表壞掉 —— ' +
+                       '上一次抓過之後還沒有新影片上傳。</span>');
+        }
+        (d.titles || []).forEach(function (t) {
+            lines.push('　＋ ' + t.replace(/</g, '&lt;'));
+        });
+        //  ★ 在 YouTube 上改過標題的，這邊跟著改了 —— **要講出來**。
+        //    默默改掉的話，同工下次看到不一樣的字會以為自己記錯了。
+        //    ★ 標題不只是標題：講道日期是從標題結尾讀出來的，
+        //      所以「跟著改」也可能把那一篇搬到正確的那一週。
+        if (d.updated) {
+            lines.push('<strong>' + d.updated +
+                       ' 部的標題在 YouTube 上改過，這邊跟著更新了</strong>' +
+                       '<span style="color:var(--text-4);">（講員、經文、隱藏不會被覆蓋）</span>');
+        }
+        (d.updated_titles || []).forEach(function (t) {
+            lines.push('　✎ ' + t.replace(/</g, '&lt;'));
+        });
+        (d.problems || []).forEach(function (p) {
+            lines.push('<span style="color:var(--danger);">⛔ ' + p.replace(/</g, '&lt;') + '</span>');
+        });
+        detail.innerHTML = lines.join('<br>');
+        detail.style.display = 'block';
+
+        msg.style.color = d.ok ? 'var(--green-ink)' : 'var(--danger)';
+        msg.textContent = d.ok ? '抓完了' : '抓完了，但有問題';
+        if (d.added > 0 || d.updated > 0) setTimeout(function () { location.reload(); }, 1200);
+    } catch (e) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = '連不上伺服器，請再試一次';
+    } finally {
+        btn.disabled = false;
+    }
+});
+
+document.querySelectorAll('.sermon-row').forEach(function (row) {
+    const save = async function () {
+        const msg = row.querySelector('.row-msg');
+        msg.style.color = 'var(--text-3)';
+        msg.textContent = '儲存中…';
+        try {
+            const res = await fetch('/admin/sermons/' + row.dataset.id, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF},
+                body: JSON.stringify({
+                    speaker: row.querySelector('.f-speaker').value,
+                    scripture: row.querySelector('.f-scripture').value,
+                    is_hidden: row.querySelector('.f-hidden').checked,
+                }),
+            });
+            const d = await res.json();
+            if (!res.ok) throw new Error(d.error || '存不進去');
+            msg.style.color = 'var(--green-ink)';
+            msg.textContent = '已儲存';
+            row.style.opacity = row.querySelector('.f-hidden').checked ? '0.5' : '1';
+        } catch (e) {
+            msg.style.color = 'var(--danger)';
+            msg.textContent = e.message;
+        }
+        setTimeout(function () { msg.textContent = ''; }, 2500);
+    };
+    row.querySelector('.btn-save').addEventListener('click', save);
+    // 勾「不要顯示」是一個立刻生效的動作，不該還要再按一次儲存
+    row.querySelector('.f-hidden').addEventListener('change', save);
+});
+
+document.getElementById('btn-save-playlists').addEventListener('click', async function () {
+    const msg = document.getElementById('playlist-msg');
+    msg.style.color = 'var(--text-3)';
+    msg.textContent = '儲存中…';
+    try {
+        const res = await fetch('/admin/sermons/playlists', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json', 'X-CSRF-Token': CSRF},
+            body: JSON.stringify({block: document.getElementById('playlist-block').value}),
+        });
+        const d = await res.json();
+        if (!res.ok) throw new Error(d.error || '存不進去');
+        msg.style.color = 'var(--green-ink)';
+        msg.textContent = '已儲存，重新整理後上面會逐行顯示每一行的狀態';
+        setTimeout(function () { location.reload(); }, 900);
+    } catch (e) {
+        msg.style.color = 'var(--danger)';
+        msg.textContent = e.message;
+    }
+});
+</script>
+{% endblock %}

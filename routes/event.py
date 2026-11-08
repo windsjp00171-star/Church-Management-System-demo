@@ -509,7 +509,14 @@ def portal():
         except Exception:
             logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
+    try:
+        from routes.sermons import is_configured as _sermons_on
+        sermons_on = _sermons_on()
+    except Exception:
+        sermons_on = False
+
     return render_template('portal.html',
+        sermons_on=sermons_on,
         open_events=open_events,
         open_courses=open_courses,
         portal_links=all_portal_links,

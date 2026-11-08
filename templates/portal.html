@@ -829,6 +829,20 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         </div>
         {% endif %}
 
+        {# 主日信息（影片在 YouTube；★ 條件是「設定了播放清單」而不是「已經抓到影片」——
+             設好但還沒抓到第一部之前前台才不會完全沒有入口） #}
+        {% if sermons_on and not is_visitor %}
+        <div class="fi-wrap ti" data-key="sermons" data-type="fixed" style="--d:{{ base_d + 262 }}ms">
+            {% if module_on('/sermons') %}<a href="/sermons" class="fg-tile fg-devotional">
+                <div class="fg-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m10 9 5 3-5 3z" fill="currentColor" stroke="none"/></svg>
+                </div>
+                <div class="fg-name">主日信息</div>
+                <div class="fg-sub">錯過了可以再聽一次</div>
+            </a>{% endif %}
+        </div>
+        {% endif %}
+
         {# 聖經速讀（365 天）#}
         {% if session.user_id and not is_visitor %}
         <div class="fi-wrap ti" data-key="reading" data-type="fixed" style="--d:{{ base_d + 265 }}ms">

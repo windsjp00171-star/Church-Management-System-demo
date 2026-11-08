@@ -1327,6 +1327,22 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 );
 CREATE INDEX IF NOT EXISTS push_subscriptions_user_idx ON push_subscriptions(user_id);
 
+-- ── 主日信息（migrations/022_sermons.sql）──
+CREATE TABLE IF NOT EXISTS sermons (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    video_id     TEXT NOT NULL UNIQUE,
+    title        TEXT NOT NULL,
+    published_at TIMESTAMPTZ,
+    speaker      TEXT,
+    scripture    TEXT,
+    is_hidden    BOOLEAN NOT NULL DEFAULT false,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS sermons_created_idx ON sermons (created_at DESC);
+
+ALTER TABLE sermons ENABLE ROW LEVEL SECURITY;
+
 ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;
 
 

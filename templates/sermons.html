@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% block title %}主日信息{% endblock %}
+{% block content %}
+
+<script>
+window.PAGE_TOUR_KEY = "sermons";
+window.PAGE_TOUR_STEPS = [
+    { sel: ".page-title", title: "主日信息", text: "錯過主日、或想再聽一次，都在這裡。" },
+    { sel: "#sermon-list", title: "一週一組，點日期展開",
+      text: "整頁是一條一週一行的日期清單，最新那一週是打開的。"
+          + "要聽哪一週的講道，點那個日期就展開。", spot: 6 }
+];
+</script>
+
+<div style="max-width:760px; margin:0 auto;">
+
+<div class="page-header">
+    <div class="page-header-left">
+        <h1 class="page-title">主日信息</h1>
+    </div>
+</div>
+
+{% if not configured %}
+{# ★ 沒設定時給的是「這還沒開始用」，不是一頁空清單。
+     空清單跟「教會從來沒錄過影」長得一模一樣。 #}
+<div style="background:var(--warn-bg); border-radius:12px; padding:20px; color:var(--warn);
+            line-height:1.8; margin-top:16px;">
+    這個功能還沒有設定完成，所以現在還看不到影片。
+    {% if is_admin %}
+    <br><a href="/admin/sermons" style="color:var(--info); font-weight:bold;">
+        到後台「主日信息」貼上 YouTube 播放清單 →</a>
+    {% endif %}
+</div>
+
+{% elif not sermons %}
+<div style="background:white; border-radius:12px; padding:28px 20px; text-align:center;
+            color:var(--text-3); line-height:1.8; margin-top:16px;
+            box-shadow:var(--shadow-sm);">
+    還沒有影片。<br>
+    <span style="font-size:0.9rem; color:var(--text-4);">
+        新的主日信息上傳到 YouTube 之後會自動出現在這裡。
+    </span>
+</div>
+
+{% else %}
+<p style="color:var(--text-3); font-size:0.9rem; margin-bottom:18px; line-height:1.7;">
+    錯過主日、或想再聽一次都可以。<br>
+    <span style="font-size:0.9rem; color:var(--text-4);">
+        一週一組 —— 點日期就展開，最新那一週已經打開了。
+    </span>
+</p>
+
+<style>
+/* ── 一週一組（一組＝一個主日），可以開合 ──
+     ★ 收起來之後整頁就是一條**一週一行的日期索引** —— 那正是
+       「我要聽哪週的講道」要的東西。所以每一行要**窄**：
+       一行一個日期，60 週也只有 60 行。
+     ★ 用 <details>／<summary>，不自己寫 JS：開合是瀏覽器內建的行為，
+       自己寫一份等於多一個會壞的地方，而且鍵盤和螢幕閱讀器都要重做。
+     ★ 關著的那幾組裡面的 <img alt="" loading="lazy"> 不會去下載 ——
+       所以「分組」順便把一開頁的流量也砍掉了。 */
+.sm-week { background:white; border-radius:12px; margin-bottom:6px;
+           box-shadow:var(--shadow-xs); overflow:hidden; }
+.sm-head { list-style:none; cursor:pointer; padding:11px 15px;
+           display:flex; align-items:center; gap:10px;
+           font-weight:bold; color:var(--text-2); }
+.sm-head::-webkit-details-marker { display:none; }
+.sm-head::before { content:'▸'; color:var(--text-4); font-size:0.9rem;
+                   transition:transform .15s; }
+.sm-week[open] > .sm-head::before { transform:rotate(90deg); }
+.sm-week[open] > .sm-head { border-bottom:1px solid var(--border); }
+/* ★★ 那一行要**永遠只有一行**。
+     使用者：「列表可以把標題弄上去嗎? 不要只有單純的日期」——
+     所以主題要上去；但主題最長 14 個字，讓它換行的話 60 週會變成
+     120 行，而這一頁收合起來的價值就是「一行一個主日」。
+     所以：日期固定寬、主題吃剩下的、放不下就 `…`。 */
+.sm-date { flex-shrink:0; }
+.sm-topic { min-width:0; flex:1; font-weight:normal; font-size:0.9rem;
+            color:var(--text-3); white-space:nowrap; overflow:hidden;
+            text-overflow:ellipsis; }
+.sm-count { margin-left:auto; flex-shrink:0;
+            font-weight:normal; font-size:0.9rem; color:var(--text-4); }
+.sm-body { display:flex; flex-direction:column; gap:14px; padding:12px; }
+
+/* ★ 一組裡面**只有在分不出來的時候**才標日期（多部，或上傳日不是
+     那個主日）。一組一部又剛好同一天的話，標題列已經寫過了。 */
+.sm-day { font-weight:bold; color:var(--info); font-size:1rem; }
+.sm-title { font-weight:bold; color:var(--text-2); line-height:1.5; margin-top:2px; }
+.sm-meta { font-size:0.9rem; color:var(--text-4); margin-top:5px; }
+</style>
+
+<div id="sermon-list">
+    {% for g in weeks %}
+    {# ★ 只有**最新那一組**預設展開。全部展開等於沒有分組（他要捲的
+         還是 60 部）；全部收起來的話，最常要的「這週的講道」
+         也要多按一下才看得到。 #}
+    <details class="sm-week" {% if loop.first %}open{% endif %}>
+        <summary class="sm-head">
+            <span class="sm-date">{{ g.label }}</span>
+            {# ★ 主題抓不到時 `topic()` 回的是整個標題（去掉結尾日期），
+                 **不會是空的** —— 空的話這一行會悄悄退回成只有日期，
+                 而畫面上完全正常，看起來像這個功能時好時壞。 #}
+            {% if g.topic %}<span class="sm-topic">{{ g.topic }}</span>{% endif %}
+            {% if g.count > 1 %}<span class="sm-count">{{ g.count }} 部</span>{% endif %}
+        </summary>
+        <div class="sm-body">
+            {% for s in g['items'] %}
+            {# ★ 每一部都先放 iframe 的話等於一開頁載入幾十個 YouTube
+                 播放器 —— 手機會卡死，而流量全花在使用者不會看的那幾十部上。
+                 所以先放縮圖，按下去才換成播放器。 #}
+            <div>
+                <div data-yt="{{ s.video_id }}" data-title="{{ s.title }}"
+                     role="button" tabindex="0" aria-label="播放：{{ s.title }}"
+                     style="position:relative; cursor:pointer; background:var(--text-1);
+                            border-radius:12px; overflow:hidden;">
+                    <img src="{{ s.thumbnail_url }}" alt="" loading="lazy"
+                         style="width:100%; aspect-ratio:16/9; object-fit:cover; display:block;">
+                    <span style="position:absolute; inset:0; display:flex; align-items:center;
+                                 justify-content:center; font-size:2rem; color:white;
+                                 text-shadow:0 2px 10px rgba(0,0,0,0.55);">▶</span>
+                </div>
+                <div style="padding:11px 3px 2px;">
+                    {% if s.show_day and s.day_label %}<div class="sm-day">{{ s.day_label }}</div>{% endif %}
+                    <div class="sm-title">{{ s.title }}</div>
+                    <div class="sm-meta">
+                        {% if s.speaker %}{{ s.speaker }}{% endif %}
+                        <a href="{{ s.watch_url }}" target="_blank" rel="noopener"
+                           style="float:right; color:var(--text-4);">在 YouTube 開啟 ↗</a>
+                    </div>
+                    {% if s.scripture %}
+                    <div style="font-size:0.9rem; color:var(--text-4); margin-top:4px;">{{ s.scripture }}</div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+    {% endfor %}
+</div>
+
+<script src="{{ asset('js/yt-embed.js') }}" defer></script>
+
+{# ★ 講清楚這一頁的範圍。不講的話「怎麼沒有前年的」會被當成壞掉。 #}
+<p style="font-size:0.9rem; color:var(--text-4); margin:18px 0 0; line-height:1.7; text-align:center;">
+    這裡收錄的是教會 YouTube 上比較近期的信息。
+</p>
+{% endif %}
+
+</div>
+{% endblock %}

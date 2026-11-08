@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS sermons (
     speaker      TEXT,
     scripture    TEXT,
     is_hidden    BOOLEAN NOT NULL DEFAULT false,
-    created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ
 );
 ```
 - 回復：`DROP TABLE sermons;`（影片重抓就有，但同工補的講員／經文會消失）。

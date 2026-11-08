@@ -56,6 +56,10 @@ def create_app():
     app.register_blueprint(notifications_bp)
     from routes.push import push_bp
     app.register_blueprint(push_bp)  # 手機推播訂閱（Web Push）
+    from routes.sermons import sermons_bp
+    from routes.admin_sermons import admin_sermons_bp
+    app.register_blueprint(sermons_bp)          # 主日信息（影片在 YouTube）
+    app.register_blueprint(admin_sermons_bp)
     from routes.tasks import tasks_bp
     app.register_blueprint(tasks_bp)  # 內建排程（到期任務自己跑）
 
