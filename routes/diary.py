@@ -54,13 +54,6 @@ _PLAN_MTIME: Optional[float] = None  # xlsx mtime fallback
 _PLAN_CACHE_TTL = 300  # 5 分鐘
 
 # =========================
-# 日記後台白名單快取
-# =========================
-_ADMIN_WL_CACHE: Optional[set] = None
-_ADMIN_WL_CACHE_TS: float = 0.0
-_ADMIN_WL_TTL = 120  # 2 分鐘
-
-# =========================
 # 時區
 # =========================
 TW_TZ = timezone(timedelta(hours=8))
@@ -120,22 +113,6 @@ def _get_user() -> Dict[str, Any]:
     }
 
 
-def _get_admin_whitelist() -> set:
-    global _ADMIN_WL_CACHE, _ADMIN_WL_CACHE_TS
-    now = time.time()
-    if _ADMIN_WL_CACHE is not None and (now - _ADMIN_WL_CACHE_TS) < _ADMIN_WL_TTL:
-        return _ADMIN_WL_CACHE
-    if not sb:
-        return set()
-    try:
-        rows = sb.table('admin_whitelist').select('line_user_id').eq('is_active', True).execute().data or []
-        _ADMIN_WL_CACHE = {r['line_user_id'] for r in rows}
-        _ADMIN_WL_CACHE_TS = now
-        return _ADMIN_WL_CACHE
-    except Exception:
-        return _ADMIN_WL_CACHE or set()
-
-
 def _is_diary_admin(line_user_id: str) -> bool:
     if session.get('is_admin'):
         return True
@@ -143,7 +120,9 @@ def _is_diary_admin(line_user_id: str) -> bool:
     admin_ids = {s.strip() for s in admin_ids_raw.split(',') if s.strip()}
     if line_user_id in admin_ids:
         return True
-    return line_user_id in _get_admin_whitelist()
+    #  原本還有一張 admin_whitelist（沒有任何畫面，只能用 SQL 改）；已併進後台權限矩陣的「天父日記後台」
+    from routes.permissions import can_access_module
+    return can_access_module(session, 'diary')
 
 
 def _invalidate_plan_cache() -> None:
@@ -1088,53 +1067,6 @@ def admin_update_whitelist():
     sb_set_pastor_whitelist(row['line_user_id'], row.get('display_name', ''), row.get('picture_url', ''), active)
     flash('已更新白名單', 'ok')
     return redirect(url_for('diary.admin'))
-
-
-@diary_bp.post('/diary/admin/admin_whitelist/add')
-def admin_whitelist_add():
-    if not _require_login():
-        return jsonify({'error': '請先登入'}), 401
-    user = _get_user()
-    if not _is_diary_admin(user.get('line_user_id', '')):
-        return jsonify({'error': '無權限'}), 403
-    if not sb:
-        return jsonify({'error': 'DB unavailable'}), 503
-    target = (request.json or {}).get('line_user_id', '').strip()
-    note = (request.json or {}).get('note', '').strip()
-    if not target:
-        return jsonify({'error': '缺少 line_user_id'}), 400
-    try:
-        sb.table('admin_whitelist').upsert(
-            {'line_user_id': target, 'note': note, 'is_active': True},
-            on_conflict='line_user_id'
-        ).execute()
-        global _ADMIN_WL_CACHE
-        _ADMIN_WL_CACHE = None  # invalidate cache
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@diary_bp.post('/diary/admin/admin_whitelist/remove')
-def admin_whitelist_remove():
-    if not _require_login():
-        return jsonify({'error': '請先登入'}), 401
-    user = _get_user()
-    if not _is_diary_admin(user.get('line_user_id', '')):
-        return jsonify({'error': '無權限'}), 403
-    if not sb:
-        return jsonify({'error': 'DB unavailable'}), 503
-    target = (request.json or {}).get('line_user_id', '').strip()
-    if not target:
-        return jsonify({'error': '缺少 line_user_id'}), 400
-    try:
-        sb.table('admin_whitelist').update({'is_active': False})\
-            .eq('line_user_id', target).execute()
-        global _ADMIN_WL_CACHE
-        _ADMIN_WL_CACHE = None  # invalidate cache
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
 
 
 @diary_bp.get('/diary/stars')

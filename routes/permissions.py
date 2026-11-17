@@ -35,6 +35,7 @@ ADMIN_MODULES = [
     ('cell_groups',   '小組回報管理',       ['/admin/cell-groups', '/admin/api/cell-groups',
                                              '/admin/api/users/search-for-cell']),
     ('verses',        '經文管理',           ['/admin/verses']),
+    ('diary',         '天父日記後台',       ['/diary/admin']),
     ('portal',        '首頁卡片與快捷連結', ['/admin/portal-links', '/admin/portal-cards',
                                              '/admin/portal-card-settings', '/admin/api/portal-cards']),
     ('bulletins',     '週報管理',           ['/admin/bulletins', '/admin/api/upload-bulletin']),
@@ -56,7 +57,7 @@ MODULE_LABELS = {m[0]: m[1] for m in ADMIN_MODULES}
 # 會員管理、系統設定、操作記錄等仍只有超管或被授權的副標籤才看得到。
 DEFAULT_ADMIN_MODULES = {
     'events', 'calendar', 'gospel', 'visitor_forms', 'courses', 'devotional',
-    'backup', 'roll_call', 'staff_leave',
+    'backup', 'roll_call', 'staff_leave', 'diary',
 }
 
 # 不屬於任何單一模塊、但「有任一模塊權限的人」都需要的路徑
@@ -69,7 +70,7 @@ SHARED_ADMIN_PREFIXES = [
 # 副標籤成員一律進不去。要開放就必須另外設計，不能因為漏登記而放行。
 RESERVED_ADMIN_PREFIXES = ['/admin/payments', '/admin/settings/payment']
 
-ADMIN_AREAS = ('/admin', '/api/admin')
+ADMIN_AREAS = ('/admin', '/api/admin', '/diary/admin')   # 天父日記後台不在 /admin 底下，但一樣交給矩陣
 
 
 def _match(path, prefix):
