@@ -223,6 +223,16 @@
     </a>
     {% endif %}
 
+    {% if can_see('/admin/groups/compare') %}
+    <a href="/admin/groups/compare" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#eef2ff; color:#4338ca;">🔀</div>
+            <div class="admin-card-name">小組對照</div>
+            <div class="admin-card-desc">標籤小組和週間小組差在哪裡（只看，不改資料）</div>
+        </div>
+    </a>
+    {% endif %}
+
     {% if can_see('/admin/groups') %}
     <a href="/admin/groups" style="text-decoration:none;">
         <div class="admin-card">
