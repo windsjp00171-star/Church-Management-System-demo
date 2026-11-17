@@ -63,7 +63,8 @@ REFS = [
     Ref('notifications', 'user_id'),
     Ref('overtime_records', 'user_id'),
     Ref('personal_events', 'user_id'),
-    Ref('push_subscriptions', 'user_id'),                               # UNIQUE 的是 endpoint 不是 user_id，直接搬
+    Ref('push_subscriptions', 'user_id'),
+    Ref('rc_members', 'user_id'),                                       # 點名名冊（024）：一個帳號只對到一個名冊成員；兩邊都在名冊上就中止，不替人決定留哪一個                               # UNIQUE 的是 endpoint 不是 user_id，直接搬
     Ref('prayer_comments', 'user_id'),
     Ref('prayer_reactions', 'user_id', dedupe=('prayer_id',)),          # UNIQUE (prayer_id, user_id)
     Ref('prayers', 'user_id'),

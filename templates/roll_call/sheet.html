@@ -109,6 +109,7 @@
 {% endblock %}
 {% block extra_js %}
 <script src="/static/tour.js"></script>
+<script src="/static/js/rc-account-pick.js"></script>
 <script>
 const ADD_DATE = {{ add_date|tojson }};
 const CUR_SESSION = {{ (cur_session_id or '')|tojson }};
@@ -143,14 +144,20 @@ function paint(btn, on) {
 async function addColumn(date) {
   try { await post('/api/roll-call/sheet/add-column', date ? { date: date } : {}); location.reload(); } catch (e) { say(e.message); }
 }
-async function addNewcomer(confirmed) {
+async function addNewcomer(confirmed, extra) {
   const name = document.getElementById('nc-name').value.trim();
   if (!name) { say('請輸入姓名'); return; }
+  const body = Object.assign({ name: name, session_id: CUR_SESSION || null, confirm: confirmed === true }, extra || {});
   const r = await fetch('/api/roll-call/members/quick-add', { method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({ name: name, session_id: CUR_SESSION || null, confirm: confirmed === true }) });
+    body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({ error: '連線失敗' }));
   if (r.status === 409 && j.data && j.data.similar) {
-    if (confirm('名冊裡有「' + j.data.similar + '」，跟「' + name + '」很像。確定是不同的人，要新增嗎？')) return addNewcomer(true);
+    if (confirm('名冊裡有「' + j.data.similar + '」，跟「' + name + '」很像。確定是不同的人，要新增嗎？')) return addNewcomer(true, extra);
+    return;
+  }
+  if (r.status === 409 && j.data && j.data.accounts) {        // 帳號裡有疑似同一個人：請同工選
+    const pick = rcPickAccount(name, j.data.accounts);
+    if (pick) return addNewcomer(confirmed, pick);
     return;
   }
   if (!r.ok || j.error) { say(j.error || '新增失敗'); return; }
@@ -202,7 +209,7 @@ function startTour() {
   RollTour.start([
     { target: 'sheet', text: '這是整季的主日點名單。只有「本週」那一欄可以點，其他反灰。來了就點一下打勾，再點一下取消。' },
     { target: 'search', text: '名單很長的時候，在這裡打名字的一部分，就只會留下符合的人。' },
-    { target: 'newcomer', text: '臨時來了新朋友，直接在這裡打名字加入，本週這一欄會順手幫他打勾。' },
+    { target: 'newcomer', text: '臨時來了新朋友，直接在這裡打名字加入：系統會幫他建一個帳號（之後他用 LINE 註冊可以合併），本週這一欄會順手幫他打勾。' },
     { target: 'add-col', text: '平常的主日不用加；如果有臨時加開的聚會，按這裡加今天這一欄。' },
     { target: 'help-btn', text: '隨時可以按這裡重看教學。' }
   ]);

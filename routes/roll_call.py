@@ -211,6 +211,29 @@ def home():
                                                 if c['is_current'] and c['editable']), None) if services == 1 else None)
 
 
+def _resolve_account(name, data):
+    """名冊成員要連到哪個帳號：回 ('ok', user_id) 或 ('choose', 候選清單) 或 ('error', 訊息)。
+
+    ★ 一個人＝一個帳號。沒申請 LINE 的建空殼帳號（走 routes/person.create_person，建立前查疑似重複）；
+      之後他自己註冊時用「整合 LINE」合併。
+    ★ 帳號裡已經有疑似同一個人 → 交回去讓同工選：是他（link_user_id）／不是，另外建（new_account）。
+      不用姓名替人決定 —— 猜錯的話，別人的點名紀錄會掛到這個帳號上。
+    ★ 點名模組本身不直接查 users（結構守衛）：查重與建立都經過 routes/person.py。
+    """
+    from routes.person import create_person
+    link = (data.get('link_user_id') or '').strip() or None
+    if link:
+        taken = supabase.table('rc_members').select('id, name').eq('user_id', link).execute().data or []
+        if taken:
+            return 'error', f'這個帳號已經在名冊上了（名冊上叫「{taken[0]["name"]}」），請直接在名單上找他'
+        return 'ok', link
+    status, payload = create_person(name, member_type='visitor', force=bool(data.get('new_account')))
+    if status == 'duplicates':
+        return 'choose', [{'id': d['id'], 'name': d.get('real_name') or d.get('display_name'),
+                           'has_line': d.get('has_line'), 'reason': d.get('reason')} for d in payload]
+    return 'ok', payload['id']
+
+
 @roll_call_bp.route('/api/roll-call/members/quick-add', methods=['POST'])
 @staff_required
 def api_quick_add_member():
@@ -236,8 +259,14 @@ def api_quick_add_member():
             return _err(f'{where}「{row["match"]}」，請直接在名單上找他打勾', 409)
         if row['status'] == 'similar' and not data.get('confirm'):
             return jsonify({'status': 409, 'data': {'similar': row['match']}, 'error': '疑似重複'}), 409
+        kind, got = _resolve_account(name, data)
+        if kind == 'error':
+            return _err(got, 409)
+        if kind == 'choose':
+            return jsonify({'status': 409, 'data': {'accounts': got}, 'error': '帳號裡有疑似同一個人'}), 409
         made = supabase.table('rc_members').insert({
-            'name': name, 'source': 'manual', 'joined_on': _today_taipei().isoformat()}).execute().data
+            'name': name, 'source': 'manual', 'joined_on': _today_taipei().isoformat(),
+            'user_id': got}).execute().data
         member = made[0]
         if sess:
             uid, actor = _actor()
@@ -247,7 +276,7 @@ def api_quick_add_member():
     except Exception as e:
         return _db_error(e)
     log_action('roll_call.member_quick_add', target_type='rc_members', target_id=member.get('id'),
-               detail={'ticked': bool(sess)})
+               detail={'ticked': bool(sess), 'user_id': got, 'linked_existing': bool(data.get('link_user_id'))})
     return _ok({'id': member['id'], 'name': name, 'ticked': bool(sess)})
 
 
@@ -620,6 +649,30 @@ def api_member_group(mid):
         return _db_error(e)
     log_action('roll_call.member_group', target_type='rc_members', target_id=mid, detail={'group_id': group_id})
     return _ok({'group_id': group_id})
+
+
+@roll_call_bp.route('/api/admin/roll-call/members/<mid>/link', methods=['POST'])
+@admin_required
+def api_member_link(mid):
+    """把名冊上只有姓名的人連到帳號（找得到就連、找不到就建空殼）。疑似同一個人要管理員選，不替人猜。"""
+    data = request.get_json(silent=True) or {}
+    rows = supabase.table('rc_members').select('id, name, user_id').eq('id', mid).execute().data or []
+    if not rows:
+        return _err('找不到這個人', 404)
+    if rows[0].get('user_id'):
+        return _err('這個人已經連到帳號了', 409)
+    try:
+        kind, got = _resolve_account(rows[0]['name'], data)
+        if kind == 'error':
+            return _err(got, 409)
+        if kind == 'choose':
+            return jsonify({'status': 409, 'data': {'accounts': got}, 'error': '帳號裡有疑似同一個人'}), 409
+        supabase.table('rc_members').update({'user_id': got}).eq('id', mid).execute()
+    except Exception as e:
+        return _db_error(e)
+    log_action('roll_call.member_link', target_type='rc_members', target_id=mid,
+               detail={'user_id': got, 'linked_existing': bool(data.get('link_user_id'))})
+    return _ok({'user_id': got})
 
 
 @roll_call_bp.route('/api/admin/roll-call/members/<mid>/leave', methods=['POST'])
