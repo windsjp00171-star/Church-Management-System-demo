@@ -232,6 +232,17 @@ def _get_members(group_id) -> List[Dict]:
     return res.data or []
 
 
+def _rc_sunday(members, week_date) -> Dict[str, str]:
+    """這一週的主日，點名那邊已經有的狀態 `{member_id: 'full'|...}`（以點名為準，組長不用再填）。"""
+    from routes.roll_call_link import sunday_statuses
+    try:
+        cfg = _get_meeting_settings().get('adult_sunday', {})
+    except Exception:                                        # noqa: BLE001
+        return {}
+    by_user = sunday_statuses([m.get('user_id') for m in members], week_date, cfg)
+    return {str(m['id']): by_user[m['user_id']] for m in members if m.get('user_id') in by_user}
+
+
 def _get_or_create_report(group_id, week_date_str: str) -> Dict:
     res = (
         supabase.table('cell_reports')
@@ -455,6 +466,7 @@ def section2(group_id):
     report = _find_report(group_id, week_date_obj.isoformat()) or {}
     members = _get_members(group_id)
     attendance_map = _get_attendance_map(group_id, report['id']) if report.get('id') else {}
+    rc_sunday = _rc_sunday(members, week_date_obj)
 
     display_map = {}
     for m in members:
@@ -467,6 +479,8 @@ def section2(group_id):
             }
         else:
             display_map[str(m['id'])] = {'cell': '未填', 'sunday': '未填', 'rpg': '未填'}
+        if str(m['id']) in rc_sunday:
+            display_map[str(m['id'])]['sunday'] = _status_to_label(rc_sunday[str(m['id'])])
 
     this_week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
 
@@ -475,6 +489,7 @@ def section2(group_id):
                            members=members,
                            attendance_map=attendance_map,
                            display_map=display_map,
+                           rc_sunday=rc_sunday,
                            week_date=week_date_obj,
                            report=report,
                            is_no_meeting=bool(report.get('no_meeting')),
@@ -502,9 +517,14 @@ def ajax_save_attendance(group_id):
         return jsonify({'success': False, 'error': '欄位錯誤'}), 400
 
     try:
-        datetime.date.fromisoformat(week_date_str)
+        week_date_obj = datetime.date.fromisoformat(week_date_str)
     except Exception:
         return jsonify({'success': False, 'error': '日期格式錯誤'}), 400
+
+    if field == 'sunday_status':
+        member = next((m for m in _get_members(group_id) if str(m['id']) == str(member_id)), None)
+        if member and str(member['id']) in _rc_sunday([member], week_date_obj):
+            return jsonify({'success': False, 'error': '這週主日已由聚會點名記錄，請到點名單修改'}), 409
 
     report = _get_or_create_report(group_id, week_date_str)
     if not report.get('id'):
@@ -760,6 +780,7 @@ def view_report(group_id):
     attendance_map = {}
     if report:
         attendance_map = _get_attendance_map(group_id, report['id'])
+    rc_sunday = _rc_sunday(members, week_date)
 
     display_rows = []
     for m in members:
@@ -767,7 +788,7 @@ def view_report(group_id):
         display_rows.append({
             'name': m['name'],
             'cell': _status_to_label(att.get('cell_status', '')),
-            'sunday': _status_to_label(att.get('sunday_status', '')),
+            'sunday': _status_to_label(rc_sunday.get(str(m['id'])) or att.get('sunday_status', '')),
             'rpg': _status_to_label(att.get('rpg_status', '')),
         })
 
