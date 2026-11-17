@@ -60,6 +60,8 @@ def create_app():
     from routes.admin_sermons import admin_sermons_bp
     app.register_blueprint(sermons_bp)          # 主日信息（影片在 YouTube）
     app.register_blueprint(admin_sermons_bp)
+    from routes.group_compare import group_compare_bp
+    app.register_blueprint(group_compare_bp)  # 小組對照（標籤小組 vs 週間小組，只讀）
     from routes.tasks import tasks_bp
     app.register_blueprint(tasks_bp)  # 內建排程（到期任務自己跑）
 

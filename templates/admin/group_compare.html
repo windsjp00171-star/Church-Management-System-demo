@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}小組對照{% endblock %}
+{% block content %}
+{# ★ 只讀的對照頁：不改資料、不自動配對。目的是在合併兩份小組之前，先看清楚正式站分歧到什麼程度
+     （docs/GROUP_MERGE_ASSESSMENT.md 的第 1 步）。 #}
+<style>
+.gc-wrap { max-width: 900px; margin: 0 auto; }
+.gc-card { background: #fff; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.06); padding: 16px 18px; margin-bottom: 14px; }
+.gc-card h3 { margin: 0 0 6px; font-size: 1.05rem; }
+.gc-note { color: #6b7280; font-size: .88rem; line-height: 1.7; margin: 0 0 10px; }
+.gc-table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+.gc-table th, .gc-table td { text-align: left; padding: 8px 6px; border-top: 1px solid #f0f0f0; vertical-align: top; }
+.gc-num { font-weight: 800; font-size: 1.4rem; }
+.gc-chips span { display: inline-block; padding: 3px 10px; margin: 3px 4px 0 0; border-radius: 999px; background: #f3f4f6; }
+</style>
+<div class="gc-wrap" data-tour="group-compare">
+  <div class="page-header">
+    <div class="page-header-left"><h1 class="page-title">小組對照</h1></div>
+    <a href="/admin" class="btn btn-sm">← 後台</a>
+  </div>
+  <p class="gc-note">
+    系統裡的小組存成兩份：<strong>標籤小組</strong>（會友在個人資料選的主標籤）和<strong>週間小組</strong>（小組回報那一份，組長在維護）。
+    這一頁只<strong>列出差異</strong>，不會改任何資料，也不會自動配對 —— 名字一樣不一定是同一組，那要你判斷。
+  </p>
+
+  {% if error %}
+  <div class="gc-card" style="background:#fef2f2; color:#991b1b;">讀不到資料（{{ error }}），所以這次<strong>沒辦法比對</strong>。請重新整理再試；不代表兩邊一致。</div>
+  {% else %}
+
+  <div class="gc-card" data-tour="gc-names">
+    <h3>一、組名</h3>
+    <p class="gc-note">標籤小組 {{ data.counts.tags }} 組、週間小組 {{ data.counts.cells }} 組（只比主標籤；副標籤是權限用的，不在這裡）。</p>
+    <table class="gc-table">
+      <tr><th style="width:9em;">兩邊都有</th><td class="gc-chips">{% for n in data.names.both %}<span>{{ n }}</span>{% else %}—{% endfor %}</td></tr>
+      <tr><th>只有標籤</th><td class="gc-chips">{% for n in data.names.only_tag %}<span>{{ n }}</span>{% else %}—{% endfor %}</td></tr>
+      <tr><th>只有週間小組</th><td class="gc-chips">{% for n in data.names.only_cell %}<span>{{ n }}</span>{% else %}—{% endfor %}</td></tr>
+    </table>
+  </div>
+
+  <div class="gc-card" data-tour="gc-differ">
+    <h3>二、兩邊分在不同組的人 <span class="gc-num" style="color:{{ '#b91c1c' if data.differ else '#15803d' }};">{{ data.differ|length }}</span></h3>
+    <p class="gc-note">同一個人，標籤寫的組跟小組回報裡的組不一樣。合併前這些要先講清楚以哪邊為準。</p>
+    {% if data.differ %}
+    <table class="gc-table">
+      <tr><th>姓名</th><th>標籤小組</th><th>週間小組</th></tr>
+      {% for r in data.differ %}<tr><td>{{ r.name }}</td><td>{{ r.tag|join('、') }}</td><td>{{ r.cell|join('、') }}</td></tr>{% endfor %}
+    </table>
+    {% else %}<p class="gc-note">沒有。</p>{% endif %}
+  </div>
+
+  <div class="gc-card">
+    <h3>三、只有一邊有的人</h3>
+    <p class="gc-note">只有標籤（{{ data.tag_only|length }} 人）：會友自己選了小組，但小組回報的名單裡沒有他（或還沒連帳號）。<br>
+      只在週間小組（{{ data.cell_only|length }} 人）：組長名單裡有、而且連了帳號，但他自己沒選主標籤小組。</p>
+    <details><summary>只有標籤（{{ data.tag_only|length }}）</summary>
+      <table class="gc-table">{% for r in data.tag_only %}<tr><td>{{ r.name }}</td><td>{{ r.tag|join('、') }}</td></tr>{% endfor %}</table>
+    </details>
+    <details style="margin-top:8px;"><summary>只在週間小組（{{ data.cell_only|length }}）</summary>
+      <table class="gc-table">{% for r in data.cell_only %}<tr><td>{{ r.name }}</td><td>{{ r.cell|join('、') }}</td></tr>{% endfor %}</table>
+    </details>
+  </div>
+
+  <div class="gc-card">
+    <h3>四、週間小組裡還沒連帳號的組員</h3>
+    <p class="gc-note">這些人只有姓名，系統不知道是哪個帳號，所以上面沒辦法比對到他們（不用姓名去猜）。</p>
+    {% if data.unlinked %}
+    <table class="gc-table">{% for g, n in data.unlinked %}<tr><td>{{ g }}</td><td>{{ n }} 人</td></tr>{% endfor %}</table>
+    {% else %}<p class="gc-note">沒有。</p>{% endif %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
