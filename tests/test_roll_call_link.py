@@ -246,3 +246,37 @@ def test_get_or_create_reads_the_raw_row(fn):
 def test_the_home_summary_uses_the_overlay_too():
     code = _code('routes/event.py')
     assert 'roll_call_link import overlay' in code and 'attendance_summary[_k] = _rc_overlay(_key, _d' in code
+
+
+# ── 首頁「聚會人數總覽」：連結了點名，就不叫人去「填報」 ──────────────
+
+def _render_summary(summary):
+    """只切出首頁那一塊、用真的模板語法 render（整頁要的 context 太多）。"""
+    import jinja2
+    src = (ROOT / 'templates' / 'portal.html').read_text(encoding='utf-8')
+    a = src.index('{% set as = attendance_summary %}')
+    b = src.index('</a>{% endif %}', src.index('🌅 晨禱', a)) + len('</a>{% endif %}')
+    env = jinja2.Environment()
+    env.globals['module_on'] = lambda *_: True
+    return env.from_string(src[a:b]).render(attendance_summary=summary)
+
+
+def test_a_linked_card_goes_to_the_roll_call_and_says_so():
+    html = _render_summary({'sunday': {'date': D, '_rc': True}, 'children': {'date': D, '_rc': False},
+                            'prayer': {'date': D}, 'morning': {'date': D}})
+    sunday = html[:html.index('🧒 兒童主日')]
+    assert 'href="/roll-call"' in sunday and '點名 ›' in sunday and '尚未點名' in sunday
+    assert '填報' not in sunday, '連結了點名的聚會不可以再叫人去填報'
+    children = html[html.index('🧒 兒童主日'):html.index('🙏 禱告會')]
+    assert '填報 ›' in children and '尚未填報' in children, '沒連結的照舊'
+    assert html.count('href="/cell-report/children"') == 1
+
+
+def test_every_card_follows_its_own_link_flag():
+    html = _render_summary({k: {'date': D, '_rc': True} for k in ('sunday', 'children', 'prayer', 'morning')})
+    assert html.count('href="/roll-call"') == 4 and '填報' not in html
+
+
+def test_the_home_summary_marks_which_meetings_are_linked():
+    code = _code('routes/event.py')
+    assert "attendance_summary[_k]['_rc'] = bool(mcfg.get(_key, {}).get('rc_type_id'))" in code

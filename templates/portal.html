@@ -471,7 +471,9 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% endif %}
 {% endif %}
 
-{# ════ 聚會人數總覽 ════ #}
+{# ════ 聚會人數總覽 ════
+   ★ 聚會有連結「聚會點名」（`_rc`）時，人數就是點名來的：卡片寫「點名 ›」、點進去直接到點名單，
+     沒數字時寫「尚未點名」—— 不再把人帶去另一個「填報」頁、叫他把同一個人數再填一遍。 #}
 {% if 'attendance_summary' not in hidden_sections %}
 {% if is_staff or is_pastor or is_admin %}
 {% set as = attendance_summary %}
@@ -479,7 +481,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
   <p class="section-label-sm" style="margin: 0 0 10px;">聚會人數總覽</p>
   <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
 
-    {% if module_on('/cell-report/sunday') %}<a href="/cell-report/sunday" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #16a34a;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
+    {% if module_on('/cell-report/sunday') %}<a href="{{ '/roll-call' if (as and as.sunday and as.sunday._rc) else '/cell-report/sunday' }}" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #16a34a;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">⛪ 成人主日</span>
       {% if as and as.sunday %}
         {% set s1 = as.sunday.first_service_count or 0 %}
@@ -490,54 +492,54 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% if filled and s1 > 0 and s2 > 0 %}
         <span style="font-size:.68rem;color:#6b7280;margin-top:2px;">一：{{ s1 }}　二：{{ s2 }}</span>
         {% endif %}
-        <span style="font-size:.72rem;color:#9ca3af;margin-top:2px;">{{ as.sunday.date }}{% if not filled %} · 尚未填報{% endif %}</span>
+        <span style="font-size:.72rem;color:#9ca3af;margin-top:2px;">{{ as.sunday.date }}{% if not filled %} · {{ '尚未點名' if (as and as.sunday and as.sunday._rc) else '尚未填報' }}{% endif %}</span>
       {% else %}
         <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">0</span>
-        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">尚未填報</span>
+        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ '尚未點名' if (as and as.sunday and as.sunday._rc) else '尚未填報' }}</span>
       {% endif %}
-      <span style="position:absolute;top:8px;right:10px;font-size:.72rem;color:#9ca3af;">填報 ›</span>
+      <span style="position:absolute;top:8px;right:10px;font-size:.72rem;color:#9ca3af;">{{ '點名 ›' if (as and as.sunday and as.sunday._rc) else '填報 ›' }}</span>
     </a>{% endif %}
 
-    {% if module_on('/cell-report/children') %}<a href="/cell-report/children" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #2563eb;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
+    {% if module_on('/cell-report/children') %}<a href="{{ '/roll-call' if (as and as.children and as.children._rc) else '/cell-report/children' }}" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #2563eb;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">🧒 兒童主日</span>
       {% if as and as.children %}
         {% set cnt = as.children.attendance_count or 0 %}
         {% set filled = cnt > 0 %}
         <span style="font-size:2.2rem;font-weight:800;color:{{ '#111827' if filled else '#9ca3af' }};line-height:1;">{{ cnt }}</span>
-        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ as.children.date }}{% if not filled %} · 尚未填報{% endif %}</span>
+        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ as.children.date }}{% if not filled %} · {{ '尚未點名' if (as and as.children and as.children._rc) else '尚未填報' }}{% endif %}</span>
       {% else %}
         <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">0</span>
-        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">尚未填報</span>
+        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ '尚未點名' if (as and as.children and as.children._rc) else '尚未填報' }}</span>
       {% endif %}
-      <span style="position:absolute;top:8px;right:10px;font-size:.72rem;color:#9ca3af;">填報 ›</span>
+      <span style="position:absolute;top:8px;right:10px;font-size:.72rem;color:#9ca3af;">{{ '點名 ›' if (as and as.children and as.children._rc) else '填報 ›' }}</span>
     </a>{% endif %}
 
-    {% if module_on('/cell-report/prayer') %}<a href="/cell-report/prayer" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #7c3aed;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
+    {% if module_on('/cell-report/prayer') %}<a href="{{ '/roll-call' if (as and as.prayer and as.prayer._rc) else '/cell-report/prayer' }}" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #7c3aed;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">🙏 禱告會</span>
       {% if as and as.prayer %}
         {% set cnt = as.prayer.attendance_count or 0 %}
         {% set filled = cnt > 0 %}
         <span style="font-size:2.2rem;font-weight:800;color:{{ '#111827' if filled else '#9ca3af' }};line-height:1;">{{ cnt }}</span>
-        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ as.prayer.date }}{% if not filled %} · 尚未填報{% endif %}</span>
+        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ as.prayer.date }}{% if not filled %} · {{ '尚未點名' if (as and as.prayer and as.prayer._rc) else '尚未填報' }}{% endif %}</span>
       {% else %}
         <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">0</span>
-        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">尚未填報</span>
+        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ '尚未點名' if (as and as.prayer and as.prayer._rc) else '尚未填報' }}</span>
       {% endif %}
-      <span style="position:absolute;top:8px;right:10px;font-size:.72rem;color:#9ca3af;">填報 ›</span>
+      <span style="position:absolute;top:8px;right:10px;font-size:.72rem;color:#9ca3af;">{{ '點名 ›' if (as and as.prayer and as.prayer._rc) else '填報 ›' }}</span>
     </a>{% endif %}
 
-    {% if module_on('/cell-report/morning-prayer') %}<a href="/cell-report/morning-prayer" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #d97706;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
+    {% if module_on('/cell-report/morning-prayer') %}<a href="{{ '/roll-call' if (as and as.morning and as.morning._rc) else '/cell-report/morning-prayer' }}" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #d97706;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">🌅 晨禱</span>
       {% if as and as.morning %}
         {% set cnt = as.morning.attendance_count or 0 %}
         {% set filled = cnt > 0 %}
         <span style="font-size:2.2rem;font-weight:800;color:{{ '#111827' if filled else '#9ca3af' }};line-height:1;">{{ cnt }}</span>
-        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ as.morning.date }}{% if not filled %} · 尚未填報{% endif %}</span>
+        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ as.morning.date }}{% if not filled %} · {{ '尚未點名' if (as and as.morning and as.morning._rc) else '尚未填報' }}{% endif %}</span>
       {% else %}
         <span style="font-size:2rem;font-weight:800;color:#d1d5db;line-height:1;">0</span>
-        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">尚未填報</span>
+        <span style="font-size:.72rem;color:#9ca3af;margin-top:4px;">{{ '尚未點名' if (as and as.morning and as.morning._rc) else '尚未填報' }}</span>
       {% endif %}
-      <span style="position:absolute;top:8px;right:10px;font-size:.72rem;color:#9ca3af;">填報 ›</span>
+      <span style="position:absolute;top:8px;right:10px;font-size:.72rem;color:#9ca3af;">{{ '點名 ›' if (as and as.morning and as.morning._rc) else '填報 ›' }}</span>
     </a>{% endif %}
 
   </div>
