@@ -986,6 +986,7 @@ CREATE TABLE IF NOT EXISTS rc_members (
     joined_on   DATE,
     left_on     DATE,
     source      TEXT NOT NULL DEFAULT 'manual',   -- manual / import
+    group_id    UUID REFERENCES cell_groups(id) ON DELETE SET NULL,  -- 點名單分段用（週間小組）；NULL＝未分組（migrations/023）
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS rc_members_status_idx ON rc_members (status, name);

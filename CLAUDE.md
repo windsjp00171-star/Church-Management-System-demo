@@ -106,6 +106,7 @@ from db import supabase
 - **與使用者帳號脫鉤**：被點名的是 `rc_members`（點名名冊），不引用 `users.id`；點名模組不得查 `users`（有測試守衛）。操作者只存 id＋姓名快照，不設外鍵。
 - 點名寫入一律走資料庫函式 `rc_save_record` / `rc_lock_session` / `rc_set_count`（同交易寫紀錄＋稽核）；不得直接寫 `rc_records`。
 - `rc_audit` 只許追加（觸發器擋 UPDATE／DELETE／TRUNCATE）；**場次鎖定後**的任何修改必須附原因（019 起，還沒鎖定時改打勾不用原因，但每次修改仍寫稽核）；人數空白一律退回、不得當 0。
+- **點名分小組**：`rc_members.group_id` → `cell_groups`（週間小組，migration 023）；只影響點名單分段顯示（`_cell_groups()`），不影響出席率／人數。小組被刪＝回到未分組。兩份小組（標籤 `groups` vs 週間 `cell_groups`）要不要合併見 `docs/GROUP_MERGE_ASSESSMENT.md`。
 - **主日多堂**：「聚會設定」把成人主日連到點名並設 N 堂 → 點名單每個主日排 N 欄（`services_for()`）。出席率（`compute_member_rate`）與區間出席（`range_report`）**同一種聚會同一天算一次**（來任一堂就算到）；人數（`roll_call_link`）則是每堂各算。
 - 出席率規則是資料（`rc_rate_rules`，不可改、同名新增即新版本），請假／遲到／中途加入的算法沒有預設值，由教會決定；計算在伺服器端（`roll_call_logic.py`）。
 - **點名單**（`/roll-call`）：紙本樣式的表格（人名×日期），整季的主日都排好（`quarter_sundays()`），只有「本週」（週日起算，`week_start()`）那一欄可點，其餘反灰；`GET` 不寫資料庫，本週那一欄由頁面載入後 `POST /api/roll-call/sheet/add-column` 建立（頁面有 15 秒防無限重整）；打勾走既有的 `api_mark`（present／absent）。逐場次頁（補登、列印、只記人數）在 `/roll-call/sessions`。首頁只有一個功能磚（`data-key="roll_call"`），不內嵌名單。

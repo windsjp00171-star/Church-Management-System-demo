@@ -288,3 +288,24 @@ def test_migration_020_bible_reading_matches_the_schema_and_is_repeatable():
         assert rls == '2'
     finally:
         stop()
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_migration_023_roll_call_groups_is_repeatable_and_survives_a_deleted_group():
+    """舊資料庫跑 023 兩次都不出錯；刪掉小組時名冊成員回到「未分組」（不會被一起刪掉）。"""
+    psql, stop = pg_helper.start(55470)
+    try:
+        psql(ROLES)
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        assert psql('ALTER TABLE rc_members DROP COLUMN group_id').returncode == 0
+        mig = str(ROOT / 'migrations' / '023_rc_members_group.sql')
+        for _ in range(2):
+            r = psql(file=mig)
+            assert r.returncode == 0, r.stderr
+        gid = '22222222-2222-2222-2222-222222222222'
+        assert psql(f"insert into cell_groups (id, name) values ('{gid}', '週二小組')").returncode == 0
+        assert psql(f"insert into rc_members (name, group_id) values ('甲', '{gid}')").returncode == 0
+        assert psql(f"delete from cell_groups where id = '{gid}'").returncode == 0
+        assert psql("select count(*) from rc_members where name = '甲' and group_id is null").stdout.strip() == '1'
+    finally:
+        stop()
