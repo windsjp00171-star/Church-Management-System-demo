@@ -538,6 +538,13 @@ def portal():
     )
 
 
+@event_bp.route('/guide')
+@event_bp.route('/tutorial')
+def old_help_pages():
+    """舊的「功能導覽」「互動式教學」已併進使用手冊；留著轉址，舊書籤不會斷。"""
+    return redirect('/manual', code=301)
+
+
 @event_bp.route('/manual')
 @login_required
 def manual():

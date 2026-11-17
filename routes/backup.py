@@ -402,7 +402,7 @@ def export_all():
                                      '請稍後重新匯出，不要把這一份當成完整備份保存。']
         summary_lines += [
             '',
-            '若需可離線閱讀的完整快照，請於後台「資料備份中心」下載 HTML 離線閱讀器。',
+            '若需可離線閱讀的完整快照，請於後台「資料備份與搬家」下載 HTML 離線閱讀器。',
             '系統交接說明請參閱專案根目錄的 HANDOVER.md。',
         ]
         zf.writestr('README.txt', '\n'.join(summary_lines).encode('utf-8'))

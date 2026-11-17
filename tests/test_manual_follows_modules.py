@@ -12,7 +12,7 @@ MANUAL = (ROOT / 'templates' / 'manual.html').read_text(encoding='utf-8')
 PATHLESS = {'每週週報': 'bulletins', '聚會人數回報': 'cell_report', '現場簽到': 'events', '系統更新通知': 'changelogs'}
 
 
-_DB_BOUND = ('routes.modules', 'settings_store', 'routes.guide', 'routes.tutorial', 'routes.admin',
+_DB_BOUND = ('routes.modules', 'settings_store', 'routes.admin',
              'routes.audit', 'routes.decorators')
 
 
@@ -102,26 +102,3 @@ def test_everything_on_renders_every_block(mod):
     assert html.count('class="feature-block"') == MANUAL.count('<div class="feature-block">')
 
 
-def _steps(mod):
-    from flask import Flask
-    import routes.guide as g
-    import routes.tutorial as t
-    app = Flask(__name__)
-    app.secret_key = 'x'
-    with app.test_request_context():
-        from flask import session
-        session.update(user_id='u', is_admin=True, is_super_admin=True)
-        return g._front_steps() + g._admin_steps(), t._build_lessons()
-
-
-@pytest.mark.parametrize('key', ['events', 'courses', 'diary', 'prayer', 'calendar', 'bulletins', 'gospel',
-                                  'cell_report', 'devotional', 'staff_leave', 'verses', 'discussions',
-                                  'announcements', 'payments'])
-def test_guide_and_tutorial_drop_every_step_of_a_disabled_module(mod, fake_db, key):
-    full_g, full_t = _steps(mod)
-    assert any(mod.classify(s['url']) == key for s in full_g), key       # 全開時真的有這個模組的步驟
-    _off(fake_db, mod, key)
-    g, t = _steps(mod)
-    assert not [s['url'] for s in g if mod.classify(s['url']) == key]
-    assert not [s['url'] for s in t if mod.classify(s['url']) == key]
-    assert len(g) < len(full_g) and len(t) < len(full_t)
