@@ -212,7 +212,7 @@ migration 腳本：`migrations/008_diary_admin_whitelist.sql`
 ### 天父日記（diary_bp）
 - 讀經進度：DB `diary_plan` 優先，fallback 讀 `plan.xlsx`（TTL 5 分鐘快取）
 - 逐節經文支援逗號分隔多段範圍，如 `6:28-29,31:3`（去重保序）
-- 日記後台管理員三層驗證：`session.is_admin` → 環境變數 `ADMIN_LINE_USER_IDS` → `admin_whitelist` 資料表（TTL 2 分鐘快取）
+- 日記後台誰能進：`session.is_admin` → 環境變數 `ADMIN_LINE_USER_IDS` → **後台權限矩陣的「天父日記後台」**（`diary` 模塊，`/diary/admin`）。舊的 `admin_whitelist` 表沒有任何畫面、已不再讀（表留著、備份照舊）
 - 後台可管理讀經進度（逐筆 key-in 或批次匯入 xlsx）、牧者白名單、日記後台白名單
 - 個人匯出 `/diary/export`：只匯出登入者自己的日記（鍵為 session 的 `line_id`，不接受參數）；讀取失敗不給檔案；稽核 `diary.export_self` 只記篇數
 

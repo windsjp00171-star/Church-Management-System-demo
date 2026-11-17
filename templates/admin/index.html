@@ -254,12 +254,12 @@
     </a>
     {% endif %}
 
-    {% if module_on('/diary') and (session.get('is_admin') or session.get('is_super_admin')) %}
+    {% if can_see('/diary/admin') %}
     <a href="/diary/admin" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fdf4ff; color:#7c3aed;">📖</div>
             <div class="admin-card-name">{{ card_names.get('diary', '天父日記') }}後台</div>
-            <div class="admin-card-desc">管理牧者白名單與讀經計畫</div>
+            <div class="admin-card-desc">讀經進度與牧者白名單（誰能進來，在權限矩陣設定）</div>
         </div>
     </a>
     {% endif %}
