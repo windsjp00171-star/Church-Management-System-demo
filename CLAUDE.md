@@ -103,7 +103,7 @@ from db import supabase
 | `member_type` | `'member'` / `'visitor'` |
 
 ### 聚會點名（roll_call_bp）
-- **與使用者帳號脫鉤**：被點名的是 `rc_members`（點名名冊），不引用 `users.id`；點名模組不得查 `users`（有測試守衛）。操作者只存 id＋姓名快照，不設外鍵。
+- **名冊連到帳號（2026-11-17 使用者決定，取代原本的「脫鉤」）**：一個人＝一個帳號；`rc_members.user_id`（migration 024，一個帳號只對到一個名冊成員）。點名單「加入新朋友」直接建**空殼帳號**（`routes/person.create_person`，查疑似重複）並連起來；帳號裡已有疑似同一個人時交回同工選（`link_user_id`／`new_account`），**不用姓名猜**。後台名冊對只有姓名的人按「連帳號」。帳號合併時名冊跟著搬（`user_merge.REFS`）。出勤紀錄（`rc_records`）與稽核仍掛在名冊成員上。點名模組本身**仍不直接查 `users`**（經由 `routes/person.py`，結構守衛照舊）。操作者只存 id＋姓名快照，不設外鍵。
 - 點名寫入一律走資料庫函式 `rc_save_record` / `rc_lock_session` / `rc_set_count`（同交易寫紀錄＋稽核）；不得直接寫 `rc_records`。
 - `rc_audit` 只許追加（觸發器擋 UPDATE／DELETE／TRUNCATE）；**場次鎖定後**的任何修改必須附原因（019 起，還沒鎖定時改打勾不用原因，但每次修改仍寫稽核）；人數空白一律退回、不得當 0。
 - **點名分小組**：`rc_members.group_id` → `cell_groups`（週間小組，migration 023）；只影響點名單分段顯示（`_cell_groups()`），不影響出席率／人數。小組被刪＝回到未分組。兩份小組（標籤 `groups` vs 週間 `cell_groups`）要不要合併見 `docs/GROUP_MERGE_ASSESSMENT.md`。
@@ -137,7 +137,7 @@ from db import supabase
 - `REFS` 是唯一的引用清單（`schema.sql` 所有指向 `users` 的欄位＋`audit_logs.actor_id`）；測試掃 schema，漏一個或寫了不存在的欄位就紅。
 - **失敗不吞掉**：任何一步失敗就中止、還原已搬的（含被刪掉的重複列）、不刪帳號、丟 `MergeError`；全部搬完且確認沒有殘留才刪被合併者的 `users` 列（已決定沿用成熟版，規格守衛 22 因此只對合併放寬）。
 - 唯一限制衝突：只有登記 `dedupe` 的表（小組長、小組成員、禱告回應、每日經文、白名單）取聯集；其餘（出席、報名、認證、同工資料）一律中止，不替人決定留哪一邊。
-- 聚會點名（`rc_*`）刻意不在清單裡；天父日記以 `line_user_id` 為鍵，隨 LINE 身分自動跟隨。
+- 聚會點名只有名冊成員（`rc_members.user_id`）跟著帳號搬（024 起）；出勤紀錄掛在名冊成員上不直接引用帳號。天父日記以 `line_user_id` 為鍵，隨 LINE 身分自動跟隨。
 
 ### 備份登記表（`backup_registry.py`）— 備份哪些表只有一份判定
 - `TABLES`（外鍵安全的匯入順序＋upsert 衝突欄位＝真實主鍵＋所屬匯出模組）／`EXCLUDED`（刻意不備份，**必須寫理由**）／`VIEWS`（檢視表，不匯出）。**`schema.sql` 的每張表都必須在其中一處**，`tests/test_backup_registry.py` 掃 schema 守著；父表必須排在子表前面；衝突欄位對照 schema 的 PRIMARY KEY。

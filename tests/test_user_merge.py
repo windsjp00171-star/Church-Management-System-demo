@@ -159,8 +159,10 @@ def test_code_scan_actually_sees_columns():
     assert len(_written_user_columns()) >= 5
 
 
-def test_roll_call_tables_are_deliberately_not_references():
-    assert not [t for t, _ in _refs() if t.startswith('rc_')]
+def test_only_the_roll_call_roster_follows_the_account():
+    """2026-11-17 使用者決定「名冊不跟帳號脫鉤」：名冊成員（rc_members.user_id）跟著帳號合併；
+    出勤紀錄與稽核仍掛在名冊成員上，不直接引用帳號，所以不在清單裡。"""
+    assert [(t, c) for t, c in _refs() if t.startswith('rc_')] == [('rc_members', 'user_id')]
 
 
 # ── 測試用的資料 ───────────────────────────────

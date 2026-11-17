@@ -987,9 +987,11 @@ CREATE TABLE IF NOT EXISTS rc_members (
     left_on     DATE,
     source      TEXT NOT NULL DEFAULT 'manual',   -- manual / import
     group_id    UUID REFERENCES cell_groups(id) ON DELETE SET NULL,  -- 點名單分段用（週間小組）；NULL＝未分組（migrations/023）
+    user_id     UUID REFERENCES users(id) ON DELETE SET NULL,        -- 這個人是哪個帳號（沒申請就是空殼帳號）；NULL＝未連帳號（migrations/024）
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS rc_members_status_idx ON rc_members (status, name);
+CREATE UNIQUE INDEX IF NOT EXISTS rc_members_user_uidx ON rc_members (user_id) WHERE user_id IS NOT NULL;
 
 -- ── 場次 ───────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS rc_sessions (

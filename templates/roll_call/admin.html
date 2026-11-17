@@ -68,6 +68,8 @@
           {% for g in groups %}<option value="{{ g.id }}" {% if m.group_id == g.id %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
         </select>
         {% endif %}
+        {% if m.user_id %}<span style="color:#15803d; font-size:.85rem;">✓ 已連帳號</span>
+        {% else %}<button type="button" onclick="linkMember('{{ m.id }}', {{ m.name|tojson|forceescape }})" style="padding:6px 10px;">連帳號</button>{% endif %}
         {% if m.status == 'active' %}<button type="button" onclick="leaveMember('{{ m.id }}')" style="padding:6px 10px;">標記離開</button>{% endif %}
       </span>
     </div>
@@ -77,6 +79,7 @@
 {% endblock %}
 {% block extra_js %}
 <script src="/static/tour.js"></script>
+<script src="/static/js/rc-account-pick.js"></script>
 <script>
 function say(t) { document.getElementById('msg').textContent = t || ''; }
 async function post(url, body) {
@@ -122,6 +125,19 @@ const confirmImport = () => run(async () => {
   const j = await post('/api/admin/roll-call/members', { names: importText, confirm_similar: sims, group_id: g ? g.value : '' });
   alert(`已加入 ${j.data.added} 人` + (j.data.skipped.length ? `；略過 ${j.data.skipped.length} 人：\n` + j.data.skipped.map(x => `${x.name}（${x.reason}）`).join('\n') : ''));
 });
+async function linkMember(id, name, extra) {
+  // 找得到就連、找不到就建空殼帳號；帳號裡有疑似同一個人時請管理員選（不替人猜）
+  const r = await fetch(`/api/admin/roll-call/members/${id}/link`, { method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(extra || {}) });
+  const j = await r.json().catch(() => ({ error: '連線失敗' }));
+  if (r.status === 409 && j.data && j.data.accounts) {
+    const pick = rcPickAccount(name, j.data.accounts);
+    if (pick) return linkMember(id, name, pick);
+    return;
+  }
+  if (!r.ok || j.error) { say(j.error || '連帳號失敗'); return; }
+  location.reload();
+}
 async function setGroup(id, gid) {
   try { await post(`/api/admin/roll-call/members/${id}/group`, { group_id: gid }); say('已更新小組'); } catch (e) { say(e.message); }
 }

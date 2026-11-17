@@ -309,3 +309,26 @@ def test_migration_023_roll_call_groups_is_repeatable_and_survives_a_deleted_gro
         assert psql("select count(*) from rc_members where name = '甲' and group_id is null").stdout.strip() == '1'
     finally:
         stop()
+
+
+@pytest.mark.skipif(not pg_helper.AVAILABLE, reason=pg_helper.SKIP_REASON)
+def test_migration_024_roster_accounts_is_repeatable_unique_and_survives_a_deleted_account():
+    """一個帳號只能對到名冊上一個人；帳號被刪時名冊成員保留（回到未連帳號），點名紀錄不跟著消失。"""
+    psql, stop = pg_helper.start(55475)
+    try:
+        psql(ROLES)
+        assert psql(file=str(ROOT / 'schema.sql')).returncode == 0
+        assert psql('DROP INDEX rc_members_user_uidx; ALTER TABLE rc_members DROP COLUMN user_id').returncode == 0
+        mig = str(ROOT / 'migrations' / '024_rc_members_user.sql')
+        for _ in range(2):
+            r = psql(file=mig)
+            assert r.returncode == 0, r.stderr
+        uid = '33333333-3333-3333-3333-333333333333'
+        assert psql(f"insert into users (id, real_name, display_name) values ('{uid}', '甲', '甲')").returncode == 0
+        assert psql(f"insert into rc_members (name, user_id) values ('甲', '{uid}')").returncode == 0
+        assert psql(f"insert into rc_members (name, user_id) values ('甲二', '{uid}')").returncode != 0, '同一帳號不能對到兩個名冊成員'
+        assert psql("insert into rc_members (name) values ('乙'), ('丙')").returncode == 0, '沒連帳號的可以很多個'
+        assert psql(f"delete from users where id = '{uid}'").returncode == 0
+        assert psql("select count(*) from rc_members where name = '甲' and user_id is null").stdout.strip() == '1'
+    finally:
+        stop()
