@@ -8,11 +8,16 @@ profile_bp = Blueprint('profile', __name__)
 
 
 def _find_merge_candidate(real_name, group_tags, current_user_id):
-    """找「姓名相同、至少一個小組相符」的既有帳號（自助合併偵測用）。
+    """找「可能就是他本人、但還沒綁 LINE」的既有帳號（自助合併偵測用）。
 
+    兩種情況都算（姓名都要相同）：
+    1. 至少一個標籤相同 —— 管理員先手動建檔時有勾標籤；
+    2. 這個帳號**在點名名冊上**（rc_members.user_id）—— 點名單「加入新朋友」建的空殼帳號沒有標籤，
+       不認這一種的話，新朋友之後用 LINE 註冊只會變成第二個帳號，要管理員手動合併。
+    ★ 這只是「提出候選」，本人要按確認；合併時伺服器只接受這裡提出的那一個（_offer_merge）。
     回傳候選帳號 row 或 None。候選若已綁 LINE 則由呼叫端引導聯繫管理員。
     """
-    if not real_name or not group_tags:
+    if not real_name:
         return None
     try:
         candidates = supabase.table('users')\
@@ -23,8 +28,19 @@ def _find_merge_candidate(real_name, group_tags, current_user_id):
     except Exception:
         logging.getLogger(__name__).warning('合併候選查詢失敗', exc_info=True)
         return None
+    if not candidates:
+        return None
     for c in candidates:
-        if set(c.get('group_tags') or []) & set(group_tags):
+        if group_tags and set(c.get('group_tags') or []) & set(group_tags):
+            return c
+    try:
+        on_roster = {r['user_id'] for r in (supabase.table('rc_members').select('user_id')
+                     .in_('user_id', [c['id'] for c in candidates]).execute().data or []) if r.get('user_id')}
+    except Exception:
+        logging.getLogger(__name__).warning('點名名冊查詢失敗', exc_info=True)
+        return None
+    for c in candidates:
+        if c['id'] in on_roster and not c.get('line_user_id'):
             return c
     return None
 
@@ -66,7 +82,7 @@ def onboarding():
         tags = [t for t in data.get('group_tags', []) if t] if member_type == 'member' else []
 
         # 自助合併偵測：管理員先手動建檔（同名＋同小組、無 LINE）的情境
-        if member_type == 'member' and not data.get('merge_confirmed'):
+        if not data.get('merge_confirmed'):     # 會友與訪客都要偵測（點名建的空殼帳號是訪客、沒有標籤）
             candidate = _find_merge_candidate(real_name, tags, session['user_id'])
             if candidate:
                 if candidate.get('line_user_id'):
@@ -170,7 +186,7 @@ def setup():
         tags = [t for t in data.get('group_tags', []) if t] if member_type == 'member' else []
 
         # 自助合併偵測（與 onboarding 相同邏輯）
-        if member_type == 'member' and not data.get('merge_confirmed'):
+        if not data.get('merge_confirmed'):     # 會友與訪客都要偵測（點名建的空殼帳號是訪客、沒有標籤）
             candidate = _find_merge_candidate(real_name, tags, session['user_id'])
             if candidate:
                 if candidate.get('line_user_id'):
