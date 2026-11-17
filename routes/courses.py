@@ -541,9 +541,9 @@ def admin_course_roster(course_id):
                 material_stock_info = mat.data[0]
                 material_stock_info['demand'] = material_count
 
-        # 主標籤小組名稱集合（供名單顯示用）
-        groups_raw = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
-        primary_group_names = {g['name'] for g in groups_raw if g.get('is_primary', True)}
+        # 每個人的牧養小組（供名單顯示用；「哪一組」只有一份：routes/my_group.py）
+        from routes import my_group
+        group_of = my_group.of_users(list(user_map))
 
         return render_template('courses/admin_roster.html',
             course=course,
@@ -560,7 +560,7 @@ def admin_course_roster(course_id):
             material_count=material_count,
             confirmed_material_count=confirmed_material_count,
             material_stock_info=material_stock_info,
-            primary_group_names=primary_group_names,
+            group_of=group_of,
         )
     except Exception:
         return '名單頁載入失敗，請稍後再試', 500
@@ -801,8 +801,8 @@ def admin_roster_export(course_id):
 
     att_map = get_attendance_map([s['id'] for s in sessions])
 
-    groups_raw = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
-    primary_group_names = {g['name'] for g in groups_raw if g.get('is_primary', True)}
+    from routes import my_group
+    group_of = my_group.of_users([e['user_id'] for e in enrolled_raw])
 
     wb = Workbook()
     ws = wb.active
@@ -827,12 +827,7 @@ def admin_roster_export(course_id):
 
     for idx, enroll in enumerate(enrolled_raw, 1):
         u = user_map.get(enroll['user_id'], {})
-        tags = u.get('group_tags') or []
-        if isinstance(tags, str):
-            import json
-            try: tags = json.loads(tags)
-            except: tags = [tags]
-        primary_group = next((t for t in tags if t in primary_group_names), '')
+        primary_group = group_of.get(enroll['user_id'], '')
 
         attended = sum(1 for s in sessions if enroll['user_id'] in att_map.get(s['id'], []))
         total = len(sessions)

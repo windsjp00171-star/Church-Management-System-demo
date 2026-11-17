@@ -9,19 +9,16 @@ devotional_bp = Blueprint('devotional', __name__)
 
 
 def _primary_groups():
-    """回傳所有主標籤小組名稱清單（is_primary=True，依 sort_order 排序）"""
-    res = supabase.table('groups').select('name').eq('is_primary', True).order('sort_order').execute()
-    return [g['name'] for g in (res.data or [])]
+    """所有牧養小組名稱（「哪一組」只有一份：routes/my_group.py）"""
+    from routes import my_group
+    return my_group.names()
 
 
 def _detect_user_group(primary_names):
-    """從 session group_tags 比對主標籤，回傳第一個符合的小組名稱，找不到回傳 None"""
-    tags = session.get('group_tags') or []
-    primary_set = set(primary_names)
-    for t in tags:
-        if t in primary_set:
-            return t
-    return None
+    """登入者所屬的牧養小組；不在清單裡（例如小組已停用）回 None"""
+    from routes import my_group
+    g = my_group.mine()
+    return g if g in set(primary_names) else None
 
 
 def _regs_map(order_id):

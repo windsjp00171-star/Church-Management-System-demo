@@ -147,6 +147,11 @@ from db import supabase
 - 目前刻意不備份：`diary_entries`／`diary_share_grants`（隱私，**已決定**：超管匯出不含日記內容；個人可在 `/diary/export` 匯出自己的；災難還原需靠 Supabase 層級備份）、`notifications`（暫時性）、`contact_leads`（展示站專用）。檔案本體（R2）與留名單照片（Storage）不在資料庫匯出內，需另外備份。
 - 可讀的 CSV 備份中心（`routes/backup.py`）：讀取失敗（`BackupReadError`）與資料表不存在是兩件事，前者顯示「讀取失敗」，不可顯示成「尚未啟用」。
 
+### 「這個人是哪一組」只有一份（`routes/my_group.py`）
+- 一律以**牧養小組**為準（`cell_groups` ＋ 已確認的 `cell_members`）：禱讀本、門訓名單／匯出、首頁版面（依小組）、收費提醒、速讀表表頭、第一次登入都走 `names()`／`of_users()`／`mine()`。
+- `groups` 表只剩**服事團隊／副標籤**（同工判斷、權限矩陣、檔案權限）；舊的主標籤資料留著不讀，第一次登入也不再讓人選主標籤（改選牧養小組，送出「待管理員確認」的申請，與個人資料頁共用 `profile._request_cell_group`）。
+- 不用 SQL（`cell_members.user_id` 本來就有）；`tests/test_my_group.py` 守著沒有人再拿主標籤判斷組別。
+
 ### 「人」的建立（`routes/person.py`）
 - 手動建立沒有 LINE 的會員一律走 `create_person()`：建立前 `find_possible_duplicates()`（姓名相同／差一個字／LINE 暱稱相同），有疑似重複回 409 讓管理員確認，`force` 才強制建立。比對用的正規化與「差一個字」判定與點名名冊共用（`roll_call_logic.norm_name`／`within_one_edit`）。
 - 綁定 LINE 的唯一入口是「整合 LINE」（`user_merge`）：LINE 帳號必須自己登入過，不接受貼上 LINE ID 直接綁定（避免冒用）。

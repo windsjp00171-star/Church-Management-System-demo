@@ -164,11 +164,9 @@
                 </div>
             </td>
             <td style="padding:10px 8px; text-align:left;">
-                {% set tags = user.group_tags if user.group_tags else [] %}
-                {% set primary_tag = namespace(val='') %}
-                {% for t in tags %}{% if t in primary_group_names %}{% set primary_tag.val = t %}{% endif %}{% endfor %}
-                {% if primary_tag.val %}
-                <span style="font-size:0.78rem; background:#f0f4ff; color:#3949ab; padding:2px 8px; border-radius:10px;">{{ primary_tag.val }}</span>
+                {% set my_cell = group_of.get(enroll.user_id) %}
+                {% if my_cell %}
+                <span style="font-size:0.78rem; background:#f0f4ff; color:#3949ab; padding:2px 8px; border-radius:10px;">{{ my_cell }}</span>
                 {% else %}
                 <span style="color:#ddd;">—</span>
                 {% endif %}

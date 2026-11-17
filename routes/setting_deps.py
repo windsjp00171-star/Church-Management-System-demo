@@ -278,8 +278,8 @@ DEPENDENCIES = [
     ),
     Dep(
         module='events', key='money_needs_primary_groups',
-        label='跟會友收費', needs='至少一個主標籤小組',
-        effect='沒有主標籤小組的話，每一筆的收款歸屬都算不出來 —— '
+        label='跟會友收費', needs='至少一個牧養小組',
+        effect='沒有牧養小組的話，每一筆的收款歸屬都算不出來 —— '
                '全部落進「未分組（教會行政）」，小組收款單一張都發不出去。'
                '代報的那幾筆也會歸錯組。',
         applies=lambda c: (_int(_ev(c).get('fee')) > 0

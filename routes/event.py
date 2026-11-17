@@ -312,9 +312,10 @@ def portal():
                 _user_hidden_sections = _usec.get('hidden', [])
             except Exception:
                 logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
-        # 小組預設（取第一個有設定的小組）
-        _user_group_tags = session.get('group_tags') or []
-        for _gtag in _user_group_tags:
+        # 小組預設：依牧養小組（routes/my_group.py；「哪一組」只有一份）
+        from routes import my_group as _mg
+        _my_cell = _mg.mine()
+        for _gtag in ([_my_cell] if _my_cell else []):
             _raw_grp = _ss.get(f'portal_group_{_gtag}')
             if _raw_grp:
                 try:

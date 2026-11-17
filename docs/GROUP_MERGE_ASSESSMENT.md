@@ -35,6 +35,8 @@
 後台多一頁「小組對照」：列出兩邊的組名、**兩邊都有／只有一邊有**、以及「標籤寫 A 組、小組回報卻在 B 組」的人。
 目的：先知道正式站實際上分歧到什麼程度，再決定第 2 步怎麼做。**不用改資料庫。**
 
+### 第 2、3 步 —— ✅ 已用更簡單的做法完成（2026-11-17）：不配對，直接一律讀牧養小組（`routes/my_group.py`），主標籤不再被讀取。下面是原本的提案，留作紀錄。
+
 ### 第 2 步：把兩邊「配對」起來（要 SQL，一欄）
 ```sql
 ALTER TABLE groups ADD COLUMN IF NOT EXISTS cell_group_id UUID REFERENCES cell_groups(id) ON DELETE SET NULL;

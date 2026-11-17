@@ -384,8 +384,8 @@ def test_the_group_comes_from_the_one_existing_rule():
     """
     src = (ROOT / 'routes' / 'bible_plan.py').read_text(encoding='utf-8')
     body = src.split('def my_group')[1].split('\n@')[0]
-    assert 'collecting_group' in body, '要走 collection 那份唯一的規則'
-    assert 'is_primary' not in body, '不可以自己再查一次主標籤'
+    assert 'my_group' in body and '.mine()' in body, '要走 routes/my_group.py 那份唯一的規則'
+    assert 'is_primary' not in body and 'routes.collection' not in body, '不可以自己再查一次（collection 在這個 repo 不存在）'
 
 
 def test_printing_does_not_rely_on_background_colour():
