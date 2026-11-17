@@ -37,13 +37,31 @@ def test_a_newcomer_gets_a_shell_account_and_is_linked(world, client_as):
     assert world.rpcs and world.rpcs[0][0] == 'rc_save_record', '並且在本週那一欄打勾'
 
 
-def test_a_possible_existing_account_is_offered_not_guessed(world, client_as):
-    world.tables['users'] = [{'id': 'u9', 'real_name': '新朋友', 'display_name': '新朋友', 'line_user_id': 'L'}]
+def test_a_possible_shell_account_is_offered_not_guessed(world, client_as):
+    world.tables['users'] = [{'id': 'u9', 'real_name': '新朋友', 'display_name': '新朋友', 'line_user_id': None}]
     r = _add(client_as(is_staff=True))
     assert r.status_code == 409
-    acc = r.get_json()['data']['accounts']
-    assert acc[0]['id'] == 'u9' and acc[0]['has_line'] is True
+    assert [a['id'] for a in r.get_json()['data']['accounts']] == ['u9']
     assert not world.writes, '還沒選之前什麼都不可以寫'
+
+
+def test_an_account_already_bound_to_line_is_never_offered_or_linked(world, client_as):
+    """★ 名冊只連空殼帳號：綁了 LINE 的帳號不在點名這邊選（綁 LINE 只能走「整合 LINE」）。"""
+    world.tables['users'] = [{'id': 'line1', 'real_name': '新朋友', 'display_name': '新朋友', 'line_user_id': 'L'}]
+    r = _add(client_as(is_staff=True))
+    assert r.status_code == 200, '同名的只有已綁 LINE 的帳號 → 不問，直接建空殼'
+    assert _writes(world, 'rc_members', 'insert')[0][2]['user_id'] == 'new-id'
+    world.writes.clear()
+    r = _add(client_as(is_staff=True), link_user_id='line1')
+    assert r.status_code == 409 and not _writes(world, 'rc_members')
+
+
+def test_a_link_to_an_account_the_server_never_offered_is_refused(world, client_as):
+    """★ 不信任前端送來的帳號編號（之前的漏洞：可以連到任何帳號）。"""
+    world.tables['users'] = [{'id': 'u9', 'real_name': '別人', 'display_name': '別人'}]
+    r = _add(client_as(is_staff=True), link_user_id='u9')
+    assert r.status_code == 409 and '系統列出' in r.get_json()['error']
+    assert not world.writes
 
 
 def test_choosing_the_existing_account_links_it_without_a_new_one(world, client_as):
@@ -61,7 +79,8 @@ def test_saying_it_is_someone_else_creates_a_new_shell(world, client_as):
 
 
 def test_an_account_already_on_the_roster_cannot_be_added_twice(world, client_as):
-    world.tables['rc_members'] = [{'id': 'm1', 'name': '王小明', 'user_id': 'u9', 'status': 'active'}]
+    world.tables.update(rc_members=[{'id': 'm1', 'name': '王小明', 'user_id': 'u9', 'status': 'active'}],
+                        users=[{'id': 'u9', 'real_name': '王曉明二號', 'display_name': '王曉明二號'}])
     r = _add(client_as(is_staff=True), name='王曉明二號', link_user_id='u9')
     assert r.status_code == 409 and '已經在名冊上' in r.get_json()['error']
     assert not _writes(world, 'rc_members', 'insert')
@@ -115,10 +134,12 @@ def test_import_creates_an_account_for_everyone_without_a_match(world, client_as
 
 
 def test_preview_shows_possible_accounts(world, client_as):
-    world.tables['users'] = [{'id': 'u9', 'real_name': '甲', 'display_name': '甲', 'line_user_id': 'L'}]
+    world.tables['users'] = [{'id': 'u9', 'real_name': '甲', 'display_name': '甲', 'line_user_id': None},
+                             {'id': 'line1', 'real_name': '乙', 'display_name': '乙', 'line_user_id': 'L'}]
     d = client_as(is_admin=True).post('/api/admin/roll-call/members/preview', json={'names': '甲\n乙'}).get_json()['data']
     acc = {r['name']: r['accounts'] for r in d['rows']}
-    assert [a['id'] for a in acc['甲']] == ['u9'] and acc['乙'] == []
+    assert [a['id'] for a in acc['甲']] == ['u9']
+    assert acc['乙'] == [], '綁了 LINE 的帳號不列成候選'
     assert not world.writes, '預覽不可以寫入'
 
 
