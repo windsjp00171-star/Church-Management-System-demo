@@ -29,6 +29,22 @@ def _find_merge_candidate(real_name, group_tags, current_user_id):
     return None
 
 
+def _offer_merge(candidate):
+    """把「這是你嗎？」的候選帳號記在**伺服器端的 session**，再交給畫面。
+
+    ★ 安全：合併時只接受伺服器自己提出過的那一個帳號（`merge_confirm` 比對 session）。
+      以前只看瀏覽器送來的 candidate_id —— 任何登入的人改掉那個編號，就能把自己併進任何一個
+      還沒綁 LINE 的空殼帳號，接手那個人的報名、點名、讀經紀錄。
+    """
+    session['merge_offer'] = candidate['id']
+    return jsonify({
+        'needs_merge': True,
+        'candidate_id': candidate['id'],
+        'candidate_name': candidate['real_name'],
+        'candidate_tags': candidate.get('group_tags') or [],
+    })
+
+
 @profile_bp.route('/onboarding', methods=['GET', 'POST'])
 @login_required
 def onboarding():
@@ -55,12 +71,7 @@ def onboarding():
             if candidate:
                 if candidate.get('line_user_id'):
                     return jsonify({'needs_contact_admin': True})
-                return jsonify({
-                    'needs_merge': True,
-                    'candidate_id': candidate['id'],
-                    'candidate_name': candidate['real_name'],
-                    'candidate_tags': candidate.get('group_tags') or [],
-                })
+                return _offer_merge(candidate)
 
         supabase.table('users').update({
             'real_name': real_name,
@@ -92,6 +103,11 @@ def merge_confirm():
     new_id = session['user_id']                          # 新 LINE 帳號（刪除方）
     if old_id == new_id:
         return jsonify({'error': '不能與自己合併'}), 400
+    # ★ 只接受系統剛剛提出的那一個候選帳號（見 _offer_merge）；不信任瀏覽器送來的編號
+    if session.get('merge_offer') != old_id:
+        from routes.audit import log_action
+        log_action('user.merge_line_self_refused', 'user', old_id, {'requested_by': new_id})
+        return jsonify({'error': '這個合併不是系統提出的，請重新填寫一次資料'}), 403
 
     old_rows = supabase.table('users').select('*').eq('id', old_id).execute().data
     if not old_rows:
@@ -121,6 +137,7 @@ def merge_confirm():
                    {'merged_from': new_id, 'error': e.message, 'rolled_back': e.rolled_back})
         return jsonify({'error': e.message, 'rolled_back': e.rolled_back}), 500
 
+    session.pop('merge_offer', None)                     # 用過就失效，不能拿同一個提議再合併一次
     # ⑤ session 改指向保留帳號（重新載入全部角色旗標）
     merged = supabase.table('users').select('*').eq('id', old_id).execute().data[0]
     from routes.auth import _populate_session
@@ -158,12 +175,7 @@ def setup():
             if candidate:
                 if candidate.get('line_user_id'):
                     return jsonify({'needs_contact_admin': True})
-                return jsonify({
-                    'needs_merge': True,
-                    'candidate_id': candidate['id'],
-                    'candidate_name': candidate['real_name'],
-                    'candidate_tags': candidate.get('group_tags') or [],
-                })
+                return _offer_merge(candidate)
 
         supabase.table('users').update({
             'real_name': real_name,

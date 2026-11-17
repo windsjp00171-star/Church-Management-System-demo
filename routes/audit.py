@@ -6,6 +6,7 @@ from db import supabase
 logger = logging.getLogger(__name__)
 
 ACTION_LABELS = {
+    'user.merge_line_self_refused': '自助合併被擋下（不是系統提出的帳號）',
     'sermons.playlists':    '修改主日信息播放清單',
     'pwa.login_failed':     'PWA 續登沒成功',
     # 帳號
