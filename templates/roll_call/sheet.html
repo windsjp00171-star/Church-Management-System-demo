@@ -53,8 +53,20 @@
       </thead>
       <tbody>
         {% for m in members %}
+        {# 照週間小組分段，每一段的標題可以收合（點名時只打開自己那一組就好找人）；已離開的不在分段裡 #}
+        {% if grouped and m.status != 'left' and (loop.first or members[loop.index0 - 1]._group != m._group or members[loop.index0 - 1].status == 'left') %}
+        <tr class="grp-head" data-group="{{ m._group }}">
+          <td colspan="{{ columns|length + 1 }}" style="position:sticky; left:0; background:#eef2ff; padding:0; border-bottom:1px solid #c7d2fe;">
+            <button type="button" onclick="toggleGroup(this)" aria-expanded="true" data-group="{{ m._group }}"
+                    style="width:100%; text-align:left; padding:10px 12px; border:0; background:transparent; font-weight:700; color:#3730a3; font-size:1rem; cursor:pointer;">
+              <span class="grp-arrow">▾</span> {{ m._group }}
+              <span style="font-weight:400; color:#6b7280;">（{{ members|selectattr('_group', 'equalto', m._group)|rejectattr('status', 'equalto', 'left')|list|length }} 人）</span>
+            </button>
+          </td>
+        </tr>
+        {% endif %}
         {# 已離開的預設收起來（他們過去的打勾還在、人數照算，只是不擋住正在點名的人） #}
-        <tr data-name="{{ m.name|lower }}"{% if m.status == 'left' %} data-left="1" style="display:none;"{% endif %}>
+        <tr data-name="{{ m.name|lower }}" data-group="{{ m._group if m.status != 'left' else '' }}"{% if m.status == 'left' %} data-left="1" style="display:none;"{% endif %}>
           <td style="position:sticky; left:0; background:#fff; padding:6px 12px; border-bottom:1px solid #f3f4f6; font-size:1.05rem;">{{ m.name }}{% if m.status == 'left' %} <span style="color:#9ca3af; font-size:.8rem;">（已離開）</span>{% endif %}</td>
           {% for c in columns %}
           {% set on = c.session and records.get((c.session.id, m.id)) == 'present' %}
@@ -148,16 +160,31 @@ function norm(t) { return (t || '').normalize('NFKC').toLowerCase().replace(/\s+
 function filterNames() {
   const q = norm(document.getElementById('sh-search').value);
   let shown = 0;
+  const groupsWithHits = new Set();
   document.querySelectorAll('tbody tr[data-name]').forEach(tr => {
-    const hit = (!q || norm(tr.dataset.name).includes(q)) && (SHOW_LEFT || tr.dataset.left !== '1');
+    const match = (!q || norm(tr.dataset.name).includes(q)) && (SHOW_LEFT || tr.dataset.left !== '1');
+    // 搜尋時不管小組有沒有收起來都要找得到人；沒在搜尋時，收起來的小組就藏起來
+    const hit = match && (q || !COLLAPSED.has(tr.dataset.group));
     tr.style.display = hit ? '' : 'none';
-    if (hit) shown++;
+    if (hit) { shown++; groupsWithHits.add(tr.dataset.group); }
+  });
+  document.querySelectorAll('tbody tr.grp-head').forEach(h => {
+    h.style.display = (!q || groupsWithHits.has(h.dataset.group)) ? '' : 'none';
   });
   const none = document.getElementById('sh-none');
   none.style.display = (q && !shown) ? '' : 'none';
   document.getElementById('sh-none-q').textContent = document.getElementById('sh-search').value.trim();
 }
 let SHOW_LEFT = false;
+const COLLAPSED = new Set();
+function toggleGroup(btn) {
+  const g = btn.dataset.group;
+  if (COLLAPSED.has(g)) COLLAPSED.delete(g); else COLLAPSED.add(g);
+  const open = !COLLAPSED.has(g);
+  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+  btn.querySelector('.grp-arrow').textContent = open ? '▾' : '▸';
+  filterNames();
+}
 function toggleLeft() {
   SHOW_LEFT = !SHOW_LEFT;
   const b = document.getElementById('toggle-left');

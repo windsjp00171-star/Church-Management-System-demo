@@ -50,12 +50,26 @@
     <div style="margin:6px 0; font-size:.9rem; color:#555;">
       或上傳 CSV／文字檔（只讀第一欄的姓名）：<input type="file" id="m-file" accept=".csv,.txt,text/csv,text/plain">
     </div>
+    {% if groups %}
+    <div style="margin:6px 0; font-size:.9rem; color:#555;">
+      這一批加入哪個小組（點名單會照小組分段）：
+      <select id="m-group" style="padding:6px 8px;"><option value="">未分組</option>{% for g in groups %}<option value="{{ g.id }}">{{ g.name }}</option>{% endfor %}</select>
+    </div>
+    {% endif %}
     <button type="button" onclick="previewMembers()" style="padding:10px 16px; margin:8px 0;">先預覽（還不會寫入）</button>
     <div id="m-preview" style="display:none; margin:8px 0; padding:10px; background:#f8fafc; border-radius:8px;"></div>
     {% for m in members %}
     <div style="display:flex; justify-content:space-between; padding:6px 0; border-top:1px solid #eee;">
       <span>{{ m.name }}{% if m.status == 'left' %}　<span style="color:#999;">（已離開）</span>{% endif %}</span>
-      {% if m.status == 'active' %}<button type="button" onclick="leaveMember('{{ m.id }}')" style="padding:6px 10px;">標記離開</button>{% endif %}
+      <span style="display:flex; gap:6px; align-items:center;">
+        {% if groups %}
+        <select aria-label="{{ m.name }} 的小組" onchange="setGroup('{{ m.id }}', this.value)" style="padding:6px 8px;">
+          <option value="">未分組</option>
+          {% for g in groups %}<option value="{{ g.id }}" {% if m.group_id == g.id %}selected{% endif %}>{{ g.name }}</option>{% endfor %}
+        </select>
+        {% endif %}
+        {% if m.status == 'active' %}<button type="button" onclick="leaveMember('{{ m.id }}')" style="padding:6px 10px;">標記離開</button>{% endif %}
+      </span>
     </div>
     {% endfor %}
   </section>
@@ -104,9 +118,13 @@ function renderPreview(d) {
 }
 const confirmImport = () => run(async () => {
   const sims = [...document.querySelectorAll('#m-preview [data-similar]:checked')].map(e => e.dataset.similar);
-  const j = await post('/api/admin/roll-call/members', { names: importText, confirm_similar: sims });
+  const g = document.getElementById('m-group');
+  const j = await post('/api/admin/roll-call/members', { names: importText, confirm_similar: sims, group_id: g ? g.value : '' });
   alert(`已加入 ${j.data.added} 人` + (j.data.skipped.length ? `；略過 ${j.data.skipped.length} 人：\n` + j.data.skipped.map(x => `${x.name}（${x.reason}）`).join('\n') : ''));
 });
+async function setGroup(id, gid) {
+  try { await post(`/api/admin/roll-call/members/${id}/group`, { group_id: gid }); say('已更新小組'); } catch (e) { say(e.message); }
+}
 const leaveMember = id => confirm('標記離開後，歷史點名資料全部保留。確定？') && run(() => post(`/api/admin/roll-call/members/${id}/leave`));
 function startTour() {
   RollTour.start([

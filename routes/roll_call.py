@@ -90,6 +90,15 @@ def _sheet_type(type_id=None):
     return (individual[0] if individual else None), individual
 
 
+def _cell_groups():
+    """週間小組（點名單分段用）。讀不到就當沒有（點名單照舊一整串）。"""
+    try:
+        return supabase.table('cell_groups').select('id, name').eq('is_active', True)\
+            .order('name').execute().data or []
+    except Exception:
+        return []
+
+
 def services_for(type_id):
     """這種聚會一天有幾堂（看「聚會設定」裡哪個聚會把人數來源連到它、設了幾堂）。沒連結就是 1。
 
@@ -168,8 +177,14 @@ def home():
             extra = sorted({r['member_id'] for r in recs} - known)
             if extra:
                 members += supabase.table('rc_members').select('*').in_('id', extra).execute().data or []
-        # 已離開的排在最後（頁面預設收起來）：混在名單裡會把正在點名的人擠到下面
-        members.sort(key=lambda m: (m.get('status') == 'left', m['name']))
+        # 已離開的排在最後（頁面預設收起來）：混在名單裡會把正在點名的人擠到下面。
+        # 其餘照週間小組分段（組名排序），沒分組的排在各組之後。
+        groups = _cell_groups()
+        gname = {g['id']: g['name'] for g in groups}
+        members.sort(key=lambda m: (m.get('status') == 'left', gname.get(m.get('group_id')) is None,
+                                    gname.get(m.get('group_id')) or '', m['name']))
+        for m in members:
+            m['_group'] = gname.get(m.get('group_id')) or '未分組'
         present = {s['id']: sum(1 for m in members if records.get((s['id'], m['id'])) == 'present') for s in sessions}
     for c in columns:
         s = c['session']
@@ -183,8 +198,10 @@ def home():
     # 本週每一堂都要有場次；少一場就由頁面自動補（GET 不寫資料庫）
     cur_has_session = all(c['session'] for c in columns if c['is_current']) and any(c['is_current'] for c in columns)
     left_count = sum(1 for m in members if m.get('status') == 'left')
+    # 至少有一位設了小組才分段；全部未分組時維持原本一整串（不多一層沒有意義的「未分組」標題）
+    grouped = any(m.get('_group') not in (None, '未分組') for m in members)
     return render_template('roll_call/sheet.html', mtype=mtype, types=individual, columns=columns,
-                           left_count=left_count,
+                           left_count=left_count, grouped=grouped,
                            members=members, records=records, present=present, today=today,
                            cur_sunday=cur_sunday, add_date=cur_sunday.isoformat(),
                            auto_add=not cur_has_session, is_admin=_is_admin(),
@@ -508,7 +525,8 @@ def admin_home():
         s['_type'] = tmap.get(s['type_id'], {})
         s['_local'] = to_taipei(s['starts_at'])
     members = supabase.table('rc_members').select('*').order('status').order('name').execute().data or []
-    return render_template('roll_call/admin.html', types=types, sessions=sessions, members=members)
+    return render_template('roll_call/admin.html', types=types, sessions=sessions, members=members,
+                           groups=_cell_groups())
 
 
 @roll_call_bp.route('/api/admin/roll-call/types', methods=['POST'])
@@ -568,12 +586,18 @@ def api_add_members():
     plan = plan_import(data.get('names') or '', _existing_members())
     if not plan['rows']:
         return _err('請輸入至少一個姓名')
+    group_id = (data.get('group_id') or '').strip() or None
+    if group_id and group_id not in {g['id'] for g in _cell_groups()}:
+        return _err('找不到這個小組')
     many = len(plan['rows']) > 1
     added, skipped = [], []
     for r in plan['rows']:
         if r['status'] == 'new' or (r['status'] == 'similar' and norm_name(r['name']) in confirmed):
-            added.append({'name': r['name'], 'source': 'import' if many else 'manual',
-                          'joined_on': data.get('joined_on') or None})
+            row = {'name': r['name'], 'source': 'import' if many else 'manual',
+                   'joined_on': data.get('joined_on') or None}
+            if group_id:
+                row['group_id'] = group_id
+            added.append(row)
         else:
             skipped.append({'name': r['name'], 'reason': IMPORT_LABELS[r['status']], 'match': r['match']})
     if added:
@@ -581,6 +605,21 @@ def api_add_members():
     log_action('roll_call.members_import', target_type='rc_members',
                detail={'added': len(added), 'skipped': len(skipped), 'truncated': plan['truncated'] or None})
     return _ok({'added': len(added), 'skipped': skipped, 'truncated': plan['truncated']})
+
+
+@roll_call_bp.route('/api/admin/roll-call/members/<mid>/group', methods=['POST'])
+@admin_required
+def api_member_group(mid):
+    """設定點名名冊成員的小組（週間小組）；空＝未分組。只影響點名單怎麼分段，不影響出席紀錄。"""
+    group_id = ((request.get_json(silent=True) or {}).get('group_id') or '').strip() or None
+    if group_id and group_id not in {g['id'] for g in _cell_groups()}:
+        return _err('找不到這個小組')
+    try:
+        supabase.table('rc_members').update({'group_id': group_id}).eq('id', mid).execute()
+    except Exception as e:
+        return _db_error(e)
+    log_action('roll_call.member_group', target_type='rc_members', target_id=mid, detail={'group_id': group_id})
+    return _ok({'group_id': group_id})
 
 
 @roll_call_bp.route('/api/admin/roll-call/members/<mid>/leave', methods=['POST'])
