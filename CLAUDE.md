@@ -104,6 +104,7 @@ from db import supabase
 
 ### 聚會點名（roll_call_bp）
 - **名冊連到帳號（2026-11-17 使用者決定，取代原本的「脫鉤」）**：一個人＝一個帳號；`rc_members.user_id`（migration 024，一個帳號只對到一個名冊成員）。點名單「加入新朋友」直接建**空殼帳號**（`routes/person.create_person`，查疑似重複）並連起來；帳號裡已有疑似同一人的**空殼帳號（未綁 LINE）**時交回同工選（`link_user_id`／`new_account`），**不用姓名猜**；已綁 LINE 的帳號永遠不在名冊這邊連（綁 LINE 只走「整合 LINE」）；伺服器只接受自己算出的候選（`_shell_matches`）。後台名冊對只有姓名的人按「連帳號」。帳號合併時名冊跟著搬（`user_merge.REFS`）。出勤紀錄（`rc_records`）與稽核仍掛在名冊成員上。點名模組本身**仍不直接查 `users`**（經由 `routes/person.py`，結構守衛照舊）。操作者只存 id＋姓名快照，不設外鍵。
+- **小組回報的「主日」欄讀點名**（`roll_call_link.sunday_statuses`）：帳號對帳號（`cell_members.user_id`＝`rc_members.user_id`），主日＝聚會日那一週的週日；點名還沒開始或沒連帳號時組長照舊填；讀到時那一格唯讀、伺服器擋手填（409）。
 - 點名寫入一律走資料庫函式 `rc_save_record` / `rc_lock_session` / `rc_set_count`（同交易寫紀錄＋稽核）；不得直接寫 `rc_records`。
 - `rc_audit` 只許追加（觸發器擋 UPDATE／DELETE／TRUNCATE）；**場次鎖定後**的任何修改必須附原因（019 起，還沒鎖定時改打勾不用原因，但每次修改仍寫稽核）；人數空白一律退回、不得當 0。
 - **點名分小組**：`rc_members.group_id` → `cell_groups`（週間小組，migration 023）；只影響點名單分段顯示（`_cell_groups()`），不影響出席率／人數。小組被刪＝回到未分組。兩份小組（標籤 `groups` vs 週間 `cell_groups`）要不要合併見 `docs/GROUP_MERGE_ASSESSMENT.md`。

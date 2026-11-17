@@ -43,6 +43,13 @@
   width: 30px;
   flex-shrink: 0;
 }
+.att-fixed {
+  font-size: .82rem;
+  color: var(--text-2, #4A5568);
+  background: #EEF2FF;
+  border-radius: 8px;
+  padding: 4px 10px;
+}
 .att-btns {
   display: flex;
   gap: 5px;
@@ -151,6 +158,12 @@
           </div>
           {% for field, label in [('cell_status','小組'), ('sunday_status','主日'), ('rpg_status','靈修')] %}
           {% set cur = att.get(field, '') %}
+          {% if field == 'sunday_status' and rc_sunday.get(m.id|string) %}
+          <div class="att-row">
+            <span class="att-label">{{ label }}</span>
+            <span class="att-fixed" title="以聚會點名為準，要改請到點名單">點名：{{ display_map[m.id|string].sunday }}</span>
+          </div>
+          {% else %}
           <div class="att-row">
             <span class="att-label">{{ label }}</span>
             <div class="att-btns">
@@ -161,6 +174,7 @@
               {% endfor %}
             </div>
           </div>
+          {% endif %}
           {% endfor %}
         </div>
         {% endfor %}

@@ -18,7 +18,7 @@
 設定在「聚會設定」頁：每個聚會選一個點名類型（`settings` 的 `meeting.<key>` 的 `rc_type_id`）。
 """
 import logging
-from datetime import date
+from datetime import date, timedelta
 
 from db import supabase
 from routes import tw_time
@@ -106,3 +106,49 @@ def overlay(key, date_str, row, cfg=None, sb=None):
         out[FIELDS[key][1]] = 0                              # 設定只有一堂：第二堂不存在
     out['_linked'] = counts
     return out
+
+
+#  逐人點名的狀態 → 小組回報的「主日」欄（`cell_attendance.sunday_status` 的值）
+_RC_TO_CELL = {'present': 'full', 'late': 'late', 'leave': 'leave', 'absent': 'absent'}
+_RANK = ('present', 'late', 'leave', 'absent')               # 多堂取最好的一次（同 roll_call_logic.DAY_STATUS_RANK）
+
+
+def sunday_statuses(user_ids, week_date, cfg, sb=None):
+    """小組回報那一週的主日，點名那邊每個人的狀態 `{user_id: 'full'|'late'|'leave'|'absent'}`。
+
+    - 只認**帳號**對帳號（`cell_members.user_id` ＝ `rc_members.user_id`），不用姓名猜。
+    - 主日＝聚會日所在那一週的週日（一週從週日開始，同點名單）。
+    - 那天的主日還沒開始點（一筆紀錄都沒有）→ 空的，組長照舊自己填；開始點了而他沒被打勾 → 沒來。
+    - 讀不到一律回空的（退回手填），不可以讓回報頁打不開。
+    """
+    type_id = (cfg or {}).get('rc_type_id')
+    user_ids = [u for u in user_ids if u]
+    if not type_id or not user_ids:
+        return {}
+    sb = sb or supabase
+    sunday = week_date - timedelta(days=(week_date.weekday() + 1) % 7)
+    try:
+        lo, hi = tw_time.day_bounds_utc(sunday)
+        sessions = sb.table('rc_sessions').select('id').eq('type_id', type_id)\
+            .gte('starts_at', lo).lt('starts_at', hi).execute().data or []
+        if not sessions:
+            return {}
+        members = sb.table('rc_members').select('id, user_id, status, joined_on')\
+            .in_('user_id', user_ids).execute().data or []
+        members = [m for m in members if m.get('status') != 'left'
+                   and not (m.get('joined_on') and m['joined_on'] > sunday.isoformat())]
+        if not members:
+            return {}
+        sids = [s['id'] for s in sessions]
+        records = sb.table('rc_records').select('member_id, status').in_('session_id', sids).execute().data or []
+    except Exception:                                        # noqa: BLE001
+        log.warning('讀點名主日狀態失敗，退回手填', exc_info=True)
+        return {}
+    if not records:
+        return {}                                            # 還沒開始點，不是「全部沒來」
+    best = {}
+    for r in records:
+        cur = best.get(r['member_id'])
+        if r.get('status') in _RANK and (cur is None or _RANK.index(r['status']) < _RANK.index(cur)):
+            best[r['member_id']] = r['status']
+    return {m['user_id']: _RC_TO_CELL[best.get(m['id'], 'absent')] for m in members}
