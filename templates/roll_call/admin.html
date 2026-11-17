@@ -127,8 +127,22 @@ function renderPreview(d) {
     }
     h += `<div style="padding:6px 0; border-top:1px solid #e5e7eb;">${esc(x.name)}${note}　<span style="color:${x.status === 'new' ? '#15803d' : x.status === 'similar' ? '#b45309' : '#6b7280'};">${esc(d.labels[x.status])}</span> ${box_}${acct}</div>`;
   });
+  // 操作方便：要選帳號的人多時，一次選完（選完還是可以逐筆改）
+  const needPick = d.rows.filter(x => (x.status === 'new' || x.status === 'similar') && (x.accounts || []).length).length;
+  if (needPick) {
+    h += `<div style="margin-top:8px; padding:8px; background:#fffbeb; border-radius:8px;">有 ${needPick} 人帳號裡有名字很像的人，要逐筆選「就是他」或「另外建」（沒選的這次先略過）。一次選完：
+      <button type="button" onclick="pickAll('first')" style="padding:6px 10px; margin-left:4px;">都是同一個人</button>
+      <button type="button" onclick="pickAll('new')" style="padding:6px 10px; margin-left:4px;">都另外建新的</button></div>`;
+  }
   h += '<button type="button" onclick="confirmImport()" style="padding:10px 16px; margin-top:8px;">確認匯入</button> <button type="button" onclick="document.getElementById(\'m-preview\').style.display=\'none\'" style="padding:10px 16px;">取消</button>';
   box.innerHTML = h; box.style.display = 'block';
+}
+function pickAll(mode) {
+  document.querySelectorAll('#m-preview [data-acct]').forEach(sel => {
+    // 「都是同一個人」只套用在只有一個候選的那幾行；有兩個以上候選的不替人挑，留給逐筆選
+    if (mode === 'new') sel.value = 'new';
+    else if (sel.options.length === 3) sel.value = sel.options[1].value;
+  });
 }
 const confirmImport = () => run(async () => {
   const sims = [...document.querySelectorAll('#m-preview [data-similar]:checked')].map(e => e.dataset.similar);
@@ -144,7 +158,7 @@ async function linkMember(id, name, extra) {
     body: JSON.stringify(extra || {}) });
   const j = await r.json().catch(() => ({ error: '連線失敗' }));
   if (r.status === 409 && j.data && j.data.accounts) {
-    const pick = rcPickAccount(name, j.data.accounts);
+    const pick = await rcPickAccount(name, j.data.accounts);
     if (pick) return linkMember(id, name, pick);
     return;
   }
