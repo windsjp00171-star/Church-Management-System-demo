@@ -471,6 +471,8 @@ def portal():
             for _k, _key, _d in (('sunday', 'adult_sunday', sunday_date), ('children', 'children_sunday', children_date),
                                  ('prayer', 'prayer', prayer_date), ('morning', 'morning_prayer', morning_date)):
                 attendance_summary[_k] = _rc_overlay(_key, _d, attendance_summary[_k], cfg=mcfg.get(_key, {}))
+                # 這個聚會有沒有連結點名（沒數字時畫面也要知道，才寫「尚未點名」而不是「尚未填報」）
+                attendance_summary[_k]['_rc'] = bool(mcfg.get(_key, {}).get('rc_type_id'))
         except Exception:
             logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
