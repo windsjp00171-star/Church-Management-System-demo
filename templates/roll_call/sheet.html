@@ -43,8 +43,9 @@
         <tr>
           <th style="position:sticky; left:0; z-index:2; background:#f9fafb; text-align:left; padding:10px 12px; border-bottom:1px solid #e5e7eb; min-width:110px;">姓名</th>
           {% for c in columns %}
-          <th {% if c.is_current %}id="col-current"{% endif %} style="padding:8px 4px; border-bottom:1px solid #e5e7eb; text-align:center; font-weight:600; min-width:58px; {% if c.editable %}background:#eef2ff; color:#4F46E5; border-left:2px solid #c7d2fe; border-right:2px solid #c7d2fe;{% else %}background:#f3f4f6; color:#9ca3af;{% endif %}">
+          <th {% if c.is_current and c.first %}id="col-current"{% endif %} style="padding:8px 4px; border-bottom:1px solid #e5e7eb; text-align:center; font-weight:600; min-width:58px; {% if c.editable %}background:#eef2ff; color:#4F46E5; border-left:2px solid #c7d2fe; border-right:2px solid #c7d2fe;{% else %}background:#f3f4f6; color:#9ca3af;{% endif %}">
             {{ c.label }}{% if c.session and c.session.status == 'locked' %} 🔒{% endif %}
+            {% if c.service_label %}<div style="font-size:.78rem; font-weight:700;">{{ c.service_label }}</div>{% endif %}
             <div style="font-size:.7rem; font-weight:400;">{% if c.is_current %}本週{% else %}（{{ c.weekday }}）{% endif %}</div>
           </th>
           {% endfor %}
@@ -52,14 +53,15 @@
       </thead>
       <tbody>
         {% for m in members %}
-        <tr data-name="{{ m.name|lower }}">
+        {# 已離開的預設收起來（他們過去的打勾還在、人數照算，只是不擋住正在點名的人） #}
+        <tr data-name="{{ m.name|lower }}"{% if m.status == 'left' %} data-left="1" style="display:none;"{% endif %}>
           <td style="position:sticky; left:0; background:#fff; padding:6px 12px; border-bottom:1px solid #f3f4f6; font-size:1.05rem;">{{ m.name }}{% if m.status == 'left' %} <span style="color:#9ca3af; font-size:.8rem;">（已離開）</span>{% endif %}</td>
           {% for c in columns %}
           {% set on = c.session and records.get((c.session.id, m.id)) == 'present' %}
           <td style="padding:2px; border-bottom:1px solid #f3f4f6; text-align:center; {% if c.editable %}border-left:2px solid #e0e7ff; border-right:2px solid #e0e7ff;{% else %}background:#f9fafb;{% endif %}">
             <button type="button" class="cell" {% if c.session %}data-sid="{{ c.session.id }}"{% endif %} data-mid="{{ m.id }}" data-on="{{ '1' if on else '0' }}"
                     {% if not c.editable %}disabled{% endif %}
-                    aria-label="{{ m.name }} {{ c.label }}" aria-pressed="{{ 'true' if on else 'false' }}"
+                    aria-label="{{ m.name }} {{ c.label }}{{ c.service_label }}" aria-pressed="{{ 'true' if on else 'false' }}"
                     onclick="toggle(this)"
                     style="width:50px; height:44px; border:1px solid {{ '#e5e7eb' if c.editable else '#e5e7eb' }}; border-radius:8px; font-size:1.4rem;
                            background:{{ '#dcfce7' if on and c.editable else '#e5e7eb' if on else '#fff' if c.editable else '#f3f4f6' }};
@@ -76,11 +78,18 @@
     </table>
   </div>
 
+  {% if left_count %}
+  <button type="button" id="toggle-left" onclick="toggleLeft()" aria-expanded="false"
+          style="margin-top:10px; padding:10px 14px; border:1px solid #e5e7eb; background:#fff; color:#6b7280; border-radius:8px;">
+    顯示已離開的 {{ left_count }} 位
+  </button>
+  {% endif %}
   <div data-tour="newcomer" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-top:12px; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
     <label for="nc-name" style="font-weight:600;">新朋友</label>
     <input id="nc-name" type="text" maxlength="30" placeholder="輸入姓名" autocomplete="off" style="flex:1; min-width:140px; padding:12px; font-size:1rem; border:1px solid #d1d5db; border-radius:8px;">
     <button type="button" onclick="addNewcomer()" style="padding:12px 16px; border:0; background:#16a34a; color:#fff; border-radius:8px; font-weight:bold; font-size:1rem;">加入{% if cur_session_id %}並打勾{% endif %}</button>
   </div>
+  {% if services > 1 %}<p style="color:#4338ca; font-size:.9rem; margin-top:10px;">每個主日有 <strong>{{ services }} 堂</strong>，各自一欄：他來哪一堂就在那一堂打勾。出席率是「那個主日有沒有來」，來任何一堂都算。</p>{% endif %}
   <p style="color:#6b7280; font-size:.85rem; margin-top:10px;">整季的主日都排好了，<strong>只有「本週」那一欄能點</strong>，其他反灰（過去的看得到、還沒到的先排著）。點一下打勾，再點一下取消，沒打勾就是沒來。要改過去的紀錄，請管理員到「進階」補登。</p>
   <p style="font-size:.85rem;"><a href="/roll-call/sessions">進階：逐場次、只記人數、補登、列印名冊</a></p>
   {% endif %}
@@ -140,13 +149,21 @@ function filterNames() {
   const q = norm(document.getElementById('sh-search').value);
   let shown = 0;
   document.querySelectorAll('tbody tr[data-name]').forEach(tr => {
-    const hit = !q || norm(tr.dataset.name).includes(q);
+    const hit = (!q || norm(tr.dataset.name).includes(q)) && (SHOW_LEFT || tr.dataset.left !== '1');
     tr.style.display = hit ? '' : 'none';
     if (hit) shown++;
   });
   const none = document.getElementById('sh-none');
   none.style.display = (q && !shown) ? '' : 'none';
   document.getElementById('sh-none-q').textContent = document.getElementById('sh-search').value.trim();
+}
+let SHOW_LEFT = false;
+function toggleLeft() {
+  SHOW_LEFT = !SHOW_LEFT;
+  const b = document.getElementById('toggle-left');
+  b.setAttribute('aria-expanded', SHOW_LEFT ? 'true' : 'false');
+  b.textContent = SHOW_LEFT ? '收起已離開的 ' + {{ left_count|tojson }} + ' 位' : '顯示已離開的 ' + {{ left_count|tojson }} + ' 位';
+  filterNames();
 }
 function useAsNewcomer() {
   document.getElementById('nc-name').value = document.getElementById('sh-search').value.trim();

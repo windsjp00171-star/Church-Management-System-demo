@@ -136,3 +136,33 @@ def test_can_mark_roles():
     assert not can_mark(open_s, False, False)
     assert not can_mark(locked, False, True)       # 鎖定後一般同工不可改
     assert can_mark(locked, True, True)            # 管理員可（原因由資料庫強制）
+
+
+# 主日兩堂：同一天的幾場算同一次（來任何一堂就算那天有到），不然出席率會被腰斬
+def sess_at(sid, day, utc_time, status='locked'):
+    return {'id': sid, 'type_id': TYPE, 'starts_at': f'{day}T{utc_time}+00:00', 'status': status}
+
+
+def test_two_services_on_one_day_count_once():
+    sessions = [sess_at('a1', '2026-03-01', '02:00:00'), sess_at('a2', '2026-03-01', '04:00:00'),
+                sess_at('b1', '2026-03-08', '02:00:00'), sess_at('b2', '2026-03-08', '04:00:00')]
+    recs = {('a2', 'm1'): 'present', ('b1', 'm1'): 'absent', ('b2', 'm1'): 'absent'}
+    r = compute_member_rate(M, sessions, recs, rule())
+    assert (r['numerator'], r['denominator']) == (1, 2), '只去第二堂的人，那個主日要算有到；分母是主日數不是場數'
+    assert [d['date'] for d in r['details']] == ['2026-03-01', '2026-03-08']
+
+
+@pytest.mark.parametrize('statuses,expected', [
+    (('present', 'absent'), 'present'), (('absent', 'late'), 'late'),
+    (('leave', 'absent'), 'leave'), (('late', 'leave'), 'late'), ((None, None), 'absent')])
+def test_a_days_status_is_the_best_of_its_services(statuses, expected):
+    sessions = [sess_at('x1', '2026-03-01', '02:00:00'), sess_at('x2', '2026-03-01', '04:00:00')]
+    recs = {(sid, 'm1'): st for sid, st in zip(('x1', 'x2'), statuses) if st}
+    r = compute_member_rate(M, sessions, recs, rule(leave_mode='absent', late_mode='half'))
+    assert r['details'][0]['status'] == expected
+
+
+def test_different_meeting_types_on_the_same_day_are_still_separate():
+    sessions = [sess('a', '2026-03-01'), sess('p', '2026-03-01', type_id='type-2')]
+    r = compute_member_rate(M, sessions, {('a', 'm1'): 'present'}, rule(type_ids=[TYPE, 'type-2']))
+    assert r['denominator'] == 2

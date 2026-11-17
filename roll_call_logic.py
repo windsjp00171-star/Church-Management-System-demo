@@ -104,6 +104,10 @@ def describe_rule(rule):
             "只計已鎖定的場次；已鎖定場次中沒有紀錄者算未到")
 
 
+#  同一天有好幾場時，那一天算哪個狀態：有到就是有到；其次遲到（人還是來了）、請假，最後才是未到。
+DAY_STATUS_RANK = ('present', 'late', 'leave', 'absent')
+
+
 def compute_member_rate(member, sessions, records, rule):
     """計算一位名冊成員在規則下的出席率。
 
@@ -122,6 +126,10 @@ def compute_member_rate(member, sessions, records, rule):
 
     num, den = Fraction(0), Fraction(0)
     details = []
+    #  ★ 同一種聚會、同一天的幾場（主日一堂／二堂）算**同一次**：來任何一堂就算那天有到。
+    #    逐場算的話，有兩堂的教會每個人的出席率會直接被腰斬（他只會去其中一堂）。
+    #    只有一場的日子跟以前完全一樣。
+    days = {}
     for s in sorted(sessions, key=lambda x: x['starts_at']):
         if str(s['type_id']) not in type_ids or s.get('status') != 'locked':
             continue
@@ -131,8 +139,12 @@ def compute_member_rate(member, sessions, records, rule):
         if rule['respect_membership_window']:
             if (joined and day < joined) or (left and day > left):
                 continue
+        days.setdefault((str(s['type_id']), day), []).append(s)
 
-        status = records.get((s['id'], member['id'])) or 'absent'   # 鎖定場次無紀錄＝未到
+    for (_, day), group in sorted(days.items(), key=lambda kv: kv[1][0]['starts_at']):
+        statuses = [records.get((s['id'], member['id'])) or 'absent' for s in group]   # 鎖定場次無紀錄＝未到
+        status = min(statuses, key=DAY_STATUS_RANK.index)
+        s = group[0]
         n, d = _weight(status, rule)
         num += n
         den += d
