@@ -114,7 +114,18 @@ function renderPreview(d) {
   d.rows.forEach((x, i) => {
     const note = x.match ? `　↔ ${esc(x.match)}` : '';
     const box_ = x.status === 'similar' ? `<label><input type="checkbox" data-similar="${esc(x.name)}"> 確認這是不同的人，要加入</label>` : '';
-    h += `<div style="padding:6px 0; border-top:1px solid #e5e7eb;">${esc(x.name)}${note}　<span style="color:${x.status === 'new' ? '#15803d' : x.status === 'similar' ? '#b45309' : '#6b7280'};">${esc(d.labels[x.status])}</span> ${box_}</div>`;
+    // 一人＝一帳號：帳號裡有疑似同一個人時一定要選（不用姓名猜）；沒有的話會幫他建帳號
+    let acct = '';
+    if (x.status === 'new' || x.status === 'similar') {
+      if ((x.accounts || []).length) {
+        acct = `<div style="margin-top:4px;">帳號：<select data-acct="${esc(x.name)}" style="padding:4px 6px;"><option value="">請選擇…</option>`
+          + x.accounts.map(a => `<option value="${esc(a.id)}">就是「${esc(a.name)}」（${a.has_line ? '已用 LINE 登入過' : '還沒用 LINE 登入'}，${esc(a.reason || '')}）</option>`).join('')
+          + `<option value="new">不是，另外建新帳號</option></select></div>`;
+      } else {
+        acct = '<div style="margin-top:4px; color:#6b7280; font-size:.85rem;">會幫他建一個帳號（之後他用 LINE 註冊可以合併）</div>';
+      }
+    }
+    h += `<div style="padding:6px 0; border-top:1px solid #e5e7eb;">${esc(x.name)}${note}　<span style="color:${x.status === 'new' ? '#15803d' : x.status === 'similar' ? '#b45309' : '#6b7280'};">${esc(d.labels[x.status])}</span> ${box_}${acct}</div>`;
   });
   h += '<button type="button" onclick="confirmImport()" style="padding:10px 16px; margin-top:8px;">確認匯入</button> <button type="button" onclick="document.getElementById(\'m-preview\').style.display=\'none\'" style="padding:10px 16px;">取消</button>';
   box.innerHTML = h; box.style.display = 'block';
@@ -122,8 +133,10 @@ function renderPreview(d) {
 const confirmImport = () => run(async () => {
   const sims = [...document.querySelectorAll('#m-preview [data-similar]:checked')].map(e => e.dataset.similar);
   const g = document.getElementById('m-group');
-  const j = await post('/api/admin/roll-call/members', { names: importText, confirm_similar: sims, group_id: g ? g.value : '' });
-  alert(`已加入 ${j.data.added} 人` + (j.data.skipped.length ? `；略過 ${j.data.skipped.length} 人：\n` + j.data.skipped.map(x => `${x.name}（${x.reason}）`).join('\n') : ''));
+  const accounts = {};
+  document.querySelectorAll('#m-preview [data-acct]').forEach(e => { if (e.value) accounts[e.dataset.acct] = e.value; });
+  const j = await post('/api/admin/roll-call/members', { names: importText, confirm_similar: sims, group_id: g ? g.value : '', accounts: accounts });
+  alert(`已加入 ${j.data.added} 人（其中 ${j.data.new_accounts} 人新建帳號）` + (j.data.skipped.length ? `；略過 ${j.data.skipped.length} 人：\n` + j.data.skipped.map(x => `${x.name}（${x.reason}）`).join('\n') : ''));
 });
 async function linkMember(id, name, extra) {
   // 找得到就連、找不到就建空殼帳號；帳號裡有疑似同一個人時請管理員選（不替人猜）

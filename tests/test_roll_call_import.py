@@ -95,7 +95,7 @@ def test_import_is_audited_with_counts_only(fake_db, client_as):
     post(client_as(is_admin=True), '/api/admin/roll-call/members', {'names': '李小華\n張三豐'})
     logged = [w for w in fake_db.writes if w[0] == 'audit_logs']
     assert logged and logged[0][2]['action'] == 'roll_call.members_import'
-    assert logged[0][2]['detail'] == {'added': 2, 'skipped': 0, 'truncated': None}
+    assert logged[0][2]['detail'] == {'added': 2, 'skipped': 0, 'new_accounts': 2, 'truncated': None}
 
 
 def test_only_admins_can_import(fake_db, client_as):

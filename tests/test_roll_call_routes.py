@@ -100,7 +100,7 @@ def test_members_dedupe_by_name(fake_db, client_as):
     d = r.get_json()['data']
     assert d['added'] == 1 and [x['name'] for x in d['skipped']] == ['王小明', '李小華']
     assert [w for w in fake_db.writes if w[0] == 'rc_members'][0][2] == [
-        {'name': '李小華', 'source': 'import', 'joined_on': None}]
+        {'name': '李小華', 'source': 'import', 'joined_on': None, 'user_id': 'new-id'}]   # 一人＝一帳號：匯入也建帳號
 
 
 def test_export_requires_super_admin_and_logs(fake_db, client_as):
