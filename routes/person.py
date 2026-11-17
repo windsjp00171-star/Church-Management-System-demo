@@ -27,13 +27,21 @@ def _all_people():
         offset += PAGE
 
 
-def find_possible_duplicates(name, exclude_id=None):
-    """回傳疑似同一個人的清單：[{'id','real_name','display_name','has_line','member_type','reason'}]"""
+def all_people():
+    """所有人（分頁讀完）。一次要比對很多個名字時先讀一次，再交給 find_possible_duplicates(people=...)。"""
+    return _all_people()
+
+
+def find_possible_duplicates(name, exclude_id=None, people=None):
+    """回傳疑似同一個人的清單：[{'id','real_name','display_name','has_line','member_type','reason'}]
+
+    `people`：已經讀好的名單（名冊匯入一次比對上百個名字時用，避免每個名字都把 users 整張讀一遍）。
+    """
     key = norm_name(name)
     if not key:
         return []
     out = []
-    for u in _all_people():
+    for u in (_all_people() if people is None else people):
         if exclude_id and u['id'] == exclude_id:
             continue
         real, disp = norm_name(u.get('real_name')), norm_name(u.get('display_name'))

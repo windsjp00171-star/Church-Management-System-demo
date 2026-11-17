@@ -591,6 +591,23 @@ def _existing_members():
     return supabase.table('rc_members').select('name,status').execute().data or []
 
 
+def _import_accounts(names):
+    """名冊匯入：每個名字在帳號裡的疑似同一人（已經在名冊上的帳號不算，不能再連一次）。
+
+    回 {norm_name: [候選帳號]}。users 只讀一次（經由 routes/person.py；點名模組不直接查 users）。
+    """
+    from routes.person import all_people, find_possible_duplicates
+    people = all_people()
+    taken = {m['user_id'] for m in (supabase.table('rc_members').select('user_id').execute().data or [])
+             if m.get('user_id')}
+    out = {}
+    for n in names:
+        out[norm_name(n)] = [{'id': d['id'], 'name': d.get('real_name') or d.get('display_name'),
+                              'has_line': d.get('has_line'), 'reason': d.get('reason')}
+                             for d in find_possible_duplicates(n, people=people) if d['id'] not in taken]
+    return out
+
+
 @roll_call_bp.route('/api/admin/roll-call/members/preview', methods=['POST'])
 @admin_required
 def api_preview_members():
@@ -602,6 +619,13 @@ def api_preview_members():
     plan = plan_import(text, _existing_members())
     if not plan['rows']:
         return _err('沒有讀到任何姓名')
+    # 一人＝一帳號：要加進名冊的人，先看帳號裡有沒有疑似同一個人（交給管理員選，不用姓名猜）
+    try:
+        acc = _import_accounts([r['name'] for r in plan['rows'] if r['status'] in ('new', 'similar')])
+    except Exception as e:
+        return _db_error(e)
+    for r in plan['rows']:
+        r['accounts'] = acc.get(norm_name(r['name']), []) if r['status'] in ('new', 'similar') else []
     return _ok({**plan, 'labels': IMPORT_LABELS})
 
 
@@ -619,21 +643,45 @@ def api_add_members():
     if group_id and group_id not in {g['id'] for g in _cell_groups()}:
         return _err('找不到這個小組')
     many = len(plan['rows']) > 1
-    added, skipped = [], []
+    picks = {norm_name(k): v for k, v in (data.get('accounts') or {}).items()}
+    wanted = [r for r in plan['rows']
+              if r['status'] == 'new' or (r['status'] == 'similar' and norm_name(r['name']) in confirmed)]
+    try:
+        acc = _import_accounts([r['name'] for r in wanted]) if wanted else {}
+    except Exception as e:
+        return _db_error(e)
+    from routes.person import create_person
+    added, skipped, used, shells = [], [], set(), 0
     for r in plan['rows']:
-        if r['status'] == 'new' or (r['status'] == 'similar' and norm_name(r['name']) in confirmed):
-            row = {'name': r['name'], 'source': 'import' if many else 'manual',
-                   'joined_on': data.get('joined_on') or None}
-            if group_id:
-                row['group_id'] = group_id
-            added.append(row)
-        else:
+        if r not in wanted:
             skipped.append({'name': r['name'], 'reason': IMPORT_LABELS[r['status']], 'match': r['match']})
+            continue
+        # 一人＝一帳號：有疑似同一人時，只接受伺服器自己算出來的候選（不信任前端送來的帳號編號）
+        cands = {c['id'] for c in acc.get(norm_name(r['name']), [])} - used
+        pick = picks.get(norm_name(r['name']))
+        if pick and pick != 'new' and pick in cands:
+            user_id = pick
+        elif cands and pick != 'new':
+            skipped.append({'name': r['name'], 'reason': '帳號裡有疑似同一個人，請選「連到哪一個」或「另外建」', 'match': None})
+            continue
+        else:
+            try:
+                _, made = create_person(r['name'], member_type='member', force=True)
+            except Exception as e:
+                return _db_error(e)
+            user_id, shells = made['id'], shells + 1
+        used.add(user_id)
+        row = {'name': r['name'], 'source': 'import' if many else 'manual',
+               'joined_on': data.get('joined_on') or None, 'user_id': user_id}
+        if group_id:
+            row['group_id'] = group_id
+        added.append(row)
     if added:
         supabase.table('rc_members').insert(added).execute()
     log_action('roll_call.members_import', target_type='rc_members',
-               detail={'added': len(added), 'skipped': len(skipped), 'truncated': plan['truncated'] or None})
-    return _ok({'added': len(added), 'skipped': skipped, 'truncated': plan['truncated']})
+               detail={'added': len(added), 'skipped': len(skipped), 'new_accounts': shells,
+                       'truncated': plan['truncated'] or None})
+    return _ok({'added': len(added), 'skipped': skipped, 'new_accounts': shells, 'truncated': plan['truncated']})
 
 
 @roll_call_bp.route('/api/admin/roll-call/members/<mid>/group', methods=['POST'])

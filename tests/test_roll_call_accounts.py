@@ -99,3 +99,59 @@ def test_the_roll_call_module_still_does_not_query_users_directly():
     from pathlib import Path
     src = (Path(__file__).resolve().parent.parent / 'routes' / 'roll_call.py').read_text(encoding='utf-8')
     assert "table('users')" not in src and 'from routes.person import create_person' in src
+
+
+# ── 後台匯入名冊也是一人＝一帳號 ──────────────────────────
+def _import(c, **body):
+    return c.post('/api/admin/roll-call/members', json=body)
+
+
+def test_import_creates_an_account_for_everyone_without_a_match(world, client_as):
+    r = _import(client_as(is_admin=True), names='甲\n乙')
+    d = r.get_json()['data']
+    assert d['added'] == 2 and d['new_accounts'] == 2
+    assert [w[2]['real_name'] for w in _writes(world, 'users', 'insert')] == ['甲', '乙']
+    assert all(x['user_id'] == 'new-id' for x in _writes(world, 'rc_members', 'insert')[0][2])
+
+
+def test_preview_shows_possible_accounts(world, client_as):
+    world.tables['users'] = [{'id': 'u9', 'real_name': '甲', 'display_name': '甲', 'line_user_id': 'L'}]
+    d = client_as(is_admin=True).post('/api/admin/roll-call/members/preview', json={'names': '甲\n乙'}).get_json()['data']
+    acc = {r['name']: r['accounts'] for r in d['rows']}
+    assert [a['id'] for a in acc['甲']] == ['u9'] and acc['乙'] == []
+    assert not world.writes, '預覽不可以寫入'
+
+
+def test_an_unanswered_possible_match_is_skipped_not_guessed(world, client_as):
+    world.tables['users'] = [{'id': 'u9', 'real_name': '甲', 'display_name': '甲'}]
+    d = _import(client_as(is_admin=True), names='甲\n乙').get_json()['data']
+    assert d['added'] == 1 and [s['name'] for s in d['skipped']] == ['甲']
+    assert [w[2]['real_name'] for w in _writes(world, 'users', 'insert')] == ['乙']
+
+
+def test_import_links_the_chosen_existing_account(world, client_as):
+    world.tables['users'] = [{'id': 'u9', 'real_name': '甲', 'display_name': '甲'}]
+    d = _import(client_as(is_admin=True), names='甲', accounts={'甲': 'u9'}).get_json()['data']
+    assert d['added'] == 1 and d['new_accounts'] == 0 and not _writes(world, 'users', 'insert')
+    assert _writes(world, 'rc_members', 'insert')[0][2][0]['user_id'] == 'u9'
+
+
+def test_import_or_new_creates_a_separate_account(world, client_as):
+    world.tables['users'] = [{'id': 'u9', 'real_name': '甲', 'display_name': '甲'}]
+    d = _import(client_as(is_admin=True), names='甲', accounts={'甲': 'new'}).get_json()['data']
+    assert d['new_accounts'] == 1 and len(_writes(world, 'users', 'insert')) == 1
+
+
+def test_import_ignores_an_account_the_server_never_offered(world, client_as):
+    """★ 不信任前端送來的帳號編號：只接受伺服器自己算出來的候選（跟自助合併同一個原則）。"""
+    world.tables['users'] = [{'id': 'u9', 'real_name': '甲', 'display_name': '甲'}]
+    d = _import(client_as(is_admin=True), names='甲', accounts={'甲': 'someone-else'}).get_json()['data']
+    assert d['added'] == 0 and not _writes(world, 'rc_members') and not _writes(world, 'users', 'insert')
+
+
+def test_an_account_already_on_the_roster_is_not_offered_again(world, client_as):
+    """一個帳號只能對到名冊上一個人：已經在名冊上（用別的名字）的帳號，不再當成候選。"""
+    world.tables.update(users=[{'id': 'u9', 'real_name': '甲', 'display_name': '甲'}],
+                        rc_members=[{'id': 'm1', 'name': '阿甲', 'user_id': 'u9', 'status': 'active'}])
+    d = client_as(is_admin=True).post('/api/admin/roll-call/members/preview', json={'names': '甲'}).get_json()['data']
+    assert d['rows'][0]['accounts'] == []
