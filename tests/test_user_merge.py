@@ -485,7 +485,7 @@ def test_non_super_admin_cannot_merge(flows):
 def test_self_merge_endpoint_moves_into_the_existing_account(flows):
     fake, client = flows
     #  本人登入的是「新 LINE 帳號」(DROP)，要併進既有的手動帳號 (KEEP)
-    r = client(user_id=DROP, real_name='新').post('/profile/merge-confirm', json={'candidate_id': KEEP})
+    r = client(user_id=DROP, real_name='新', merge_offer=KEEP).post('/profile/merge-confirm', json={'candidate_id': KEEP})
     assert r.status_code == 200 and r.get_json()['success'] is True
     assert {u['id'] for u in fake.rows('users')} == {KEEP}
     assert fake.rows('users')[0]['line_user_id'] == 'U123'
@@ -495,7 +495,36 @@ def test_self_merge_endpoint_moves_into_the_existing_account(flows):
 def test_self_merge_failure_keeps_both_accounts(flows, monkeypatch):
     fake, client = flows
     _fail_on(monkeypatch, 'folders', 'update')
-    r = client(user_id=DROP, real_name='新').post('/profile/merge-confirm', json={'candidate_id': KEEP})
+    r = client(user_id=DROP, real_name='新', merge_offer=KEEP).post('/profile/merge-confirm', json={'candidate_id': KEEP})
     assert r.status_code == 500 and r.get_json()['rolled_back'] is True
     users = {u['id']: u for u in fake.rows('users')}
     assert set(users) == {KEEP, DROP} and users[DROP]['line_user_id'] == 'U123' and users[KEEP]['line_user_id'] is None
+
+
+# ── 自助合併只接受「系統提出的」那個帳號（不信任瀏覽器送來的編號）──────────
+def test_self_merge_into_an_account_the_system_never_offered_is_refused(flows):
+    """★ 安全：任何登入的人改掉 candidate_id，就能把自己併進任何一個還沒綁 LINE 的空殼帳號、
+    接手那個人的紀錄。現在只接受伺服器剛剛在「這是你嗎？」提出的那一個。"""
+    fake, client = flows
+    r = client(user_id=DROP, real_name='新').post('/profile/merge-confirm', json={'candidate_id': KEEP})
+    assert r.status_code == 403
+    assert {u['id'] for u in fake.rows('users')} == {KEEP, DROP}, '兩個帳號都要還在'
+    assert any(a.get('action') == 'user.merge_line_self_refused' for a in fake.rows('audit_logs'))
+
+
+def test_an_offer_for_another_account_does_not_open_this_one(flows):
+    fake, client = flows
+    r = client(user_id=DROP, real_name='新', merge_offer='someone-else').post(
+        '/profile/merge-confirm', json={'candidate_id': KEEP})
+    assert r.status_code == 403 and {u['id'] for u in fake.rows('users')} == {KEEP, DROP}
+
+
+def test_the_offer_is_recorded_when_the_question_is_asked():
+    """「這是你嗎？」那一刻要把候選帳號記在伺服器端；兩個入口（onboarding、setup）都要。"""
+    src = (ROOT / 'routes' / 'profile.py').read_text(encoding='utf-8')
+    assert src.count('return _offer_merge(candidate)') == 2
+    body = _func_src('routes/profile.py', '_offer_merge')
+    assert "session['merge_offer'] = candidate['id']" in body
+    confirm = _func_src('routes/profile.py', 'merge_confirm')
+    assert "session.get('merge_offer') != old_id" in confirm
+    assert "session.pop('merge_offer', None)" in confirm, '用過就要失效'
