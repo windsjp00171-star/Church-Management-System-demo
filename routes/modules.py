@@ -66,8 +66,8 @@ MODULES = [
     Module('announcements', '公告', 'optional', (), ('/admin/announcements',), '後台發布公告'),
     Module('changelogs', '更新日誌', 'optional', (), ('/admin/changelogs', '/api/changelogs'), '系統更新通知'),
     Module('demo', '展示站功能', 'demo_only', (), (
-        '/auth/demo-login', '/auth/demo-reset', '/auth/contact', '/admin/contact-leads'),
-        '展示帳號登入、洽詢表單與紀錄（正式教會部署不會有）'),
+        '/auth/demo-login', '/auth/demo-reset', '/auth/contact', '/admin/contact-leads', '/product-spec'),
+        '展示帳號登入、洽詢表單、產品說明頁與紀錄（正式教會部署不會有）'),
 ]
 BY_KEY = {m.key: m for m in MODULES}
 

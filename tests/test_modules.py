@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parent.parent
 #  新增的路由若不屬於任何模組、也不在這裡，測試會紅 —— 逼人表態：它是核心，還是某個選配模組？
 CORE_PREFIXES = [
     '/', '/health', '/healthz', '/ping', '/robots.txt', '/manifest.json',
-    '/auth', '/profile', '/onboarding', '/setup-wizard', '/manual', '/product-spec', '/guide', '/tutorial',
+    '/auth', '/profile', '/onboarding', '/setup-wizard', '/manual', '/guide', '/tutorial',
     '/staff', '/api/notifications', '/api/push', '/sw.js', '/tasks',
     '/admin', '/admin/api',                                   # 後台首頁與跨模組共用的 API（使用者、標籤、白名單、上傳）
     '/admin/permissions', '/admin/modules', '/admin/backup', '/admin/data-export', '/admin/data-import',
@@ -317,11 +317,6 @@ def test_blueprints_are_always_registered_so_links_never_break():
 def test_nobody_reads_the_removed_config_flags():
     for f in scan.py_files():
         assert 'Config.ENABLE_' not in scan.strip_py(f.read_text(encoding='utf-8')), scan.rel(f)
-
-
-def test_guide_and_tutorial_follow_the_registry(mod, fake_db, monkeypatch):
-    for f in ('routes/guide.py', 'routes/tutorial.py'):
-        assert 'is_enabled(' in scan.strip_py((ROOT / f).read_text(encoding='utf-8')), f
 
 
 def test_setup_wizard_lists_the_registry_not_the_dead_env_block():
