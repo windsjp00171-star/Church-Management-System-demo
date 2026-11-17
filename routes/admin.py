@@ -1014,11 +1014,10 @@ def external_form_warnings(event_data, fields):
 
 
 def _primary_group_names_safe():
-    """主標籤小組名稱。查不到就回空的 —— 提醒壞掉不可以讓存檔一起壞。"""
+    """牧養小組名稱（routes/my_group.py）。查不到就回空的 —— 提醒壞掉不可以讓存檔一起壞。"""
     try:
-        rows = supabase.table('groups').select('name')\
-            .eq('is_primary', True).execute().data or []
-        return [r['name'] for r in rows]
+        from routes import my_group
+        return my_group.names()
     except Exception:
         #  ★ 回空的話「沒有主標籤」那條會誤報一次。兩害相權：
         #    誤報一句提醒 vs 整個活動存不進去 —— 前者輕得多。
@@ -2787,16 +2786,8 @@ def portal_group_defaults():
         {'key': 'weekly_info',           'label': '本週資訊',         'emoji': '📰'},
     ]
 
-    try:
-        users_data = supabase.table('users').select('group_tags').execute().data or []
-        all_tags = set()
-        for u in users_data:
-            for t in (u.get('group_tags') or []):
-                if t:
-                    all_tags.add(t)
-        group_tags = sorted(all_tags)
-    except Exception:
-        group_tags = []
+    from routes import my_group
+    group_tags = my_group.names()          # 依牧養小組（首頁那邊也是用牧養小組找預設）
 
     try:
         portal_cards = supabase.table('portal_cards').select('key,name,emoji,subtitle')\

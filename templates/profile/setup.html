@@ -58,23 +58,15 @@
 
         <!-- ③ 小組（僅會友顯示） -->
         <div id="group-section" style="margin-bottom:28px;">
-            {% set primary_groups = groups | selectattr('is_primary', 'ne', false) | list %}
             {% set secondary_groups = groups | selectattr('is_primary', 'equalto', false) | list %}
 
-            {% if primary_groups %}
-            <label style="font-weight:bold; display:block; margin-bottom:8px;">所屬小組</label>
-            <div style="display:flex; flex-wrap:wrap; gap:8px; margin-bottom:14px;">
-                {% for g in primary_groups %}
-                <label style="display:flex; align-items:center; gap:6px; padding:7px 14px;
-                              border:1px solid #ddd; border-radius:20px; cursor:pointer; font-size:0.9rem;
-                              background:white; transition:all 0.15s;"
-                    onclick="toggleTag(this)">
-                    <input type="checkbox" name="group_tag" value="{{ g.name }}" style="display:none;">
-                    {{ g.name }}
-                </label>
-                {% endfor %}
-            </div>
-            {% endif %}
+            {% if cell_groups %}
+          <label style="font-weight:bold; display:block; margin-bottom:8px;" for="cell-group-select">我的牧養小組（選填，管理員確認後生效）</label>
+          <select id="cell-group-select" style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; font-size:.95rem; margin-bottom:14px; background:white;">
+            <option value="">— 還沒有小組／不確定 —</option>
+            {% for cg in cell_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
+          </select>
+          {% endif %}
 
             {% if secondary_groups %}
             <label style="font-weight:600; display:block; margin-bottom:8px; color:#888; font-size:0.88rem;">服事團隊（選填）</label>
@@ -169,6 +161,7 @@ function submitProfile() {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({ real_name: name, group_tags, member_type: currentType,
+                                cell_group_id: currentType === 'member' ? ((document.getElementById('cell-group-select') || {}).value || '') : '',
                                merge_confirmed: !!window._mergeConfirmed })
     })
     .then(r => {

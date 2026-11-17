@@ -567,16 +567,11 @@ def reading_day(day_no):
 def my_group():
     """這個人在表頭上要印哪一組。算不出來回 None（那一格就留空）。
 
-    ★ 走 `collection.collecting_group` 那份**唯一的**規則，不自己再寫一份。
-      一個人可能掛在兩個主標籤小組上 —— 兩邊各自挑的話，
-      速讀表印的組和收款單上的組會不一樣，**而兩張各自看都正常**。
+    ★ 走 `routes/my_group.py` 那份**唯一的**規則（牧養小組）。以前 import 一支這個 repo 沒有的
+      收款模組，例外被吞掉 —— 表頭的小組永遠是空白，而畫面看起來只是「沒填」。
     """
-    try:
-        from routes.collection import collecting_group, _primary_group_names
-        return collecting_group({'group_tags': session.get('group_tags') or []},
-                                _primary_group_names())
-    except Exception:
-        return None
+    from routes import my_group as _mg
+    return _mg.mine()
 
 
 @bible_plan_bp.route('/reading/sheet')

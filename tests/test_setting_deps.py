@@ -285,7 +285,7 @@ def test_the_registry_really_gets_the_groups(app):
             for meth in ('select', 'eq', 'order', 'in_'):
                 getattr(c, meth).return_value = c
             c.execute.return_value.data = (
-                [{'name': g} for g in groups] if name == 'groups' else [])
+                [{'name': g} for g in groups] if name == 'cell_groups' else [])
             return c
         sb.table.side_effect = table
         return sb
@@ -300,10 +300,10 @@ def test_the_registry_really_gets_the_groups(app):
                     pass
             return external_form_warnings({'fee': 800}, [])
 
-    assert any('主標籤' in m for m in _warn([])), \
-        '沒有主標籤小組時該提醒卻沒提醒'
-    assert not any('主標籤' in m for m in _warn(['活水小組'])), \
-        '有主標籤小組了還在提醒 —— 呼叫端沒有真的把它撈進 ctx'
+    assert any('牧養小組' in m for m in _warn([])), \
+        '沒有牧養小組時該提醒卻沒提醒'
+    assert not any('牧養小組' in m for m in _warn(['活水小組'])), \
+        '有牧養小組了還在提醒 —— 呼叫端沒有真的把它撈進 ctx'
 
 
 def test_looking_up_the_groups_never_breaks_the_save():

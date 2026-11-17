@@ -392,18 +392,14 @@
 
         <!-- Member groups (shown for members) -->
         <div class="group-section" id="group-section">
-          {% set primary_groups = groups | selectattr('is_primary', 'ne', false) | list %}
           {% set secondary_groups = groups | selectattr('is_primary', 'equalto', false) | list %}
 
-          {% if primary_groups %}
-          <label class="group-label">所屬小組 / 服事團隊（可複選）</label>
-          <div class="tags-wrap">
-            {% for g in primary_groups %}
-            <div class="tag-btn" onclick="toggleTag(this, 'primary')" data-group="{{ g.name }}">
-              {{ g.name }}
-            </div>
-            {% endfor %}
-          </div>
+          {% if cell_groups %}
+          <label class="group-label" for="cell-group-select">我的牧養小組（選填，管理員確認後生效）</label>
+          <select id="cell-group-select" style="width:100%; padding:10px 12px; border:1px solid #ddd; border-radius:10px; font-size:.95rem; margin-bottom:14px; background:white;">
+            <option value="">— 還沒有小組／不確定 —</option>
+            {% for cg in cell_groups %}<option value="{{ cg.id }}">{{ cg.name }}</option>{% endfor %}
+          </select>
           {% endif %}
 
           {% if secondary_groups %}
@@ -417,9 +413,7 @@
           </div>
           {% endif %}
 
-          {% if not groups %}
-          <p style="font-size:.82rem;color:#94a3b8;">尚未設定小組，請聯絡管理員</p>
-          {% endif %}
+          
         </div>
 
         <!-- Visitor note (shown for visitors) -->
@@ -599,6 +593,7 @@ function submitOnboarding(mergeConfirmed) {
       real_name: name,
       member_type: selectedType,
       group_tags: group_tags,
+      cell_group_id: selectedType === 'member' ? ((document.getElementById('cell-group-select') || {}).value || '') : '',
       merge_confirmed: !!mergeConfirmed
     })
   })

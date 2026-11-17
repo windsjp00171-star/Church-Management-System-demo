@@ -77,7 +77,7 @@
     {% if is_closed %}
     <div class="closed-banner">📅 此訂購已截止，無法登記</div>
     {% elif not user_group %}
-    <div class="no-group-warn">⚠️ 找不到您的所屬主標籤小組，請確認您的個人資料已設定所屬小組。</div>
+    <div class="no-group-warn">⚠️ 找不到您的牧養小組。請到「個人資料」選擇小組，等管理員確認後就能登記。</div>
     {% else %}
     <p style="font-size:.88rem; color:#6b7280; margin:0 0 16px;">
       您的小組：<strong style="color:#4338ca;">{{ user_group }}</strong>
