@@ -156,7 +156,7 @@ async function addNewcomer(confirmed, extra) {
     return;
   }
   if (r.status === 409 && j.data && j.data.accounts) {        // 帳號裡有疑似同一個人：請同工選
-    const pick = rcPickAccount(name, j.data.accounts);
+    const pick = await rcPickAccount(name, j.data.accounts);
     if (pick) return addNewcomer(confirmed, pick);
     return;
   }

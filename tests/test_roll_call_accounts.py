@@ -176,3 +176,12 @@ def test_an_account_already_on_the_roster_is_not_offered_again(world, client_as)
                         rc_members=[{'id': 'm1', 'name': '阿甲', 'user_id': 'u9', 'status': 'active'}])
     d = client_as(is_admin=True).post('/api/admin/roll-call/members/preview', json={'names': '甲'}).get_json()['data']
     assert d['rows'][0]['accounts'] == []
+
+
+def test_the_import_shortcut_never_picks_among_several_candidates():
+    """「都是同一個人」只套用在只有一個候選的那幾行；有兩個以上候選時不替人挑。"""
+    from pathlib import Path
+    src = (Path(__file__).resolve().parent.parent / 'templates' / 'roll_call' / 'admin.html').read_text(encoding='utf-8')
+    body = src[src.index('function pickAll'):]
+    body = body[:body.index('\n}\n')]
+    assert "sel.options.length === 3" in body and "sel.options[1].value" in body
