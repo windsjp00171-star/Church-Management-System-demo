@@ -119,7 +119,7 @@ function renderPreview(d) {
     if (x.status === 'new' || x.status === 'similar') {
       if ((x.accounts || []).length) {
         acct = `<div style="margin-top:4px;">帳號：<select data-acct="${esc(x.name)}" style="padding:4px 6px;"><option value="">請選擇…</option>`
-          + x.accounts.map(a => `<option value="${esc(a.id)}">就是「${esc(a.name)}」（${a.has_line ? '已用 LINE 登入過' : '還沒用 LINE 登入'}，${esc(a.reason || '')}）</option>`).join('')
+          + x.accounts.map(a => `<option value="${esc(a.id)}">就是「${esc(a.name)}」（還沒綁 LINE，${esc(a.reason || '')}）</option>`).join('')
           + `<option value="new">不是，另外建新帳號</option></select></div>`;
       } else {
         acct = '<div style="margin-top:4px; color:#6b7280; font-size:.85rem;">會幫他建一個帳號（之後他用 LINE 註冊可以合併）</div>';

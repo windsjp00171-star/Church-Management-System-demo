@@ -211,27 +211,40 @@ def home():
                                                 if c['is_current'] and c['editable']), None) if services == 1 else None)
 
 
+def _shell_matches(name, people=None):
+    """帳號裡「疑似同一個人」而且**還沒綁 LINE** 的空殼帳號。
+
+    ★ 名冊只連空殼帳號：已經綁 LINE 的帳號不在這裡選 —— 綁 LINE 的唯一入口是「整合 LINE」
+      （本人自助合併或管理員合併），點名這邊連錯的話，別人的點名紀錄會掛到一個真人的帳號上。
+    """
+    from routes.person import find_possible_duplicates
+    return [{'id': d['id'], 'name': d.get('real_name') or d.get('display_name'), 'reason': d.get('reason')}
+            for d in find_possible_duplicates(name, people=people) if not d.get('has_line')]
+
+
 def _resolve_account(name, data):
     """名冊成員要連到哪個帳號：回 ('ok', user_id) 或 ('choose', 候選清單) 或 ('error', 訊息)。
 
-    ★ 一個人＝一個帳號。沒申請 LINE 的建空殼帳號（走 routes/person.create_person，建立前查疑似重複）；
+    ★ 一個人＝一個帳號。沒申請 LINE 的建空殼帳號（routes/person.create_person）；
       之後他自己註冊時用「整合 LINE」合併。
-    ★ 帳號裡已經有疑似同一個人 → 交回去讓同工選：是他（link_user_id）／不是，另外建（new_account）。
-      不用姓名替人決定 —— 猜錯的話，別人的點名紀錄會掛到這個帳號上。
+    ★ 帳號裡已有疑似同一人的**空殼帳號** → 交回去讓同工選：是他（link_user_id）／不是，另外建（new_account）。
+      不用姓名替人決定。只接受伺服器自己算出來的候選（不信任前端送來的帳號編號）。
     ★ 點名模組本身不直接查 users（結構守衛）：查重與建立都經過 routes/person.py。
     """
     from routes.person import create_person
+    shells = _shell_matches(name)
     link = (data.get('link_user_id') or '').strip() or None
     if link:
+        if link not in {c['id'] for c in shells}:
+            return 'error', '只能連到系統列出的帳號（還沒綁 LINE 的空殼帳號）'
         taken = supabase.table('rc_members').select('id, name').eq('user_id', link).execute().data or []
         if taken:
             return 'error', f'這個帳號已經在名冊上了（名冊上叫「{taken[0]["name"]}」），請直接在名單上找他'
         return 'ok', link
-    status, payload = create_person(name, member_type='visitor', force=bool(data.get('new_account')))
-    if status == 'duplicates':
-        return 'choose', [{'id': d['id'], 'name': d.get('real_name') or d.get('display_name'),
-                           'has_line': d.get('has_line'), 'reason': d.get('reason')} for d in payload]
-    return 'ok', payload['id']
+    if shells and not data.get('new_account'):
+        return 'choose', shells
+    _, made = create_person(name, member_type=data.get('_member_type') or 'visitor', force=True)
+    return 'ok', made['id']
 
 
 @roll_call_bp.route('/api/roll-call/members/quick-add', methods=['POST'])
@@ -592,19 +605,17 @@ def _existing_members():
 
 
 def _import_accounts(names):
-    """名冊匯入：每個名字在帳號裡的疑似同一人（已經在名冊上的帳號不算，不能再連一次）。
+    """名冊匯入：每個名字在帳號裡疑似同一人的**空殼帳號**（綁了 LINE 的不列；已經在名冊上的也不算）。
 
     回 {norm_name: [候選帳號]}。users 只讀一次（經由 routes/person.py；點名模組不直接查 users）。
     """
-    from routes.person import all_people, find_possible_duplicates
+    from routes.person import all_people
     people = all_people()
     taken = {m['user_id'] for m in (supabase.table('rc_members').select('user_id').execute().data or [])
              if m.get('user_id')}
     out = {}
     for n in names:
-        out[norm_name(n)] = [{'id': d['id'], 'name': d.get('real_name') or d.get('display_name'),
-                              'has_line': d.get('has_line'), 'reason': d.get('reason')}
-                             for d in find_possible_duplicates(n, people=people) if d['id'] not in taken]
+        out[norm_name(n)] = [c for c in _shell_matches(n, people=people) if c['id'] not in taken]
     return out
 
 
