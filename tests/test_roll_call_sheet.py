@@ -302,3 +302,126 @@ def test_csv_export_is_admin_only_and_audited(fake_db, client_as, monkeypatch):
 
 def test_plain_members_cannot_open_the_report(fake_db, client_as):
     assert client_as().get('/roll-call/report').status_code == 403
+
+
+# ── 主日兩堂：每個主日排兩欄，人數各算各的；出席率一天算一次 ──
+def _two_services(monkeypatch, n=2):
+    import routes.cell_report as CR
+    monkeypatch.setattr(CR, '_get_meeting_settings',
+                        lambda: {'adult_sunday': {'rc_type_id': 't1', 'service_count': n, 'weekday': 6}})
+
+
+def test_services_follow_the_meeting_settings(fake_db, monkeypatch):
+    import routes.roll_call as rc
+    _two_services(monkeypatch, 2)
+    assert rc.services_for('t1') == 2 and rc.services_for('other') == 1
+
+
+def test_services_default_to_one_when_settings_cannot_be_read(fake_db, monkeypatch):
+    import routes.cell_report as CR
+    monkeypatch.setattr(CR, '_get_meeting_settings', lambda: (_ for _ in ()).throw(RuntimeError('x')))
+    import routes.roll_call as rc
+    assert rc.services_for('t1') == 1
+
+
+def test_two_services_give_two_columns_per_sunday(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _two_services(monkeypatch)
+    fake_db.tables.update(
+        rc_meeting_types=[TYPE],
+        rc_sessions=[_sess('s1', '2026-11-08T02:00:00+00:00'), _sess('s2', '2026-11-08T04:00:00+00:00')],
+        rc_members=[{'id': 'm1', 'name': '王小明', 'status': 'active'}],
+        rc_records=[{'session_id': 's2', 'member_id': 'm1', 'status': 'present'}])
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    labels = re.findall(r'<th[^>]*>\s*(\d+/\d+)', html)
+    assert len(labels) == 13 * 2 and labels.count('11/8') == 2      # 整季每個主日兩欄
+    assert '一堂' in html and '二堂' in html and '每個主日有 <strong>2 堂</strong>' in html
+    assert _buttons(html, True) == 2                                 # 本週兩欄都能點
+    assert re.search(r'class="cell" data-sid="s2" data-mid="m1" data-on="1"', html)   # 他打勾在二堂
+    assert 'const AUTO_ADD = false' in html
+    assert 'const CUR_SESSION = ""' in html, '兩堂時新朋友不知道勾哪一堂，不可以自動勾第一堂'
+    assert html.count('id="col-current"') == 1
+
+
+def test_a_missing_second_service_is_added_automatically(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _two_services(monkeypatch)
+    fake_db.tables.update(rc_meeting_types=[TYPE], rc_sessions=[_sess('s1', '2026-11-08T02:00:00+00:00')],
+                          rc_members=[{'id': 'm1', 'name': '王小明', 'status': 'active'}])
+    assert 'const AUTO_ADD = true' in client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+
+
+def test_add_column_on_a_two_service_sunday_creates_both_and_only_once(fake_db, client_as, monkeypatch):
+    _two_services(monkeypatch)
+    fake_db.tables.update(rc_meeting_types=[TYPE])
+    client_as(is_staff=True).post('/api/roll-call/sheet/add-column', json={'date': '2026-11-08'})
+    made = [w[2]['starts_at'] for w in _writes(fake_db, 'rc_sessions')]
+    assert made == ['2026-11-08T02:00:00+00:00', '2026-11-08T04:00:00+00:00']   # 台北 10:00、12:00（一堂、二堂）
+
+
+def test_add_column_fills_in_only_the_missing_service(fake_db, client_as, monkeypatch):
+    _two_services(monkeypatch)
+    fake_db.tables.update(rc_meeting_types=[TYPE], rc_sessions=[_sess('s1', '2026-11-08T02:00:00+00:00')])
+    client_as(is_staff=True).post('/api/roll-call/sheet/add-column', json={'date': '2026-11-08'})
+    assert [w[2]['starts_at'] for w in _writes(fake_db, 'rc_sessions')] == ['2026-11-08T04:00:00+00:00']
+
+
+def test_a_weekday_extra_meeting_is_still_one_session(fake_db, client_as, monkeypatch):
+    _two_services(monkeypatch)
+    fake_db.tables.update(rc_meeting_types=[TYPE])
+    client_as(is_staff=True).post('/api/roll-call/sheet/add-column', json={'date': '2026-11-11'})
+    assert len(_writes(fake_db, 'rc_sessions')) == 1
+
+
+def test_range_report_counts_a_two_service_sunday_once(fake_db, app, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    fake_db.tables.update(
+        rc_meeting_types=[TYPE],
+        rc_sessions=[_sess('a1', '2026-11-01T02:00:00+00:00'), _sess('a2', '2026-11-01T04:00:00+00:00'),
+                     _sess('b1', '2026-11-08T02:00:00+00:00'), _sess('b2', '2026-11-08T04:00:00+00:00')],
+        rc_members=[{'id': 'm1', 'name': '甲', 'status': 'active'}, {'id': 'm2', 'name': '乙', 'status': 'active'}],
+        rc_records=[{'session_id': 'a2', 'member_id': 'm1', 'status': 'present'},
+                    {'session_id': 'b1', 'member_id': 'm1', 'status': 'present'},
+                    {'session_id': 'a1', 'member_id': 'm2', 'status': 'present'}])
+    rc = sys.modules['routes.roll_call']
+    with app.test_request_context():
+        from flask import session
+        session.update(user_id='u', is_staff=True)
+        data = rc.range_report(TYPE, datetime.date(2026, 10, 1), datetime.date(2026, 11, 30))
+    p = _people(data)
+    assert data['total'] == 2, '分母是主日數，不是場數'
+    assert (p['甲']['present'], p['甲']['percent']) == (2, 100.0)   # 一次去二堂、一次去一堂
+    assert (p['乙']['present'], p['乙']['percent']) == (1, 50.0)
+    assert data['per_session'] == [2, 1]
+
+
+# ── 已離開的成員：預設收起來、排在最後，打勾紀錄照樣保留 ──
+def test_left_members_are_folded_away_at_the_bottom(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    fake_db.tables.update(
+        rc_meeting_types=[TYPE], rc_sessions=[_sess('s1', '2026-11-01T02:00:00+00:00'), _sess('s2', '2026-11-08T02:00:00+00:00')],
+        rc_members=[{'id': 'm1', 'name': '王小明', 'status': 'active'},
+                    {'id': 'x1', 'name': '1', 'status': 'left'}, {'id': 'x2', 'name': '12', 'status': 'left'}],
+        rc_records=[{'session_id': 's1', 'member_id': 'x1', 'status': 'present'},
+                    {'session_id': 's1', 'member_id': 'x2', 'status': 'present'}])
+    html = client_as(is_staff=True).get('/roll-call').get_data(as_text=True)
+    rows = re.findall(r'<tr data-name="([^"]*)"([^>]*)>', html)
+    assert [n for n, _ in rows] == ['王小明', '1', '12'], '已離開的要排在最後，不可以因為名字是數字就擠到最上面'
+    assert 'display:none' not in rows[0][1]
+    assert all('data-left="1"' in a and 'display:none' in a for _, a in rows[1:]), '已離開的預設要收起來'
+    assert '顯示已離開的 2 位' in html
+    assert re.search(r'class="cell" data-sid="s1" data-mid="x1" data-on="1"', html), '他們過去的打勾還在（人數照算）'
+
+
+def test_no_toggle_when_nobody_has_left(fake_db, client_as, monkeypatch):
+    _today(monkeypatch, datetime.date(2026, 11, 8))
+    _sheet_world(fake_db)
+    assert 'toggle-left' not in client_as(is_staff=True).get('/roll-call').get_data(as_text=True).split('<script')[0]
+
+
+def test_search_does_not_bring_hidden_left_members_back_unless_shown():
+    """搜尋時也要尊重「收起已離開的」：不然一打字，被收起來的人全部跑回來。"""
+    src = (__import__('pathlib').Path(__file__).resolve().parent.parent / 'templates' / 'roll_call' / 'sheet.html').read_text(encoding='utf-8')
+    body = src[src.index('function filterNames'):]
+    body = body[:body.index('\n}\n')]
+    assert "SHOW_LEFT || tr.dataset.left !== '1'" in body

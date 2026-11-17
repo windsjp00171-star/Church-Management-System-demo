@@ -90,6 +90,25 @@ def _sheet_type(type_id=None):
     return (individual[0] if individual else None), individual
 
 
+def services_for(type_id):
+    """這種聚會一天有幾堂（看「聚會設定」裡哪個聚會把人數來源連到它、設了幾堂）。沒連結就是 1。
+
+    ★ 讀不到設定就當 1 堂：點名單照舊能用，只是不會多排一欄。
+    """
+    try:
+        from routes.cell_report import _get_meeting_settings
+        counts = []
+        for cfg in _get_meeting_settings().values():
+            if type_id and cfg.get('rc_type_id') == type_id:
+                counts.append(int(cfg.get('service_count') or 1))
+        return max(counts) if counts else 1
+    except Exception:
+        return 1
+
+
+SERVICE_NAMES = '一二三四五'
+
+
 def week_start(d):
     """這個日期所在那一週的週日（一週從週日開始）。"""
     return d - timedelta(days=(d.weekday() + 1) % 7)
@@ -123,6 +142,7 @@ def home():
         sundays = sorted(sundays + [cur_sunday])
         q_start = min(q_start, cur_sunday)
     columns, members, records, present = [], [], {}, {}
+    services = services_for(mtype['id']) if mtype else 1
     if mtype:
         rows = supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])\
             .order('starts_at').limit(400).execute().data or []
@@ -130,12 +150,15 @@ def home():
         for r in rows:
             r['_local'] = to_taipei(r['starts_at'])
             if q_start <= r['_local'].date() <= q_end:
-                by_date.setdefault(r['_local'].date(), r)             # 同一天只取一場
+                by_date.setdefault(r['_local'].date(), []).append(r)  # 同一天可能有好幾堂（依開始時間）
         for d in sundays:
-            columns.append({'date': d, 'session': by_date.pop(d, None)})
-        for d, r in by_date.items():                                   # 非週日的臨時聚會
-            columns.append({'date': d, 'session': r})
-        columns.sort(key=lambda c: c['date'])
+            got = by_date.pop(d, [])
+            for k in range(max(services, len(got))):                   # 主日有幾堂就排幾欄
+                columns.append({'date': d, 'session': got[k] if k < len(got) else None, 'service': k})
+        for d, got in by_date.items():                                 # 非週日的臨時聚會
+            for k, r in enumerate(got):
+                columns.append({'date': d, 'session': r, 'service': k})
+        columns.sort(key=lambda c: (c['date'], c['service']))
         sessions = [c['session'] for c in columns if c['session']]
         members = _active_members()
         if sessions:
@@ -145,7 +168,8 @@ def home():
             extra = sorted({r['member_id'] for r in recs} - known)
             if extra:
                 members += supabase.table('rc_members').select('*').in_('id', extra).execute().data or []
-                members.sort(key=lambda m: m['name'])
+        # 已離開的排在最後（頁面預設收起來）：混在名單裡會把正在點名的人擠到下面
+        members.sort(key=lambda m: (m.get('status') == 'left', m['name']))
         present = {s['id']: sum(1 for m in members if records.get((s['id'], m['id'])) == 'present') for s in sessions}
     for c in columns:
         s = c['session']
@@ -154,13 +178,20 @@ def home():
         c['editable'] = bool(s) and c['in_this_week'] and s['status'] != 'locked'
         c['label'] = f"{c['date'].month}/{c['date'].day}"
         c['weekday'] = '一二三四五六日'[c['date'].weekday()]
-    cur_has_session = any(c['is_current'] and c['session'] for c in columns)
+        c['first'] = c['service'] == 0
+        c['service_label'] = f"{SERVICE_NAMES[c['service']]}堂" if services > 1 and c['service'] < len(SERVICE_NAMES) else ''
+    # 本週每一堂都要有場次；少一場就由頁面自動補（GET 不寫資料庫）
+    cur_has_session = all(c['session'] for c in columns if c['is_current']) and any(c['is_current'] for c in columns)
+    left_count = sum(1 for m in members if m.get('status') == 'left')
     return render_template('roll_call/sheet.html', mtype=mtype, types=individual, columns=columns,
+                           left_count=left_count,
                            members=members, records=records, present=present, today=today,
                            cur_sunday=cur_sunday, add_date=cur_sunday.isoformat(),
                            auto_add=not cur_has_session, is_admin=_is_admin(),
+                           services=services,
+                           # 新朋友「加入並打勾」只在一堂時才知道要勾哪一欄；兩堂以上請同工自己在那一堂打勾
                            cur_session_id=next((c['session']['id'] for c in columns
-                                                if c['is_current'] and c['editable']), None))
+                                                if c['is_current'] and c['editable']), None) if services == 1 else None)
 
 
 @roll_call_bp.route('/api/roll-call/members/quick-add', methods=['POST'])
@@ -222,15 +253,22 @@ def api_sheet_add_column():
         same = [s for s in (supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])
                             .order('starts_at', desc=True).limit(60).execute().data or [])
                 if to_taipei(s['starts_at']).date().isoformat() == day]
-        if same:
-            return _ok({'id': same[0]['id'], 'created': False})
+        #  主日有幾堂就建幾場（第二堂起每堂晚 2 小時，只是為了排序：最早的是第一堂）；臨時聚會一場
+        need = services_for(mtype['id']) if datetime.fromisoformat(day).weekday() == 6 else 1
+        if len(same) >= need:
+            return _ok({'id': same[-1]['id'], 'created': False})
         uid, name = _actor()
-        row = supabase.table('rc_sessions').insert({
-            'type_id': mtype['id'], 'starts_at': starts_at, 'created_by': uid, 'created_by_name': name,
-        }).execute().data
+        h, m = (int(x) for x in DEFAULT_START_TIME.split(':'))
+        made = []
+        for k in range(len(same), need):
+            row = supabase.table('rc_sessions').insert({
+                'type_id': mtype['id'], 'created_by': uid, 'created_by_name': name,
+                'starts_at': starts_at if k == 0 else taipei_input_to_utc_iso(day, f'{h + 2 * k:02d}:{m:02d}'),
+            }).execute().data
+            made += row or []
     except Exception as e:
         return _db_error(e)
-    return _ok({'id': row[0]['id'] if row else None, 'created': True})
+    return _ok({'id': made[0]['id'] if made else None, 'created': True})
 
 
 # ── 區間出席：撈「某一段期間」誰到了幾次 ─────────────────────
@@ -277,13 +315,19 @@ def range_report(mtype, start, end):
     if extra:                                                # 區間內有紀錄、但後來離開的人也要算
         members += supabase.table('rc_members').select('*').in_('id', extra).execute().data or []
         members.sort(key=lambda m: m['name'])
+    #  ★ 同一天的幾堂（主日一堂／二堂）算同一次：來任何一堂就算那天有到 —— 不然有兩堂的教會出席率會被腰斬。
+    days = {}
+    for s in sessions:
+        days.setdefault(s['_local'].date(), []).append(s)
+    groups = [days[d] for d in sorted(days)]
+    sessions = [g[0] for g in groups]                        # 每天用第一場代表那一欄
     total = len(sessions)
     people = []
     for m in members:
         joined = m.get('joined_on')
         # 新朋友加入之前的場次不算他沒來（沒有加入日期的，每一次都算）
         counted = [not joined or s['_local'].date().isoformat() >= str(joined)[:10] for s in sessions]
-        cells = [marks.get((s['id'], m['id'])) == 'present' for s in sessions]
+        cells = [any(marks.get((x['id'], m['id'])) == 'present' for x in g) for g in groups]
         n = sum(1 for c, k in zip(cells, counted) if c and k)
         denom = sum(counted)
         people.append({'id': m['id'], 'name': m['name'], 'left': m.get('status') == 'left', 'cells': cells,
