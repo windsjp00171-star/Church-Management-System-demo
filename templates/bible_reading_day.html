@@ -248,7 +248,7 @@
       **真的頁面**（`/reading` 全部進度）—— 不寫 `href="#"`：
       JS 沒載齊那一次按下去會停在原地，而畫面上完全正常。 #}
 <div class="rd-nav">
-    {% if module_on('diary') %}
+    {% if module_on('diary') and diary_follows %}
     <a class="card-sm rd-navcard" data-tour="rd-write" href="/diary?day={{ day.day_no }}">
         <span class="rd-navicon">✍️</span>
         <span class="rd-navtext">

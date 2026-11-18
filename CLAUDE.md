@@ -215,7 +215,7 @@ migration 腳本：`migrations/008_diary_admin_whitelist.sql`
 - 列印簽收條：`/devotional/<id>/print`
 
 ### 天父日記（diary_bp）
-- **讀經和速讀是同一套**（`diary._plan_for`）：聖經速讀模組開著時，日記的經文＝速讀那一格（網址 `?day=` → 那天打勾的那一格 → 今天就是下一格沒讀的）；存日記順手打勾（已打過的不改日期）；牧者看別人日記時不顯示經文（算不到那個人讀哪一格）。速讀關掉時才用舊的 `diary_plan`／`plan.xlsx`
+- **讀經和速讀可以合成一套（選項，預設不合）**（`diary._plan_for`、`_reading_on`）：日記後台切換 `settings.diary_follows_reading`（有的教會讀經和靈修是兩份進度）。開了而且速讀模組開著時，日記的經文＝速讀那一格（網址 `?day=` → 那天打勾的那一格 → 今天就是下一格沒讀的）；存日記順手打勾（已打過的不改日期）；牧者看別人日記時不顯示經文（算不到那個人讀哪一格）。速讀關掉時才用舊的 `diary_plan`／`plan.xlsx`
 - 逐節經文支援逗號分隔多段範圍，如 `6:28-29,31:3`（去重保序）
 - 日記後台誰能進：`session.is_admin` → 環境變數 `ADMIN_LINE_USER_IDS` → **後台權限矩陣的「天父日記後台」**（`diary` 模塊，`/diary/admin`）。舊的 `admin_whitelist` 表沒有任何畫面、已不再讀（表留著、備份照舊）
 - 後台可管理讀經進度（逐筆 key-in 或批次匯入 xlsx）、牧者白名單、日記後台白名單

@@ -553,7 +553,9 @@ def reading_day(day_no):
     #  ★ 只有「讀過的格子 ＋ 欄位真的存在」才給重讀紀錄；其他一律 None，
     #    頁面整塊不畫（見 reread_info）。
     reread = reread_info(uid, day_no) if day_no in done else None
+    from routes.diary import _reading_on as _diary_follows
     return render_template('bible_reading_day.html',
+                           diary_follows=_diary_follows(),
                            day=day,
                            reread=reread,
                            reread_next=reread_next,

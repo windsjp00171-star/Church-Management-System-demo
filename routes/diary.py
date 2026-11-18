@@ -177,9 +177,23 @@ def load_plan_map() -> Dict[str, Dict[str, str]]:
         return {}
 
 
+FOLLOW_READING_KEY = 'diary_follows_reading'     # settings：'true'＝日記經文跟著聖經速讀
+
+
 def _reading_on() -> bool:
+    """日記經文要不要跟著聖經速讀（選項，預設不跟）。
+
+    有的教會讀經和靈修是兩份進度（日記照自己的讀經進度）；有的想合成一套（想讀的讀、想寫的寫下來）。
+    由日記後台切換；速讀模組關掉時一律不跟。
+    """
     from routes.modules import is_enabled
-    return is_enabled('reading')
+    if not is_enabled('reading'):
+        return False
+    try:
+        import settings_store
+        return (settings_store.get(FOLLOW_READING_KEY) or '') == 'true'
+    except Exception:                                        # noqa: BLE001
+        return False
 
 
 def _reading_plan(d: str, day_param=None) -> Optional[Dict[str, Any]]:
@@ -932,6 +946,7 @@ def admin():
 
     return render_template(
         'diary/admin.html',
+        follows_reading=_reading_on(),
         display_name=_safe_display_name(user),
         stats=stats,
         upcoming=upcoming,
@@ -1116,6 +1131,22 @@ def admin_update_whitelist():
     active = (action != 'remove')
     sb_set_pastor_whitelist(row['line_user_id'], row.get('display_name', ''), row.get('picture_url', ''), active)
     flash('已更新白名單', 'ok')
+    return redirect(url_for('diary.admin'))
+
+
+@diary_bp.post('/diary/admin/follow-reading')
+def admin_follow_reading():
+    if not _require_login():
+        return redirect(url_for('auth.login_page'))
+    if not _is_diary_admin(_get_user().get('line_user_id', '')):
+        flash('你沒有後台權限', 'error')
+        return redirect(url_for('diary.index'))
+    on = request.form.get('on') == 'true'
+    import settings_store
+    settings_store.set(FOLLOW_READING_KEY, 'true' if on else 'false')
+    from routes.audit import log_action
+    log_action('diary.follow_reading', 'settings', FOLLOW_READING_KEY, {'on': on})
+    flash('日記經文改成跟著聖經速讀' if on else '日記經文改回用日記自己的讀經進度', 'ok')
     return redirect(url_for('diary.admin'))
 
 
