@@ -120,7 +120,7 @@
         {% endif %}
         <a href="/profile" style="text-decoration:none;">
             <div class="drawer-username">{{ session.real_name or '' }}</div>
-            <div style="font-size:0.78rem;color:rgba(255,255,255,.6);">查看個人資料</div>
+            <div style="font-size:0.78rem;color:var(--color-text-muted);">查看個人資料</div>
         </a>
     </div>
     <hr class="drawer-divider">
@@ -129,6 +129,7 @@
     {% endif %}
     <a href="/profile" class="drawer-nav-link">👤 個人資料</a>
     <a href="/auth/logout" class="drawer-nav-link">🚪 登出</a>
+    <a href="/auth/force-relogin" class="drawer-nav-link" style="font-size:0.82rem;color:var(--color-text-muted);">🔄 登入怪怪的？重新登入</a>
     {% else %}
     <a href="/auth/login" class="drawer-nav-link">🔑 LINE 登入</a>
     {% endif %}
@@ -167,11 +168,6 @@
     {% block content %}{% endblock %}
 </main>
 
-{% if session.get('user_id') %}
-<div style="text-align:center; padding:8px 16px 4px; font-size:0.72rem; color:var(--color-text-muted);">
-    登入異常？<a href="/auth/force-relogin" style="color:var(--color-text-light); text-decoration:underline;">點此重新登入</a>
-</div>
-{% endif %}
 
 <!-- ══ Help Button ══ -->
 <div id="help-bubble" class="help-bubble" style="display:none;{% if config.DEMO_MODE or config.CONTACT_EMAIL %}bottom:76px;{% endif %}">👆 點我看使用說明</div>
@@ -414,15 +410,28 @@ function openExternalBrowser() {
     var btn = document.getElementById('help-btn');
     var bubble = document.getElementById('help-bubble');
     if (!btn || !bubble) return;
-    if (!localStorage.getItem('helpSeen')) {
+    var seen = false;
+    try { seen = !!localStorage.getItem('helpSeen'); } catch (e) {}
+    if (!seen) {
+        // 提示泡泡只出現一次：以前要按過「？」才算看過，新朋友每換一頁就被擋一次
         btn.classList.add('help-pulse');
         bubble.style.display = 'block';
-        setTimeout(function(){ bubble.style.display = 'none'; }, 5000);
+        setTimeout(function(){ bubble.style.display = 'none'; btn.classList.remove('help-pulse'); }, 4000);
+        try { localStorage.setItem('helpSeen', '1'); } catch (e) {}
     }
-    btn.addEventListener('click', function(){
-        localStorage.setItem('helpSeen', '1');
-        btn.classList.remove('help-pulse');
-    });
+    // 往下捲時收起來，停下或往上捲再出現，才不會一直蓋住正在看的內容與按鈕
+    var lastY = window.scrollY, timer = null;
+    window.addEventListener('scroll', function(){
+        var y = window.scrollY;
+        if (y > lastY + 4) { btn.classList.add('help-away'); bubble.style.display = 'none'; }
+        else if (y < lastY - 4) btn.classList.remove('help-away');
+        lastY = y;
+        clearTimeout(timer);
+        timer = setTimeout(function(){ btn.classList.remove('help-away'); }, 1200);
+    }, { passive: true });
+    // 打字時（手機鍵盤彈出）也收起來
+    document.addEventListener('focusin', function(e){ if (e.target.matches('input,textarea,select')) btn.classList.add('help-away'); });
+    document.addEventListener('focusout', function(){ btn.classList.remove('help-away'); });
 })();
 </script>
 
@@ -540,23 +549,33 @@ function escHtml(s) {
 </script>
 {% endif %}
 <script>
-function openConfirm(msg, onOk) {
+function openConfirm(msg, onOk, opts) {
     if (document.querySelector('._oc-overlay')) return;
+    opts = opts || {};
+    // 只有會毀掉東西的動作用紅色；存日記、標記蒙應允這類正向動作用主色，免得看起來像在刪東西
+    const danger = (typeof opts.danger === 'boolean') ? opts.danger
+        : /刪除|移除|取消|封鎖|退出|拒絕|解除|強制|覆蓋|清除|作廢/.test(msg);
     const m = document.createElement('div');
     m.className = '_oc-overlay';
-    m.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+    m.style.cssText = 'position:fixed;inset:0;background:rgba(45,31,26,.5);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
     const box = document.createElement('div');
-    box.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:320px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,.2);';
+    box.style.cssText = 'background:#fff;border-radius:16px;padding:24px;max-width:340px;width:100%;box-shadow:0 8px 32px rgba(60,30,20,.25);';
     const p = document.createElement('p');
-    p.style.cssText = 'font-size:1rem;color:#1a202c;margin:0 0 20px;line-height:1.55;';
+    p.style.cssText = 'font-size:1rem;color:#2d1f1a;margin:0 0 20px;line-height:1.6;';
     p.textContent = msg;
     const btns = document.createElement('div');
     btns.style.cssText = 'display:flex;gap:10px;justify-content:flex-end;';
-    btns.innerHTML = '<button style="padding:10px 20px;border-radius:10px;border:1px solid #e2e8f0;background:#f7fafc;color:#4a5568;font-size:.95rem;cursor:pointer;min-height:44px;">取消</button><button style="padding:10px 20px;border-radius:10px;border:none;background:#e53e3e;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;min-height:44px;">確認</button>';
+    const cancel = document.createElement('button');
+    cancel.textContent = '取消';
+    cancel.style.cssText = 'padding:10px 20px;border-radius:10px;border:1px solid #ece4d9;background:#faf7f3;color:#5c4035;font-size:.95rem;cursor:pointer;min-height:44px;font-family:inherit;';
+    const ok = document.createElement('button');
+    ok.textContent = opts.confirmText || '確認';
+    ok.style.cssText = 'padding:10px 20px;border-radius:10px;border:none;color:#fff;font-size:.95rem;font-weight:600;cursor:pointer;min-height:44px;font-family:inherit;background:' + (danger ? '#c62828' : '#7c4b3a') + ';';
+    btns.appendChild(cancel); btns.appendChild(ok);
     box.appendChild(p); box.appendChild(btns); m.appendChild(box);
     document.body.appendChild(m);
-    btns.children[1].onclick = () => { m.remove(); onOk(); };
-    btns.children[0].onclick = () => m.remove();
+    ok.onclick = () => { m.remove(); onOk(); };
+    cancel.onclick = () => m.remove();
     m.onclick = e => { if (e.target === m) m.remove(); };
 }
 </script>

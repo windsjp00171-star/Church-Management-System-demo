@@ -314,7 +314,7 @@ def sb_save_entry(line_user_id: str, entry_date: str, content: str) -> None:
         return
     existing = sb_get_entry(line_user_id, entry_date)
     if existing:
-        if existing.get('locked'):
+        if existing.get('locked') and entry_date != _today_str():
             return
         sb.table('diary_entries').update(
             {
@@ -577,6 +577,7 @@ def index():
 
     return render_template(
         'diary/index.html',
+        is_today=(d == _today_str()),
         display_name=_safe_display_name(user),
         entry_date=d,
         plan=plan,
@@ -613,7 +614,8 @@ def save():
         return redirect(url_for('diary.index', d=d))
 
     existing = sb_get_entry(uid, d)
-    if existing and existing.get('locked'):
+    # 當天寫的當天都能改（錯字也能修）；過了那一天才真的鎖定
+    if existing and existing.get('locked') and d != _today_str():
         flash('這一天已鎖定，不能再修改（可複製）。', 'warn')
         return redirect(url_for('diary.index', d=d))
 
@@ -627,7 +629,7 @@ def save():
                 bp.mark(session['user_id'], int(rd), today=d)
         except Exception:
             logging.getLogger(__name__).warning('日記存好了，速讀打勾失敗', exc_info=True)
-    flash('已儲存並鎖定', 'ok')
+    flash('已儲存，今天之內都可以再修改' if d == _today_str() else '已儲存並鎖定', 'ok')
     return redirect(url_for('diary.index', d=d))
 
 

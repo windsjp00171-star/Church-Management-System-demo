@@ -317,7 +317,7 @@
         <div id="success-msg" style="display:none; text-align:center; padding:20px 0;">
             <div style="font-size:3rem;">🎉</div>
             <p style="font-size:1.1rem; font-weight:700; color:var(--green); margin-top:12px;">報名成功！</p>
-            <p style="color:var(--text-2); margin-top:6px;">請稍後重新整理頁面查看報名資料</p>
+            <p style="color:var(--text-2); margin-top:6px;">正在帶你看剛剛報名的資料…</p>
             <button onclick="location.reload()" class="btn btn-primary" style="margin-top:16px;">
                 查看報名結果
             </button>
@@ -524,7 +524,7 @@
     <div id="success-msg" style="display:none; text-align:center; padding:20px 0;">
         <div style="font-size:3rem;">🎉</div>
         <p style="font-size:1.1rem; font-weight:700; color:var(--green); margin-top:12px;">報名成功！</p>
-        <p style="color:var(--text-2); margin-top:6px;">請稍後重新整理頁面查看報名資料</p>
+        <p style="color:var(--text-2); margin-top:6px;">正在帶你看剛剛報名的資料…</p>
         <button onclick="location.reload()" class="btn btn-primary" style="margin-top:16px;">
             查看報名結果
         </button>
@@ -679,6 +679,8 @@ function submitReg() {
         if (data.success) {
             document.getElementById('reg-form')?.style.setProperty('display', 'none');
             document.getElementById('success-msg')?.style.setProperty('display', 'block');
+            // 直接帶去看報名結果，不用叫人自己重新整理
+            setTimeout(() => location.reload(), 1200);
         } else {
             showError(data.error || '報名失敗，請稍後再試');
             if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = '確認報名'; }
