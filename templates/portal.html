@@ -102,18 +102,63 @@ function dismissChangelog() {
     box-shadow: var(--shadow-sm);
 }
 .hero-art {
-    position: relative; overflow: hidden;
+    position: relative;
     order: -1;
-    min-height: 120px;
     margin: 10px 10px 0;
+    perspective: 1400px;
+}
+.hero-art[role="button"] { cursor: pointer; }
+.vf-inner {
+    display: grid; height: 100%;
+    transform-style: preserve-3d;
+    transition: transform .8s cubic-bezier(.2,.75,.25,1);
+}
+.hero-art.flipped .vf-inner { transform: rotateY(180deg); }
+.hero-art.vf-instant .vf-inner { transition: none; }
+.vf-face {
+    grid-area: 1 / 1;
+    position: relative; overflow: hidden;
+    min-height: 120px;
     border-radius: 18px;
+    backface-visibility: hidden; -webkit-backface-visibility: hidden;
     {% if hero_theme.image_url %}
     background: url('{{ hero_theme.image_url }}') center/cover no-repeat;
     {% else %}
     background: {{ hero_theme.gradient }};
     {% endif %}
-    display: flex; align-items: flex-end;
 }
+.vf-front { display: flex; align-items: flex-end; }
+.vf-back {
+    transform: rotateY(180deg);
+    display: flex; flex-direction: column; justify-content: center;
+    padding: 22px 24px;
+    color: {{ 'rgba(30,30,30,.9)' if hero_theme.text_mode == 'dark' else '#fff' }};
+}
+.vf-back::before {
+    content: ''; position: absolute; inset: 0;
+    background: {{ 'rgba(255,255,255,.35)' if hero_theme.text_mode == 'dark' else 'rgba(0,0,0,.18)' }};
+}
+.vf-back > * { position: relative; }
+.vf-kicker { font-size: .7rem; letter-spacing: .12em; opacity: .75; margin-bottom: 12px; }
+.vf-text {
+    font-family: var(--font-serif);
+    font-size: 1.05rem; line-height: 1.9; font-weight: 600;
+    margin: 0 0 10px; text-align: justify;
+    text-shadow: {{ 'none' if hero_theme.text_mode == 'dark' else '0 1px 12px rgba(0,0,0,.25)' }};
+}
+.vf-ref { font-size: .8rem; opacity: .85; margin: 0; text-align: right; letter-spacing: .05em; }
+.hero-art.vf-loading .hero-art-sym { animation: heroBreathe 1s ease-in-out infinite; }
+.vf-actions { display: none; flex-wrap: wrap; gap: 10px; }
+.vf-btn {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 10px 18px; border-radius: 100px;
+    font-size: .86rem; font-weight: 700; cursor: pointer;
+    border: 1px solid var(--color-border); background: #fff; color: var(--color-primary-dark);
+    text-decoration: none; font-family: inherit;
+}
+.vf-btn:hover { background: var(--color-border-light); }
+.vf-btn-main { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.vf-btn-main:hover { background: var(--color-primary-dark); color: #fff; }
 .hero-art-sym {
     position: absolute; inset: 0;
     display: flex; align-items: center; justify-content: center;
@@ -194,7 +239,10 @@ function dismissChangelog() {
 @media (min-width: 768px) {
     .portal-hero { grid-template-columns: minmax(0,1.5fr) minmax(240px,1fr); align-items: stretch; }
     .hero-body { padding: 44px 40px 40px; }
-    .hero-art { order: 0; min-height: 230px; margin: 12px; }
+    .hero-art { order: 0; margin: 12px; }
+    .vf-face { min-height: 230px; }
+    .vf-back { padding: 28px 32px; }
+    .vf-text { font-size: 1.15rem; }
     .hero-art-sym { font-size: 3.6rem; }
 }
 
@@ -347,86 +395,6 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
    Hero 滑動提示
 ═══════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════
-   經文卡 Modal
-═══════════════════════════════════════════ */
-#verse-modal {
-    display: none; position: fixed; inset: 0; z-index: 900;
-    align-items: center; justify-content: center;
-    padding: 20px 16px; box-sizing: border-box;
-}
-#vm-backdrop {
-    position: absolute; inset: 0;
-    background: rgba(0,0,0,0); backdrop-filter: blur(0px); -webkit-backdrop-filter: blur(0px);
-    transition: background .38s, backdrop-filter .38s, -webkit-backdrop-filter .38s;
-}
-#vm-sheet {
-    position: relative; z-index: 1;
-    width: 100%; max-width: 400px;
-    display: flex; flex-direction: column; align-items: center; gap: 14px;
-    opacity: 0;
-    transition: transform .52s cubic-bezier(.22,1,.36,1), opacity .32s;
-    will-change: transform, opacity;
-}
-
-#vm-close {
-    position: absolute; top: -14px; right: 0px;
-    width: 44px; height: 44px; border-radius: 50%;
-    background: rgba(255,255,255,.18); border: 1px solid rgba(255,255,255,.28);
-    color: white; font-size: 1.1rem; line-height: 1;
-    display: flex; align-items: center; justify-content: center;
-    cursor: pointer; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-    transition: background .15s;
-}
-#vm-close:hover { background: rgba(255,255,255,.28); }
-
-#vm-card-wrap {
-    width: 100%; max-width: 340px;
-    min-height: 120px; display: flex; align-items: center; justify-content: center;
-}
-#vm-loading {
-    color: rgba(255,255,255,.6); font-size: .9rem;
-    display: flex; align-items: center; gap: 8px;
-}
-@keyframes vmSpin { to { transform: rotate(360deg); } }
-.vm-spinner {
-    width: 18px; height: 18px; border: 2px solid rgba(255,255,255,.3);
-    border-top-color: white; border-radius: 50%;
-    animation: vmSpin .8s linear infinite;
-}
-
-#vm-actions {
-    display: none; gap: 10px;
-    width: 100%; max-width: 340px;
-}
-.vm-btn {
-    flex: 1; padding: 12px 8px; border-radius: 12px;
-    font-size: .88rem; font-weight: 700; text-align: center;
-    text-decoration: none; cursor: pointer; border: none;
-    transition: transform .14s, opacity .14s;
-}
-.vm-btn:active { transform: scale(.95); opacity: .85; }
-.vm-btn-dl {
-    background: rgba(255,255,255,.16);
-    color: white;
-    border: 1px solid rgba(255,255,255,.28) !important;
-    backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
-}
-.vm-btn-full {
-    background: white; color: #1a1a2e; font-weight: 800;
-}
-
-/* 抽卡白光閃現 */
-
-/* 佔位卡片的流光掃過 */
-@keyframes vmShimmer { 0%{left:-80%} 60%,100%{left:120%} }
-.vm-ph-shimmer {
-    position: absolute; top: 0; left: -80%; width: 55%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
-    animation: vmShimmer 1.4s ease-in-out infinite;
-    pointer-events: none;
-}
-
 /* 長按儲存 overlay（行動裝置）*/
 #vm-save-overlay {
     display: none; position: fixed; inset: 0; z-index: 1000;
@@ -441,7 +409,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 @media (min-width: 1024px) {
     .portal-layout {
         display: grid;
-        grid-template-columns: minmax(0,1fr) 340px;
+        grid-template-columns: minmax(0,1fr) 360px;
         grid-template-rows: auto auto 1fr;
         column-gap: 32px;
         align-items: start;
@@ -465,6 +433,16 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 }
 .portal-page .section-label::before { display: none; }
 
+/* 聚會人數：一種聚會一列（名稱一行，人數＋日期同一行），窄欄也不會被擠到換行 */
+.att-grid { display: grid; grid-template-columns: 1fr; gap: 8px; }
+@media (min-width: 640px) and (max-width: 1023px) { .att-grid { grid-template-columns: 1fr 1fr; } }
+.att-grid > a {
+    flex-direction: row !important; flex-wrap: wrap; align-items: baseline;
+    column-gap: 10px; padding: 10px 14px !important;
+}
+.att-grid > a > span:first-child { width: 100%; margin-bottom: 2px !important; }
+.att-grid > a > span:nth-child(2) { font-size: 1.7rem !important; }
+.att-grid > a > span { margin-top: 0 !important; }
 .engage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (min-width: 900px) { .engage-grid { grid-template-columns: repeat(4, 1fr); } }
 .engage-grid > .fi-wrap > .engage-card { height: 100%; }
@@ -512,14 +490,25 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                      stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
-            </a>{% endif %}
+            </a>
+            <div class="vf-actions" id="vf-actions">
+                <button type="button" class="vf-btn vf-btn-main" onclick="downloadVerseCard(this)">存到手機</button>
+                <button type="button" class="vf-btn" onclick="shareVerseCard(this)">分享</button>
+                <a class="vf-btn" href="/verse">完整頁面 →</a>
+            </div>{% endif %}
         </div>
     </div>
-    <div class="hero-art pa" style="--d:80ms" aria-hidden="true">
-        <div class="hero-glow"></div>
-        <div id="hero-ptcl"></div>
-        <div class="hero-art-sym">{{ hero_theme.symbol }}</div>
-        <div class="hero-art-cap">今日經文卡</div>
+    <div class="hero-art pa" style="--d:80ms" id="verse-flip"
+         {% if module_on('/verse') %}role="button" tabindex="0" aria-label="翻開今日經文卡"{% else %}aria-hidden="true"{% endif %}>
+        <div class="vf-inner">
+            <div class="vf-face vf-front">
+                <div class="hero-glow"></div>
+                <div id="hero-ptcl"></div>
+                <div class="hero-art-sym">{{ hero_theme.symbol }}</div>
+                <div class="hero-art-cap">{% if module_on('/verse') %}今日經文卡 · 點一下翻開{% else %}今日經文卡{% endif %}</div>
+            </div>
+            <div class="vf-face vf-back" id="vf-back" aria-live="polite"></div>
+        </div>
     </div>
 </div>
 {% endif %}{# /hero #}
@@ -567,7 +556,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% set as = attendance_summary %}
 <div class="role-widget card pa" style="--d:50ms; padding: 20px; margin-bottom: 16px;">
   <p class="section-label-sm" style="margin: 0 0 10px;">聚會人數總覽</p>
-  <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+  <div class="att-grid">
 
     {% if module_on('/cell-report/sunday') %}<a href="{{ '/roll-call' if (as and as.sunday and as.sunday._rc) else '/cell-report/sunday' }}" style="display:flex;flex-direction:column;background:#fff;border:1px solid #e5e7eb;border-left:4px solid #16a34a;border-radius:10px;padding:12px 10px;text-decoration:none;position:relative;">
       <span style="font-size:.72rem;font-weight:700;color:#374151;margin-bottom:4px;">⛪ 成人主日</span>
@@ -1216,47 +1205,6 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
 {# 抽卡閃光層（獨立於 modal 之外，蓋在最上層）#}
 
-{# ════ 經文卡浮框 ════ #}
-<div id="verse-modal" role="dialog" aria-modal="true" aria-label="今日經文祝福卡">
-    <div id="vm-backdrop"></div>
-    <div id="vm-sheet">
-        <button id="vm-close" onclick="closeVerseModal()" aria-label="關閉">×</button>
-
-        <div id="vm-card-wrap">
-            {# 佔位卡片：拖動時立即可見，資料回來後被替換 #}
-            <div id="vm-placeholder" style="
-                width:min(340px,calc(100vw - 40px)); min-height:440px;
-                border-radius:22px;
-                background:{{ hero_theme.gradient }};
-                padding:34px 26px; box-sizing:border-box;
-                display:flex; flex-direction:column;
-                justify-content:center; align-items:center; gap:24px;
-                box-shadow:0 20px 60px rgba(0,0,0,.45);
-                position:relative; overflow:hidden;">
-                <div class="vm-ph-shimmer"></div>
-                <div style="font-size:2.6rem;opacity:.75;color:white;position:relative;z-index:1;">{{ hero_theme.symbol }}</div>
-                <div class="vm-spinner" style="position:relative;z-index:1;"></div>
-            </div>
-        </div>
-
-        <div id="vm-actions">
-            <button class="vm-btn vm-btn-dl" id="vm-dl-btn" onclick="downloadVerseCard()">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                     stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-                     style="margin-right:5px;vertical-align:-2px;">
-                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                    <polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>
-                </svg>存到手機
-            </button>
-            <button class="vm-btn vm-btn-dl" id="vm-share-btn" onclick="shareVerseCard()"
-                    style="background:#06C755;color:white;border-color:#06C755;">
-                📤 分享
-            </button>
-            {% if module_on('/verse') %}<a class="vm-btn vm-btn-full" href="/verse">完整頁面 →</a>{% endif %}
-        </div>
-    </div>
-</div>
-
 {# 分享 toast #}
 <div id="vm-share-toast" style="display:none;position:fixed;bottom:100px;left:50%;transform:translateX(-50%);
      background:rgba(0,0,0,.8);color:white;padding:12px 20px;border-radius:24px;font-size:0.85rem;
@@ -1327,217 +1275,69 @@ function toggleFgGrid() {
     chevron.style.transform = open ? '' : 'rotate(180deg)';
 }
 
-/* ── 互動層「抽經文卡」點擊 → 開啟 modal ── */
-(function() {
-    const engCta = document.getElementById('verse-engagement-cta');
-    if (!engCta) return;
-    engCta.addEventListener('click', function(e) {
-        e.preventDefault();
-        if (_verseOpen) return;
-        _verseOpen = true;
-        if (!_verseCache) _loadVerseData();
-        const modal = document.getElementById('verse-modal');
-        const sheet = document.getElementById('vm-sheet');
-        const bd    = document.getElementById('vm-backdrop');
-        const vH    = window.innerHeight;
-        modal.style.display    = 'flex';
-        bd.style.transition    = 'background .35s, backdrop-filter .35s, -webkit-backdrop-filter .35s';
-        bd.style.background    = 'rgba(0,0,0,.85)';
-        bd.style.backdropFilter = 'blur(22px)';
-        bd.style.webkitBackdropFilter = 'blur(22px)';
-        setTimeout(() => {
-            sheet.style.transition = 'none';
-            sheet.style.transform  = `translate(0, -${vH * 0.68}px) scale(0.92) rotate(-2deg)`;
-            sheet.style.opacity    = '0';
-            requestAnimationFrame(() => requestAnimationFrame(() => {
-                sheet.style.transition = 'transform .58s cubic-bezier(0.175,0.885,0.32,1.28), opacity .3s';
-                sheet.style.transform  = 'translate(0,0) scale(1) rotate(0deg)';
-                sheet.style.opacity    = '1';
-            }));
-            setTimeout(() => {
-                sheet.style.transition = 'transform .18s cubic-bezier(0.34,1.56,0.64,1)';
-                sheet.style.transform  = 'translate(0,0) scale(1.04) rotate(0deg)';
-                setTimeout(() => {
-                    sheet.style.transition = 'transform .14s ease-out';
-                    sheet.style.transform  = 'translate(0,0) scale(1) rotate(0deg)';
-                }, 160);
-                if (navigator.vibrate) navigator.vibrate([12, 60, 22]);
-            }, 560);
-        }, 80);
-    });
-})();
-
-/* ════ 經文卡浮框 ════ */
+/* ════ 今日經文卡：原地翻開，當天保持翻開 ════ */
 let _verseCache = null;
-let _verseOpen  = false;
+const _VF_KEY = 'verseFlipped:{{ today_tw }}';
 
-/* 按鈕向右拖動偵測（觸控 + 滑鼠） */
-(function() {
-    const btn = document.getElementById('verse-cta');
-    if (!btn) return;
-
-    let sx = 0, sy = 0, dragging = false, hapticDone = false;
-    let lastX = 0, lastT = 0;
-    let _suppressClick = false;
-    const SNAP = 100; /* 達到此位移 → commit */
-
-    btn.addEventListener('click', e => { if (_suppressClick) { _suppressClick = false; e.preventDefault(); } });
-
-    function onStart(clientX, clientY) {
-        if (_verseOpen) return;
-        sx = lastX = clientX; sy = clientY;
-        lastT = Date.now();
-        dragging = false; hapticDone = false;
-        btn.style.transition = 'none';
-        if (!_verseCache) _loadVerseData();
-    }
-
-    function onMove(clientX, clientY, isTouch) {
-        if (_verseOpen) return;
-        const dx = clientX - sx;
-        const dy = Math.abs(clientY - sy);
-
-        if (!dragging) {
-            if (dx < 4) return;
-            if (isTouch && dy > dx * 1.6) { snapBack(); return; }
-            dragging = true;
-        }
-
-        lastX = clientX; lastT = Date.now();
-
-        /* 橡皮筋：閾值內線性，超過後越拉越難 */
-        const effective = dx <= SNAP ? dx : SNAP + Math.sqrt((dx - SNAP) * SNAP) * 0.45;
-        const progress  = Math.min(effective / SNAP, 1);
-
-        /* 按鈕跟手右移，同時輕微放大（0°→ 稍微上浮感） */
-        btn.style.transform = `translateX(${effective}px) scale(${1 + progress * 0.06})`;
-        btn.style.opacity   = String(1 - progress * 0.25);
-
-        if (!hapticDone && progress >= 1) { hapticDone = true; if (navigator.vibrate) navigator.vibrate(12); }
-    }
-
-    function snapBack() {
-        btn.style.transition = 'transform .35s cubic-bezier(0.34,1.56,0.64,1), opacity .25s';
-        btn.style.transform  = '';
-        btn.style.opacity    = '';
-    }
-
-    function onEnd(clientX) {
-        if (!dragging) return;
-        dragging = false;
-        _suppressClick = true;
-
-        const dx  = clientX - sx;
-        const vel = (clientX - lastX) / Math.max(Date.now() - lastT, 1);
-        const commit = dx > 65 || (dx > 20 && vel > 0.55);
-
-        if (commit) {
-            _verseOpen = true;
-            const modal = document.getElementById('verse-modal');
-            const sheet = document.getElementById('vm-sheet');
-            const bd    = document.getElementById('vm-backdrop');
-            const vW = window.innerWidth, vH = window.innerHeight;
-
-            /* 按鈕飛出右側 */
-            btn.style.transition = 'transform .22s cubic-bezier(0.55,0,1,1), opacity .18s';
-            btn.style.transform  = `translateX(${vW}px)`;
-            btn.style.opacity    = '0';
-            /* modal 開啟、backdrop 黑下來 */
-            modal.style.display    = 'flex';
-            bd.style.transition    = 'background .35s, backdrop-filter .35s, -webkit-backdrop-filter .35s';
-            bd.style.background    = 'rgba(0,0,0,.85)';
-            bd.style.backdropFilter = 'blur(22px)';
-            bd.style.webkitBackdropFilter = 'blur(22px)';
-
-            /* 卡片從上緣滑入 */
-            setTimeout(() => {
-                sheet.style.transition = 'none';
-                sheet.style.transform  = `translate(0, -${vH * 0.68}px) scale(0.92) rotate(-2deg)`;
-                sheet.style.opacity    = '0';
-                requestAnimationFrame(() => requestAnimationFrame(() => {
-                    sheet.style.transition = 'transform .58s cubic-bezier(0.175,0.885,0.32,1.28), opacity .3s';
-                    sheet.style.transform  = 'translate(0,0) scale(1) rotate(0deg)';
-                    sheet.style.opacity    = '1';
-                }));
-                /* 落地輕彈 */
-                setTimeout(() => {
-                    sheet.style.transition = 'transform .18s cubic-bezier(0.34,1.56,0.64,1)';
-                    sheet.style.transform  = 'translate(0,0) scale(1.04) rotate(0deg)';
-                    setTimeout(() => {
-                        sheet.style.transition = 'transform .14s ease-out';
-                        sheet.style.transform  = 'translate(0,0) scale(1) rotate(0deg)';
-                    }, 160);
-                    if (navigator.vibrate) navigator.vibrate([12, 60, 22]);
-                }, 560);
-            }, 210);
-        } else {
-            snapBack();
-        }
-    }
-
-    /* 觸控事件 */
-    btn.addEventListener('touchstart', e => onStart(e.touches[0].clientX, e.touches[0].clientY), { passive: true });
-    btn.addEventListener('touchmove',  e => { onMove(e.touches[0].clientX, e.touches[0].clientY, true); if (dragging) e.preventDefault(); }, { passive: false });
-    btn.addEventListener('touchend',   e => onEnd(e.changedTouches[0].clientX), { passive: true });
-
-    /* 滑鼠事件 */
-    btn.addEventListener('mousedown', e => { if (e.button !== 0) return; onStart(e.clientX, e.clientY); });
-    document.addEventListener('mousemove', e => { if (!dragging) return; onMove(e.clientX, e.clientY, false); });
-    document.addEventListener('mouseup',   e => { if (!dragging) return; onEnd(e.clientX); });
-})();
-
-/* ESC 關閉 */
-document.addEventListener('keydown', e => { if (e.key === 'Escape' && _verseOpen) closeVerseModal(); });
-
-
-function closeVerseModal() {
-    const modal = document.getElementById('verse-modal');
-    const sheet = document.getElementById('vm-sheet');
-    const hero  = document.querySelector('.portal-hero');
-    const hRect = hero ? hero.getBoundingClientRect() : null;
-
-    if (hRect) {
-        const cX = window.innerWidth / 2, cY = window.innerHeight / 2;
-        const oX = (hRect.left + hRect.width  / 2) - cX;
-        const oY = (hRect.top  + hRect.height / 2) - cY;
-        sheet.style.transition = 'transform .4s cubic-bezier(.55,0,.1,1), opacity .28s';
-        sheet.style.transform  = `translate(${oX}px, ${oY}px) scale(0.12)`;
-        sheet.style.opacity    = '0';
-    }
-
-    setTimeout(() => {
-        modal.style.display = 'none';
-        sheet.style.cssText = '';
-        document.getElementById('vm-backdrop').style.cssText = '';
-        /* 按鈕動畫還原，帶彈性 */
-        const cta = document.getElementById('verse-cta');
-        if (cta) {
-            cta.style.transition = 'transform .45s cubic-bezier(0.34,1.56,0.64,1), opacity .3s';
-            cta.style.transform  = '';
-            cta.style.opacity    = '';
-        }
-        _verseOpen = false;
-    }, 420);
-}
-
-async function _loadVerseData() {
-    if (_verseCache) { _renderVerseCard(_verseCache); return; }
-    try {
-        const r = await fetch('/api/verse-data');
-        if (!r.ok) throw new Error(r.status);
-        _verseCache = await r.json();
-        _renderVerseCard(_verseCache);
-    } catch(err) {
-        const ph = document.getElementById('vm-placeholder');
-        if (ph) ph.innerHTML = '<span style="color:rgba(255,255,255,.6);font-size:.9rem;">載入失敗，請稍後再試</span>';
-    }
+async function _getVerse() {
+    if (_verseCache) return _verseCache;
+    const r = await fetch('/api/verse-data');
+    if (!r.ok) throw new Error(r.status);
+    _verseCache = await r.json();
+    return _verseCache;
 }
 
 function _esc(s) {
     return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 
-function _renderVerseCard(d) {
+async function flipVerseCard(animate) {
+    const art = document.getElementById('verse-flip');
+    if (!art || art.classList.contains('flipped') || art.classList.contains('vf-loading')) return;
+    art.classList.add('vf-loading');
+    let d;
+    try { d = await _getVerse(); }
+    catch (e) { art.classList.remove('vf-loading'); showToast('經文載入失敗，請稍後再試', 'error'); return; }
+    document.getElementById('vf-back').innerHTML =
+        `<div class="vf-kicker">今日經文 · ${_esc(d.today)}</div>` +
+        `<p class="vf-text">「${_esc(d.verse.text)}」</p>` +
+        `<p class="vf-ref">— ${_esc(d.verse.ref)}</p>`;
+    art.classList.toggle('vf-instant', !animate);
+    requestAnimationFrame(() => {
+        art.classList.remove('vf-loading');
+        art.classList.add('flipped');
+        art.removeAttribute('role'); art.removeAttribute('tabindex');
+    });
+    const cta = document.getElementById('verse-cta');
+    if (cta) cta.style.display = 'none';
+    const acts = document.getElementById('vf-actions');
+    if (acts) acts.style.display = 'flex';
+    try { localStorage.setItem(_VF_KEY, '1'); } catch (e) {}
+    if (animate && navigator.vibrate) navigator.vibrate(12);
+}
+
+(function () {
+    const art = document.getElementById('verse-flip');
+    if (!art || art.getAttribute('aria-hidden') === 'true') return;
+    const go = e => { e.preventDefault(); flipVerseCard(true); };
+    art.addEventListener('click', go);
+    art.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') go(e); });
+    const cta = document.getElementById('verse-cta');
+    if (cta) cta.addEventListener('click', go);
+    /* 靈修空間的「抽經文卡」：首頁上方有卡就捲上去翻開，沒有（Hero 被隱藏）就照連結去 /verse */
+    const eng = document.getElementById('verse-engagement-cta');
+    if (eng) eng.addEventListener('click', e => {
+        e.preventDefault();
+        art.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        setTimeout(() => flipVerseCard(true), 350);
+    });
+    let seen = false;
+    try { seen = !!localStorage.getItem(_VF_KEY); } catch (e) {}
+    if (seen) flipVerseCard(false);
+})();
+
+/* 存圖／分享用的完整祝福卡（離開畫面外產生、截完就移除） */
+function _verseCardHTML(d) {
     const { verse, theme, today, user_name, church_name } = d;
     const dark  = theme.text_mode === 'dark';
     const tc    = dark ? 'rgba(30,30,30,.9)'  : 'white';
@@ -1550,12 +1350,10 @@ function _renderVerseCard(d) {
     const img   = theme.image_url
         ? `<img src="${_esc(theme.image_url)}" crossorigin="anonymous" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;border-radius:22px;pointer-events:none;">`
         : '';
-
-    document.getElementById('vm-card-wrap').innerHTML = `
-<div id="vm-verse-card" style="width:min(340px,calc(100vw - 40px));min-height:440px;
+    return `
+<div style="width:340px;min-height:440px;
     border-radius:22px;${bg}padding:34px 26px;
     display:flex;flex-direction:column;justify-content:space-between;
-    box-shadow:0 20px 60px rgba(0,0,0,.45);
     position:relative;overflow:hidden;box-sizing:border-box;">
   ${img}
   <div style="text-align:center;position:relative;z-index:1;">
@@ -1580,75 +1378,24 @@ function _renderVerseCard(d) {
     </div>
   </div>
 </div>`;
-
-    document.getElementById('vm-actions').style.display  = 'flex';
 }
 
-/* 下載：動態載入 html2canvas */
-async function downloadVerseCard() {
-    const card = document.getElementById('vm-verse-card');
-    if (!card) return;
-    const btn = document.getElementById('vm-dl-btn');
-    btn.textContent = '處理中…'; btn.disabled = true;
-
+async function _captureVerseCard() {
+    const d = await _getVerse();
     if (typeof html2canvas === 'undefined') {
         await new Promise((ok, fail) => {
             const s = document.createElement('script');
             s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
             s.onload = ok; s.onerror = fail;
             document.head.appendChild(s);
-        }).catch(() => null);
-    }
-
-    try {
-        const canvas = await html2canvas(card, {
-            scale: 3, useCORS: true, backgroundColor: null, logging: false,
-            onclone(doc) {
-                doc.querySelectorAll('link[href*="googleapis"],link[href*="gstatic"]')
-                   .forEach(el => el.remove());
-                const st = doc.createElement('style');
-                st.textContent = '*{font-family:"PingFang TC","Microsoft JhengHei",serif!important}';
-                doc.head.appendChild(st);
-            }
         });
-        const dataUrl = canvas.toDataURL('image/png');
-        const mobile  = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-        if (mobile) {
-            document.getElementById('vm-save-img').src = dataUrl;
-            document.getElementById('vm-save-overlay').style.display = 'flex';
-        } else {
-            const a = document.createElement('a');
-            a.download = '今日經文祝福卡.png'; a.href = dataUrl; a.click();
-            btn.textContent = '已下載！';
-            setTimeout(() => { btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>存到手機'; btn.disabled = false; }, 2500);
-            return;
-        }
-    } catch(err) {
-        console.error('html2canvas error:', err);
-        showToast('儲存失敗，請截圖儲存', 'error');
     }
-    btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right:5px;vertical-align:-2px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>存到手機';
-    btn.disabled = false;
-}
-
-/* 分享經文卡（從 portal modal 直接分享） */
-async function shareVerseCard() {
-    const card = document.getElementById('vm-verse-card');
-    if (!card) return;
-    const btn = document.getElementById('vm-share-btn');
-    btn.textContent = '準備中…'; btn.disabled = true;
-
-    if (typeof html2canvas === 'undefined') {
-        await new Promise((ok, fail) => {
-            const s = document.createElement('script');
-            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-            s.onload = ok; s.onerror = fail;
-            document.head.appendChild(s);
-        }).catch(() => null);
-    }
-
+    const box = document.createElement('div');
+    box.style.cssText = 'position:fixed;left:-10000px;top:0;';
+    box.innerHTML = _verseCardHTML(d);
+    document.body.appendChild(box);
     try {
-        const canvas = await html2canvas(card, {
+        return await html2canvas(box.firstElementChild, {
             scale: 3, useCORS: true, backgroundColor: null, logging: false,
             onclone(doc) {
                 doc.querySelectorAll('link[href*="googleapis"],link[href*="gstatic"]').forEach(el => el.remove());
@@ -1657,19 +1404,44 @@ async function shareVerseCard() {
                 doc.head.appendChild(st);
             }
         });
+    } finally {
+        box.remove();
+    }
+}
 
+async function downloadVerseCard(btn) {
+    const label = btn.textContent;
+    btn.textContent = '處理中…'; btn.disabled = true;
+    try {
+        const dataUrl = (await _captureVerseCard()).toDataURL('image/png');
+        if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+            document.getElementById('vm-save-img').src = dataUrl;
+            document.getElementById('vm-save-overlay').style.display = 'flex';
+        } else {
+            const a = document.createElement('a');
+            a.download = '今日經文祝福卡.png'; a.href = dataUrl; a.click();
+        }
+    } catch (err) {
+        console.error('verse card capture error:', err);
+        showToast('儲存失敗，請截圖儲存', 'error');
+    } finally {
+        btn.textContent = label; btn.disabled = false;
+    }
+}
+
+async function shareVerseCard(btn) {
+    const label = btn.textContent;
+    btn.textContent = '準備中…'; btn.disabled = true;
+    try {
+        const canvas = await _captureVerseCard();
         const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
         const file = new File([blob], '今日經文祝福卡.png', { type: 'image/png' });
-        const verseText = _verseCache ? `「${_verseCache.verse.text}」— ${_verseCache.verse.ref}` : '今日經文祝福卡';
-
+        const verseText = `「${_verseCache.verse.text}」— ${_verseCache.verse.ref}`;
         if (navigator.canShare && navigator.canShare({ files: [file] })) {
             await navigator.share({ title: '今日經文祝福卡', text: verseText, files: [file] });
         } else {
-            // 不支援帶圖分享：自動下載 + toast 提示
             const a = document.createElement('a');
-            a.href = canvas.toDataURL('image/png');
-            a.download = '今日經文祝福卡.png';
-            a.click();
+            a.href = canvas.toDataURL('image/png'); a.download = '今日經文祝福卡.png'; a.click();
             const toast = document.getElementById('vm-share-toast');
             toast.style.display = 'block';
             setTimeout(() => { toast.style.display = 'none'; }, 3000);
@@ -1680,7 +1452,7 @@ async function shareVerseCard() {
             showToast('分享失敗，請使用「存到手機」再自行分享', 'error');
         }
     } finally {
-        btn.textContent = '📤 分享'; btn.disabled = false;
+        btn.textContent = label; btn.disabled = false;
     }
 }
 
