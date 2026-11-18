@@ -15,7 +15,7 @@
     </div>
 
     <!-- 新增同工表單 -->
-    <div id="add-staff-form" style="display:none; background:#eff6ff; border:1px solid #bfdbfe; border-radius:12px; padding:20px; margin-bottom:24px;">
+    <div id="add-staff-form" style="display:none; background:#fdf5ee; border:1px solid #e8d4c0; border-radius:12px; padding:20px; margin-bottom:24px;">
         <p style="font-weight:bold; margin:0 0 14px;">新增同工資料</p>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom:10px;">
             <div style="flex:2; min-width:160px;">
@@ -25,7 +25,7 @@
                     oninput="searchStaff(this.value)">
                 <div id="s-results" style="display:none; border:1px solid #ddd; border-radius:7px; background:white; max-height:160px; overflow-y:auto; margin-top:2px;"></div>
                 <input id="s-user-id" type="hidden">
-                <p id="s-selected" style="font-size:0.82rem; color:#1d4ed8; margin:4px 0 0;"></p>
+                <p id="s-selected" style="font-size:0.82rem; color:#7c4b3a; margin:4px 0 0;"></p>
             </div>
             <div style="flex:1; min-width:130px;">
                 <label style="font-size:0.8rem; color:#555; display:block; margin-bottom:4px;">入職日期</label>
@@ -80,7 +80,7 @@
         <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:8px;">
             <div>
                 <span style="font-weight:bold;">{{ r._user.get('real_name') or r._user.get('display_name') or '（未知）' }}</span>
-                <span style="margin-left:8px; background:#eff6ff; color:#1d4ed8; padding:2px 8px; border-radius:10px; font-size:0.78rem;">請假</span>
+                <span style="margin-left:8px; background:#fdf5ee; color:#7c4b3a; padding:2px 8px; border-radius:10px; font-size:0.78rem;">請假</span>
                 <span style="margin-left:6px; font-size:0.88rem; color:#555;">{{ leave_labels[r.leave_type] }} · {{ r.hours }}小時</span>
                 <p style="margin:4px 0 0; font-size:0.83rem; color:#888;">{{ r.start_date }} ～ {{ r.end_date }}{% if r.reason %} · {{ r.reason }}{% endif %}</p>
             </div>

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% block title %}後台管理{% endblock %}
 {% block content %}
+<div class="page-container" style="max-width:1200px;">
 
 <div class="page-header">
     <div class="page-header-left">
@@ -55,7 +56,7 @@
     {% if module_on('/admin/payments') %}
     <a href="/admin/payments" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">🧾</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">🧾</div>
             <div class="admin-card-name">收款對帳報表</div>
             <div class="admin-card-desc">付款明細、手續費估算、匯出 CSV</div>
         </div>
@@ -73,7 +74,7 @@
     {% if can_see('/admin/cell-groups') %}
     <a href="/admin/cell-groups" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">🏠</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">🏠</div>
             <div class="admin-card-name">牧養小組</div>
             <div class="admin-card-desc">建立週間小組、設定組長與組員（小組都在這裡）</div>
         </div>
@@ -150,7 +151,7 @@
     {% if can_see('/admin/courses') %}
     <a href="/admin/courses" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eff6ff; color:#1d6fe5;">📚</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#1d6fe5;">📚</div>
             <div class="admin-card-name">門訓課程</div>
             <div class="admin-card-desc">課程管理與出席追蹤</div>
         </div>
@@ -227,7 +228,7 @@
     {% if can_see('/admin/group-discussions') %}
     <a href="/admin/group-discussions" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">▶</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">▶</div>
             <div class="admin-card-name">小組討論</div>
             <div class="admin-card-desc">排程本週影片與討論問題</div>
         </div>
@@ -331,7 +332,7 @@
     {% if can_see('/admin/portal-cards/group-defaults') %}
     <a href="/admin/portal-cards/group-defaults" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">👥</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">👥</div>
             <div class="admin-card-name">首頁版面（依小組）</div>
             <div class="admin-card-desc">各小組首頁預設顯示哪些區塊與卡片</div>
         </div>
@@ -371,7 +372,7 @@
     {% if can_see('/admin/changelogs') %}
     <a href="/admin/changelogs" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eff6ff; color:#1d4ed8;">📋</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">📋</div>
             <div class="admin-card-name">更新日誌</div>
             <div class="admin-card-desc">發布系統更新通知給所有教會</div>
         </div>
@@ -437,4 +438,5 @@
     color: var(--text-3);
 }
 </style>
+</div>
 {% endblock %}

@@ -46,6 +46,8 @@ def create_app():
 
     app = Flask(__name__)
     app.config.from_object(Config)
+    # 樣式表網址帶版本：每次部署檔案時間不同，瀏覽器／LINE 內建瀏覽器才不會一直用快取的舊 main.css
+    app.jinja_env.globals['css_v'] = int(os.path.getmtime(os.path.join(app.static_folder, 'css', 'main.css')))
 
     # ── 核心模組（永遠啟用）────────────────────────────────────
     app.register_blueprint(auth_bp)
