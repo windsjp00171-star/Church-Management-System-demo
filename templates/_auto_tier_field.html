@@ -1,0 +1,77 @@
+{# 依生日自動判定 —— 三個報名入口共用這一份
+
+   ★ 值**不是在這裡算的**。前端把生日丟給 /event/<id>/compute-tier，
+     伺服器用 routes/auto_tier.py 算完回傳 —— 只有一份實作，
+     所以不可能出現「畫面說成人、存進去卻是敬老」。
+
+   ★★ 這一頁上**沒有一個字是寫死的類別名稱**。
+
+     原本寫死了三處：「你的身分別」、「特殊身分別（持有身心障礙證明者）」、
+     「當日請攜帶證明」。使用者一眼看出問題：換一場活動、換一種問法就全錯了 ——
+     這個欄位可能叫「票種」，而「自行申報」那一格可能是「工作人員」或
+     「清寒證明」，畫面卻還在講身心障礙。
+
+     機制本身是通用的：「有一個級距算不出來，只能由本人申報」。
+     所以文案一律從管理員的設定來：
+       欄位名稱   → field.label
+       申報項名稱 → auto_tier.special_label
+       補充提醒   → auto_tier.special_note（選填，沒填就不顯示） #}
+{% set _at = field.auto_tier or {} %}
+<div class="auto-tier" data-at-field="{{ field.id }}"
+     data-field-label="{{ field.label }}"
+     data-special-label="{{ _at.special_label or '' }}">
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:10px;
+                padding:13px 15px; background:var(--green-bg); border:1px solid var(--green-border);
+                border-radius:var(--radius); flex-wrap:wrap;">
+        {# 用欄位自己的名字。寫死「你的身分別」的話，欄位改叫「票種」時
+           畫面會問一個報名者從來沒看過的詞。 #}
+        <span style="font-size:0.9rem; color:var(--text-2); font-weight:600;">你的{{ field.label }}</span>
+        <span style="display:flex; align-items:baseline; gap:10px;">
+            <span class="at-value" style="font-size:1.1rem; font-weight:800; color:var(--text-1);">—</span>
+            <span class="at-price" style="font-size:1.1rem; font-weight:800; color:var(--green-ink);"></span>
+        </span>
+    </div>
+    {# 算不出來的時候一定要講原因。只留一個「—」的話，
+       報名者會以為系統壞了，而其實只是生日還沒填。 #}
+    <p class="at-note" style="margin:6px 0 0; font-size:0.9rem; color:var(--orange);">
+        請先填寫上面的出生日期，系統會自動判定。
+    </p>
+
+    {# ★ 「你勾的那一項比較貴，系統讓開了」——
+         這句話是伺服器組的（`auto_tier.decide` 的 note），不是這裡拼的：
+         裡面有類別名稱和價格，各拼一份的話兩邊遲早不一樣。
+
+         ★ 不能省。省掉的話他勾了那一格什麼都沒發生 ——
+           看起來就是「這個勾選框壞了」，而其實系統是在幫他省錢。 #}
+    <p class="at-cheaper" style="display:none; margin:6px 0 0; font-size:0.9rem;
+       color:var(--green-ink, var(--green-ink, #1a5e3e)); line-height:1.7;"></p>
+
+    {% if _at.special_label %}
+    {# 這一格是唯一保留給使用者勾的：它算不出來，只能本人申報。
+       標題就是管理員設的那個選項名稱 —— 不再自己加一層描述。 #}
+    <label style="display:flex; align-items:flex-start; gap:9px; margin-top:10px;
+                  padding:11px 14px; border:1px solid var(--border); border-radius:var(--radius);
+                  background:var(--surface); cursor:pointer;">
+        <input type="checkbox" class="at-special" onchange="refreshAutoTiers()"
+            style="width:17px; height:17px; accent-color:var(--green-ink, var(--green-ink, #1a5e3e)); flex-shrink:0; margin-top:1px;">
+        <span style="font-size:0.9rem; line-height:1.7;">
+            {{ _at.special_label }}
+            <span style="display:block; font-size:0.9rem; color:var(--text-3);">
+                這一項系統無法從生日判斷，符合的話請自己勾選。
+                {%- if _at.special_note %} <strong>{{ _at.special_note }}</strong>{% endif %}
+            </span>
+        </span>
+    </label>
+    {% endif %}
+
+    {% set _rules = auto_tier_describe(field_options(field.options), _at) %}
+    {% if _rules %}
+    <p class="at-rules" style="margin:7px 0 0; font-size:0.9rem; color:var(--text-4); line-height:1.7;">
+        判定方式：{{ _rules }}（以活動當日的年齡計算）
+    </p>
+    {% endif %}
+
+    {# ★ 真正被送出的東西。帶 data-field-id，所以收值邏輯不用改。 #}
+    <input type="hidden" class="at-hidden" data-field-id="{{ field.id }}"
+        {% if field.is_required %}data-required="true"{% endif %}>
+</div>

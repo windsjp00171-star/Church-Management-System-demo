@@ -1,6 +1,11 @@
+import logging
 # 管理員後台路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
+from image_kind import image_kind
+from config import Config
+from routes.audit import log_action
+from routes import cache as _cache
 from routes.decorators import admin_required, super_admin_required, staff_required
 import secrets
 import uuid
@@ -14,6 +19,25 @@ from datetime import datetime, timezone, timedelta
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
 
 _TW = timezone(timedelta(hours=8))
+
+
+def _is_protected_owner_target(user_id):
+    """目標是否為系統擁有者（line_user_id 在 ADMIN_LINE_USER_IDS），且操作者無權更動。
+    用途：防止展示帳號（或非擁有者超管）把系統擁有者降權 / 封鎖 / 刪除。
+    操作者本身就是真實擁有者時放行（擁有者可彼此管理）。
+    """
+    owner_ids = Config.ADMIN_LINE_USER_IDS
+    if not owner_ids:
+        return False
+    row = supabase.table('users').select('line_user_id').eq('id', user_id).execute().data
+    if not row:
+        return False
+    target_luid = row[0].get('line_user_id') or ''
+    if target_luid not in owner_ids:
+        return False
+    actor_luid = session.get('line_id') or ''
+    actor_is_owner = (not session.get('is_demo')) and actor_luid in owner_ids
+    return not actor_is_owner
 
 def _tw_to_utc(s):
     """datetime-local 表單值（台灣時間，無時區）→ UTC ISO 字串"""
@@ -117,9 +141,19 @@ def can_manage_event(event):
 @admin_bp.route('/')
 @admin_required
 def index():
-    """後台首頁"""
+    """後台首頁：卡片依權限矩陣（模塊）顯示"""
+    from routes.permissions import visible_index_modules, module_for_path
+    from routes.modules import module_on
+    visible = visible_index_modules(session)
+
+    def can_see(path):
+        if not module_on(path):               # 這間教會沒開這個功能
+            return False
+        mod = module_for_path(path)
+        return mod is None or mod in visible
+
     return render_template('admin/index.html',
-        has_finance_access=_has_finance_access())
+        has_finance_access=_has_finance_access(), can_see=can_see)
 
 
 @admin_bp.route('/calendar')
@@ -293,29 +327,36 @@ def create_manual_user():
     if not session.get('is_super_admin'):
         return jsonify({'error': '無權限'}), 403
     data = request.get_json() or {}
-    name = (data.get('real_name') or '').strip()
-    if not name:
-        return jsonify({'error': '請輸入姓名'}), 400
-    result = supabase.table('users').insert({
-        'real_name': name,
-        'display_name': name,
-        'member_type': data.get('member_type', 'member'),
-    }).execute()
-    if not result.data:
+    from routes.person import create_person
+    try:
+        kind, payload = create_person(data.get('real_name'), data.get('member_type', 'member'),
+                                      force=bool(data.get('force')))
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception:
         return jsonify({'error': '建立失敗'}), 500
-    return jsonify({'success': True, 'id': result.data[0]['id']})
+    if kind == 'duplicates':
+        return jsonify({'error': '系統裡已有疑似同一個人，請先確認', 'duplicates': payload}), 409
+    log_action('user.create', 'user', payload['id'], {'name': payload['real_name'], 'forced': bool(data.get('force')) or None})
+    return jsonify({'success': True, 'id': payload['id']})
 
 
 @admin_bp.route('/api/users/<user_id>/merge-line', methods=['POST'])
 @admin_required
 def merge_line_account(user_id):
-    """將 LINE 帳號整合到手動建立的帳號：複製 LINE 資料、移轉關聯紀錄、刪除舊帳號"""
+    """將 LINE 帳號整合到手動建立的帳號：複製 LINE 資料、移轉關聯紀錄、刪除舊帳號（失敗全部還原）"""
     if not session.get('is_super_admin'):
         return jsonify({'error': '無權限'}), 403
     data = request.get_json() or {}
     line_user_id = (data.get('line_user_id') or '').strip()
     if not line_user_id:
         return jsonify({'error': '請指定 LINE 帳號 ID'}), 400
+
+    # 保護系統擁有者：展示帳號 / 非擁有者不得整合（進而刪除）擁有者帳號
+    actor_luid = session.get('line_id') or ''
+    actor_is_owner = (not session.get('is_demo')) and actor_luid in Config.ADMIN_LINE_USER_IDS
+    if line_user_id in Config.ADMIN_LINE_USER_IDS and not actor_is_owner:
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     # 查目標帳號（手動帳號）
     target_res = supabase.table('users').select('*').eq('id', user_id).execute()
@@ -335,27 +376,28 @@ def merge_line_account(user_id):
     if old_id == user_id:
         return jsonify({'error': '不能與自己整合'}), 400
 
-    # 複製 LINE 資訊到手動帳號
-    supabase.table('users').update({
-        'line_user_id': line_user_id,
-        'display_name': line_acct.get('display_name') or target.get('display_name'),
-        'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
-    }).eq('id', user_id).execute()
+    # 搬移、失敗還原、刪帳號都在 user_merge（兩個合併流程共用同一份清單）
+    from routes.user_merge import merge_users, MergeError
+    identity_cols = ('line_user_id', 'display_name', 'picture_url')
+    try:
+        summary = merge_users(
+            keep_id=user_id, drop_id=old_id,
+            keep_before={c: target.get(c) for c in identity_cols},
+            drop_before={c: line_acct.get(c) for c in identity_cols},
+            new_identity={
+                'line_user_id': line_user_id,
+                'display_name': line_acct.get('display_name') or target.get('display_name'),
+                'picture_url': line_acct.get('picture_url') or target.get('picture_url'),
+            })
+    except MergeError as e:
+        log_action('user.merge_line_admin_failed', 'user', user_id,
+                   {'merged_from': old_id, 'error': e.message, 'rolled_back': e.rolled_back})
+        return jsonify({'error': e.message, 'rolled_back': e.rolled_back}), 500
 
-    # 移轉關聯紀錄
-    tables_to_migrate = [
-        'course_enrollments', 'registrations', 'session_attendance',
-        'notifications', 'prayers', 'prayer_reactions', 'prayer_comments', 'personal_events',
-    ]
-    for tbl in tables_to_migrate:
-        try:
-            supabase.table(tbl).update({'user_id': user_id}).eq('user_id', old_id).execute()
-        except Exception:
-            pass  # 若資料表不存在或欄位不同就跳過
-
-    # 刪除舊 LINE 帳號
-    supabase.table('users').delete().eq('id', old_id).execute()
-
+    log_action('user.merge_line_admin', 'user', user_id, {
+        'merged_from': old_id, 'line_user_id': line_user_id,
+        'moved': summary['moved'], 'duplicates_dropped': summary['duplicates_dropped'] or None,
+    })
     return jsonify({'success': True})
 
 
@@ -571,6 +613,8 @@ def toggle_admin(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能修改自己的權限'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_admin, is_super_admin, display_name')\
@@ -587,6 +631,8 @@ def toggle_admin(user_id):
     if not new_value:
         update['is_super_admin'] = False
     supabase.table('users').update(update).eq('id', user_id).execute()
+    log_action('user.set_admin' if new_value else 'user.remove_admin',
+               'user', user_id, {'name': result.data[0]['display_name']})
 
     return jsonify({
         'success': True,
@@ -604,6 +650,8 @@ def toggle_super_admin(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能修改自己的權限'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_admin, is_super_admin, display_name')\
@@ -620,6 +668,8 @@ def toggle_super_admin(user_id):
     if new_value:
         update['is_admin'] = True
     supabase.table('users').update(update).eq('id', user_id).execute()
+    log_action('user.set_super_admin' if new_value else 'user.remove_super_admin',
+               'user', user_id, {'name': result.data[0]['display_name']})
 
     return jsonify({
         'success': True,
@@ -637,6 +687,8 @@ def toggle_block_user(user_id):
         return jsonify({'error': '僅超級管理員可操作'}), 403
     if user_id == session.get('user_id'):
         return jsonify({'error': '不能封鎖自己'}), 400
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
 
     result = supabase.table('users')\
         .select('is_blocked, display_name')\
@@ -647,6 +699,8 @@ def toggle_block_user(user_id):
     current = result.data[0].get('is_blocked') or False
     new_value = not current
     supabase.table('users').update({'is_blocked': new_value}).eq('id', user_id).execute()
+    log_action('user.block' if new_value else 'user.unblock',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({
         'success': True,
         'is_blocked': new_value,
@@ -657,6 +711,35 @@ def toggle_block_user(user_id):
 # =====================
 # Demo 洽詢名單
 # =====================
+
+@admin_bp.route('/logs')
+@admin_required
+def audit_logs_page():
+    """稽核日誌查詢頁（超級管理員限定）"""
+    if not session.get('is_super_admin'):
+        return render_template('admin/forbidden.html'), 403
+    page = max(1, request.args.get('page', 1, type=int))
+    per_page = 50
+    action_filter = request.args.get('action', '').strip()
+
+    query = supabase.table('audit_logs').select('*', count='exact')\
+        .order('created_at', desc=True)
+    if action_filter:
+        query = query.eq('action', action_filter)
+    try:
+        result = query.range((page - 1) * per_page, page * per_page - 1).execute()
+        logs, total = result.data or [], result.count or 0
+    except Exception:
+        logging.getLogger(__name__).warning('稽核日誌查詢失敗（資料表可能尚未建立）', exc_info=True)
+        logs, total = [], 0
+    total_pages = max(1, (total + per_page - 1) // per_page)
+
+    from routes.audit import ACTION_LABELS
+    return render_template('admin/audit_logs.html',
+                           logs=logs, action_labels=ACTION_LABELS,
+                           action_filter=action_filter, page=page,
+                           total_pages=total_pages, total=total)
+
 
 @admin_bp.route('/contact-leads')
 @admin_required
@@ -817,11 +900,15 @@ def search_users_for_cell():
 def toggle_pastor(user_id):
     if not session.get('is_super_admin'):
         return jsonify({'error': '僅超級管理員可操作'}), 403
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
     result = supabase.table('users').select('is_pastor, display_name').eq('id', user_id).execute()
     if not result.data:
         return jsonify({'error': '找不到此用戶'}), 404
     new_value = not bool(result.data[0].get('is_pastor', False))
     supabase.table('users').update({'is_pastor': new_value}).eq('id', user_id).execute()
+    log_action('user.set_pastor' if new_value else 'user.remove_pastor',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({'success': True, 'is_pastor': new_value, 'display_name': result.data[0]['display_name']})
 
 
@@ -830,11 +917,15 @@ def toggle_pastor(user_id):
 def toggle_staff(user_id):
     if not session.get('is_super_admin'):
         return jsonify({'error': '僅超級管理員可操作'}), 403
+    if _is_protected_owner_target(user_id):
+        return jsonify({'error': '展示帳號無法變更系統擁有者'}), 403
     result = supabase.table('users').select('is_staff, display_name').eq('id', user_id).execute()
     if not result.data:
         return jsonify({'error': '找不到此用戶'}), 404
     new_value = not bool(result.data[0].get('is_staff', False))
     supabase.table('users').update({'is_staff': new_value}).eq('id', user_id).execute()
+    log_action('user.set_staff' if new_value else 'user.remove_staff',
+               'user', user_id, {'name': result.data[0]['display_name']})
     return jsonify({'success': True, 'is_staff': new_value, 'display_name': result.data[0]['display_name']})
 
 
@@ -888,12 +979,232 @@ def events():
     )
 
 
+from routes.admin_events import _apply_guardian_conditions  # noqa: E402
+from routes.setting_deps import entries as setting_deps_entries  # noqa: E402
+
+
+def external_form_warnings(event_data, fields):
+    """存檔後回給前端的提醒。**規則不在這裡** —— 在 `routes/setting_deps`。
+
+    ## 為什麼搬走
+
+    這一支原本自己實作「開了外部報名但沒有姓名／電話欄位」那兩條。
+    它是**唯一**被寫出來的依賴檢查，而系統其實有 11 條 ——
+    另外七條完全沒有人講。
+
+    一條一條補 `if` 的話，同一批規則會在四個地方各長一份：
+    引導式問答的分支、表單上的即時提示、存檔的檢查、小舟的回答。
+    所以規則收成一張註冊表，這裡只負責**在存檔後把它們念出來**。
+
+    ★ 名字保留不改：兩個呼叫端和它們的測試都認這個名字，
+      而這一次要換的是**規則放哪裡**，不是換介面。
+
+    ★ 只提醒，不擋存檔（監護人那條例外，它在 `_apply_guardian_conditions`
+      擋，也登記在註冊表裡）：活動常常編一半先存起來，
+      擋下來會把管理員卡在一個他還沒要處理的問題上。
+    """
+    from routes.setting_deps import messages
+    return messages('events', {
+        'event': event_data or {},
+        'fields': fields or [],
+        #  ★ 主標籤小組要先撈好 —— 註冊表的 predicate 是純的，
+        #    它不會自己去查資料庫（理由見那份模組的 docstring）。
+        'primary_groups': _primary_group_names_safe(),
+    })
+
+
+def _primary_group_names_safe():
+    """牧養小組名稱（routes/my_group.py）。查不到就回空的 —— 提醒壞掉不可以讓存檔一起壞。"""
+    try:
+        from routes import my_group
+        return my_group.names()
+    except Exception:
+        #  ★ 回空的話「沒有主標籤」那條會誤報一次。兩害相權：
+        #    誤報一句提醒 vs 整個活動存不進去 —— 前者輕得多。
+        return []
+
+
+
+#  引導式和空白表單走的是**同一支**建立端點（刻意的：伺服器端的驗證
+#  一條都不繞過）。代價是事後完全分不出一場活動是怎麼開出來的。
+#
+#  ★★ 而「分不出來」在這個專案是一件大事：最貴的失敗不是壞掉，
+#     是**「做了但沒人用」**，而它跟「壞了」在數據上長得一模一樣。
+#     沒有這個數字，要不要把引導式推到別的模組就只能用猜的。
+#
+#  ★ 只記兩件事：走哪條路，以及（引導式才有）他選了哪些用途 ——
+#    後者直接回答「用途清單漏了什麼」，那是設計時唯一沒有資料的地方。
+#
+#  ★ 這兩個 key **不會進 events 表**：`event_data` 是逐個欄位列出來的，
+#    多送的東西不會被寫進去（`test_the_marker_never_reaches_the_events_table`
+#    在守）。
+CREATED_VIA = ('guided', 'form')
+
+
+def _log_how_it_was_created(event_id, data):
+    """一場活動是走引導式還是空白表單開的。
+
+    ★★ 整個包在 try 裡。`log_action` 自己會吞資料庫的例外
+      （見 `routes/audit.py`），但**這裡自己算 detail 也會炸** ——
+      `data['fields']` 送上來是個數字的話 `len()` 就丟 TypeError，
+      於是一個純粹記錄用的東西把建立活動整個弄壞。
+
+      這不是推論，是測試抓到的：我原本寫「log_action 會吞，所以不用再包」，
+      而那句話只涵蓋了它裡面的那一段。
+    """
+    try:
+        via = data.get('created_via')
+        if via not in CREATED_VIA:
+            #  沒帶標記＝空白表單。★ 預設成 'form' 而不是 'unknown'：
+            #  舊的前端、或任何直接打 API 的，本來就都不是引導式。
+            via = 'form'
+        fields = data.get('fields')
+        detail = {'via': via,
+                  'fields': len(fields) if isinstance(fields, list) else None}
+        if via == 'guided':
+            uses = data.get('created_uses')
+            detail['uses'] = uses if isinstance(uses, list) else []
+        log_action('event.create', target_type='event', target_id=event_id,
+                   detail=detail)
+    except Exception:
+        #  記錄是加值的東西，壞掉不可以讓人開不了活動。
+        pass
+
+
+@admin_bp.route('/events/guided')
+@admin_required
+def guided_new_event():
+    """引導式開活動的那一頁。
+
+    ★ 這一支只是把「問句和選項」交給模板 —— 判斷一律在
+      `routes/guided.py`，畫面一個欄位都不自己拼。
+    """
+    from routes.guided import CUSTOM_TYPES, USES
+    from routes.field_types import FIELD_TYPES
+    return render_template(
+        'admin/event_guided.html',
+        uses=USES,
+        custom_types=[(t, FIELD_TYPES[t]) for t in CUSTOM_TYPES],
+        #  ★ 型別的中文名字只有一份（`routes/field_types`）——
+        #    頁面自己抄一份的話，加了新型別那一頁會顯示英文 key，
+        #    而畫面上只是「有一格看起來怪怪的」。
+        type_names=FIELD_TYPES)
+
+
+@admin_bp.route('/events/guided/draft', methods=['POST'])
+@admin_required
+def guided_draft():
+    """答案 → 草稿。**不建立任何東西。**
+
+    ## 為什麼是伺服器算
+
+    「要保平安險」要加身分證＋生日、兩個都設必填 —— 那是行為，
+    前端再寫一份的話就有兩個地方在決定「保險要哪些欄位」。
+
+    ## 為什麼不直接建立活動
+
+    使用者的規矩：系統做了六、七個推論，**沒攤開來看過就存的話，
+    他不知道自己有什麼、也不知道哪些是可以改的**。所以這一支只回草稿，
+    畫面上攤開讓他看，按下去才走既有的 `/admin/events/new`。
+
+    ★ 走既有那一支＝所有伺服器端的驗證一條都不繞過
+      （必填、身分證檢查碼、監護人要有生日、名額結算…）。
+      引導式自己開一條寫入路徑的話，那些檢查會少掉一份。
+    """
+    from routes.guided import build_draft
+    return jsonify(build_draft(request.get_json(silent=True) or {}))
+
+
+
+@admin_bp.route('/events/preview-tier', methods=['POST'])
+@admin_required
+def preview_tier():
+    """後台預覽的身分別試算 —— 用**表單上的草稿設定**，不是資料庫裡的。
+
+    ## 為什麼不能共用 /event/<id>/compute-tier
+
+    那一支的設定是從資料庫撈的。但按「預覽」的當下：
+
+      - 新建的活動根本還沒有 id
+      - 既有活動改過的設定還沒按儲存
+
+    用那一支的話，預覽算的是**舊設定**（或算不出來直接 return）——
+    而畫面完全正常，管理員以為自己驗過了。這正是預覽最不能出的錯：
+    它 certify 一個不存在的行為，比沒有預覽更糟。
+
+    ## ★ 判定邏輯還是只有一份
+
+    這裡只換「設定從哪裡來」，算的還是 routes/auto_tier.resolve ——
+    跟前台報名者跑的是同一支。自己在後台再算一份的話，症狀會是
+    「預覽說成人、實際報名算成敬老」，兩邊都看起來正常。
+
+    ★ 基準日由前端送（表單上的活動日期）—— 這裡沒有活動可以撈，
+      而且這支是 admin_required 的試算，不決定任何人的金額。
+    """
+    from routes.auto_tier import describe, is_enabled, resolve
+    from routes.event_fields import parse_options
+
+    data = request.get_json() or {}
+    basis = (data.get('basis') or '').strip() or None
+    birthday = (data.get('birthday') or '').strip() or None
+    event = {'event_start': basis}
+
+    tiers, rules = {}, {}
+    for f in (data.get('fields') or [])[:30]:
+        fid = str(f.get('id') or '')
+        if not fid or not is_enabled(f.get('auto_tier')):
+            continue
+        options = parse_options(f.get('options') or '')
+        label, age, note = resolve(f, options, birthday, event,
+                                   has_special=bool(f.get('special')))
+        price = next((o['price'] for o in options if o['label'] == label), None)
+        # 預覽要跟報名者看到的一模一樣 —— 包含「比較貴所以讓開」那句話
+        tiers[fid] = {'label': label, 'price': price, 'age': age, 'note': note}
+        # 判定方式那句話也走同一支 describe —— 預覽自己拼一份的話，
+        # 說明會跟實際規則各自演化
+        rules[fid] = describe(options, f.get('auto_tier'))
+    return jsonify({'tiers': tiers, 'rules': rules})
+
+
+@admin_bp.route('/events/check-deps', methods=['POST'])
+@admin_required
+def check_deps():
+    """表單上的即時提示 —— 拿**現在畫面上的草稿**去問註冊表。
+
+    ## 為什麼是伺服器算，不是前端自己判
+
+    這 11 條規則已經有一份實作了（`routes/setting_deps.py`）。前端再寫一份
+    的話，改了規則畫面上不會跟 —— 而兩邊都看起來正常，那正是這個專案
+    最貴的那一種 bug。所以前端只送草稿、只負責把回來的字放到對的位置。
+
+    ★ 送上來的形狀跟存檔那支**一模一樣**（前端共用同一個 `collectDraft()`）。
+      提示讀的值和存進去的值不一樣的話，提示會對著一個不存在的設定講話。
+
+    ## 為什麼不用 `/admin/events/preview-tier` 那種「只在按鈕按下時算」
+
+    這幾條的共同點是「設定完看起來是好的」。要等他按什麼才講的話，
+    多數情況他不會按 —— 他不知道有問題，為什麼要按。
+
+    ★ 這支**不寫任何東西**，也不需要活動 id（新建的活動還沒有 id）。
+    """
+    data = request.get_json(silent=True) or {}
+    fields = data.get('fields') or []
+    return jsonify({'deps': setting_deps_entries('events', {
+        'event': data,
+        'fields': fields[:100],
+        'primary_groups': _primary_group_names_safe(),
+    })})
+
+
 @admin_bp.route('/events/new', methods=['GET', 'POST'])
 @admin_required
 def event_new():
     """建立新活動"""
     if request.method == 'POST':
         data = request.get_json()
+
+        if data.get('checkin_mode') == 'open' and (data.get('whitelist_enabled') or data.get('waitlist_enabled')):
+            return jsonify({'error': '開放型簽到不能與「限定報名名單」或「候補名單」同時啟用'}), 400
 
         # 建立活動主體
         checkin_enabled = data.get('checkin_enabled', False)
@@ -929,25 +1240,38 @@ def event_new():
         except Exception as e:
             return jsonify({'error': f'建立失敗：{str(e)}'}), 500
         event_id = event_result.data[0]['id']
+        _log_how_it_was_created(event_id, data)
 
         # 建立自訂欄位
         try:
+            field = None  # except 要讀它；必須在 try 第一行綁好
             fields = data.get('fields', [])
-            for i, field in enumerate(fields):
-                if field.get('label'):
-                    supabase.table('event_fields').insert({
-                        'event_id': event_id,
-                        'label': field['label'],
-                        'field_type': field.get('field_type', 'text'),
-                        'options': field.get('options', ''),
-                        'is_required': field.get('is_required', False),
-                        'sort_order': i,
-                        'condition_json': field.get('condition_json') or None,
-                    }).execute()
+            guard_err = _apply_guardian_conditions(fields)
+            if guard_err:
+                return jsonify({'error': guard_err}), 400
+            # 只有有名字的欄位會存，編號也只能數這些：跳號的話跳題條件
+            # （存「畫面上第幾題」）會指到別題，而後台看起來設定正確。
+            _keep = [f for f in fields
+                     if f.get('label') and f.get('field_type') != 'group']
+            for i, field in enumerate(_keep):
+                supabase.table('event_fields').insert({
+                    'event_id': event_id,
+                    'label': field['label'],
+                    'field_type': field.get('field_type', 'text'),
+                    'options': field.get('options', ''),
+                    'is_required': field.get('is_required', False),
+                    'sort_order': i,
+                    'condition_json': field.get('condition_json') or None,
+                    'auto_tier': field.get('auto_tier') or None,
+                }).execute()
         except Exception as e:
-            return jsonify({'error': f'欄位建立失敗：{str(e)}'}), 500
+            # 資料庫 CHECK 約束擋下新型別時，換成一句能照著做的話
+            from routes.field_types import translate_db_error
+            hint = translate_db_error(e, (field or {}).get('field_type'))
+            return jsonify({'error': hint or f'欄位建立失敗：{str(e)}'}), 500
 
-        return jsonify({'success': True, 'event_id': event_id})
+        return jsonify({'success': True, 'event_id': event_id,
+                        'form_hints': external_form_warnings(event_data, fields)})
 
     return render_template('admin/event_form.html', event=None, fields=[])
 
@@ -965,6 +1289,9 @@ def event_edit(event_id):
 
     if request.method == 'POST':
         data = request.get_json()
+
+        if data.get('checkin_mode') == 'open' and (data.get('whitelist_enabled') or data.get('waitlist_enabled')):
+            return jsonify({'error': '開放型簽到不能與「限定報名名單」或「候補名單」同時啟用'}), 400
 
         checkin_enabled = data.get('checkin_enabled', False)
 
@@ -1011,12 +1338,17 @@ def event_edit(event_id):
         # 更新欄位：永不 hard delete，移除的欄位改為 is_archived=True
         # 這樣既有報名答案永遠不會消失，名單頁仍可顯示歷史答案
         try:
+            field = None  # except 要讀它；必須在 try 第一行綁好
             fields = data.get('fields', [])
+            guard_err = _apply_guardian_conditions(fields)
+            if guard_err:
+                return jsonify({'error': guard_err}), 400
             submitted_ids = set()
 
-            for i, field in enumerate(fields):
-                if not field.get('label'):
-                    continue
+            # 編號只數有名字的欄位（理由同 event_new）
+            _keep = [f for f in fields
+                     if f.get('label') and f.get('field_type') != 'group']
+            for i, field in enumerate(_keep):
                 fid = field.get('id') or None
                 field_payload = {
                     'event_id': event_id,
@@ -1026,6 +1358,7 @@ def event_edit(event_id):
                     'is_required': field.get('is_required', False),
                     'sort_order': i,
                     'condition_json': field.get('condition_json') or None,
+                    'auto_tier': field.get('auto_tier') or None,
                     'is_archived': False,  # 出現在提交中 = 使用中
                 }
                 if fid:
@@ -1046,9 +1379,12 @@ def event_edit(event_id):
                         .eq('id', ef['id']).execute()
 
         except Exception as e:
-            return jsonify({'error': f'欄位更新失敗：{str(e)}'}), 500
+            from routes.field_types import translate_db_error
+            hint = translate_db_error(e, (field or {}).get('field_type'))
+            return jsonify({'error': hint or f'欄位更新失敗：{str(e)}'}), 500
 
-        return jsonify({'success': True})
+        return jsonify({'success': True,
+                        'form_hints': external_form_warnings(event_data, fields)})
 
     event = _ev.data[0]
     # 編輯表單只顯示未封存的欄位（封存欄位不再讓管理員看到/編輯）
@@ -1092,6 +1428,7 @@ def event_clone(event_id):
             'is_required': f.get('is_required', False),
             'sort_order': f['sort_order'],
             'condition_json': f.get('condition_json'),
+            'auto_tier': f.get('auto_tier'),
         }).execute()
 
     return jsonify({'success': True, 'new_id': new_id})
@@ -1335,6 +1672,8 @@ def event_delete(event_id):
     except Exception as e:
         return jsonify({'error': f'刪除失敗：{str(e)}'}), 500
 
+    log_action('event.delete', 'event', event_id,
+               {'title': result.data[0].get('title')})
     return jsonify({'success': True})
 
 
@@ -1694,7 +2033,12 @@ def export_registrations(event_id):
         ]
         # 自訂欄位答案
         for field in fields:
-            row_data.append(answers.get(field['id'], ''))
+            value = answers.get(field['id'], '')
+            if field.get('field_type') == 'birthday' and value:
+                # 跟名冊同一支（routes.roc.to_roc）：生日存西元、給人和保險公司看的是民國
+                from routes.roc import to_roc
+                value = to_roc(value) or value
+            row_data.append(value)
 
         for col, value in enumerate(row_data, 1):
             ws.cell(row=row_idx, column=col, value=value)
@@ -1745,6 +2089,20 @@ def edit_registration(event_id, reg_id):
     if not reg.data:
         return jsonify({'error': '找不到此報名紀錄'}), 404
 
+    answers = data.get('answers', [])  # [{field_id, answer}]
+    if answers:
+        from routes.event import (_enforce_auto_tiers, _normalize_guardian_answers,
+                                  _reject_bad_id_numbers, _reject_missing_required)
+        ev = supabase.table('events').select('*').eq('id', event_id).execute().data
+        if ev:
+            _enforce_auto_tiers(ev[0], answers)
+        bad = _reject_bad_id_numbers(event_id, answers)
+        if not bad:
+            _normalize_guardian_answers(event_id, answers)
+            bad = ev and _reject_missing_required(ev[0], answers)
+        if bad:
+            return jsonify({'error': bad}), 400
+
     is_guest = not reg.data[0].get('user_id')
 
     # 外部報名才能改名字和電話
@@ -1758,7 +2116,6 @@ def edit_registration(event_id, reg_id):
             supabase.table('registrations').update(update_data).eq('id', reg_id).execute()
 
     # 補填 / 更新自訂欄位答案（先刪再寫，確保乾淨）
-    answers = data.get('answers', [])  # [{field_id, answer}]
     if answers:
         supabase.table('registration_answers').delete().eq('registration_id', reg_id).execute()
         for ans in answers:
@@ -1898,12 +2255,12 @@ def admin_verses():
 @admin_bp.route('/verses/upload-watermark', methods=['POST'])
 @admin_required
 def upload_verse_watermark():
-    import os, imghdr
+    import os
     f = request.files.get('image')
     if not f or not f.filename:
         return jsonify({'success': False, 'error': '請選擇圖片'})
     data = f.read()
-    if imghdr.what(None, data) not in ('png', 'jpeg', 'gif', 'webp'):
+    if image_kind(data) not in ('png', 'jpeg', 'gif', 'webp'):
         return jsonify({'success': False, 'error': '只接受 PNG / JPG / GIF / WebP'})
     dest = os.path.join(os.path.dirname(__file__), '..', 'static', 'img', 'lion.png')
     with open(dest, 'wb') as out:
@@ -1914,7 +2271,7 @@ def upload_verse_watermark():
 @admin_bp.route('/verses/upload-theme', methods=['POST'])
 @admin_required
 def upload_verse_theme():
-    import imghdr, time as _time
+    import time as _time
     name = (request.form.get('name') or '').strip()
     symbol = (request.form.get('symbol') or '✝').strip() or '✝'
     text_mode = request.form.get('text_mode', 'light')
@@ -1926,7 +2283,7 @@ def upload_verse_theme():
     if not f or not f.filename:
         return jsonify({'success': False, 'error': '請選擇圖片'})
     data = f.read()
-    fmt = imghdr.what(None, data)
+    fmt = image_kind(data)
     if fmt not in ('png', 'jpeg', 'webp'):
         return jsonify({'success': False, 'error': '只接受 PNG / JPG / WebP'})
     ext = 'jpg' if fmt == 'jpeg' else fmt
@@ -1946,6 +2303,7 @@ def upload_verse_theme():
         'symbol': symbol, 'text_mode': text_mode,
         'sort_order': next_order,
     }).execute().data[0]
+    _cache.bust('verse_custom_themes_active')
     return jsonify({'success': True, 'theme': row})
 
 
@@ -1958,8 +2316,9 @@ def delete_verse_custom_theme(theme_id):
             filename = row[0]['image_url'].split('verse-themes/')[-1].split('?')[0]
             supabase.storage.from_('verse-themes').remove([filename])
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     supabase.table('verse_custom_themes').delete().eq('id', theme_id).execute()
+    _cache.bust('verse_custom_themes_active')
     return jsonify({'success': True})
 
 
@@ -2037,6 +2396,7 @@ def admin_portal_link_new():
         'sort_order': next_order,
         'is_active': True,
     }).execute()
+    _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True, 'id': result.data[0]['id']})
 
 
@@ -2059,6 +2419,7 @@ def admin_portal_link_edit(link_id):
         'is_external': bool(data.get('is_external', True)),
         'is_active': bool(data.get('is_active', True)),
     }).eq('id', link_id).execute()
+    _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True})
 
 
@@ -2066,6 +2427,7 @@ def admin_portal_link_edit(link_id):
 @super_admin_required
 def admin_portal_link_delete(link_id):
     supabase.table('portal_links').delete().eq('id', link_id).execute()
+    _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True})
 
 
@@ -2079,6 +2441,7 @@ def reorder_portal_links():
         sort_order = item.get('sort_order')
         if link_id and sort_order is not None:
             supabase.table('portal_links').update({'sort_order': sort_order}).eq('id', link_id).execute()
+            _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True})
 
 
@@ -2138,7 +2501,7 @@ def upload_bulletin():
         try:
             supabase.storage.create_bucket('bulletins', options={'public': True})
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         supabase.storage.from_('bulletins').upload(
             filename, file_bytes, {'content-type': 'application/pdf'}
         )
@@ -2259,6 +2622,7 @@ def portal_card_settings_toggle():
         {'key': key, 'is_visible': visible},
         on_conflict='key'
     ).execute()
+    _cache.bust('portal_card_settings')
     return jsonify({'success': True, 'key': key, 'is_visible': visible})
 
 
@@ -2271,6 +2635,7 @@ def portal_link_toggle(link_id):
     data = request.get_json(silent=True) or {}
     active = bool(data.get('is_active', True))
     supabase.table('portal_links').update({'is_active': active}).eq('id', link_id).execute()
+    _cache.bust('portal_links_active', 'portal_links_all')
     return jsonify({'success': True, 'is_active': active})
 
 
@@ -2288,6 +2653,7 @@ _PORTAL_CARDS_DEFAULT = [
     {'key': 'cell_report',  'name': '小組回報',  'emoji': '👥', 'subtitle': '填寫本週小組聚會回報',   'url': '/cell-report/portal',           'visible_to': 'cell_leader', 'is_active': True, 'sort_order': 90},
     {'key': 'pastor_report','name': '牧者查閱',  'emoji': '📊', 'subtitle': '查看各小組回報與統計',   'url': '/cell-report/pastor-dashboard', 'visible_to': 'pastor',      'is_active': True, 'sort_order': 100},
     {'key': 'staff_report', 'name': '同工查閱',  'emoji': '📋', 'subtitle': '各區小組回報總覽',       'url': '/cell-report/staff-dashboard',  'visible_to': 'staff',       'is_active': True, 'sort_order': 110},
+    {'key': 'roll_call',    'name': '聚會點名',  'emoji': '✅', 'subtitle': '主日與各聚會的點名單',   'url': '/roll-call',                    'visible_to': 'staff',       'is_active': True, 'sort_order': 115},
     {'key': 'pastor_diary', 'name': '查閱日記',  'emoji': '🔍', 'subtitle': '已授權的會友日記',       'url': '/diary/pastor',                 'visible_to': 'pastor',      'is_active': True, 'sort_order': 120},
     {'key': 'files',        'name': '檔案管理',  'emoji': '📁', 'subtitle': '教會資料夾與檔案',       'url': '/files',                        'visible_to': 'admin',       'is_active': True, 'sort_order': 130},
     {'key': 'admin',        'name': '後台管理',  'emoji': '⚙️', 'subtitle': '使用者、活動、系統設定', 'url': '/admin',                        'visible_to': 'admin',       'is_active': True, 'sort_order': 140},
@@ -2329,6 +2695,7 @@ INSERT INTO portal_cards (key, name, emoji, subtitle, url, visible_to, sort_orde
   ('cell_report', '小組回報', '👥', '填寫本週小組聚會回報', '/cell-report/portal', 'cell_leader', 90),
   ('pastor_report', '牧者查閱', '📊', '查看各小組回報與統計', '/cell-report/pastor-dashboard', 'pastor', 100),
   ('staff_report', '同工查閱', '📋', '各區小組回報總覽', '/cell-report/staff-dashboard', 'staff', 110),
+  ('roll_call', '聚會點名', '✅', '主日與各聚會的點名單', '/roll-call', 'staff', 115),
   ('pastor_diary', '查閱日記', '🔍', '已授權的會友日記', '/diary/pastor', 'pastor', 120),
   ('files', '檔案管理', '📁', '教會資料夾與檔案', '/files', 'admin', 130),
   ('admin', '後台管理', '⚙️', '使用者、活動、系統設定', '/admin', 'admin', 140)
@@ -2343,7 +2710,7 @@ def _load_portal_cards_from_db():
         if rows:
             return rows, True
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return _PORTAL_CARDS_DEFAULT, False
 
 
@@ -2376,6 +2743,7 @@ def update_portal_card(key):
         return jsonify({'error': '無有效欄位'}), 400
     try:
         supabase.table('portal_cards').update(payload).eq('key', key).execute()
+        _cache.bust('portal_cards')
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2394,6 +2762,7 @@ def reorder_portal_cards():
             supabase.table('portal_cards')\
                 .update({'sort_order': item['sort_order']})\
                 .eq('key', item['key']).execute()
+            _cache.bust('portal_cards')
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -2417,16 +2786,8 @@ def portal_group_defaults():
         {'key': 'weekly_info',           'label': '本週資訊',         'emoji': '📰'},
     ]
 
-    try:
-        users_data = supabase.table('users').select('group_tags').execute().data or []
-        all_tags = set()
-        for u in users_data:
-            for t in (u.get('group_tags') or []):
-                if t:
-                    all_tags.add(t)
-        group_tags = sorted(all_tags)
-    except Exception:
-        group_tags = []
+    from routes import my_group
+    group_tags = my_group.names()          # 依牧養小組（首頁那邊也是用牧養小組找預設）
 
     try:
         portal_cards = supabase.table('portal_cards').select('key,name,emoji,subtitle')\
@@ -2846,6 +3207,6 @@ def files_admin_delete(file_id):
     try:
         r2_delete(file_key)
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     supabase.table('files').delete().eq('id', file_id).execute()
     return jsonify({'success': True})

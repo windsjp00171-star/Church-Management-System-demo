@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+{% block title %}權限矩陣{% endblock %}
+{% block content %}
+<div style="max-width:1100px; margin:0 auto; padding:16px 16px 60px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:8px;">
+    <h2 style="margin:0;">🔐 後台權限矩陣</h2>
+    <div style="display:flex; gap:8px;">
+      <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:8px 16px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer;">？ 教學</button>
+      <a href="/admin" style="padding:8px 16px; background:#f3f4f6; border:1px solid #e5e7eb; border-radius:8px; text-decoration:none; color:#4b5563;">← 返回後台</a>
+    </div>
+  </div>
+  <p style="color:#4b5563; line-height:1.7; margin:0 0 16px;">
+    勾選每個<strong>副標籤（服事身份）</strong>能進入的後台功能。會友被貼上對應副標籤，就取得那些功能的權限。<br>
+    <span style="color:#b45309;">※ 僅超級管理員可調整。變更後，受影響的人需<strong>重新登入</strong>才會生效。沒有被勾選的後台功能一律進不去。</span>
+  </p>
+
+  {% if not sub_groups %}
+  <div style="background:#fffbeb; border:1px solid #fcd34d; border-radius:12px; padding:16px; color:#92400e;">
+    目前沒有任何副標籤。請先到「小組管理」新增副標籤（服事團隊），它們才會出現在這裡的欄位。
+  </div>
+  {% else %}
+  <div data-tour="matrix" style="overflow-x:auto; background:#fff; border-radius:12px; box-shadow:0 2px 10px rgba(0,0,0,.07); padding:4px;">
+    <table style="border-collapse:collapse; width:100%; min-width:560px;">
+      <thead>
+        <tr>
+          <th style="position:sticky; left:0; background:#f9fafb; text-align:left; padding:12px 14px; border-bottom:2px solid #e5e7eb; min-width:170px;">功能＼副標籤</th>
+          {% for g in sub_groups %}
+          <th style="padding:12px 8px; border-bottom:2px solid #e5e7eb; white-space:nowrap; text-align:center;">{{ g.name }}{% if g.is_staff %}<div style="font-size:.8rem; color:#047857;">⚙️同工</div>{% endif %}</th>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+        {% for key, label, _prefixes in modules %}
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="position:sticky; left:0; background:#fff; padding:10px 14px; font-weight:600; white-space:nowrap;">{{ label }}</td>
+          {% for g in sub_groups %}
+          <td style="text-align:center; padding:8px;">
+            <input type="checkbox" class="perm-cb" aria-label="{{ g.name }}：{{ label }}"
+                   data-group="{{ g.id }}" data-module="{{ key }}"
+                   {% if key in (g.admin_modules or []) %}checked{% endif %}
+                   style="width:20px; height:20px; cursor:pointer;">
+          </td>
+          {% endfor %}
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <div style="display:flex; gap:12px; align-items:center; margin-top:20px;">
+    <button type="button" id="save-btn" data-tour="save" onclick="savePermissions()"
+            style="padding:12px 28px; background:#4F46E5; color:#fff; border:none; border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer;">💾 儲存權限</button>
+    <span id="save-status" role="status" style="color:#4b5563;"></span>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/tour.js"></script>
+<script>
+function startTour() {
+  RollTour.start([
+    { target: 'matrix', text: '每一欄是一個副標籤（服事身份），每一列是一項後台功能。勾起來，這個身份的人就能進那個功能。沒勾的一律進不去。' },
+    { target: 'save', text: '勾好後按這裡儲存。受影響的人需要重新登入才會生效。' },
+    { target: 'help-btn', text: '隨時可以回來重看這個教學。' }
+  ]);
+}
+
+const MATRIX_GROUPS = {{ sub_groups|map(attribute='id')|list|tojson }};
+function savePermissions() {
+  var matrix = {};
+  MATRIX_GROUPS.forEach(function (id) { matrix[id] = []; });
+  document.querySelectorAll('.perm-cb').forEach(function (cb) {
+    if (cb.checked) matrix[cb.dataset.group].push(cb.dataset.module);
+  });
+  var btn = document.getElementById('save-btn'), status = document.getElementById('save-status');
+  if (btn.disabled) return;                         // 連點保護
+  btn.disabled = true; btn.textContent = '儲存中…';
+  fetch('/admin/permissions/save', {      // CSRF 由 base.html 的 fetch 包裝自動帶上
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ matrix: matrix })
+  }).then(function (r) { return r.json(); }).then(function (d) {
+    btn.disabled = false; btn.textContent = '💾 儲存權限';
+    if (d.error) { status.style.color = '#b91c1c'; status.textContent = d.error; return; }
+    status.style.color = '#047857'; status.textContent = '✅ 已儲存（受影響的人需重新登入才生效）';
+  }).catch(function () {
+    btn.disabled = false; btn.textContent = '💾 儲存權限';
+    status.style.color = '#b91c1c'; status.textContent = '儲存失敗，請重試';
+  });
+}
+</script>
+{% endblock %}

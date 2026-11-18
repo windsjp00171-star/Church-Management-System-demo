@@ -1,9 +1,128 @@
+import logging
 # 會員個人資料路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, current_app, flash
 from db import supabase
-from routes.decorators import login_required
+from routes.decorators import login_required, admin_required
 
 profile_bp = Blueprint('profile', __name__)
+
+
+def _find_merge_candidate(real_name, group_tags, current_user_id):
+    """找「可能就是他本人、但還沒綁 LINE」的既有帳號（自助合併偵測用）。
+
+    兩種情況都算（姓名都要相同）：
+    1. 至少一個標籤相同 —— 管理員先手動建檔時有勾標籤；
+    2. 這個帳號**在點名名冊上**（rc_members.user_id）—— 點名單「加入新朋友」建的空殼帳號沒有標籤，
+       不認這一種的話，新朋友之後用 LINE 註冊只會變成第二個帳號，要管理員手動合併。
+    ★ 這只是「提出候選」，本人要按確認；合併時伺服器只接受這裡提出的那一個（_offer_merge）。
+    回傳候選帳號 row 或 None。候選若已綁 LINE 則由呼叫端引導聯繫管理員。
+    """
+    if not real_name:
+        return None
+    try:
+        candidates = supabase.table('users')\
+            .select('id, real_name, line_user_id, group_tags')\
+            .eq('real_name', real_name)\
+            .neq('id', current_user_id)\
+            .execute().data or []
+    except Exception:
+        logging.getLogger(__name__).warning('合併候選查詢失敗', exc_info=True)
+        return None
+    if not candidates:
+        return None
+    for c in candidates:
+        if group_tags and set(c.get('group_tags') or []) & set(group_tags):
+            return c
+    try:
+        on_roster = {r['user_id'] for r in (supabase.table('rc_members').select('user_id')
+                     .in_('user_id', [c['id'] for c in candidates]).execute().data or []) if r.get('user_id')}
+    except Exception:
+        logging.getLogger(__name__).warning('點名名冊查詢失敗', exc_info=True)
+        return None
+    for c in candidates:
+        if c['id'] in on_roster and not c.get('line_user_id'):
+            return c
+    return None
+
+
+def _offer_merge(candidate):
+    """把「這是你嗎？」的候選帳號記在**伺服器端的 session**，再交給畫面。
+
+    ★ 安全：合併時只接受伺服器自己提出過的那一個帳號（`merge_confirm` 比對 session）。
+      以前只看瀏覽器送來的 candidate_id —— 任何登入的人改掉那個編號，就能把自己併進任何一個
+      還沒綁 LINE 的空殼帳號，接手那個人的報名、點名、讀經紀錄。
+    """
+    session['merge_offer'] = candidate['id']
+    return jsonify({
+        'needs_merge': True,
+        'candidate_id': candidate['id'],
+        'candidate_name': candidate['real_name'],
+        'candidate_tags': candidate.get('group_tags') or [],
+    })
+
+
+def _request_cell_group(uid, group_id, name=None):
+    """申請加入牧養小組（待管理員確認）。個人資料頁與第一次登入共用。回 (dict, http 狀態)。"""
+    try:
+        group_id = (group_id or '').strip()
+        if not group_id:
+            return {'error': '請選擇小組'}, 400
+
+        # 確認小組存在
+        grp = supabase.table('cell_groups').select('id, name').eq('id', group_id).eq('is_active', True).execute().data
+        if not grp:
+            return {'error': '找不到此小組'}, 404
+
+        # 取得使用者姓名
+        name = name or session.get('real_name') or session.get('display_name') or '未命名'
+
+        # 若已有相同姓名＋小組的記錄，直接回傳（不依賴 user_id 欄位）
+        existing = supabase.table('cell_members').select('id, is_confirmed')\
+            .eq('group_id', group_id).eq('name', name).eq('is_active', True).execute().data
+        if existing:
+            status = '已在此小組' if existing[0].get('is_confirmed', True) else '申請已送出，等待管理員確認'
+            return {'success': True, 'message': status}, 200
+
+        # 建立待確認記錄，依序嘗試最完整到最精簡的欄位組合
+        base_payload = {'group_id': group_id, 'name': name, 'is_active': True}
+        inserted = False
+        for payload in [
+            {**base_payload, 'user_id': uid, 'is_confirmed': False},
+            {**base_payload, 'is_confirmed': False},
+            base_payload,
+        ]:
+            try:
+                supabase.table('cell_members').insert(payload).execute()
+                inserted = True
+                break
+            except Exception:
+                continue
+        if not inserted:
+            return {'error': '寫入資料庫失敗，請聯絡管理員'}, 200
+
+        # 通知管理員
+        try:
+            admins = supabase.table('users').select('id')\
+                .eq('is_super_admin', True).execute().data or []
+            if not admins:
+                admins = supabase.table('users').select('id')\
+                    .eq('is_admin', True).execute().data or []
+            if admins:
+                from routes.notifications import batch_notify
+                batch_notify(
+                    user_ids=[a['id'] for a in admins],
+                    title=f'📋 小組申請 — {name}',
+                    body=f'申請加入「{grp[0]["name"]}」，請至小組管理頁面確認。',
+                    type='cell_group',
+                    link='/admin/cell-groups',
+                )
+        except Exception as e:
+            print(f'[profile] notify error: {e}')
+
+        return {'success': True, 'message': '申請已送出，等待管理員確認'}, 200
+    except Exception as e:
+        print(f'[profile] request_cell_group error: {e}')
+        return {'error': str(e)}, 200
 
 
 @profile_bp.route('/onboarding', methods=['GET', 'POST'])
@@ -25,6 +144,15 @@ def onboarding():
             member_type = 'member'
 
         tags = [t for t in data.get('group_tags', []) if t] if member_type == 'member' else []
+
+        # 自助合併偵測：管理員先手動建檔（同名＋同小組、無 LINE）的情境
+        if not data.get('merge_confirmed'):     # 會友與訪客都要偵測（點名建的空殼帳號是訪客、沒有標籤）
+            candidate = _find_merge_candidate(real_name, tags, session['user_id'])
+            if candidate:
+                if candidate.get('line_user_id'):
+                    return jsonify({'needs_contact_admin': True})
+                return _offer_merge(candidate)
+
         supabase.table('users').update({
             'real_name': real_name,
             'group_tags': tags,
@@ -34,14 +162,84 @@ def onboarding():
         session['real_name']   = real_name
         session['member_type'] = member_type
         session['group_tags']  = tags
+        if member_type == 'member' and data.get('cell_group_id'):
+            out, _code = _request_cell_group(session['user_id'], data['cell_group_id'], real_name)
+            if out.get('error'):
+                logging.getLogger(__name__).warning('第一次登入申請小組失敗：%s', out['error'])
 
         next_url = session.pop('next_url', None) or url_for('event.portal')
         return jsonify({'success': True, 'next': next_url})
 
     # 撈小組清單（含 is_primary 供 template 分區顯示）
-    groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
+    groups = supabase.table('groups').select('name, is_primary').eq('is_primary', False)\
+        .order('sort_order').execute().data or []          # 只剩服事團隊；小組改選牧養小組
+    try:
+        cell_groups = supabase.table('cell_groups').select('id, name').eq('is_active', True).order('name').execute().data or []
+    except Exception:                                    # noqa: BLE001
+        cell_groups = []
     church_name = current_app.jinja_env.globals.get('church_name', '教會')
-    return render_template('onboarding.html', groups=groups, church_name=church_name)
+    return render_template('onboarding.html', groups=groups, cell_groups=cell_groups, church_name=church_name)
+
+
+@profile_bp.route('/profile/merge-confirm', methods=['POST'])
+@login_required
+def merge_confirm():
+    """會友自助合併：把新 LINE 帳號的身份移入既有手動帳號，刪除新帳號。"""
+    data = request.get_json() or {}
+    old_id = (data.get('candidate_id') or '').strip()   # 手動帳號（保留方）
+    if not old_id:
+        return jsonify({'error': '缺少目標帳號 ID'}), 400
+    new_id = session['user_id']                          # 新 LINE 帳號（刪除方）
+    if old_id == new_id:
+        return jsonify({'error': '不能與自己合併'}), 400
+    # ★ 只接受系統剛剛提出的那一個候選帳號（見 _offer_merge）；不信任瀏覽器送來的編號
+    if session.get('merge_offer') != old_id:
+        from routes.audit import log_action
+        log_action('user.merge_line_self_refused', 'user', old_id, {'requested_by': new_id})
+        return jsonify({'error': '這個合併不是系統提出的，請重新填寫一次資料'}), 403
+
+    old_rows = supabase.table('users').select('*').eq('id', old_id).execute().data
+    if not old_rows:
+        return jsonify({'error': '找不到目標帳號'}), 404
+    old_user = old_rows[0]
+    if old_user.get('line_user_id'):
+        return jsonify({'error': '該帳號已綁定其他 LINE，請聯繫管理員'}), 400
+
+    new_rows = supabase.table('users').select('*').eq('id', new_id).execute().data
+    if not new_rows:
+        return jsonify({'error': '找不到目前帳號'}), 404
+    new_user = new_rows[0]
+
+    # 搬移、失敗還原、刪帳號都在 user_merge（兩個合併流程共用同一份清單）
+    from routes.user_merge import merge_users, MergeError
+    identity_cols = ('line_user_id', 'display_name', 'picture_url')
+    saved_line_user_id = new_user.get('line_user_id')
+    try:
+        summary = merge_users(
+            keep_id=old_id, drop_id=new_id,
+            keep_before={c: old_user.get(c) for c in identity_cols},
+            drop_before={c: new_user.get(c) for c in identity_cols},
+            new_identity={c: new_user.get(c) for c in identity_cols})
+    except MergeError as e:
+        from routes.audit import log_action
+        log_action('user.merge_line_self_failed', 'user', old_id,
+                   {'merged_from': new_id, 'error': e.message, 'rolled_back': e.rolled_back})
+        return jsonify({'error': e.message, 'rolled_back': e.rolled_back}), 500
+
+    session.pop('merge_offer', None)                     # 用過就失效，不能拿同一個提議再合併一次
+    # ⑤ session 改指向保留帳號（重新載入全部角色旗標）
+    merged = supabase.table('users').select('*').eq('id', old_id).execute().data[0]
+    from routes.auth import _populate_session
+    _populate_session(merged)
+
+    from routes.audit import log_action
+    log_action('user.merge_line_self', 'user', old_id, {
+        'merged_from': new_id, 'line_user_id': saved_line_user_id,
+        'moved': summary['moved'], 'duplicates_dropped': summary['duplicates_dropped'] or None,
+    })
+
+    next_url = session.pop('next_url', None) or url_for('event.portal')
+    return jsonify({'success': True, 'next': next_url})
 
 
 @profile_bp.route('/profile/setup', methods=['GET', 'POST'])
@@ -59,6 +257,15 @@ def setup():
             member_type = 'member'
 
         tags = [t for t in data.get('group_tags', []) if t] if member_type == 'member' else []
+
+        # 自助合併偵測（與 onboarding 相同邏輯）
+        if not data.get('merge_confirmed'):     # 會友與訪客都要偵測（點名建的空殼帳號是訪客、沒有標籤）
+            candidate = _find_merge_candidate(real_name, tags, session['user_id'])
+            if candidate:
+                if candidate.get('line_user_id'):
+                    return jsonify({'needs_contact_admin': True})
+                return _offer_merge(candidate)
+
         supabase.table('users').update({
             'real_name': real_name,
             'group_tags': tags,
@@ -68,13 +275,22 @@ def setup():
         session['real_name']    = real_name
         session['member_type']  = member_type
         session['group_tags']   = tags
+        if member_type == 'member' and data.get('cell_group_id'):
+            out, _code = _request_cell_group(session['user_id'], data['cell_group_id'], real_name)
+            if out.get('error'):
+                logging.getLogger(__name__).warning('第一次登入申請小組失敗：%s', out['error'])
 
         next_url = session.pop('next_url', None) or url_for('event.portal')
         return jsonify({'success': True, 'next': next_url})
 
     # 撈小組清單（含 is_primary 供 template 分區顯示）
-    groups = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
-    return render_template('profile/setup.html', groups=groups)
+    groups = supabase.table('groups').select('name, is_primary').eq('is_primary', False)\
+        .order('sort_order').execute().data or []          # 只剩服事團隊；小組改選牧養小組
+    try:
+        cell_groups = supabase.table('cell_groups').select('id, name').eq('is_active', True).order('name').execute().data or []
+    except Exception:                                    # noqa: BLE001
+        cell_groups = []
+    return render_template('profile/setup.html', groups=groups, cell_groups=cell_groups)
 
 
 @profile_bp.route('/profile', methods=['GET', 'POST'])
@@ -88,66 +304,8 @@ def edit():
 
         # ── 申請加入牧養小組 ────────────────────────────────────
         if action == 'request_cell_group':
-            try:
-                group_id = (data.get('cell_group_id') or '').strip()
-                if not group_id:
-                    return jsonify({'error': '請選擇小組'}), 400
-
-                # 確認小組存在
-                grp = supabase.table('cell_groups').select('id, name').eq('id', group_id).eq('is_active', True).execute().data
-                if not grp:
-                    return jsonify({'error': '找不到此小組'}), 404
-
-                # 取得使用者姓名
-                name = session.get('real_name') or session.get('display_name') or '未命名'
-
-                # 若已有相同姓名＋小組的記錄，直接回傳（不依賴 user_id 欄位）
-                existing = supabase.table('cell_members').select('id, is_confirmed')\
-                    .eq('group_id', group_id).eq('name', name).eq('is_active', True).execute().data
-                if existing:
-                    status = '已在此小組' if existing[0].get('is_confirmed', True) else '申請已送出，等待管理員確認'
-                    return jsonify({'success': True, 'message': status})
-
-                # 建立待確認記錄，依序嘗試最完整到最精簡的欄位組合
-                base_payload = {'group_id': group_id, 'name': name, 'is_active': True}
-                inserted = False
-                for payload in [
-                    {**base_payload, 'user_id': uid, 'is_confirmed': False},
-                    {**base_payload, 'is_confirmed': False},
-                    base_payload,
-                ]:
-                    try:
-                        supabase.table('cell_members').insert(payload).execute()
-                        inserted = True
-                        break
-                    except Exception:
-                        continue
-                if not inserted:
-                    return jsonify({'error': '寫入資料庫失敗，請聯絡管理員'})
-
-                # 通知管理員
-                try:
-                    admins = supabase.table('users').select('id')\
-                        .eq('is_super_admin', True).execute().data or []
-                    if not admins:
-                        admins = supabase.table('users').select('id')\
-                            .eq('is_admin', True).execute().data or []
-                    if admins:
-                        from routes.notifications import batch_notify
-                        batch_notify(
-                            user_ids=[a['id'] for a in admins],
-                            title=f'📋 小組申請 — {name}',
-                            body=f'申請加入「{grp[0]["name"]}」，請至小組管理頁面確認。',
-                            type='cell_group',
-                            link='/admin/cell-groups',
-                        )
-                except Exception as e:
-                    print(f'[profile] notify error: {e}')
-
-                return jsonify({'success': True, 'message': '申請已送出，等待管理員確認'})
-            except Exception as e:
-                print(f'[profile] request_cell_group error: {e}')
-                return jsonify({'error': str(e)})
+            out, code = _request_cell_group(uid, data.get('cell_group_id'))
+            return jsonify(out), code
 
         # ── 儲存一般個人資料 ────────────────────────────────────
         real_name = data.get('real_name', '').strip()
@@ -194,7 +352,7 @@ def edit():
             my_cell_group_id = my_cell[0]['group_id']
             my_cell_confirmed = my_cell[0]['is_confirmed']
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     pastors = []
     granted_map = {}
@@ -204,7 +362,7 @@ def edit():
         granted_ids = sb_get_owner_grants(session.get('line_id', ''))
         granted_map = {pid: True for pid in granted_ids}
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return render_template('profile/edit.html',
         user=user, groups=groups,
@@ -277,7 +435,7 @@ def homepage_settings():
                     hidden_keys = group_hidden_keys
                     break
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # Sort cards by user order
     if order:
@@ -304,11 +462,9 @@ def homepage_settings_reset():
 
 
 @profile_bp.route('/admin/api/users/<user_id>/profile', methods=['POST'])
-@login_required
+@admin_required
 def admin_edit_profile(user_id):
-    """後台管理員修改任意用戶資料"""
-    if not session.get('is_admin'):
-        return jsonify({'error': '權限不足'}), 403
+    """後台管理員（或被授權「會友管理」的副標籤）修改任意用戶資料"""
     data = request.get_json() or {}
     member_type = data.get('member_type', 'member')
     if member_type not in ('member', 'visitor'):

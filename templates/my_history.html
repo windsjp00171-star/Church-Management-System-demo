@@ -283,23 +283,25 @@ function switchTab(tab) {
 }
 
 function markAnswered(prayerId, btn) {
-    if (!confirm('確定標記這則代禱已蒙應允？感謝神的恩典 ✨')) return;
-    btn.disabled = true;
-    fetch(`/prayer/${prayerId}/answered`, { method: 'POST' })
-        .then(r => r.json()).then(d => {
-            if (d.success) location.reload();
-            else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; }
-        });
+    openConfirm('確定標記這則代禱已蒙應允？感謝神的恩典 ✨', () => {
+        btn.disabled = true;
+        fetch(`/prayer/${prayerId}/answered`, { method: 'POST' })
+            .then(r => r.json()).then(d => {
+                if (d.success) location.reload();
+                else { showToast(d.error || '操作失敗', 'error'); btn.disabled = false; }
+            });
+    });
 }
 
 function deletePrayer(prayerId, btn) {
-    if (!confirm('確定刪除這則代禱事項？')) return;
-    btn.disabled = true;
-    fetch(`/prayer/${prayerId}/delete`, { method: 'POST' })
-        .then(r => r.json()).then(d => {
-            if (d.success) location.reload();
-            else { showToast(d.error || '刪除失敗', 'error'); btn.disabled = false; }
-        });
+    openConfirm('確定刪除這則代禱事項？', () => {
+        btn.disabled = true;
+        fetch(`/prayer/${prayerId}/delete`, { method: 'POST' })
+            .then(r => r.json()).then(d => {
+                if (d.success) location.reload();
+                else { showToast(d.error || '刪除失敗', 'error'); btn.disabled = false; }
+            });
+    });
 }
 </script>
 

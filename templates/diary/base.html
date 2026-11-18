@@ -92,6 +92,28 @@
       localStorage.setItem("guide_hint_seen", "1");
     });
   })();
+
+  // ── CSRF：fetch 與傳統表單 POST 自動帶 token ──
+  (function() {
+    var _CSRF_TOKEN = "{{ csrf_token() }}";
+    var _orig = window.fetch;
+    window.fetch = function(url, opts) {
+      opts = opts || {};
+      if (!opts.method || opts.method.toUpperCase() === 'GET') return _orig(url, opts);
+      opts.headers = Object.assign({'X-CSRF-Token': _CSRF_TOKEN}, opts.headers || {});
+      return _orig(url, opts);
+    };
+    document.addEventListener('submit', function(e) {
+      var f = e.target;
+      if (!f || (f.method || '').toLowerCase() !== 'post') return;
+      if (f.action && f.action.indexOf(location.origin) !== 0) return;
+      if (!f.querySelector('input[name="_csrf_token"]')) {
+        var i = document.createElement('input');
+        i.type = 'hidden'; i.name = '_csrf_token'; i.value = _CSRF_TOKEN;
+        f.appendChild(i);
+      }
+    }, true);
+  })();
 </script>
 
 </body>

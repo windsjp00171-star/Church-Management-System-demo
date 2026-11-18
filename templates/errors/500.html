@@ -15,6 +15,17 @@
             重新整理
         </a>
     </div>
+    {% if error_code %}
+    <div style="margin-top:32px; padding:10px 18px; background:var(--color-surface); border:1px dashed var(--color-border); border-radius:8px;">
+        <p style="margin:0; font-size:0.85rem; color:var(--color-text);">
+            錯誤代碼：<strong style="font-family:monospace; letter-spacing:1px;">{{ error_code }}</strong>
+        </p>
+        <p style="margin:4px 0 0; font-size:0.75rem; color:var(--color-text-muted);">
+            問題持續發生時，請將本頁截圖提供給管理員，以利快速排查。
+        </p>
+    </div>
+    {% else %}
     <p style="margin-top:32px; font-size:0.78rem; color:var(--color-text-muted);">錯誤代碼 500</p>
+    {% endif %}
 </div>
 {% endblock %}

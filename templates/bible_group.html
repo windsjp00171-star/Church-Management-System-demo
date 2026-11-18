@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% block title %}小組讀經進度{% endblock %}
+{% block content %}
+{# ★★ 只講「讀了幾格」：不講落後、不排名、不標紅 —— 365 天計畫的頭號死因就是被人說落後。
+     組長看到的是關心的線索，不是成績單；名單照姓名排。 #}
+<style>
+.bg-wrap { max-width: 760px; margin: 0 auto; }
+.bg-card { background: white; border-radius: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.07); padding: 16px 18px; margin-bottom: 14px; }
+.bg-row { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--border); }
+.bg-row:first-of-type { border-top: 0; }
+.bg-name { flex: 0 0 5.5em; font-weight: bold; color: var(--text-2); }
+.bg-bar { flex: 1; height: 8px; border-radius: 9999px; background: var(--surface-2); overflow: hidden; }
+.bg-bar > i { display: block; height: 100%; background: var(--green); border-radius: 9999px; }
+.bg-num { flex: 0 0 5.5em; text-align: right; font-variant-numeric: tabular-nums; color: var(--text-3); font-size: 0.9rem; }
+</style>
+<div class="bg-wrap">
+    <div class="page-header">
+        <div class="page-header-left"><h1 class="page-title">小組讀經進度</h1></div>
+        <a href="/reading" class="btn btn-sm">← 我的速讀</a>
+    </div>
+    <p style="color:var(--text-4); font-size:0.9rem; line-height:1.7; margin:0 0 14px;">
+        各週間小組的組員讀了幾格（全部 {{ total }} 格）。這裡只看得到數字，不排名；
+        組員在自己的速讀頁會看到「小組長看得到你讀了幾格」。
+    </p>
+    {% for c in cards %}
+    <div class="bg-card">
+        <div style="font-weight:bold; font-size:1.05rem; margin-bottom:6px;">
+            {{ c.group.name }}{% if c.group.weekly_gather_day %}<span style="color:var(--text-4); font-weight:normal; font-size:0.9rem;">（週{{ c.group.weekly_gather_day }}）</span>{% endif %}
+        </div>
+        {% for m in c.members %}
+        <div class="bg-row">
+            <span class="bg-name">{{ m.name }}</span>
+            {% if m.done is none %}
+            <span class="bg-num" style="flex:1;">暫時查不到</span>
+            {% else %}
+            <span class="bg-bar"><i style="width:{{ (m.done * 100 // total) if total else 0 }}%"></i></span>
+            <span class="bg-num">{{ m.done }} / {{ total }} 格</span>
+            {% endif %}
+        </div>
+        {% endfor %}
+        {% if not c.members %}
+        <div style="color:var(--text-4); font-size:0.9rem;">這個小組還沒有連結帳號的組員。</div>
+        {% endif %}
+        {% if c.unlinked %}
+        <div style="color:var(--text-4); font-size:0.85rem; margin-top:8px;">
+            另有 {{ c.unlinked }} 位組員還沒有連結帳號，看不到他們的進度。
+        </div>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

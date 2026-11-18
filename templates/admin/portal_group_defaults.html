@@ -1,8 +1,8 @@
 {% extends "base.html" %}
-{% block title %}小組首頁預設{% endblock %}
+{% block title %}首頁版面（依小組）{% endblock %}
 {% block content %}
 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:24px;">
-    <h2>👥 小組首頁預設設定</h2>
+    <h2>👥 首頁版面（依小組）</h2>
     <a href="/admin/portal-cards" style="color:#666; text-decoration:none;">← 返回卡片管理</a>
 </div>
 
@@ -13,7 +13,7 @@
 {% if not group_tags %}
 <div style="background:white; border-radius:10px; padding:32px; text-align:center; color:#aaa; box-shadow:0 2px 8px rgba(0,0,0,0.06);">
     <div style="font-size:2rem; margin-bottom:8px;">👤</div>
-    <p>目前尚無小組標籤。請先在「會員管理」為會友設定小組標籤。</p>
+    <p>目前還沒有牧養小組。請先到後台「牧養小組」建立小組。</p>
 </div>
 {% else %}
 

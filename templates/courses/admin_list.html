@@ -23,7 +23,7 @@
             onmouseover="this.style.transform='translateY(-2px)'" onmouseout="this.style.transform=''">
             <div style="font-size:1.8rem; flex-shrink:0;">📋</div>
             <div>
-                <div style="font-weight:700; font-size:0.95rem; color:#1565c0;">小組總覽</div>
+                <div style="font-weight:700; font-size:0.95rem; color:#1565c0;">門訓出席（依小組）</div>
                 <div style="font-size:0.78rem; color:#1976d2; margin-top:2px;">各小組門訓出席狀況</div>
             </div>
         </div>
@@ -99,10 +99,11 @@ function toggleCourse(id, btn) {
         .then(r => r.json()).then(() => location.reload());
 }
 function deleteCourse(id, btn) {
-    if (!confirm('確定要刪除此課程嗎？所有堂次與報名記錄都會一併刪除！')) return;
-    btn.disabled = true;
-    fetch(`/admin/courses/${id}/delete`, { method:'POST' })
-        .then(r => r.json()).then(() => location.reload());
+    openConfirm('確定要刪除此課程嗎？所有堂次與報名記錄都會一併刪除！', () => {
+        btn.disabled = true;
+        fetch(`/admin/courses/${id}/delete`, { method:'POST' })
+            .then(r => r.json()).then(() => location.reload());
+    });
 }
 function showQR(type, courseId, title, token) {
     const url = type === 'enroll'

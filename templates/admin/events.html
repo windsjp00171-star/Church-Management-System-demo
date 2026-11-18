@@ -7,7 +7,13 @@
         <a href="/admin" class="breadcrumb">← 返回後台</a>
         <div class="page-title">🎉 活動管理</div>
     </div>
-    <a href="/admin/events/new" class="btn btn-primary">＋ 建立活動</a>
+    {# 引導式擺前面、而且是主要的那一顆：第一次開活動的人不知道空白表單怎麼填，
+       把它放第二順位的話，需要它的人正好最不會去找它。熟手要直接開表單的路就在旁邊。 #}
+    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <a href="/admin/events/guided" class="btn btn-primary" data-tour="guided">✨ 我陪你開一場</a>
+        <a href="/admin/events/new" class="btn" data-tour="new">＋ 直接填表單</a>
+        <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:8px 16px; background:#eef2ff; border:1px solid #c7d2fe; border-radius:8px; cursor:pointer; min-height:44px;">？ 教學</button>
+    </div>
 </div>
 
 {% if events %}
@@ -25,18 +31,18 @@
 <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:20px; align-items:center;">
     <span style="font-size:0.85rem; color:#888;">篩選小組：</span>
     <button onclick="filterGroup('')" id="filter-all"
-        style="padding:5px 14px; border-radius:20px; border:none; cursor:pointer; font-size:0.85rem;
-               background:#333; color:white;">全部</button>
+        style="padding:8px 16px; border-radius:20px; border:none; cursor:pointer; font-size:0.85rem;
+               background:#333; color:white; min-height:44px;">全部</button>
     {% for tag in all_tags %}
     <button onclick="filterGroup('{{ tag }}')" id="filter-{{ loop.index }}"
-        style="padding:5px 14px; border-radius:20px; border:1px solid #ddd; cursor:pointer; font-size:0.85rem;
-               background:white; color:#555;">{{ tag }}</button>
+        style="padding:8px 16px; border-radius:20px; border:1px solid #ddd; cursor:pointer; font-size:0.85rem;
+               background:white; color:#555; min-height:44px;">{{ tag }}</button>
     {% endfor %}
 </div>
 {% endif %}
 
 <!-- 活動列表 -->
-<div id="eventList">
+<div id="eventList" data-tour="list">
 {% for event in events %}
 <div class="event-card" data-group="{{ event.group_tag or '' }}"
     style="background:var(--surface); border-radius:var(--radius-lg); padding:18px 22px; margin-bottom:12px; box-shadow:var(--shadow-sm); border:1px solid var(--border);">
@@ -157,16 +163,14 @@ function filterGroup(tag) {
 }
 
 function cloneEvent(eventId) {
-    if (!confirm('複製這個活動嗎？\n日期會清空，報名預設關閉，請複製後再去編輯。')) return;
-    fetch(`/admin/events/${eventId}/clone`, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                window.location.href = `/admin/events/${data.new_id}/edit`;
-            } else {
-                showToast(data.error || '複製失敗', 'error');
-            }
-        });
+    openConfirm('複製這個活動嗎？日期會清空，報名預設關閉，請複製後再去編輯。', () => {
+        fetch(`/admin/events/${eventId}/clone`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.success) window.location.href = `/admin/events/${data.new_id}/edit`;
+                else showToast(data.error || '複製失敗', 'error');
+            });
+    });
 }
 
 function toggleEvent(eventId, btn) {
@@ -180,14 +184,28 @@ function toggleEvent(eventId, btn) {
 }
 
 function deleteEvent(eventId, btn) {
-    if (!confirm('確定要刪除這個活動嗎？報名資料也會一併刪除！')) return;
-    btn.disabled = true;
-    fetch(`/admin/events/${eventId}/delete`, { method: 'POST' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.error) { showToast(data.error, 'error'); btn.disabled = false; return; }
-            location.reload();
-        });
+    openConfirm('確定要刪除這個活動嗎？報名資料也會一併刪除！', () => {
+        btn.disabled = true;
+        fetch(`/admin/events/${eventId}/delete`, { method: 'POST' })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) { showToast(data.error, 'error'); btn.disabled = false; return; }
+                location.reload();
+            });
+    });
+}
+</script>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/tour.js"></script>
+<script>
+function startTour() {
+  RollTour.start([
+    { target: 'guided', text: '不確定該填什麼的時候點這裡。我一題一題問（活動叫什麼、多少人、收不收錢、要跟報名者拿什麼資料），問完先攤開讓你看過，再建立；建立之後每一項都還改得到。' },
+    { target: 'new', text: '已經熟悉的話走這條，所有設定一次攤開：報名欄位、名額、收費、電子簽到。' },
+    { target: 'list', text: '所有活動都在這；可以進去看報名名單、開關報名、產生簽到 QR Code。' },
+    { target: 'help-btn', text: '隨時可以回來重看這個教學。' }
+  ]);
 }
 </script>
 {% endblock %}

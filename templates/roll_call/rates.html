@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}出席率{% endblock %}
+{% block content %}
+<div style="max-width:760px; margin:0 auto; padding:16px 16px 60px;">
+  <a href="/admin/roll-call" style="color:#666; text-decoration:none;">← 返回點名管理</a>
+  <div style="display:flex; justify-content:space-between; align-items:center; margin:6px 0 12px;">
+    <h2 style="margin:0;">📊 出席率</h2>
+    <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:10px 14px; border:1px solid #c7d2fe; background:#eef2ff; border-radius:8px;">？ 教學</button>
+  </div>
+  <p id="msg" role="status" style="min-height:1.4em; color:#b91c1c;"></p>
+
+  <section data-tour="rule-form" style="border:1px solid #ddd; border-radius:12px; padding:14px; margin-bottom:16px; background:#fff;">
+    <h3 style="margin-top:0;">新增規則（規則不可修改，同名再送出就是新版本）</h3>
+    <p style="color:#666; margin-top:0;">請假、遲到、中途加入的算法由教會決定，系統不預設，每一項都要選。</p>
+    <input id="r-name" placeholder="規則名稱" style="width:100%; padding:10px; margin-bottom:8px; box-sizing:border-box;">
+    <div style="margin-bottom:8px;">納入的聚會類型：
+      {% for t in types %}<label style="margin-right:12px;"><input type="checkbox" class="r-type" value="{{ t.id }}"> {{ t.name }}</label>{% endfor %}</div>
+    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+      <label>起 <input id="r-start" type="date"></label><label>迄 <input id="r-end" type="date"></label></div>
+    <select id="r-leave" style="padding:10px; margin-bottom:8px;"><option value="">請假怎麼算？</option>{% for k, v in leave_labels.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+    <select id="r-late" style="padding:10px; margin-bottom:8px;"><option value="">遲到怎麼算？</option>{% for k, v in late_labels.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
+    <select id="r-window" style="padding:10px; margin-bottom:8px;"><option value="">中途加入／離開者？</option><option value="true">只算在籍期間內的場次</option><option value="false">範圍內所有場次都算</option></select>
+    <div><button type="button" onclick="addRule()" style="padding:10px 16px; background:#4F46E5; color:#fff; border:0; border-radius:8px;">儲存規則</button></div>
+  </section>
+
+  <section data-tour="rule-list" style="border:1px solid #ddd; border-radius:12px; padding:14px; margin-bottom:16px; background:#fff;">
+    <h3 style="margin-top:0;">選擇規則計算</h3>
+    {% for r in rules %}<div style="padding:6px 0;"><a href="/admin/roll-call/rates?rule_id={{ r.id }}">{{ r.name }}　第 {{ r.version }} 版</a></div>
+    {% else %}<p style="color:#666;">尚未建立規則。</p>{% endfor %}
+  </section>
+
+  {% if result is not none %}
+  <section data-tour="result" style="border:1px solid #ddd; border-radius:12px; padding:14px; background:#fff;">
+    <p style="margin-top:0; color:#444;">計算依據：{{ rule_note }}</p>
+    <table style="width:100%; border-collapse:collapse;">
+      <tr><th style="text-align:left;">姓名</th><th>分子</th><th>分母</th><th>出席率</th></tr>
+      {% for r in result %}<tr style="border-top:1px solid #eee;"><td>{{ r.member.name }}</td><td style="text-align:center;">{{ r.numerator }}</td><td style="text-align:center;">{{ r.denominator }}</td><td style="text-align:center;">{{ (r.percent ~ '%') if r.percent is not none else '—' }}</td></tr>{% endfor %}
+    </table>
+    {% if session.get('is_super_admin') %}<p><a href="/admin/roll-call/rates/export?rule_id={{ rule.id }}">下載 CSV（含逐場次依據；每次下載都會留記錄）</a></p>{% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/tour.js"></script>
+<script>
+async function addRule() {
+  const v = id => document.getElementById(id).value;
+  const w = v('r-window');
+  const body = { name: v('r-name'), type_ids: [...document.querySelectorAll('.r-type:checked')].map(c => c.value),
+    range_start: v('r-start'), range_end: v('r-end'), leave_mode: v('r-leave') || null, late_mode: v('r-late') || null,
+    respect_membership_window: w === '' ? null : w === 'true' };
+  const r = await fetch('/api/admin/roll-call/rules', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ error: '連線失敗' }));
+  if (!r.ok || j.error) { document.getElementById('msg').textContent = j.error || '操作失敗'; return; }
+  location.reload();
+}
+function startTour() {
+  RollTour.start([
+    { target: 'rule-form', text: '先設定規則：納入哪些聚會、日期範圍，以及請假、遲到、中途加入怎麼算。' },
+    { target: 'rule-list', text: '點一條規則，系統會在伺服器上重新計算。' },
+    { target: 'result', text: '這裡是計算結果，上方會寫明用了哪一版規則。' }
+  ]);
+}
+</script>
+{% endblock %}

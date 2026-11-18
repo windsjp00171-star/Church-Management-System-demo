@@ -98,6 +98,7 @@
   <div class="modal-box">
     <h2>＋ 新增禱讀本訂購</h2>
     <form method="POST" action="{{ url_for('devotional.admin_devotional_new') }}">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <div class="mf-row">
         <label>經卷名稱 <span style="color:#ef4444;">*</span></label>
         <input type="text" name="scripture" placeholder="例：箴言" required>

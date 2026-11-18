@@ -27,6 +27,18 @@ class Config:
     LINE_TOKEN_URL   = 'https://api.line.me/oauth2/v2.1/token'
     LINE_PROFILE_URL = 'https://api.line.me/v2/profile'
 
+    # ── 排程手動觸發（/tasks/tick?token=…）；沒設就停用那個端點，排程本身照跑 ──
+    TASK_TOKEN = os.getenv('TASK_TOKEN', '')
+
+    # ── 推播（Web Push / VAPID）──────────────────────────────────
+    # ★ 沒設金鑰＝整個關掉（routes/push.is_enabled()），不是壞掉：畫面不畫「開啟通知」那顆鈕。
+    # ★ 公鑰會送到瀏覽器；私鑰只留在伺服器（外流＝別人能冒用我們的身分推播）。
+    VAPID_PUBLIC_KEY  = os.getenv('VAPID_PUBLIC_KEY', '')
+    VAPID_PRIVATE_KEY = os.getenv('VAPID_PRIVATE_KEY', '')
+    # 推播服務出問題時用它找人。用網址、不要用個人 email（email 會跟著每一次推播送到 Google／Apple）；
+    # 後面不可以有斜線或路徑，否則推播一則都送不出去。沒設就退回 Render 自己的網址。
+    VAPID_SUBJECT     = os.getenv('VAPID_SUBJECT') or os.getenv('RENDER_EXTERNAL_URL', '')
+
     # ── Supabase ───────────────────────────────────────────────────
     SUPABASE_URL = os.getenv('SUPABASE_URL')
     SUPABASE_KEY = os.getenv('SUPABASE_KEY')
@@ -50,14 +62,11 @@ class Config:
     # ── 管理員 LINE User IDs（逗號分隔字串 → list）──────────────────
     _admin_ids_raw  = os.getenv('ADMIN_LINE_USER_IDS', '')
     ADMIN_LINE_USER_IDS = [x.strip() for x in _admin_ids_raw.split(',') if x.strip()]
-
-    # ── 功能模組開關（設為 'false' 停用）────────────────────────────
-    ENABLE_PRAYER        = os.getenv('ENABLE_PRAYER',        'true').lower() != 'false'
-    ENABLE_GOSPEL        = os.getenv('ENABLE_GOSPEL',        'true').lower() != 'false'
-    ENABLE_BULLETIN      = os.getenv('ENABLE_BULLETIN',      'true').lower() != 'false'
-    ENABLE_CALENDAR      = os.getenv('ENABLE_CALENDAR',      'true').lower() != 'false'
-    ENABLE_COURSES       = os.getenv('ENABLE_COURSES',       'true').lower() != 'false'
-    ENABLE_VISITOR_FORMS = os.getenv('ENABLE_VISITOR_FORMS', 'true').lower() != 'false'
+    # Demo 站便利預設：僅在 DEMO_MODE 啟用、且未自行設定名單時，預設展示站擁有者為超管。
+    # 正式教會部署（DEMO_MODE=false）一律不套用，開發者不會成為教會超管（符合多教會治理原則）。
+    # 教會自行於 Render 設定 ADMIN_LINE_USER_IDS 時，此預設不生效。
+    if not ADMIN_LINE_USER_IDS and os.getenv('DEMO_MODE', 'false').lower() == 'true':
+        ADMIN_LINE_USER_IDS = ['Ue4b748edb6ec7d80d4c8a15138ae4b3b']
 
     # ── 錯誤監控（可選，未設定則停用）──────────────────────────────
     SENTRY_DSN = os.getenv('SENTRY_DSN') or None

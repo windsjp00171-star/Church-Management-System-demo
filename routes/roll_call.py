@@ -1,0 +1,876 @@
+"""聚會點名（roll_call）
+
+點名自成一塊，與 users / LINE 帳號脫鉤：被點名的是 rc_members（點名名冊）。
+操作者只用來寫稽核（id＋姓名快照），不作為被點名者。
+寫入一律走資料庫函式（rc_save_record / rc_lock_session / rc_set_count），
+同一交易內完成「寫紀錄＋寫稽核」。API 回傳格式：{"status", "data", "error"}。
+"""
+import csv
+import io
+from datetime import datetime, timedelta, timezone
+
+from flask import Blueprint, Response, abort, jsonify, render_template, request, session
+
+from db import supabase
+from roll_call_logic import (
+    IMPORT_LABELS, LATE_MODE_LABELS, LEAVE_MODE_LABELS, STATUS_LABELS, can_mark, compute_member_rate,
+    describe_rule, names_from_upload, norm_name, parse_count, plan_import, taipei_input_to_utc_iso,
+    to_taipei, validate_rule, validate_status,
+)
+from routes.audit import log_action
+from routes.decorators import admin_required, staff_required, super_admin_required
+
+roll_call_bp = Blueprint('roll_call', __name__)
+
+
+# ── 共用 ─────────────────────────────────────────────
+def _ok(data=None):
+    return jsonify({'status': 200, 'data': data if data is not None else {}, 'error': None})
+
+
+def _err(message, status=400):
+    return jsonify({'status': status, 'data': {}, 'error': message}), status
+
+
+def _db_error(e):
+    """資料庫函式主動拋出的錯誤（P0001）是給使用者看的中文訊息；其他錯誤不外洩內容。"""
+    if getattr(e, 'code', None) == 'P0001':
+        return _err(getattr(e, 'message', None) or '操作失敗', 400)
+    print(f'[roll_call] db error: {e}')
+    return _err('儲存失敗，請稍後再試', 500)
+
+
+def _actor():
+    uid = session.get('user_id')
+    name = (session.get('real_name') or session.get('display_name') or '').strip()
+    return uid, (name or '未具名')
+
+
+def _is_admin():
+    return bool(session.get('is_admin') or session.get('is_super_admin'))
+
+
+def _is_staff():
+    return bool(session.get('is_staff') or session.get('is_pastor') or _is_admin())
+
+
+def _load_session(sid):
+    rows = supabase.table('rc_sessions').select('*').eq('id', sid).execute().data or []
+    if not rows:
+        abort(404)
+    s = rows[0]
+    t = supabase.table('rc_meeting_types').select('*').eq('id', s['type_id']).execute().data or [{}]
+    s['_type'] = t[0]
+    s['_local'] = to_taipei(s['starts_at'])
+    return s
+
+
+def _active_members():
+    return supabase.table('rc_members').select('*').eq('status', 'active').order('name').execute().data or []
+
+
+# ── 同工頁面 ──────────────────────────────────────────
+SHEET_COLUMNS = 8          # 表格一次顯示最近幾次聚會（紙本那種一排日期）
+DEFAULT_TYPE_NAME = '主日'
+DEFAULT_START_TIME = '10:00'
+
+
+def _today_taipei():
+    return to_taipei(datetime.now(timezone.utc)).date()
+
+
+def _sheet_type(type_id=None):
+    """表格用的聚會類型：指定的，或第一個逐人點名的類型。還沒有就回 None（建立由 POST 負責，GET 不寫入）。"""
+    types = supabase.table('rc_meeting_types').select('*').order('created_at').execute().data or []
+    individual = [t for t in types if t.get('record_mode') == 'individual']
+    if type_id:
+        hit = next((t for t in individual if t['id'] == type_id), None)
+        if hit:
+            return hit, individual
+    return (individual[0] if individual else None), individual
+
+
+def _cell_groups():
+    """週間小組（點名單分段用）。讀不到就當沒有（點名單照舊一整串）。"""
+    try:
+        return supabase.table('cell_groups').select('id, name').eq('is_active', True)\
+            .order('name').execute().data or []
+    except Exception:
+        return []
+
+
+def services_for(type_id):
+    """這種聚會一天有幾堂（看「聚會設定」裡哪個聚會把人數來源連到它、設了幾堂）。沒連結就是 1。
+
+    ★ 讀不到設定就當 1 堂：點名單照舊能用，只是不會多排一欄。
+    """
+    try:
+        from routes.cell_report import _get_meeting_settings
+        counts = []
+        for cfg in _get_meeting_settings().values():
+            if type_id and cfg.get('rc_type_id') == type_id:
+                counts.append(int(cfg.get('service_count') or 1))
+        return max(counts) if counts else 1
+    except Exception:
+        return 1
+
+
+SERVICE_NAMES = '一二三四五'
+
+
+def week_start(d):
+    """這個日期所在那一週的週日（一週從週日開始）。"""
+    return d - timedelta(days=(d.weekday() + 1) % 7)
+
+
+def quarter_sundays(today):
+    """今天所在這一季（1–3、4–6、7–9、10–12 月）的每一個主日。"""
+    first_month = 3 * ((today.month - 1) // 3) + 1
+    start = today.replace(month=first_month, day=1)
+    end = (start.replace(month=first_month + 2, day=28) + timedelta(days=4)).replace(day=1) - timedelta(days=1)
+    d = start + timedelta(days=(6 - start.weekday()) % 7)          # 第一個週日
+    out = []
+    while d <= end:
+        out.append(d)
+        d += timedelta(days=7)
+    return out, start, end
+
+
+@roll_call_bp.route('/roll-call')
+@staff_required
+def home():
+    """紙本名冊的樣子：左邊人名、上面日期，來了就打勾。
+
+    整季的主日都先排好；只有「本週」的那一欄能點，其他反灰（過去的看得到、未來的還沒到）。
+    """
+    mtype, individual = _sheet_type(request.args.get('type'))
+    today = _today_taipei()
+    cur_sunday = week_start(today)
+    sundays, q_start, q_end = quarter_sundays(today)
+    if cur_sunday not in sundays:                  # 季初那一週的主日可能落在上一季：本週一定要有這一欄
+        sundays = sorted(sundays + [cur_sunday])
+        q_start = min(q_start, cur_sunday)
+    columns, members, records, present = [], [], {}, {}
+    services = services_for(mtype['id']) if mtype else 1
+    if mtype:
+        rows = supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])\
+            .order('starts_at').limit(400).execute().data or []
+        by_date = {}
+        for r in rows:
+            r['_local'] = to_taipei(r['starts_at'])
+            if q_start <= r['_local'].date() <= q_end:
+                by_date.setdefault(r['_local'].date(), []).append(r)  # 同一天可能有好幾堂（依開始時間）
+        for d in sundays:
+            got = by_date.pop(d, [])
+            for k in range(max(services, len(got))):                   # 主日有幾堂就排幾欄
+                columns.append({'date': d, 'session': got[k] if k < len(got) else None, 'service': k})
+        for d, got in by_date.items():                                 # 非週日的臨時聚會
+            for k, r in enumerate(got):
+                columns.append({'date': d, 'session': r, 'service': k})
+        columns.sort(key=lambda c: (c['date'], c['service']))
+        sessions = [c['session'] for c in columns if c['session']]
+        members = _active_members()
+        if sessions:
+            recs = _fetch_records([s['id'] for s in sessions])
+            records = {(r['session_id'], r['member_id']): r['status'] for r in recs}
+            known = {m['id'] for m in members}                         # 已離開但有紀錄的人也要看得到
+            extra = sorted({r['member_id'] for r in recs} - known)
+            if extra:
+                members += supabase.table('rc_members').select('*').in_('id', extra).execute().data or []
+        # 已離開的排在最後（頁面預設收起來）：混在名單裡會把正在點名的人擠到下面。
+        # 其餘照週間小組分段（組名排序），沒分組的排在各組之後。
+        groups = _cell_groups()
+        gname = {g['id']: g['name'] for g in groups}
+        members.sort(key=lambda m: (m.get('status') == 'left', gname.get(m.get('group_id')) is None,
+                                    gname.get(m.get('group_id')) or '', m['name']))
+        for m in members:
+            m['_group'] = gname.get(m.get('group_id')) or '未分組'
+        present = {s['id']: sum(1 for m in members if records.get((s['id'], m['id'])) == 'present') for s in sessions}
+    for c in columns:
+        s = c['session']
+        c['is_current'] = c['date'] == cur_sunday
+        c['in_this_week'] = week_start(c['date']) == cur_sunday
+        c['editable'] = bool(s) and c['in_this_week'] and s['status'] != 'locked'
+        c['label'] = f"{c['date'].month}/{c['date'].day}"
+        c['weekday'] = '一二三四五六日'[c['date'].weekday()]
+        c['first'] = c['service'] == 0
+        c['service_label'] = f"{SERVICE_NAMES[c['service']]}堂" if services > 1 and c['service'] < len(SERVICE_NAMES) else ''
+    # 本週每一堂都要有場次；少一場就由頁面自動補（GET 不寫資料庫）
+    cur_has_session = all(c['session'] for c in columns if c['is_current']) and any(c['is_current'] for c in columns)
+    left_count = sum(1 for m in members if m.get('status') == 'left')
+    # 至少有一位設了小組才分段；全部未分組時維持原本一整串（不多一層沒有意義的「未分組」標題）
+    grouped = any(m.get('_group') not in (None, '未分組') for m in members)
+    return render_template('roll_call/sheet.html', mtype=mtype, types=individual, columns=columns,
+                           left_count=left_count, grouped=grouped,
+                           members=members, records=records, present=present, today=today,
+                           cur_sunday=cur_sunday, add_date=cur_sunday.isoformat(),
+                           auto_add=not cur_has_session, is_admin=_is_admin(),
+                           services=services,
+                           # 新朋友「加入並打勾」只在一堂時才知道要勾哪一欄；兩堂以上請同工自己在那一堂打勾
+                           cur_session_id=next((c['session']['id'] for c in columns
+                                                if c['is_current'] and c['editable']), None) if services == 1 else None)
+
+
+def _shell_matches(name, people=None):
+    """帳號裡「疑似同一個人」而且**還沒綁 LINE** 的空殼帳號。
+
+    ★ 名冊只連空殼帳號：已經綁 LINE 的帳號不在這裡選 —— 綁 LINE 的唯一入口是「整合 LINE」
+      （本人自助合併或管理員合併），點名這邊連錯的話，別人的點名紀錄會掛到一個真人的帳號上。
+    """
+    from routes.person import find_possible_duplicates
+    return [{'id': d['id'], 'name': d.get('real_name') or d.get('display_name'), 'reason': d.get('reason')}
+            for d in find_possible_duplicates(name, people=people) if not d.get('has_line')]
+
+
+def _resolve_account(name, data):
+    """名冊成員要連到哪個帳號：回 ('ok', user_id) 或 ('choose', 候選清單) 或 ('error', 訊息)。
+
+    ★ 一個人＝一個帳號。沒申請 LINE 的建空殼帳號（routes/person.create_person）；
+      之後他自己註冊時用「整合 LINE」合併。
+    ★ 帳號裡已有疑似同一人的**空殼帳號** → 交回去讓同工選：是他（link_user_id）／不是，另外建（new_account）。
+      不用姓名替人決定。只接受伺服器自己算出來的候選（不信任前端送來的帳號編號）。
+    ★ 點名模組本身不直接查 users（結構守衛）：查重與建立都經過 routes/person.py。
+    """
+    from routes.person import create_person
+    shells = _shell_matches(name)
+    link = (data.get('link_user_id') or '').strip() or None
+    if link:
+        if link not in {c['id'] for c in shells}:
+            return 'error', '只能連到系統列出的帳號（還沒綁 LINE 的空殼帳號）'
+        taken = supabase.table('rc_members').select('id, name').eq('user_id', link).execute().data or []
+        if taken:
+            return 'error', f'這個帳號已經在名冊上了（名冊上叫「{taken[0]["name"]}」），請直接在名單上找他'
+        return 'ok', link
+    if shells and not data.get('new_account'):
+        return 'choose', shells
+    _, made = create_person(name, member_type=data.get('_member_type') or 'visitor', force=True)
+    return 'ok', made['id']
+
+
+@roll_call_bp.route('/api/roll-call/members/quick-add', methods=['POST'])
+@staff_required
+def api_quick_add_member():
+    """主日臨時來了新朋友：同工直接在點名單上加名字，並可順手替他在這一欄打勾。
+
+    重複的處理跟名冊匯入同一套（`plan_import`）：名冊已有同名＝不重複建立（請直接勾那一位）；
+    差一個字的疑似重複要同工確認（confirm）才建立。
+    """
+    data = request.get_json(silent=True) or {}
+    name = ' '.join((data.get('name') or '').split())
+    if not name:
+        return _err('請輸入姓名')
+    if len(name) > 30:
+        return _err('姓名太長')
+    sid = (data.get('session_id') or '').strip() or None
+    sess = _load_session(sid) if sid else None
+    if sess and not can_mark(sess, _is_admin(), _is_staff()):
+        return _err('此場次已鎖定，只有管理員可以修改', 403)
+    try:
+        row = plan_import(name, _existing_members())['rows'][0]
+        if row['status'] in ('same', 'same_left'):
+            where = '名冊裡已有' if row['status'] == 'same' else '已離開名單裡有'
+            return _err(f'{where}「{row["match"]}」，請直接在名單上找他打勾', 409)
+        if row['status'] == 'similar' and not data.get('confirm'):
+            return jsonify({'status': 409, 'data': {'similar': row['match']}, 'error': '疑似重複'}), 409
+        kind, got = _resolve_account(name, data)
+        if kind == 'error':
+            return _err(got, 409)
+        if kind == 'choose':
+            return jsonify({'status': 409, 'data': {'accounts': got}, 'error': '帳號裡有疑似同一個人'}), 409
+        made = supabase.table('rc_members').insert({
+            'name': name, 'source': 'manual', 'joined_on': _today_taipei().isoformat(),
+            'user_id': got}).execute().data
+        member = made[0]
+        if sess:
+            uid, actor = _actor()
+            supabase.rpc('rc_save_record', {
+                'p_session': sid, 'p_member': member['id'], 'p_status': 'present',
+                'p_actor': uid, 'p_actor_name': actor, 'p_reason': None, 'p_backfill': False}).execute()
+    except Exception as e:
+        return _db_error(e)
+    log_action('roll_call.member_quick_add', target_type='rc_members', target_id=member.get('id'),
+               detail={'ticked': bool(sess), 'user_id': got, 'linked_existing': bool(data.get('link_user_id'))})
+    return _ok({'id': member['id'], 'name': name, 'ticked': bool(sess)})
+
+
+@roll_call_bp.route('/api/roll-call/sheet/add-column', methods=['POST'])
+@staff_required
+def api_sheet_add_column():
+    """加一欄日期（預設今天）。第一次使用時順便建立「主日」聚會類型；同一天不會重複加。"""
+    data = request.get_json(silent=True) or {}
+    day = (data.get('date') or '').strip() or _today_taipei().isoformat()
+    try:
+        starts_at = taipei_input_to_utc_iso(day, DEFAULT_START_TIME)
+    except ValueError:
+        return _err('日期格式不正確')
+    try:
+        mtype, _ = _sheet_type((data.get('type_id') or '').strip() or None)
+        if not mtype:
+            made = supabase.table('rc_meeting_types').insert({
+                'name': DEFAULT_TYPE_NAME, 'record_mode': 'individual', 'counts_toward_rate': True}).execute().data
+            mtype = made[0]
+        same = [s for s in (supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])
+                            .order('starts_at', desc=True).limit(60).execute().data or [])
+                if to_taipei(s['starts_at']).date().isoformat() == day]
+        #  主日有幾堂就建幾場（第二堂起每堂晚 2 小時，只是為了排序：最早的是第一堂）；臨時聚會一場
+        need = services_for(mtype['id']) if datetime.fromisoformat(day).weekday() == 6 else 1
+        if len(same) >= need:
+            return _ok({'id': same[-1]['id'], 'created': False})
+        uid, name = _actor()
+        h, m = (int(x) for x in DEFAULT_START_TIME.split(':'))
+        made = []
+        for k in range(len(same), need):
+            row = supabase.table('rc_sessions').insert({
+                'type_id': mtype['id'], 'created_by': uid, 'created_by_name': name,
+                'starts_at': starts_at if k == 0 else taipei_input_to_utc_iso(day, f'{h + 2 * k:02d}:{m:02d}'),
+            }).execute().data
+            made += row or []
+    except Exception as e:
+        return _db_error(e)
+    return _ok({'id': made[0]['id'] if made else None, 'created': True})
+
+
+# ── 區間出席：撈「某一段期間」誰到了幾次 ─────────────────────
+REPORT_MAX_DAYS = 366
+
+
+def _parse_day(raw, default):
+    try:
+        return datetime.fromisoformat(raw).date() if raw else default
+    except (TypeError, ValueError):
+        return default
+
+
+def _fetch_records(session_ids):
+    """分頁讀完這些場次的紀錄（PostgREST 一次最多 1000 筆，一年的表格會超過）。讀取失敗直接丟例外。"""
+    rows, offset, page = [], 0, 1000
+    while session_ids:
+        batch = supabase.table('rc_records').select('session_id,member_id,status')\
+            .in_('session_id', session_ids).range(offset, offset + page - 1).execute().data or []
+        rows += batch
+        if len(batch) < page:
+            break
+        offset += page
+    return rows
+
+
+def range_report(mtype, start, end):
+    """區間內（台北日期、到今天為止）每個人到幾次。沒打勾＝沒來，跟紙本一樣。回 dict。"""
+    today = _today_taipei()
+    end = min(end, today)                                    # 還沒發生的聚會不算進分母
+    rows = supabase.table('rc_sessions').select('*').eq('type_id', mtype['id'])\
+        .order('starts_at').limit(400).execute().data or []
+    sessions = []
+    for r in rows:
+        r['_local'] = to_taipei(r['starts_at'])
+        if start <= r['_local'].date() <= end:
+            sessions.append(r)
+    sessions.sort(key=lambda r: r['starts_at'])
+    recs = _fetch_records([s['id'] for s in sessions])
+    marks = {(r['session_id'], r['member_id']): r['status'] for r in recs}
+    members = _active_members()
+    known = {m['id'] for m in members}
+    extra = sorted({r['member_id'] for r in recs} - known)
+    if extra:                                                # 區間內有紀錄、但後來離開的人也要算
+        members += supabase.table('rc_members').select('*').in_('id', extra).execute().data or []
+        members.sort(key=lambda m: m['name'])
+    #  ★ 同一天的幾堂（主日一堂／二堂）算同一次：來任何一堂就算那天有到 —— 不然有兩堂的教會出席率會被腰斬。
+    days = {}
+    for s in sessions:
+        days.setdefault(s['_local'].date(), []).append(s)
+    groups = [days[d] for d in sorted(days)]
+    sessions = [g[0] for g in groups]                        # 每天用第一場代表那一欄
+    total = len(sessions)
+    people = []
+    for m in members:
+        joined = m.get('joined_on')
+        # 新朋友加入之前的場次不算他沒來（沒有加入日期的，每一次都算）
+        counted = [not joined or s['_local'].date().isoformat() >= str(joined)[:10] for s in sessions]
+        cells = [any(marks.get((x['id'], m['id'])) == 'present' for x in g) for g in groups]
+        n = sum(1 for c, k in zip(cells, counted) if c and k)
+        denom = sum(counted)
+        people.append({'id': m['id'], 'name': m['name'], 'left': m.get('status') == 'left', 'cells': cells,
+                       'counted': counted, 'present': n, 'total': denom,
+                       'percent': round(n * 100 / denom, 1) if denom else None})
+    per_session = [sum(1 for p in people if p['cells'][i]) for i in range(total)]
+    return {'sessions': sessions, 'people': people, 'total': total, 'per_session': per_session,
+            'start': start, 'end': end}
+
+
+@roll_call_bp.route('/roll-call/report')
+@staff_required
+def report():
+    """預設撈過去一個月；也可以自己選日期區間。匯出 CSV 只有管理員（個資，會留稽核）。"""
+    today = _today_taipei()
+    end = _parse_day(request.args.get('to'), today)
+    start = _parse_day(request.args.get('from'), end - timedelta(days=29))
+    if start > end:
+        start, end = end, start
+    if (end - start).days > REPORT_MAX_DAYS:
+        start = end - timedelta(days=REPORT_MAX_DAYS)
+    mtype, individual = _sheet_type(request.args.get('type'))
+    data = range_report(mtype, start, end) if mtype else None
+    if request.args.get('format') == 'csv':
+        if not _is_admin():
+            abort(403)
+        if not data:
+            abort(404)
+        buf = io.StringIO()
+        w = csv.writer(buf)
+        w.writerow(['姓名'] + [s['_local'].strftime('%Y-%m-%d') for s in data['sessions']] + ['到', '共', '出席率'])
+        for p in data['people']:
+            w.writerow([p['name']] + ['✓' if c else '' for c in p['cells']] +
+                       [p['present'], p['total'], '' if p['percent'] is None else f"{p['percent']}%"])
+        log_action('roll_call.range_export', target_type='rc_report',
+                   detail={'from': start.isoformat(), 'to': end.isoformat(), 'people': len(data['people'])})
+        return Response('\ufeff' + buf.getvalue(), mimetype='text/csv; charset=utf-8',
+                        headers={'Content-Disposition': f'attachment; filename=attendance_{start}_{end}.csv',
+                                 'Cache-Control': 'no-store'})
+    return render_template('roll_call/report.html', mtype=mtype, types=individual, data=data,
+                           start=start, end=end, today=today, is_admin=_is_admin(),
+                           presets=[('過去一個月', today - timedelta(days=29), today),
+                                    ('過去三個月', today - timedelta(days=89), today),
+                                    ('今年', today.replace(month=1, day=1), today)])
+
+
+@roll_call_bp.route('/roll-call/sessions')
+@staff_required
+def session_list():
+    """進階：逐場次列表（只記人數的聚會、補登、列印名冊從這裡進）。"""
+    sessions = supabase.table('rc_sessions').select('*').eq('status', 'open')\
+        .order('starts_at', desc=True).limit(30).execute().data or []
+    types = {t['id']: t for t in (supabase.table('rc_meeting_types').select('*').execute().data or [])}
+    for s in sessions:
+        s['_type'] = types.get(s['type_id'], {})
+        s['_local'] = to_taipei(s['starts_at'])
+    return render_template('roll_call/home.html', sessions=sessions)
+
+
+@roll_call_bp.route('/roll-call/session/<sid>')
+@staff_required
+def session_page(sid):
+    s = _load_session(sid)
+    members, records, guest = [], {}, None
+    if s['_type'].get('record_mode') == 'individual':
+        members = _active_members()
+        recs = supabase.table('rc_records').select('*').eq('session_id', sid).execute().data or []
+        records = {r['member_id']: r for r in recs}
+        # 已離開但有紀錄的人也要顯示，避免鎖定後的資料看不到
+        known = {m['id'] for m in members}
+        extra_ids = [mid for mid in records if mid not in known]
+        if extra_ids:
+            members += supabase.table('rc_members').select('*').in_('id', extra_ids).execute().data or []
+            members.sort(key=lambda m: m['name'])
+    g = supabase.table('rc_guest_counts').select('*').eq('session_id', sid).execute().data or []
+    guest = g[0]['guest_count'] if g else None
+    return render_template('roll_call/session.html', s=s, members=members, records=records,
+                           guest=guest, labels=STATUS_LABELS,
+                           editable=can_mark(s, _is_admin(), _is_staff()),
+                           locked=s['status'] == 'locked')
+
+
+@roll_call_bp.route('/roll-call/session/<sid>/print')
+@staff_required
+def print_roster(sid):
+    """A4 紙本名冊：只有姓名與勾選欄，不帶任何其他個人資料。"""
+    s = _load_session(sid)
+    return render_template('roll_call/print.html', s=s, members=_active_members())
+
+
+@roll_call_bp.route('/api/roll-call/session/<sid>/mark', methods=['POST'])
+@staff_required
+def api_mark(sid):
+    s = _load_session(sid)
+    if not can_mark(s, _is_admin(), _is_staff()):
+        return _err('此場次已鎖定，只有管理員可以修改', 403)
+    data = request.get_json(silent=True) or {}
+    try:
+        status = validate_status(data.get('status'))
+    except ValueError as e:
+        return _err(str(e))
+    member_id = (data.get('member_id') or '').strip()
+    if not member_id:
+        return _err('請選擇成員')
+    uid, name = _actor()
+    try:
+        res = supabase.rpc('rc_save_record', {
+            'p_session': sid, 'p_member': member_id, 'p_status': status,
+            'p_actor': uid, 'p_actor_name': name,
+            'p_reason': (data.get('reason') or '').strip() or None,
+            'p_backfill': bool(data.get('backfill')),
+        }).execute()
+    except Exception as e:
+        return _db_error(e)
+    return _ok(res.data if isinstance(res.data, dict) else {})
+
+
+@roll_call_bp.route('/api/roll-call/session/<sid>/mark-all-present', methods=['POST'])
+@staff_required
+def api_mark_all_present(sid):
+    """「全到」：只對還沒有紀錄的人標為到，逐筆留稽核。必須由前端明確確認後才呼叫。"""
+    s = _load_session(sid)
+    if s['status'] == 'locked' or not can_mark(s, _is_admin(), _is_staff()):
+        return _err('此場次已鎖定', 403)
+    existing = {r['member_id'] for r in (
+        supabase.table('rc_records').select('member_id').eq('session_id', sid).execute().data or [])}
+    uid, name = _actor()
+    done = 0
+    for m in _active_members():
+        if m['id'] in existing:
+            continue
+        try:
+            supabase.rpc('rc_save_record', {
+                'p_session': sid, 'p_member': m['id'], 'p_status': 'present',
+                'p_actor': uid, 'p_actor_name': name, 'p_reason': None, 'p_backfill': False,
+            }).execute()
+            done += 1
+        except Exception as e:
+            return _db_error(e)
+    return _ok({'marked': done})
+
+
+@roll_call_bp.route('/api/roll-call/session/<sid>/count', methods=['POST'])
+@staff_required
+def api_count(sid):
+    s = _load_session(sid)
+    if not can_mark(s, _is_admin(), _is_staff()):
+        return _err('此場次已鎖定，只有管理員可以修改', 403)
+    data = request.get_json(silent=True) or {}
+    kind = data.get('kind')
+    if kind not in ('headcount', 'guest_count'):
+        return _err('無效的人數種類')
+    try:
+        count = parse_count(data.get('count'))     # 空白一律退回，不得當 0
+    except ValueError as e:
+        return _err(str(e))
+    uid, name = _actor()
+    try:
+        supabase.rpc('rc_set_count', {
+            'p_session': sid, 'p_kind': kind, 'p_count': count,
+            'p_actor': uid, 'p_actor_name': name,
+            'p_reason': (data.get('reason') or '').strip() or None,
+        }).execute()
+    except Exception as e:
+        return _db_error(e)
+    return _ok({'count': count})
+
+
+# ── 管理員 ────────────────────────────────────────────
+@roll_call_bp.route('/admin/roll-call')
+@admin_required
+def admin_home():
+    types = supabase.table('rc_meeting_types').select('*').order('created_at').execute().data or []
+    tmap = {t['id']: t for t in types}
+    sessions = supabase.table('rc_sessions').select('*').order('starts_at', desc=True)\
+        .limit(40).execute().data or []
+    for s in sessions:
+        s['_type'] = tmap.get(s['type_id'], {})
+        s['_local'] = to_taipei(s['starts_at'])
+    members = supabase.table('rc_members').select('*').order('status').order('name').execute().data or []
+    return render_template('roll_call/admin.html', types=types, sessions=sessions, members=members,
+                           groups=_cell_groups())
+
+
+@roll_call_bp.route('/api/admin/roll-call/types', methods=['POST'])
+@admin_required
+def api_add_type():
+    data = request.get_json(silent=True) or {}
+    name = (data.get('name') or '').strip()
+    mode = data.get('record_mode')
+    if not name:
+        return _err('請填寫聚會名稱')
+    if mode not in ('individual', 'headcount'):
+        return _err('請選擇記錄方式')
+    row = supabase.table('rc_meeting_types').insert({
+        'name': name, 'record_mode': mode,
+        'counts_toward_rate': bool(data.get('counts_toward_rate', True)),
+    }).execute().data
+    return _ok(row[0] if row else {})
+
+
+def _import_text():
+    """貼上的文字，或上傳的 CSV／純文字檔（只取姓名那一欄）。"""
+    f = request.files.get('file')
+    if f:
+        raw = f.read(1_000_001)
+        if len(raw) > 1_000_000:
+            raise ValueError('檔案太大（上限 1 MB）')
+        return names_from_upload(raw)
+    data = request.get_json(silent=True) or {}
+    return data.get('names') or request.form.get('names') or ''
+
+
+def _existing_members():
+    return supabase.table('rc_members').select('name,status').execute().data or []
+
+
+def _import_accounts(names):
+    """名冊匯入：每個名字在帳號裡疑似同一人的**空殼帳號**（綁了 LINE 的不列；已經在名冊上的也不算）。
+
+    回 {norm_name: [候選帳號]}。users 只讀一次（經由 routes/person.py；點名模組不直接查 users）。
+    """
+    from routes.person import all_people
+    people = all_people()
+    taken = {m['user_id'] for m in (supabase.table('rc_members').select('user_id').execute().data or [])
+             if m.get('user_id')}
+    out = {}
+    for n in names:
+        out[norm_name(n)] = [c for c in _shell_matches(n, people=people) if c['id'] not in taken]
+    return out
+
+
+@roll_call_bp.route('/api/admin/roll-call/members/preview', methods=['POST'])
+@admin_required
+def api_preview_members():
+    """名冊匯入第一步：只分類、不寫入。疑似重複與同名都攤開給管理員看。"""
+    try:
+        text = _import_text()
+    except ValueError as e:
+        return _err(str(e))
+    plan = plan_import(text, _existing_members())
+    if not plan['rows']:
+        return _err('沒有讀到任何姓名')
+    # 一人＝一帳號：要加進名冊的人，先看帳號裡有沒有疑似同一個人（交給管理員選，不用姓名猜）
+    try:
+        acc = _import_accounts([r['name'] for r in plan['rows'] if r['status'] in ('new', 'similar')])
+    except Exception as e:
+        return _db_error(e)
+    for r in plan['rows']:
+        r['accounts'] = acc.get(norm_name(r['name']), []) if r['status'] in ('new', 'similar') else []
+    return _ok({**plan, 'labels': IMPORT_LABELS})
+
+
+@roll_call_bp.route('/api/admin/roll-call/members', methods=['POST'])
+@admin_required
+def api_add_members():
+    """名冊匯入第二步：伺服器重新分類（不信任前端），『新增』的直接加；
+    『疑似重複』只有管理員明確勾選確認（confirm_similar）的才加；同名一律略過，不自動合併或恢復。"""
+    data = request.get_json(silent=True) or {}
+    confirmed = {norm_name(n) for n in (data.get('confirm_similar') or [])}
+    plan = plan_import(data.get('names') or '', _existing_members())
+    if not plan['rows']:
+        return _err('請輸入至少一個姓名')
+    group_id = (data.get('group_id') or '').strip() or None
+    if group_id and group_id not in {g['id'] for g in _cell_groups()}:
+        return _err('找不到這個小組')
+    many = len(plan['rows']) > 1
+    picks = {norm_name(k): v for k, v in (data.get('accounts') or {}).items()}
+    wanted = [r for r in plan['rows']
+              if r['status'] == 'new' or (r['status'] == 'similar' and norm_name(r['name']) in confirmed)]
+    try:
+        acc = _import_accounts([r['name'] for r in wanted]) if wanted else {}
+    except Exception as e:
+        return _db_error(e)
+    from routes.person import create_person
+    added, skipped, used, shells = [], [], set(), 0
+    for r in plan['rows']:
+        if r not in wanted:
+            skipped.append({'name': r['name'], 'reason': IMPORT_LABELS[r['status']], 'match': r['match']})
+            continue
+        # 一人＝一帳號：有疑似同一人時，只接受伺服器自己算出來的候選（不信任前端送來的帳號編號）
+        cands = {c['id'] for c in acc.get(norm_name(r['name']), [])} - used
+        pick = picks.get(norm_name(r['name']))
+        if pick and pick != 'new' and pick in cands:
+            user_id = pick
+        elif cands and pick != 'new':
+            skipped.append({'name': r['name'], 'reason': '帳號裡有疑似同一個人，請選「連到哪一個」或「另外建」', 'match': None})
+            continue
+        else:
+            try:
+                _, made = create_person(r['name'], member_type='member', force=True)
+            except Exception as e:
+                return _db_error(e)
+            user_id, shells = made['id'], shells + 1
+        used.add(user_id)
+        row = {'name': r['name'], 'source': 'import' if many else 'manual',
+               'joined_on': data.get('joined_on') or None, 'user_id': user_id}
+        if group_id:
+            row['group_id'] = group_id
+        added.append(row)
+    if added:
+        supabase.table('rc_members').insert(added).execute()
+    log_action('roll_call.members_import', target_type='rc_members',
+               detail={'added': len(added), 'skipped': len(skipped), 'new_accounts': shells,
+                       'truncated': plan['truncated'] or None})
+    return _ok({'added': len(added), 'skipped': skipped, 'new_accounts': shells, 'truncated': plan['truncated']})
+
+
+@roll_call_bp.route('/api/admin/roll-call/members/<mid>/group', methods=['POST'])
+@admin_required
+def api_member_group(mid):
+    """設定點名名冊成員的小組（週間小組）；空＝未分組。只影響點名單怎麼分段，不影響出席紀錄。"""
+    group_id = ((request.get_json(silent=True) or {}).get('group_id') or '').strip() or None
+    if group_id and group_id not in {g['id'] for g in _cell_groups()}:
+        return _err('找不到這個小組')
+    try:
+        supabase.table('rc_members').update({'group_id': group_id}).eq('id', mid).execute()
+    except Exception as e:
+        return _db_error(e)
+    log_action('roll_call.member_group', target_type='rc_members', target_id=mid, detail={'group_id': group_id})
+    return _ok({'group_id': group_id})
+
+
+@roll_call_bp.route('/api/admin/roll-call/members/<mid>/link', methods=['POST'])
+@admin_required
+def api_member_link(mid):
+    """把名冊上只有姓名的人連到帳號（找得到就連、找不到就建空殼）。疑似同一個人要管理員選，不替人猜。"""
+    data = request.get_json(silent=True) or {}
+    rows = supabase.table('rc_members').select('id, name, user_id').eq('id', mid).execute().data or []
+    if not rows:
+        return _err('找不到這個人', 404)
+    if rows[0].get('user_id'):
+        return _err('這個人已經連到帳號了', 409)
+    try:
+        kind, got = _resolve_account(rows[0]['name'], data)
+        if kind == 'error':
+            return _err(got, 409)
+        if kind == 'choose':
+            return jsonify({'status': 409, 'data': {'accounts': got}, 'error': '帳號裡有疑似同一個人'}), 409
+        supabase.table('rc_members').update({'user_id': got}).eq('id', mid).execute()
+    except Exception as e:
+        return _db_error(e)
+    log_action('roll_call.member_link', target_type='rc_members', target_id=mid,
+               detail={'user_id': got, 'linked_existing': bool(data.get('link_user_id'))})
+    return _ok({'user_id': got})
+
+
+@roll_call_bp.route('/api/admin/roll-call/members/<mid>/leave', methods=['POST'])
+@admin_required
+def api_member_leave(mid):
+    """標記離開：不刪除，歷史紀錄全部保留。"""
+    data = request.get_json(silent=True) or {}
+    supabase.table('rc_members').update({
+        'status': 'left',
+        'left_on': data.get('left_on') or datetime.now(timezone.utc).date().isoformat(),
+    }).eq('id', mid).execute()
+    return _ok()
+
+
+@roll_call_bp.route('/api/admin/roll-call/sessions', methods=['POST'])
+@admin_required
+def api_add_session():
+    data = request.get_json(silent=True) or {}
+    type_id = (data.get('type_id') or '').strip()
+    if not type_id or not data.get('date') or not data.get('time'):
+        return _err('請選擇聚會類型、日期與時間')
+    try:
+        starts_at = taipei_input_to_utc_iso(data['date'], data['time'])    # 台北輸入 → 存 UTC
+    except ValueError:
+        return _err('日期或時間格式不正確')
+    uid, name = _actor()
+    row = supabase.table('rc_sessions').insert({
+        'type_id': type_id, 'starts_at': starts_at,
+        'created_by': uid, 'created_by_name': name,
+    }).execute().data
+    return _ok(row[0] if row else {})
+
+
+@roll_call_bp.route('/api/admin/roll-call/sessions/<sid>/lock', methods=['POST'])
+@admin_required
+def api_lock(sid):
+    uid, name = _actor()
+    try:
+        supabase.rpc('rc_lock_session', {'p_session': sid, 'p_actor': uid, 'p_actor_name': name}).execute()
+    except Exception as e:
+        return _db_error(e)
+    return _ok()
+
+
+@roll_call_bp.route('/api/admin/roll-call/sessions/<sid>/audit')
+@admin_required
+def api_audit(sid):
+    rows = supabase.table('rc_audit').select('*').eq('session_id', sid).order('at').execute().data or []
+    return _ok({'audit': rows})
+
+
+# ── 出席率（伺服器計算）─────────────────────────────────
+@roll_call_bp.route('/admin/roll-call/rates')
+@admin_required
+def rates_page():
+    types = supabase.table('rc_meeting_types').select('*').eq('record_mode', 'individual').execute().data or []
+    rules = supabase.table('rc_rate_rules').select('*').order('name').order('version', desc=True)\
+        .execute().data or []
+    result, rule = None, None
+    rule_id = request.args.get('rule_id')
+    if rule_id:
+        result, rule = _compute_all(rule_id)
+    return render_template('roll_call/rates.html', types=types, rules=rules, result=result, rule=rule,
+                           leave_labels=LEAVE_MODE_LABELS, late_labels=LATE_MODE_LABELS,
+                           rule_note=describe_rule(rule) if rule else None)
+
+
+def _compute_all(rule_id):
+    rows = supabase.table('rc_rate_rules').select('*').eq('id', rule_id).execute().data or []
+    if not rows:
+        abort(404)
+    rule = rows[0]
+    sessions = supabase.table('rc_sessions').select('id, type_id, starts_at, status')\
+        .eq('status', 'locked').execute().data or []
+    recs = supabase.table('rc_records').select('session_id, member_id, status').execute().data or []
+    records = {(r['session_id'], r['member_id']): r['status'] for r in recs}
+    members = supabase.table('rc_members').select('*').order('name').execute().data or []
+    out = [{'member': m, **compute_member_rate(m, sessions, records, rule)} for m in members]
+    return out, rule
+
+
+@roll_call_bp.route('/api/admin/roll-call/rules', methods=['POST'])
+@admin_required
+def api_add_rule():
+    """規則不可改；同名規則再送出就是新版本。"""
+    data = request.get_json(silent=True) or {}
+    rule = {
+        'name': (data.get('name') or '').strip(),
+        'type_ids': data.get('type_ids') or [],
+        'range_start': data.get('range_start'),
+        'range_end': data.get('range_end'),
+        'leave_mode': data.get('leave_mode'),
+        'late_mode': data.get('late_mode'),
+        'respect_membership_window': data.get('respect_membership_window'),
+        'note': (data.get('note') or '').strip() or None,
+    }
+    if not rule['name']:
+        return _err('請填寫規則名稱')
+    try:
+        validate_rule(rule)
+    except ValueError as e:
+        return _err(str(e))
+    prev = supabase.table('rc_rate_rules').select('version').eq('name', rule['name'])\
+        .order('version', desc=True).limit(1).execute().data or []
+    uid, name = _actor()
+    rule.update(version=(prev[0]['version'] + 1) if prev else 1, created_by=uid, created_by_name=name)
+    row = supabase.table('rc_rate_rules').insert(rule).execute().data
+    return _ok(row[0] if row else {})
+
+
+@roll_call_bp.route('/admin/roll-call/rates/export')
+@super_admin_required
+def rates_export():
+    """CSV 匯出（另外授權、每次留記錄）；附規則版本與逐場次依據，讓遴選小組可核對。"""
+    result, rule = _compute_all(request.args.get('rule_id', ''))
+    uid, name = _actor()
+    supabase.table('rc_audit').insert({
+        'action': 'export', 'new_value': {'rule_id': rule['id'], 'rule': rule['name'],
+                                          'version': rule['version']},
+        'actor_id': uid, 'actor_name': name,
+    }).execute()
+
+    buf = io.StringIO()
+    w = csv.writer(buf)
+    w.writerow(['計算依據', describe_rule(rule)])
+    w.writerow([])
+    w.writerow(['姓名', '狀態', '加入日', '離開日', '分子', '分母', '出席率(%)'])
+    for r in result:
+        m = r['member']
+        w.writerow([m['name'], m['status'], m.get('joined_on') or '', m.get('left_on') or '',
+                    str(r['numerator']), str(r['denominator']),
+                    '' if r['percent'] is None else r['percent']])
+    w.writerow([])
+    w.writerow(['逐場次明細'])
+    w.writerow(['姓名', '日期', '狀態', '是否計入', '分子', '分母'])
+    for r in result:
+        for d in r['details']:
+            w.writerow([r['member']['name'], d['date'], STATUS_LABELS.get(d['status'], d['status']),
+                        '是' if d['counted'] else '否', d['numerator'], d['denominator']])
+    body = '﻿' + buf.getvalue()           # UTF-8 BOM，Excel 才不會亂碼
+    return Response(body, mimetype='text/csv; charset=utf-8',
+                    headers={'Content-Disposition': 'attachment; filename=roll_call_rates.csv'})

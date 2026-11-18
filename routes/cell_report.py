@@ -1,3 +1,4 @@
+import logging
 """
 小組回報 Blueprint（Flask 版，使用 Supabase）
 移植自 cell_reporter（Django）。
@@ -14,6 +15,7 @@ from flask import (
 )
 
 from db import supabase
+from roll_call_logic import parse_count
 from routes.decorators import (
     login_required, pastor_required, staff_required, cell_leader_required
 )
@@ -61,7 +63,7 @@ def _get_meeting_settings() -> Dict[str, Dict]:
             if res.data:
                 cfg.update(json.loads(res.data[0]['value']))
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         result[key] = cfg
     # Custom meetings (keys stored as meeting.custom_*)
     try:
@@ -74,9 +76,9 @@ def _get_meeting_settings() -> Dict[str, Dict]:
                 cfg['_custom'] = True
                 result[meeting_key] = cfg
             except Exception:
-                pass
+                logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     _MEETING_CFG_CACHE = result
     _MEETING_CFG_TS = now
     return result
@@ -100,7 +102,7 @@ def _get_module_settings() -> Dict[str, bool]:
             if short_key in result:
                 result[short_key] = row['value'] in ('true', '1', 'on')
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     _MODULE_CFG_CACHE = result
     _MODULE_CFG_TS = now
     return result
@@ -128,7 +130,7 @@ def _get_custom_meetings_data(mcfg: Dict, base_date=None) -> List[Dict]:
             if res.data:
                 count = res.data[0].get('attendance_count', 0) or 0
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         result.append({
             'key': key,
             'label': cfg.get('label', '聚會'),
@@ -230,6 +232,17 @@ def _get_members(group_id) -> List[Dict]:
     return res.data or []
 
 
+def _rc_sunday(members, week_date) -> Dict[str, str]:
+    """這一週的主日，點名那邊已經有的狀態 `{member_id: 'full'|...}`（以點名為準，組長不用再填）。"""
+    from routes.roll_call_link import sunday_statuses
+    try:
+        cfg = _get_meeting_settings().get('adult_sunday', {})
+    except Exception:                                        # noqa: BLE001
+        return {}
+    by_user = sunday_statuses([m.get('user_id') for m in members], week_date, cfg)
+    return {str(m['id']): by_user[m['user_id']] for m in members if m.get('user_id') in by_user}
+
+
 def _get_or_create_report(group_id, week_date_str: str) -> Dict:
     res = (
         supabase.table('cell_reports')
@@ -251,7 +264,7 @@ def _get_or_create_report(group_id, week_date_str: str) -> Dict:
         if ins.data:
             return ins.data[0]
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     # Re-select in case of concurrent insert or insert returned no data
     res2 = (
         supabase.table('cell_reports')
@@ -262,6 +275,23 @@ def _get_or_create_report(group_id, week_date_str: str) -> Dict:
         .execute()
     )
     return (res2.data or [{}])[0]
+
+
+def _find_report(group_id, week_date_str: str) -> Optional[Dict]:
+    """只查不建。GET 不得建立資料列：否則看一眼舊週報，儀表板就會誤報「已開始回報」。"""
+    res = (
+        supabase.table('cell_reports').select('*')
+        .eq('group_id', group_id).eq('week_date', week_date_str).limit(1).execute()
+    )
+    return (res.data or [None])[0]
+
+
+def _count_or_error(raw):
+    """人數欄位：空白、非整數、負數一律退回（回 (None, 訊息)），絕不預設為 0。"""
+    try:
+        return parse_count(raw), None
+    except ValueError as e:
+        return None, str(e)
 
 
 def _get_attendance_map(group_id, report_id) -> Dict[str, Dict]:
@@ -339,8 +369,8 @@ def portal():
     return render_template('cell_report/portal.html', groups=groups, report_status=report_status)
 
 
-@login_required
 @cell_report_bp.route('/cell-report/<group_id>/section1', methods=['GET', 'POST'])
+@login_required
 def section1(group_id):
     group = _get_group(group_id)
     if not group:
@@ -374,7 +404,6 @@ def section1(group_id):
 
         session['week_date'] = selected_date.isoformat()
 
-        report = _get_or_create_report(group_id, selected_date.isoformat())
         update_data: Dict[str, Any] = {'no_meeting': no_meeting}
 
         if no_meeting:
@@ -382,13 +411,16 @@ def section1(group_id):
             update_data['attendance_count'] = None
             update_data['is_complete'] = True
         else:
-            attendance_raw = request.form.get('attendance_count', '').strip()
-            try:
-                update_data['attendance_count'] = int(attendance_raw or 0)
-            except ValueError:
-                update_data['attendance_count'] = 0
+            count, count_err = _count_or_error(request.form.get('attendance_count'))
+            if count_err:   # 空白不是 0：退回，什麼都不寫
+                flash(f'請填寫本週實際出席人數（{count_err}）。', 'error')
+                return redirect(url_for('cell_report.section1', group_id=group_id,
+                                        prefill_date=selected_date.isoformat()))
+            update_data['attendance_count'] = count
             update_data['no_meeting_reason'] = ''
             update_data['is_complete'] = False
+
+        report = _get_or_create_report(group_id, selected_date.isoformat())
 
         try:
             supabase.table('cell_reports').update(update_data).eq('id', report['id']).execute()
@@ -400,7 +432,7 @@ def section1(group_id):
         return redirect(url_for('cell_report.section2', group_id=group_id,
                                 week_date=selected_date.isoformat()))
 
-    report = _get_or_create_report(group_id, display_date.isoformat())
+    report = _find_report(group_id, display_date.isoformat()) or {}
 
     return render_template('cell_report/section1.html',
                            group=group,
@@ -409,8 +441,8 @@ def section1(group_id):
                            is_backfill=display_date != this_week_date)
 
 
-@login_required
 @cell_report_bp.route('/cell-report/<group_id>/section2', methods=['GET', 'POST'])
+@login_required
 def section2(group_id):
     group = _get_group(group_id)
     if not group:
@@ -431,12 +463,10 @@ def section2(group_id):
         flash('週報日期錯誤', 'error')
         return redirect(url_for('cell_report.section1', group_id=group_id))
 
-    report = _get_or_create_report(group_id, week_date_obj.isoformat())
-    if not report.get('id'):
-        flash('無法建立回報單，請重新整理後再試。', 'error')
-        return redirect(url_for('cell_report.section1', group_id=group_id))
+    report = _find_report(group_id, week_date_obj.isoformat()) or {}
     members = _get_members(group_id)
-    attendance_map = _get_attendance_map(group_id, report['id'])
+    attendance_map = _get_attendance_map(group_id, report['id']) if report.get('id') else {}
+    rc_sunday = _rc_sunday(members, week_date_obj)
 
     display_map = {}
     for m in members:
@@ -449,6 +479,8 @@ def section2(group_id):
             }
         else:
             display_map[str(m['id'])] = {'cell': '未填', 'sunday': '未填', 'rpg': '未填'}
+        if str(m['id']) in rc_sunday:
+            display_map[str(m['id'])]['sunday'] = _status_to_label(rc_sunday[str(m['id'])])
 
     this_week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
 
@@ -457,14 +489,15 @@ def section2(group_id):
                            members=members,
                            attendance_map=attendance_map,
                            display_map=display_map,
+                           rc_sunday=rc_sunday,
                            week_date=week_date_obj,
                            report=report,
                            is_no_meeting=bool(report.get('no_meeting')),
                            is_backfill=week_date_obj != this_week_date)
 
 
-@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/attendance')
+@login_required
 def ajax_save_attendance(group_id):
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
@@ -484,9 +517,14 @@ def ajax_save_attendance(group_id):
         return jsonify({'success': False, 'error': '欄位錯誤'}), 400
 
     try:
-        datetime.date.fromisoformat(week_date_str)
+        week_date_obj = datetime.date.fromisoformat(week_date_str)
     except Exception:
         return jsonify({'success': False, 'error': '日期格式錯誤'}), 400
+
+    if field == 'sunday_status':
+        member = next((m for m in _get_members(group_id) if str(m['id']) == str(member_id)), None)
+        if member and str(member['id']) in _rc_sunday([member], week_date_obj):
+            return jsonify({'success': False, 'error': '這週主日已由聚會點名記錄，請到點名單修改'}), 409
 
     report = _get_or_create_report(group_id, week_date_str)
     if not report.get('id'):
@@ -512,8 +550,8 @@ def ajax_save_attendance(group_id):
     return jsonify({'success': True})
 
 
-@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/add-member')
+@login_required
 def add_member_ajax(group_id):
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
@@ -546,8 +584,8 @@ def add_member_ajax(group_id):
     return jsonify({'success': False, 'error': '新增失敗'}), 500
 
 
-@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/link-member/<member_id>')
+@login_required
 def link_member_ajax(group_id, member_id):
     """連結（或解除連結）小組成員與系統帳號
     JSON body: { user_id: "uuid" | null }
@@ -568,8 +606,8 @@ def link_member_ajax(group_id, member_id):
     return jsonify({'success': True, 'user_id': user_id})
 
 
-@login_required
 @cell_report_bp.post('/cell-report/<group_id>/ajax/remove-member/<member_id>')
+@login_required
 def remove_member_ajax(group_id, member_id):
     if not _has_group_access(group_id):
         return jsonify({'success': False, 'error': '沒有權限'}), 403
@@ -578,8 +616,8 @@ def remove_member_ajax(group_id, member_id):
     return jsonify({'success': True})
 
 
-@login_required
 @cell_report_bp.route('/cell-report/<group_id>/step3', methods=['GET', 'POST'])
+@login_required
 def step3(group_id):
     group = _get_group(group_id)
     if not group:
@@ -600,7 +638,10 @@ def step3(group_id):
         flash('週報日期格式錯誤。', 'error')
         return redirect(url_for('cell_report.section1', group_id=group_id))
 
-    report = _get_or_create_report(group_id, week_date.isoformat())
+    if request.method == 'POST':
+        report = _get_or_create_report(group_id, week_date.isoformat())
+    else:
+        report = _find_report(group_id, week_date.isoformat()) or {}
     this_week_date = _get_last_meeting_date_for_group(group, datetime.date.today())
     mcfg = _get_module_settings()
 
@@ -739,6 +780,7 @@ def view_report(group_id):
     attendance_map = {}
     if report:
         attendance_map = _get_attendance_map(group_id, report['id'])
+    rc_sunday = _rc_sunday(members, week_date)
 
     display_rows = []
     for m in members:
@@ -746,7 +788,7 @@ def view_report(group_id):
         display_rows.append({
             'name': m['name'],
             'cell': _status_to_label(att.get('cell_status', '')),
-            'sunday': _status_to_label(att.get('sunday_status', '')),
+            'sunday': _status_to_label(rc_sunday.get(str(m['id'])) or att.get('sunday_status', '')),
             'rpg': _status_to_label(att.get('rpg_status', '')),
         })
 
@@ -757,7 +799,7 @@ def view_report(group_id):
             parsed = json.loads(report['newcomer_raw'])
             newcomers = parsed if isinstance(parsed, list) else []
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     prev_week = week_date - datetime.timedelta(days=7)
     next_week = week_date + datetime.timedelta(days=7)
@@ -781,8 +823,8 @@ def view_report(group_id):
                            back_url=back_url)
 
 
-@pastor_required
 @cell_report_bp.get('/cell-report/pastor-dashboard')
+@pastor_required
 def pastor_dashboard():
     week_str = request.args.get('week')
     if week_str:
@@ -917,6 +959,7 @@ def staff_dashboard():
 
 
 @cell_report_bp.route('/cell-report/sunday', methods=['GET', 'POST'])
+@staff_required
 def sunday():
     cfg = _get_meeting_settings()['adult_sunday']
     date_obj = _get_last_weekday_date(cfg['weekday'])
@@ -924,12 +967,18 @@ def sunday():
     service_count = cfg.get('service_count', 2)
 
     if request.method == 'POST':
+        if _raw_linked('adult_sunday', date_str):          # 以點名為準：不收手填（回報頁已經是唯讀）
+            return jsonify({'success': False, 'error': '這場的人數由「聚會點名」帶入，請到點名那邊填（這裡不用再填一次）'}), 409
         try:
             data = json.loads(request.data.decode('utf-8'))
-            first = int(data.get('first_service_count', 0))
-            second = int(data.get('second_service_count', 0)) if service_count >= 2 else 0
         except Exception:
-            first = second = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        first, err = _count_or_error(data.get('first_service_count'))
+        second = 0
+        if not err and service_count >= 2:
+            second, err = _count_or_error(data.get('second_service_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
 
         try:
             report = _get_or_create_sunday_report(date_str)
@@ -938,7 +987,7 @@ def sunday():
                 'first_service_count': first,
                 'second_service_count': second,
                 'submitted_by': session.get('user_id'),
-                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -946,6 +995,9 @@ def sunday():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_sunday_report(date_str)
+    if (report or {}).get('_linked') is not None:
+        return render_template('cell_report/linked_count.html', report=report, date=date_obj,
+                               label=cfg.get('label', 'adult_sunday'), key='adult_sunday')
     submitter_name = _get_submitter_name(report)
     return render_template('cell_report/sunday_form.html',
                            report=report or {}, date=date_obj,
@@ -955,17 +1007,22 @@ def sunday():
 
 
 @cell_report_bp.route('/cell-report/children', methods=['GET', 'POST'])
+@staff_required
 def children():
     cfg = _get_meeting_settings()['children_sunday']
     date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
+        if _raw_linked('children_sunday', date_str):          # 以點名為準：不收手填（回報頁已經是唯讀）
+            return jsonify({'success': False, 'error': '這場的人數由「聚會點名」帶入，請到點名那邊填（這裡不用再填一次）'}), 409
         try:
             data = json.loads(request.data.decode('utf-8'))
-            count = int(data.get('attendance_count', 0))
         except Exception:
-            count = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        count, err = _count_or_error(data.get('attendance_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
 
         try:
             from datetime import timezone
@@ -973,7 +1030,7 @@ def children():
             supabase.table('children_sunday_reports').update({
                 'attendance_count': count,
                 'submitted_by': session.get('user_id'),
-                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -981,6 +1038,9 @@ def children():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_children_report(date_str)
+    if (report or {}).get('_linked') is not None:
+        return render_template('cell_report/linked_count.html', report=report, date=date_obj,
+                               label=cfg.get('label', 'children_sunday'), key='children_sunday')
     submitter_name = _get_submitter_name(report)
     return render_template('cell_report/children_sunday_form.html',
                            report=report or {}, date=date_obj,
@@ -989,17 +1049,22 @@ def children():
 
 
 @cell_report_bp.route('/cell-report/prayer', methods=['GET', 'POST'])
+@staff_required
 def prayer():
     cfg = _get_meeting_settings()['prayer']
     date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
+        if _raw_linked('prayer', date_str):          # 以點名為準：不收手填（回報頁已經是唯讀）
+            return jsonify({'success': False, 'error': '這場的人數由「聚會點名」帶入，請到點名那邊填（這裡不用再填一次）'}), 409
         try:
             data = json.loads(request.data.decode('utf-8'))
-            count = int(data.get('attendance_count', 0))
         except Exception:
-            count = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        count, err = _count_or_error(data.get('attendance_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
 
         try:
             from datetime import timezone
@@ -1007,7 +1072,7 @@ def prayer():
             supabase.table('prayer_reports').update({
                 'attendance_count': count,
                 'submitted_by': session.get('user_id'),
-                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -1015,6 +1080,9 @@ def prayer():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_prayer_report(date_str)
+    if (report or {}).get('_linked') is not None:
+        return render_template('cell_report/linked_count.html', report=report, date=date_obj,
+                               label=cfg.get('label', 'prayer'), key='prayer')
     submitter_name = _get_submitter_name(report)
     return render_template('cell_report/prayer_form.html',
                            report=report or {}, date=date_obj,
@@ -1023,17 +1091,22 @@ def prayer():
 
 
 @cell_report_bp.route('/cell-report/morning-prayer', methods=['GET', 'POST'])
+@staff_required
 def morning_prayer():
     cfg = _get_meeting_settings()['morning_prayer']
     date_obj = _get_last_weekday_date(cfg['weekday'])
     date_str = date_obj.isoformat()
 
     if request.method == 'POST':
+        if _raw_linked('morning_prayer', date_str):          # 以點名為準：不收手填（回報頁已經是唯讀）
+            return jsonify({'success': False, 'error': '這場的人數由「聚會點名」帶入，請到點名那邊填（這裡不用再填一次）'}), 409
         try:
             data = json.loads(request.data.decode('utf-8'))
-            count = int(data.get('attendance_count', 0))
         except Exception:
-            count = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        count, err = _count_or_error(data.get('attendance_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
 
         try:
             from datetime import timezone
@@ -1041,7 +1114,7 @@ def morning_prayer():
             supabase.table('morning_prayer_reports').update({
                 'attendance_count': count,
                 'submitted_by': session.get('user_id'),
-                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'updated_at': datetime.datetime.now(timezone.utc).isoformat(),
             }).eq('id', report['id']).execute()
             return jsonify({'success': True})
         except Exception as e:
@@ -1049,6 +1122,9 @@ def morning_prayer():
             return jsonify({'success': False, 'error': str(e)}), 500
 
     report = _get_morning_prayer_report(date_str)
+    if (report or {}).get('_linked') is not None:
+        return render_template('cell_report/linked_count.html', report=report, date=date_obj,
+                               label=cfg.get('label', 'morning_prayer'), key='morning_prayer')
     submitter_name = _get_submitter_name(report)
     return render_template('cell_report/morning_prayer_form.html',
                            report=report or {}, date=date_obj,
@@ -1078,6 +1154,8 @@ def admin_meeting_settings():
                 'service_count': service_count,
                 'label': label,
                 'emoji': emoji,
+                # 連結到哪一種「聚會點名」；空＝不連結（照舊在回報頁手填）
+                'rc_type_id': (request.form.get(f'{key}_rc_type') or '').strip() or None,
             }, ensure_ascii=False)
             supabase.table('settings').upsert({'key': f'meeting.{key}', 'value': payload}).execute()
 
@@ -1092,7 +1170,7 @@ def admin_meeting_settings():
                 if meeting_key not in active_custom_keys:
                     supabase.table('settings').delete().eq('key', row['key']).execute()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
         # Upsert active custom meetings
         for meeting_key in active_custom_keys:
@@ -1125,7 +1203,13 @@ def admin_meeting_settings():
 
     settings = _get_meeting_settings()
     module_cfg = _get_module_settings()
+    try:
+        rc_types = supabase.table('rc_meeting_types').select('id, name, record_mode')\
+            .eq('is_active', True).order('name').execute().data or []
+    except Exception:
+        rc_types = []
     return render_template('cell_report/admin_meeting_settings.html',
+                           rc_types=rc_types,
                            settings=settings,
                            weekday_names=WEEKDAY_NAMES,
                            defaults=MEETING_DEFAULTS,
@@ -1147,13 +1231,15 @@ def custom_meeting(meeting_key):
     if request.method == 'POST':
         try:
             data = json.loads(request.data.decode('utf-8'))
-            count = int(data.get('attendance_count', 0))
         except Exception:
-            count = 0
+            return jsonify({'success': False, 'error': '資料格式錯誤'}), 400
+        count, err = _count_or_error(data.get('attendance_count'))
+        if err:   # 空白不是 0：退回，什麼都不寫
+            return jsonify({'success': False, 'error': err}), 400
         try:
             from datetime import timezone
             uid = session.get('user_id')
-            now_iso = datetime.now(timezone.utc).isoformat()
+            now_iso = datetime.datetime.now(timezone.utc).isoformat()
             existing = supabase.table('custom_meeting_reports').select('id')\
                 .eq('date', date_str).eq('meeting_key', meeting_key).execute()
             if existing.data:
@@ -1204,32 +1290,62 @@ def _get_submitter_name(report: Optional[Dict]) -> Optional[str]:
             u = res.data[0]
             return u.get('real_name') or u.get('display_name') or '未知'
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return None
 
 
-def _get_sunday_report(date_str: str) -> Optional[Dict]:
+def _raw_linked(key: str, date_str: str) -> bool:
+    """這個聚會這一天，人數是不是由點名帶出來的（POST 擋手填用）。"""
+    from routes.roll_call_link import linked_counts
+    return linked_counts(key, date_str, _get_meeting_settings().get(key, {})) is not None
+
+
+def _raw_sunday_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('sunday_reports').select('*').eq('date', date_str).execute()
     return (res.data or [None])[0]
 
 
-def _get_children_report(date_str: str) -> Optional[Dict]:
+def _get_sunday_report(date_str: str) -> Optional[Dict]:
+    # 以點名為準：點名那邊有數字就蓋上去（見 routes/roll_call_link.py）；沒連結／還沒點就是原本那一列
+    from routes.roll_call_link import overlay
+    return overlay('adult_sunday', date_str, _raw_sunday_report(date_str))
+
+
+def _raw_children_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('children_sunday_reports').select('*').eq('date', date_str).execute()
     return (res.data or [None])[0]
 
 
-def _get_prayer_report(date_str: str) -> Optional[Dict]:
+def _get_children_report(date_str: str) -> Optional[Dict]:
+    # 以點名為準：點名那邊有數字就蓋上去（見 routes/roll_call_link.py）；沒連結／還沒點就是原本那一列
+    from routes.roll_call_link import overlay
+    return overlay('children_sunday', date_str, _raw_children_report(date_str))
+
+
+def _raw_prayer_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('prayer_reports').select('*').eq('date', date_str).execute()
     return (res.data or [None])[0]
 
 
-def _get_morning_prayer_report(date_str: str) -> Optional[Dict]:
+def _get_prayer_report(date_str: str) -> Optional[Dict]:
+    # 以點名為準：點名那邊有數字就蓋上去（見 routes/roll_call_link.py）；沒連結／還沒點就是原本那一列
+    from routes.roll_call_link import overlay
+    return overlay('prayer', date_str, _raw_prayer_report(date_str))
+
+
+def _raw_morning_prayer_report(date_str: str) -> Optional[Dict]:
     res = supabase.table('morning_prayer_reports').select('*').eq('date', date_str).execute()
     return (res.data or [None])[0]
 
 
+def _get_morning_prayer_report(date_str: str) -> Optional[Dict]:
+    # 以點名為準：點名那邊有數字就蓋上去（見 routes/roll_call_link.py）；沒連結／還沒點就是原本那一列
+    from routes.roll_call_link import overlay
+    return overlay('morning_prayer', date_str, _raw_morning_prayer_report(date_str))
+
+
 def _get_or_create_sunday_report(date_str: str) -> Dict:
-    existing = _get_sunday_report(date_str)
+    existing = _raw_sunday_report(date_str)
     if existing:
         return existing
     try:
@@ -1239,12 +1355,12 @@ def _get_or_create_sunday_report(date_str: str) -> Dict:
         if res.data:
             return res.data[0]
     except Exception:
-        pass
-    return _get_sunday_report(date_str) or {}
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+    return _raw_sunday_report(date_str) or {}
 
 
 def _get_or_create_children_report(date_str: str) -> Dict:
-    existing = _get_children_report(date_str)
+    existing = _raw_children_report(date_str)
     if existing:
         return existing
     try:
@@ -1252,12 +1368,12 @@ def _get_or_create_children_report(date_str: str) -> Dict:
         if res.data:
             return res.data[0]
     except Exception:
-        pass
-    return _get_children_report(date_str) or {}
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+    return _raw_children_report(date_str) or {}
 
 
 def _get_or_create_prayer_report(date_str: str) -> Dict:
-    existing = _get_prayer_report(date_str)
+    existing = _raw_prayer_report(date_str)
     if existing:
         return existing
     try:
@@ -1265,12 +1381,12 @@ def _get_or_create_prayer_report(date_str: str) -> Dict:
         if res.data:
             return res.data[0]
     except Exception:
-        pass
-    return _get_prayer_report(date_str) or {}
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+    return _raw_prayer_report(date_str) or {}
 
 
 def _get_or_create_morning_prayer_report(date_str: str) -> Dict:
-    existing = _get_morning_prayer_report(date_str)
+    existing = _raw_morning_prayer_report(date_str)
     if existing:
         return existing
     try:
@@ -1278,8 +1394,8 @@ def _get_or_create_morning_prayer_report(date_str: str) -> Dict:
         if res.data:
             return res.data[0]
     except Exception:
-        pass
-    return _get_morning_prayer_report(date_str) or {}
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+    return _raw_morning_prayer_report(date_str) or {}
 
 
 def _build_group_data(groups: List[Dict], sunday: datetime.date) -> List[Dict]:

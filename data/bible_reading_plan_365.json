@@ -1,0 +1,3665 @@
+{
+ "plan_key": "church365",
+ "name": "365 天聖經速讀計畫",
+ "source": "教會發的「365 天聖經速讀計畫表」（PDF，9 欄印刷版）",
+ "corrections": [
+  {
+   "day_no": 331,
+   "printed": "林前 13-16",
+   "stored": "林前 9-16",
+   "why": "原表從林前 5-8 直接跳到 13-16，第 9-12 章沒有任何一格讀到。補成同一格可以維持 365 格、天數編號跟紙本對得上，而且整本一章不漏。"
+  }
+ ],
+ "days": [
+  {
+   "day_no": 1,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "創 1-4"
+  },
+  {
+   "day_no": 2,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "創 5-8"
+  },
+  {
+   "day_no": 3,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "創 9-12"
+  },
+  {
+   "day_no": 4,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "創 13-16"
+  },
+  {
+   "day_no": 5,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "創 17-20"
+  },
+  {
+   "day_no": 6,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "創 21-24"
+  },
+  {
+   "day_no": 7,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "創 25-28"
+  },
+  {
+   "day_no": 8,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 29,
+   "chapter_end": 32,
+   "label": "創 29-32"
+  },
+  {
+   "day_no": 9,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 33,
+   "chapter_end": 36,
+   "label": "創 33-36"
+  },
+  {
+   "day_no": 10,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 37,
+   "chapter_end": 40,
+   "label": "創 37-40"
+  },
+  {
+   "day_no": 11,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 41,
+   "chapter_end": 43,
+   "label": "創 41-43"
+  },
+  {
+   "day_no": 12,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 44,
+   "chapter_end": 46,
+   "label": "創 44-46"
+  },
+  {
+   "day_no": 13,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 47,
+   "chapter_end": 48,
+   "label": "創 47-48"
+  },
+  {
+   "day_no": 14,
+   "testament": "舊約",
+   "book": "創世記",
+   "abbrev": "創",
+   "book_order": 1,
+   "chapter_start": 49,
+   "chapter_end": 50,
+   "label": "創 49-50"
+  },
+  {
+   "day_no": 15,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "出 1-4"
+  },
+  {
+   "day_no": 16,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "出 5-8"
+  },
+  {
+   "day_no": 17,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "出 9-12"
+  },
+  {
+   "day_no": 18,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "出 13-16"
+  },
+  {
+   "day_no": 19,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "出 17-20"
+  },
+  {
+   "day_no": 20,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "出 21-24"
+  },
+  {
+   "day_no": 21,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "出 25-28"
+  },
+  {
+   "day_no": 22,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 29,
+   "chapter_end": 32,
+   "label": "出 29-32"
+  },
+  {
+   "day_no": 23,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 33,
+   "chapter_end": 35,
+   "label": "出 33-35"
+  },
+  {
+   "day_no": 24,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 36,
+   "chapter_end": 38,
+   "label": "出 36-38"
+  },
+  {
+   "day_no": 25,
+   "testament": "舊約",
+   "book": "出埃及記",
+   "abbrev": "出",
+   "book_order": 2,
+   "chapter_start": 39,
+   "chapter_end": 40,
+   "label": "出 39-40"
+  },
+  {
+   "day_no": 26,
+   "testament": "舊約",
+   "book": "利未記",
+   "abbrev": "利",
+   "book_order": 3,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "利 1-4"
+  },
+  {
+   "day_no": 27,
+   "testament": "舊約",
+   "book": "利未記",
+   "abbrev": "利",
+   "book_order": 3,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "利 5-8"
+  },
+  {
+   "day_no": 28,
+   "testament": "舊約",
+   "book": "利未記",
+   "abbrev": "利",
+   "book_order": 3,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "利 9-12"
+  },
+  {
+   "day_no": 29,
+   "testament": "舊約",
+   "book": "利未記",
+   "abbrev": "利",
+   "book_order": 3,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "利 13-16"
+  },
+  {
+   "day_no": 30,
+   "testament": "舊約",
+   "book": "利未記",
+   "abbrev": "利",
+   "book_order": 3,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "利 17-20"
+  },
+  {
+   "day_no": 31,
+   "testament": "舊約",
+   "book": "利未記",
+   "abbrev": "利",
+   "book_order": 3,
+   "chapter_start": 21,
+   "chapter_end": 23,
+   "label": "利 21-23"
+  },
+  {
+   "day_no": 32,
+   "testament": "舊約",
+   "book": "利未記",
+   "abbrev": "利",
+   "book_order": 3,
+   "chapter_start": 24,
+   "chapter_end": 25,
+   "label": "利 24-25"
+  },
+  {
+   "day_no": 33,
+   "testament": "舊約",
+   "book": "利未記",
+   "abbrev": "利",
+   "book_order": 3,
+   "chapter_start": 26,
+   "chapter_end": 27,
+   "label": "利 26-27"
+  },
+  {
+   "day_no": 34,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "民 1-4"
+  },
+  {
+   "day_no": 35,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "民 5-8"
+  },
+  {
+   "day_no": 36,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "民 9-12"
+  },
+  {
+   "day_no": 37,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "民 13-16"
+  },
+  {
+   "day_no": 38,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "民 17-20"
+  },
+  {
+   "day_no": 39,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "民 21-24"
+  },
+  {
+   "day_no": 40,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "民 25-28"
+  },
+  {
+   "day_no": 41,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 29,
+   "chapter_end": 31,
+   "label": "民 29-31"
+  },
+  {
+   "day_no": 42,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 32,
+   "chapter_end": 34,
+   "label": "民 32-34"
+  },
+  {
+   "day_no": 43,
+   "testament": "舊約",
+   "book": "民數記",
+   "abbrev": "民",
+   "book_order": 4,
+   "chapter_start": 35,
+   "chapter_end": 36,
+   "label": "民 35-36"
+  },
+  {
+   "day_no": 44,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "申 1-4"
+  },
+  {
+   "day_no": 45,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "申 5-8"
+  },
+  {
+   "day_no": 46,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "申 9-12"
+  },
+  {
+   "day_no": 47,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "申 13-16"
+  },
+  {
+   "day_no": 48,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "申 17-20"
+  },
+  {
+   "day_no": 49,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "申 21-24"
+  },
+  {
+   "day_no": 50,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "申 25-28"
+  },
+  {
+   "day_no": 51,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 29,
+   "chapter_end": 31,
+   "label": "申 29-31"
+  },
+  {
+   "day_no": 52,
+   "testament": "舊約",
+   "book": "申命記",
+   "abbrev": "申",
+   "book_order": 5,
+   "chapter_start": 32,
+   "chapter_end": 34,
+   "label": "申 32-34"
+  },
+  {
+   "day_no": 53,
+   "testament": "舊約",
+   "book": "約書亞記",
+   "abbrev": "書",
+   "book_order": 6,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "書 1-4"
+  },
+  {
+   "day_no": 54,
+   "testament": "舊約",
+   "book": "約書亞記",
+   "abbrev": "書",
+   "book_order": 6,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "書 5-8"
+  },
+  {
+   "day_no": 55,
+   "testament": "舊約",
+   "book": "約書亞記",
+   "abbrev": "書",
+   "book_order": 6,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "書 9-12"
+  },
+  {
+   "day_no": 56,
+   "testament": "舊約",
+   "book": "約書亞記",
+   "abbrev": "書",
+   "book_order": 6,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "書 13-16"
+  },
+  {
+   "day_no": 57,
+   "testament": "舊約",
+   "book": "約書亞記",
+   "abbrev": "書",
+   "book_order": 6,
+   "chapter_start": 17,
+   "chapter_end": 19,
+   "label": "書 17-19"
+  },
+  {
+   "day_no": 58,
+   "testament": "舊約",
+   "book": "約書亞記",
+   "abbrev": "書",
+   "book_order": 6,
+   "chapter_start": 20,
+   "chapter_end": 22,
+   "label": "書 20-22"
+  },
+  {
+   "day_no": 59,
+   "testament": "舊約",
+   "book": "約書亞記",
+   "abbrev": "書",
+   "book_order": 6,
+   "chapter_start": 23,
+   "chapter_end": 24,
+   "label": "書 23-24"
+  },
+  {
+   "day_no": 60,
+   "testament": "舊約",
+   "book": "士師記",
+   "abbrev": "士",
+   "book_order": 7,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "士 1-4"
+  },
+  {
+   "day_no": 61,
+   "testament": "舊約",
+   "book": "士師記",
+   "abbrev": "士",
+   "book_order": 7,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "士 5-8"
+  },
+  {
+   "day_no": 62,
+   "testament": "舊約",
+   "book": "士師記",
+   "abbrev": "士",
+   "book_order": 7,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "士 9-12"
+  },
+  {
+   "day_no": 63,
+   "testament": "舊約",
+   "book": "士師記",
+   "abbrev": "士",
+   "book_order": 7,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "士 13-16"
+  },
+  {
+   "day_no": 64,
+   "testament": "舊約",
+   "book": "士師記",
+   "abbrev": "士",
+   "book_order": 7,
+   "chapter_start": 17,
+   "chapter_end": 19,
+   "label": "士 17-19"
+  },
+  {
+   "day_no": 65,
+   "testament": "舊約",
+   "book": "士師記",
+   "abbrev": "士",
+   "book_order": 7,
+   "chapter_start": 20,
+   "chapter_end": 21,
+   "label": "士 20-21"
+  },
+  {
+   "day_no": 66,
+   "testament": "舊約",
+   "book": "路得記",
+   "abbrev": "路得記",
+   "book_order": 8,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "路得記"
+  },
+  {
+   "day_no": 67,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "撒上 1-4"
+  },
+  {
+   "day_no": 68,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "撒上 5-8"
+  },
+  {
+   "day_no": 69,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "撒上 9-12"
+  },
+  {
+   "day_no": 70,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "撒上 13-16"
+  },
+  {
+   "day_no": 71,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "撒上 17-20"
+  },
+  {
+   "day_no": 72,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "撒上 21-24"
+  },
+  {
+   "day_no": 73,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 25,
+   "chapter_end": 27,
+   "label": "撒上 25-27"
+  },
+  {
+   "day_no": 74,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 28,
+   "chapter_end": 29,
+   "label": "撒上 28-29"
+  },
+  {
+   "day_no": 75,
+   "testament": "舊約",
+   "book": "撒母耳記上",
+   "abbrev": "撒上",
+   "book_order": 9,
+   "chapter_start": 30,
+   "chapter_end": 31,
+   "label": "撒上 30-31"
+  },
+  {
+   "day_no": 76,
+   "testament": "舊約",
+   "book": "撒母耳記下",
+   "abbrev": "撒下",
+   "book_order": 10,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "撒下 1-4"
+  },
+  {
+   "day_no": 77,
+   "testament": "舊約",
+   "book": "撒母耳記下",
+   "abbrev": "撒下",
+   "book_order": 10,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "撒下 5-8"
+  },
+  {
+   "day_no": 78,
+   "testament": "舊約",
+   "book": "撒母耳記下",
+   "abbrev": "撒下",
+   "book_order": 10,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "撒下 9-12"
+  },
+  {
+   "day_no": 79,
+   "testament": "舊約",
+   "book": "撒母耳記下",
+   "abbrev": "撒下",
+   "book_order": 10,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "撒下 13-16"
+  },
+  {
+   "day_no": 80,
+   "testament": "舊約",
+   "book": "撒母耳記下",
+   "abbrev": "撒下",
+   "book_order": 10,
+   "chapter_start": 17,
+   "chapter_end": 19,
+   "label": "撒下 17-19"
+  },
+  {
+   "day_no": 81,
+   "testament": "舊約",
+   "book": "撒母耳記下",
+   "abbrev": "撒下",
+   "book_order": 10,
+   "chapter_start": 20,
+   "chapter_end": 22,
+   "label": "撒下 20-22"
+  },
+  {
+   "day_no": 82,
+   "testament": "舊約",
+   "book": "撒母耳記下",
+   "abbrev": "撒下",
+   "book_order": 10,
+   "chapter_start": 23,
+   "chapter_end": 24,
+   "label": "撒下 23-24"
+  },
+  {
+   "day_no": 83,
+   "testament": "舊約",
+   "book": "列王紀上",
+   "abbrev": "王上",
+   "book_order": 11,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "王上 1-4"
+  },
+  {
+   "day_no": 84,
+   "testament": "舊約",
+   "book": "列王紀上",
+   "abbrev": "王上",
+   "book_order": 11,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "王上 5-8"
+  },
+  {
+   "day_no": 85,
+   "testament": "舊約",
+   "book": "列王紀上",
+   "abbrev": "王上",
+   "book_order": 11,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "王上 9-12"
+  },
+  {
+   "day_no": 86,
+   "testament": "舊約",
+   "book": "列王紀上",
+   "abbrev": "王上",
+   "book_order": 11,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "王上 13-16"
+  },
+  {
+   "day_no": 87,
+   "testament": "舊約",
+   "book": "列王紀上",
+   "abbrev": "王上",
+   "book_order": 11,
+   "chapter_start": 17,
+   "chapter_end": 18,
+   "label": "王上 17-18"
+  },
+  {
+   "day_no": 88,
+   "testament": "舊約",
+   "book": "列王紀上",
+   "abbrev": "王上",
+   "book_order": 11,
+   "chapter_start": 19,
+   "chapter_end": 20,
+   "label": "王上 19-20"
+  },
+  {
+   "day_no": 89,
+   "testament": "舊約",
+   "book": "列王紀上",
+   "abbrev": "王上",
+   "book_order": 11,
+   "chapter_start": 21,
+   "chapter_end": 22,
+   "label": "王上 21-22"
+  },
+  {
+   "day_no": 90,
+   "testament": "舊約",
+   "book": "列王紀下",
+   "abbrev": "王下",
+   "book_order": 12,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "王下 1-4"
+  },
+  {
+   "day_no": 91,
+   "testament": "舊約",
+   "book": "列王紀下",
+   "abbrev": "王下",
+   "book_order": 12,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "王下 5-8"
+  },
+  {
+   "day_no": 92,
+   "testament": "舊約",
+   "book": "列王紀下",
+   "abbrev": "王下",
+   "book_order": 12,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "王下 9-12"
+  },
+  {
+   "day_no": 93,
+   "testament": "舊約",
+   "book": "列王紀下",
+   "abbrev": "王下",
+   "book_order": 12,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "王下 13-16"
+  },
+  {
+   "day_no": 94,
+   "testament": "舊約",
+   "book": "列王紀下",
+   "abbrev": "王下",
+   "book_order": 12,
+   "chapter_start": 17,
+   "chapter_end": 19,
+   "label": "王下 17-19"
+  },
+  {
+   "day_no": 95,
+   "testament": "舊約",
+   "book": "列王紀下",
+   "abbrev": "王下",
+   "book_order": 12,
+   "chapter_start": 20,
+   "chapter_end": 22,
+   "label": "王下 20-22"
+  },
+  {
+   "day_no": 96,
+   "testament": "舊約",
+   "book": "列王紀下",
+   "abbrev": "王下",
+   "book_order": 12,
+   "chapter_start": 23,
+   "chapter_end": 25,
+   "label": "王下 23-25"
+  },
+  {
+   "day_no": 97,
+   "testament": "舊約",
+   "book": "歷代志上",
+   "abbrev": "代上",
+   "book_order": 13,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "代上 1-4"
+  },
+  {
+   "day_no": 98,
+   "testament": "舊約",
+   "book": "歷代志上",
+   "abbrev": "代上",
+   "book_order": 13,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "代上 5-8"
+  },
+  {
+   "day_no": 99,
+   "testament": "舊約",
+   "book": "歷代志上",
+   "abbrev": "代上",
+   "book_order": 13,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "代上 9-12"
+  },
+  {
+   "day_no": 100,
+   "testament": "舊約",
+   "book": "歷代志上",
+   "abbrev": "代上",
+   "book_order": 13,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "代上 13-16"
+  },
+  {
+   "day_no": 101,
+   "testament": "舊約",
+   "book": "歷代志上",
+   "abbrev": "代上",
+   "book_order": 13,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "代上 17-20"
+  },
+  {
+   "day_no": 102,
+   "testament": "舊約",
+   "book": "歷代志上",
+   "abbrev": "代上",
+   "book_order": 13,
+   "chapter_start": 21,
+   "chapter_end": 23,
+   "label": "代上 21-23"
+  },
+  {
+   "day_no": 103,
+   "testament": "舊約",
+   "book": "歷代志上",
+   "abbrev": "代上",
+   "book_order": 13,
+   "chapter_start": 24,
+   "chapter_end": 26,
+   "label": "代上 24-26"
+  },
+  {
+   "day_no": 104,
+   "testament": "舊約",
+   "book": "歷代志上",
+   "abbrev": "代上",
+   "book_order": 13,
+   "chapter_start": 27,
+   "chapter_end": 29,
+   "label": "代上 27-29"
+  },
+  {
+   "day_no": 105,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "代下 1-4"
+  },
+  {
+   "day_no": 106,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "代下 5-8"
+  },
+  {
+   "day_no": 107,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "代下 9-12"
+  },
+  {
+   "day_no": 108,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "代下 13-16"
+  },
+  {
+   "day_no": 109,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "代下 17-20"
+  },
+  {
+   "day_no": 110,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "代下 21-24"
+  },
+  {
+   "day_no": 111,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "代下 25-28"
+  },
+  {
+   "day_no": 112,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 29,
+   "chapter_end": 31,
+   "label": "代下 29-31"
+  },
+  {
+   "day_no": 113,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 32,
+   "chapter_end": 34,
+   "label": "代下 32-34"
+  },
+  {
+   "day_no": 114,
+   "testament": "舊約",
+   "book": "歷代志下",
+   "abbrev": "代下",
+   "book_order": 14,
+   "chapter_start": 35,
+   "chapter_end": 36,
+   "label": "代下 35-36"
+  },
+  {
+   "day_no": 115,
+   "testament": "舊約",
+   "book": "以斯拉記",
+   "abbrev": "以斯拉",
+   "book_order": 15,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "以斯拉 1-4"
+  },
+  {
+   "day_no": 116,
+   "testament": "舊約",
+   "book": "以斯拉記",
+   "abbrev": "以斯拉",
+   "book_order": 15,
+   "chapter_start": 5,
+   "chapter_end": 7,
+   "label": "以斯拉 5-7"
+  },
+  {
+   "day_no": 117,
+   "testament": "舊約",
+   "book": "以斯拉記",
+   "abbrev": "以斯拉",
+   "book_order": 15,
+   "chapter_start": 8,
+   "chapter_end": 10,
+   "label": "以斯拉 8-10"
+  },
+  {
+   "day_no": 118,
+   "testament": "舊約",
+   "book": "尼希米記",
+   "abbrev": "尼",
+   "book_order": 16,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "尼 1-4"
+  },
+  {
+   "day_no": 119,
+   "testament": "舊約",
+   "book": "尼希米記",
+   "abbrev": "尼",
+   "book_order": 16,
+   "chapter_start": 5,
+   "chapter_end": 7,
+   "label": "尼 5-7"
+  },
+  {
+   "day_no": 120,
+   "testament": "舊約",
+   "book": "尼希米記",
+   "abbrev": "尼",
+   "book_order": 16,
+   "chapter_start": 8,
+   "chapter_end": 10,
+   "label": "尼 8-10"
+  },
+  {
+   "day_no": 121,
+   "testament": "舊約",
+   "book": "尼希米記",
+   "abbrev": "尼",
+   "book_order": 16,
+   "chapter_start": 11,
+   "chapter_end": 13,
+   "label": "尼 11-13"
+  },
+  {
+   "day_no": 122,
+   "testament": "舊約",
+   "book": "以斯帖記",
+   "abbrev": "以斯帖",
+   "book_order": 17,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "以斯帖 1-4"
+  },
+  {
+   "day_no": 123,
+   "testament": "舊約",
+   "book": "以斯帖記",
+   "abbrev": "以斯帖",
+   "book_order": 17,
+   "chapter_start": 5,
+   "chapter_end": 7,
+   "label": "以斯帖 5-7"
+  },
+  {
+   "day_no": 124,
+   "testament": "舊約",
+   "book": "以斯帖記",
+   "abbrev": "以斯帖",
+   "book_order": 17,
+   "chapter_start": 8,
+   "chapter_end": 10,
+   "label": "以斯帖 8-10"
+  },
+  {
+   "day_no": 125,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "伯 1-4"
+  },
+  {
+   "day_no": 126,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "伯 5-8"
+  },
+  {
+   "day_no": 127,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "伯 9-12"
+  },
+  {
+   "day_no": 128,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "伯 13-16"
+  },
+  {
+   "day_no": 129,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "伯 17-20"
+  },
+  {
+   "day_no": 130,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "伯 21-24"
+  },
+  {
+   "day_no": 131,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "伯 25-28"
+  },
+  {
+   "day_no": 132,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 29,
+   "chapter_end": 31,
+   "label": "伯 29-31"
+  },
+  {
+   "day_no": 133,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 32,
+   "chapter_end": 34,
+   "label": "伯 32-34"
+  },
+  {
+   "day_no": 134,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 35,
+   "chapter_end": 37,
+   "label": "伯 35-37"
+  },
+  {
+   "day_no": 135,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 38,
+   "chapter_end": 40,
+   "label": "伯 38-40"
+  },
+  {
+   "day_no": 136,
+   "testament": "舊約",
+   "book": "約伯記",
+   "abbrev": "伯",
+   "book_order": 18,
+   "chapter_start": 41,
+   "chapter_end": 42,
+   "label": "伯 41-42"
+  },
+  {
+   "day_no": 137,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "詩 1-3"
+  },
+  {
+   "day_no": 138,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "詩 4-6"
+  },
+  {
+   "day_no": 139,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "詩 7-9"
+  },
+  {
+   "day_no": 140,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "詩 10-12"
+  },
+  {
+   "day_no": 141,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 13,
+   "chapter_end": 15,
+   "label": "詩 13-15"
+  },
+  {
+   "day_no": 142,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 16,
+   "chapter_end": 18,
+   "label": "詩 16-18"
+  },
+  {
+   "day_no": 143,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 19,
+   "chapter_end": 21,
+   "label": "詩 19-21"
+  },
+  {
+   "day_no": 144,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 22,
+   "chapter_end": 24,
+   "label": "詩 22-24"
+  },
+  {
+   "day_no": 145,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 25,
+   "chapter_end": 27,
+   "label": "詩 25-27"
+  },
+  {
+   "day_no": 146,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 28,
+   "chapter_end": 30,
+   "label": "詩 28-30"
+  },
+  {
+   "day_no": 147,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 31,
+   "chapter_end": 33,
+   "label": "詩 31-33"
+  },
+  {
+   "day_no": 148,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 34,
+   "chapter_end": 36,
+   "label": "詩 34-36"
+  },
+  {
+   "day_no": 149,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 37,
+   "chapter_end": 39,
+   "label": "詩 37-39"
+  },
+  {
+   "day_no": 150,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 40,
+   "chapter_end": 42,
+   "label": "詩 40-42"
+  },
+  {
+   "day_no": 151,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 43,
+   "chapter_end": 45,
+   "label": "詩 43-45"
+  },
+  {
+   "day_no": 152,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 46,
+   "chapter_end": 48,
+   "label": "詩 46-48"
+  },
+  {
+   "day_no": 153,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 49,
+   "chapter_end": 51,
+   "label": "詩 49-51"
+  },
+  {
+   "day_no": 154,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 52,
+   "chapter_end": 54,
+   "label": "詩 52-54"
+  },
+  {
+   "day_no": 155,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 55,
+   "chapter_end": 57,
+   "label": "詩 55-57"
+  },
+  {
+   "day_no": 156,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 58,
+   "chapter_end": 60,
+   "label": "詩 58-60"
+  },
+  {
+   "day_no": 157,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 61,
+   "chapter_end": 63,
+   "label": "詩 61-63"
+  },
+  {
+   "day_no": 158,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 64,
+   "chapter_end": 66,
+   "label": "詩 64-66"
+  },
+  {
+   "day_no": 159,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 67,
+   "chapter_end": 69,
+   "label": "詩 67-69"
+  },
+  {
+   "day_no": 160,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 70,
+   "chapter_end": 72,
+   "label": "詩 70-72"
+  },
+  {
+   "day_no": 161,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 73,
+   "chapter_end": 75,
+   "label": "詩 73-75"
+  },
+  {
+   "day_no": 162,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 76,
+   "chapter_end": 78,
+   "label": "詩 76-78"
+  },
+  {
+   "day_no": 163,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 79,
+   "chapter_end": 81,
+   "label": "詩 79-81"
+  },
+  {
+   "day_no": 164,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 82,
+   "chapter_end": 84,
+   "label": "詩 82-84"
+  },
+  {
+   "day_no": 165,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 85,
+   "chapter_end": 87,
+   "label": "詩 85-87"
+  },
+  {
+   "day_no": 166,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 88,
+   "chapter_end": 90,
+   "label": "詩 88-90"
+  },
+  {
+   "day_no": 167,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 91,
+   "chapter_end": 93,
+   "label": "詩 91-93"
+  },
+  {
+   "day_no": 168,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 94,
+   "chapter_end": 96,
+   "label": "詩 94-96"
+  },
+  {
+   "day_no": 169,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 97,
+   "chapter_end": 99,
+   "label": "詩 97-99"
+  },
+  {
+   "day_no": 170,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 100,
+   "chapter_end": 102,
+   "label": "詩 100-102"
+  },
+  {
+   "day_no": 171,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 103,
+   "chapter_end": 105,
+   "label": "詩 103-105"
+  },
+  {
+   "day_no": 172,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 106,
+   "chapter_end": 108,
+   "label": "詩 106-108"
+  },
+  {
+   "day_no": 173,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 109,
+   "chapter_end": 111,
+   "label": "詩 109-111"
+  },
+  {
+   "day_no": 174,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 112,
+   "chapter_end": 114,
+   "label": "詩 112-114"
+  },
+  {
+   "day_no": 175,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 115,
+   "chapter_end": 118,
+   "label": "詩 115-118"
+  },
+  {
+   "day_no": 176,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 119,
+   "chapter_end": 119,
+   "label": "詩 119： 1-88"
+  },
+  {
+   "day_no": 177,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 119,
+   "chapter_end": 119,
+   "label": "詩 119： 89-176"
+  },
+  {
+   "day_no": 178,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 120,
+   "chapter_end": 124,
+   "label": "詩 120-124"
+  },
+  {
+   "day_no": 179,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 125,
+   "chapter_end": 129,
+   "label": "詩 125-129"
+  },
+  {
+   "day_no": 180,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 130,
+   "chapter_end": 134,
+   "label": "詩 130-134"
+  },
+  {
+   "day_no": 181,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 135,
+   "chapter_end": 137,
+   "label": "詩 135-137"
+  },
+  {
+   "day_no": 182,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 138,
+   "chapter_end": 140,
+   "label": "詩 138-140"
+  },
+  {
+   "day_no": 183,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 141,
+   "chapter_end": 143,
+   "label": "詩 141-143"
+  },
+  {
+   "day_no": 184,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 144,
+   "chapter_end": 146,
+   "label": "詩 144-146"
+  },
+  {
+   "day_no": 185,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 147,
+   "chapter_end": 148,
+   "label": "詩 147-148"
+  },
+  {
+   "day_no": 186,
+   "testament": "舊約",
+   "book": "詩篇",
+   "abbrev": "詩",
+   "book_order": 19,
+   "chapter_start": 149,
+   "chapter_end": 150,
+   "label": "詩 149-150"
+  },
+  {
+   "day_no": 187,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "箴 1-3"
+  },
+  {
+   "day_no": 188,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "箴 4-6"
+  },
+  {
+   "day_no": 189,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "箴 7-9"
+  },
+  {
+   "day_no": 190,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "箴 10-12"
+  },
+  {
+   "day_no": 191,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 13,
+   "chapter_end": 15,
+   "label": "箴 13-15"
+  },
+  {
+   "day_no": 192,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 16,
+   "chapter_end": 18,
+   "label": "箴 16-18"
+  },
+  {
+   "day_no": 193,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 19,
+   "chapter_end": 21,
+   "label": "箴 19-21"
+  },
+  {
+   "day_no": 194,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 22,
+   "chapter_end": 24,
+   "label": "箴 22-24"
+  },
+  {
+   "day_no": 195,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 25,
+   "chapter_end": 27,
+   "label": "箴 25-27"
+  },
+  {
+   "day_no": 196,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 28,
+   "chapter_end": 29,
+   "label": "箴 28-29"
+  },
+  {
+   "day_no": 197,
+   "testament": "舊約",
+   "book": "箴言",
+   "abbrev": "箴",
+   "book_order": 20,
+   "chapter_start": 30,
+   "chapter_end": 31,
+   "label": "箴 30-31"
+  },
+  {
+   "day_no": 198,
+   "testament": "舊約",
+   "book": "傳道書",
+   "abbrev": "傳",
+   "book_order": 21,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "傳 1-3"
+  },
+  {
+   "day_no": 199,
+   "testament": "舊約",
+   "book": "傳道書",
+   "abbrev": "傳",
+   "book_order": 21,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "傳 4-6"
+  },
+  {
+   "day_no": 200,
+   "testament": "舊約",
+   "book": "傳道書",
+   "abbrev": "傳",
+   "book_order": 21,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "傳 7-9"
+  },
+  {
+   "day_no": 201,
+   "testament": "舊約",
+   "book": "傳道書",
+   "abbrev": "傳",
+   "book_order": 21,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "傳 10-12"
+  },
+  {
+   "day_no": 202,
+   "testament": "舊約",
+   "book": "雅歌",
+   "abbrev": "雅",
+   "book_order": 22,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "雅 1-3"
+  },
+  {
+   "day_no": 203,
+   "testament": "舊約",
+   "book": "雅歌",
+   "abbrev": "雅",
+   "book_order": 22,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "雅 4-6"
+  },
+  {
+   "day_no": 204,
+   "testament": "舊約",
+   "book": "雅歌",
+   "abbrev": "雅",
+   "book_order": 22,
+   "chapter_start": 7,
+   "chapter_end": 8,
+   "label": "雅 7-8"
+  },
+  {
+   "day_no": 205,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "賽 1-4"
+  },
+  {
+   "day_no": 206,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "賽 5-8"
+  },
+  {
+   "day_no": 207,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "賽 9-12"
+  },
+  {
+   "day_no": 208,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "賽 13-16"
+  },
+  {
+   "day_no": 209,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "賽 17-20"
+  },
+  {
+   "day_no": 210,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "賽 21-24"
+  },
+  {
+   "day_no": 211,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "賽 25-28"
+  },
+  {
+   "day_no": 212,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 29,
+   "chapter_end": 32,
+   "label": "賽 29-32"
+  },
+  {
+   "day_no": 213,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 33,
+   "chapter_end": 36,
+   "label": "賽 33-36"
+  },
+  {
+   "day_no": 214,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 37,
+   "chapter_end": 40,
+   "label": "賽 37-40"
+  },
+  {
+   "day_no": 215,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 41,
+   "chapter_end": 43,
+   "label": "賽 41-43"
+  },
+  {
+   "day_no": 216,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 44,
+   "chapter_end": 46,
+   "label": "賽 44-46"
+  },
+  {
+   "day_no": 217,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 47,
+   "chapter_end": 49,
+   "label": "賽 47-49"
+  },
+  {
+   "day_no": 218,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 50,
+   "chapter_end": 52,
+   "label": "賽 50-52"
+  },
+  {
+   "day_no": 219,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 53,
+   "chapter_end": 55,
+   "label": "賽 53-55"
+  },
+  {
+   "day_no": 220,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 56,
+   "chapter_end": 58,
+   "label": "賽 56-58"
+  },
+  {
+   "day_no": 221,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 59,
+   "chapter_end": 60,
+   "label": "賽 59-60"
+  },
+  {
+   "day_no": 222,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 61,
+   "chapter_end": 62,
+   "label": "賽 61-62"
+  },
+  {
+   "day_no": 223,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 63,
+   "chapter_end": 64,
+   "label": "賽 63-64"
+  },
+  {
+   "day_no": 224,
+   "testament": "舊約",
+   "book": "以賽亞書",
+   "abbrev": "賽",
+   "book_order": 23,
+   "chapter_start": 65,
+   "chapter_end": 66,
+   "label": "賽 65-66"
+  },
+  {
+   "day_no": 225,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "耶 1-4"
+  },
+  {
+   "day_no": 226,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "耶 5-8"
+  },
+  {
+   "day_no": 227,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "耶 9-12"
+  },
+  {
+   "day_no": 228,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "耶 13-16"
+  },
+  {
+   "day_no": 229,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "耶 17-20"
+  },
+  {
+   "day_no": 230,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "耶 21-24"
+  },
+  {
+   "day_no": 231,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "耶 25-28"
+  },
+  {
+   "day_no": 232,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 29,
+   "chapter_end": 32,
+   "label": "耶 29-32"
+  },
+  {
+   "day_no": 233,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 33,
+   "chapter_end": 36,
+   "label": "耶 33-36"
+  },
+  {
+   "day_no": 234,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 37,
+   "chapter_end": 40,
+   "label": "耶 37-40"
+  },
+  {
+   "day_no": 235,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 41,
+   "chapter_end": 44,
+   "label": "耶 41-44"
+  },
+  {
+   "day_no": 236,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 45,
+   "chapter_end": 47,
+   "label": "耶 45-47"
+  },
+  {
+   "day_no": 237,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 48,
+   "chapter_end": 48,
+   "label": "耶 48"
+  },
+  {
+   "day_no": 238,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 49,
+   "chapter_end": 49,
+   "label": "耶 49"
+  },
+  {
+   "day_no": 239,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 50,
+   "chapter_end": 50,
+   "label": "耶 50"
+  },
+  {
+   "day_no": 240,
+   "testament": "舊約",
+   "book": "耶利米書",
+   "abbrev": "耶",
+   "book_order": 24,
+   "chapter_start": 51,
+   "chapter_end": 52,
+   "label": "耶 51-52"
+  },
+  {
+   "day_no": 241,
+   "testament": "舊約",
+   "book": "耶利米哀歌",
+   "abbrev": "哀",
+   "book_order": 25,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "哀 1-3"
+  },
+  {
+   "day_no": 242,
+   "testament": "舊約",
+   "book": "耶利米哀歌",
+   "abbrev": "哀",
+   "book_order": 25,
+   "chapter_start": 4,
+   "chapter_end": 5,
+   "label": "哀 4-5"
+  },
+  {
+   "day_no": 243,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "結 1-4"
+  },
+  {
+   "day_no": 244,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "結 5-8"
+  },
+  {
+   "day_no": 245,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "結 9-12"
+  },
+  {
+   "day_no": 246,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "結 13-16"
+  },
+  {
+   "day_no": 247,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 17,
+   "chapter_end": 20,
+   "label": "結 17-20"
+  },
+  {
+   "day_no": 248,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 21,
+   "chapter_end": 24,
+   "label": "結 21-24"
+  },
+  {
+   "day_no": 249,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 25,
+   "chapter_end": 28,
+   "label": "結 25-28"
+  },
+  {
+   "day_no": 250,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 29,
+   "chapter_end": 32,
+   "label": "結 29-32"
+  },
+  {
+   "day_no": 251,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 33,
+   "chapter_end": 36,
+   "label": "結 33-36"
+  },
+  {
+   "day_no": 252,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 37,
+   "chapter_end": 39,
+   "label": "結 37-39"
+  },
+  {
+   "day_no": 253,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 40,
+   "chapter_end": 42,
+   "label": "結 40-42"
+  },
+  {
+   "day_no": 254,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 43,
+   "chapter_end": 44,
+   "label": "結 43-44"
+  },
+  {
+   "day_no": 255,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 45,
+   "chapter_end": 46,
+   "label": "結 45-46"
+  },
+  {
+   "day_no": 256,
+   "testament": "舊約",
+   "book": "以西結書",
+   "abbrev": "結",
+   "book_order": 26,
+   "chapter_start": 47,
+   "chapter_end": 48,
+   "label": "結 47-48"
+  },
+  {
+   "day_no": 257,
+   "testament": "舊約",
+   "book": "但以理書",
+   "abbrev": "但",
+   "book_order": 27,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "但 1-3"
+  },
+  {
+   "day_no": 258,
+   "testament": "舊約",
+   "book": "但以理書",
+   "abbrev": "但",
+   "book_order": 27,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "但 4-6"
+  },
+  {
+   "day_no": 259,
+   "testament": "舊約",
+   "book": "但以理書",
+   "abbrev": "但",
+   "book_order": 27,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "但 7-9"
+  },
+  {
+   "day_no": 260,
+   "testament": "舊約",
+   "book": "但以理書",
+   "abbrev": "但",
+   "book_order": 27,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "但 10-12"
+  },
+  {
+   "day_no": 261,
+   "testament": "舊約",
+   "book": "何西阿書",
+   "abbrev": "何",
+   "book_order": 28,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "何 1-4"
+  },
+  {
+   "day_no": 262,
+   "testament": "舊約",
+   "book": "何西阿書",
+   "abbrev": "何",
+   "book_order": 28,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "何 5-8"
+  },
+  {
+   "day_no": 263,
+   "testament": "舊約",
+   "book": "何西阿書",
+   "abbrev": "何",
+   "book_order": 28,
+   "chapter_start": 9,
+   "chapter_end": 11,
+   "label": "何 9-11"
+  },
+  {
+   "day_no": 264,
+   "testament": "舊約",
+   "book": "何西阿書",
+   "abbrev": "何",
+   "book_order": 28,
+   "chapter_start": 12,
+   "chapter_end": 14,
+   "label": "何 12-14"
+  },
+  {
+   "day_no": 265,
+   "testament": "舊約",
+   "book": "約珥書",
+   "abbrev": "約珥書",
+   "book_order": 29,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "約珥書"
+  },
+  {
+   "day_no": 266,
+   "testament": "舊約",
+   "book": "阿摩司書",
+   "abbrev": "摩",
+   "book_order": 30,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "摩 1-3"
+  },
+  {
+   "day_no": 267,
+   "testament": "舊約",
+   "book": "阿摩司書",
+   "abbrev": "摩",
+   "book_order": 30,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "摩 4-6"
+  },
+  {
+   "day_no": 268,
+   "testament": "舊約",
+   "book": "阿摩司書",
+   "abbrev": "摩",
+   "book_order": 30,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "摩 7-9"
+  },
+  {
+   "day_no": 269,
+   "testament": "舊約",
+   "book": "俄巴底亞書",
+   "abbrev": "俄巴底亞書",
+   "book_order": 31,
+   "chapter_start": 1,
+   "chapter_end": 1,
+   "label": "俄巴 底亞書"
+  },
+  {
+   "day_no": 270,
+   "testament": "舊約",
+   "book": "約拿書",
+   "abbrev": "約拿書",
+   "book_order": 32,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "約拿書"
+  },
+  {
+   "day_no": 271,
+   "testament": "舊約",
+   "book": "彌迦書",
+   "abbrev": "彌",
+   "book_order": 33,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "彌 1-4"
+  },
+  {
+   "day_no": 272,
+   "testament": "舊約",
+   "book": "彌迦書",
+   "abbrev": "彌",
+   "book_order": 33,
+   "chapter_start": 5,
+   "chapter_end": 7,
+   "label": "彌 5-7"
+  },
+  {
+   "day_no": 273,
+   "testament": "舊約",
+   "book": "那鴻書",
+   "abbrev": "鴻",
+   "book_order": 34,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "鴻 1-3"
+  },
+  {
+   "day_no": 274,
+   "testament": "舊約",
+   "book": "哈巴谷書",
+   "abbrev": "哈",
+   "book_order": 35,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "哈 1-3"
+  },
+  {
+   "day_no": 275,
+   "testament": "舊約",
+   "book": "西番雅書",
+   "abbrev": "番",
+   "book_order": 36,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "番 1-3"
+  },
+  {
+   "day_no": 276,
+   "testament": "舊約",
+   "book": "哈該書",
+   "abbrev": "該",
+   "book_order": 37,
+   "chapter_start": 1,
+   "chapter_end": 2,
+   "label": "該 1-2"
+  },
+  {
+   "day_no": 277,
+   "testament": "舊約",
+   "book": "撒迦利亞書",
+   "abbrev": "亞",
+   "book_order": 38,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "亞 1-4"
+  },
+  {
+   "day_no": 278,
+   "testament": "舊約",
+   "book": "撒迦利亞書",
+   "abbrev": "亞",
+   "book_order": 38,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "亞 5-8"
+  },
+  {
+   "day_no": 279,
+   "testament": "舊約",
+   "book": "撒迦利亞書",
+   "abbrev": "亞",
+   "book_order": 38,
+   "chapter_start": 9,
+   "chapter_end": 11,
+   "label": "亞 9-11"
+  },
+  {
+   "day_no": 280,
+   "testament": "舊約",
+   "book": "撒迦利亞書",
+   "abbrev": "亞",
+   "book_order": 38,
+   "chapter_start": 12,
+   "chapter_end": 14,
+   "label": "亞 12-14"
+  },
+  {
+   "day_no": 281,
+   "testament": "舊約",
+   "book": "瑪拉基書",
+   "abbrev": "瑪",
+   "book_order": 39,
+   "chapter_start": 1,
+   "chapter_end": 2,
+   "label": "瑪 1-2"
+  },
+  {
+   "day_no": 282,
+   "testament": "舊約",
+   "book": "瑪拉基書",
+   "abbrev": "瑪",
+   "book_order": 39,
+   "chapter_start": 3,
+   "chapter_end": 4,
+   "label": "瑪 3-4"
+  },
+  {
+   "day_no": 283,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "太 1-3"
+  },
+  {
+   "day_no": 284,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "太 4-6"
+  },
+  {
+   "day_no": 285,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "太 7-9"
+  },
+  {
+   "day_no": 286,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "太 10-12"
+  },
+  {
+   "day_no": 287,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 13,
+   "chapter_end": 15,
+   "label": "太 13-15"
+  },
+  {
+   "day_no": 288,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 16,
+   "chapter_end": 18,
+   "label": "太 16-18"
+  },
+  {
+   "day_no": 289,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 19,
+   "chapter_end": 21,
+   "label": "太 19-21"
+  },
+  {
+   "day_no": 290,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 22,
+   "chapter_end": 24,
+   "label": "太 22-24"
+  },
+  {
+   "day_no": 291,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 25,
+   "chapter_end": 26,
+   "label": "太 25-26"
+  },
+  {
+   "day_no": 292,
+   "testament": "新約",
+   "book": "馬太福音",
+   "abbrev": "太",
+   "book_order": 40,
+   "chapter_start": 27,
+   "chapter_end": 28,
+   "label": "太 27-28"
+  },
+  {
+   "day_no": 293,
+   "testament": "新約",
+   "book": "馬可福音",
+   "abbrev": "可",
+   "book_order": 41,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "可 1-3"
+  },
+  {
+   "day_no": 294,
+   "testament": "新約",
+   "book": "馬可福音",
+   "abbrev": "可",
+   "book_order": 41,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "可 4-6"
+  },
+  {
+   "day_no": 295,
+   "testament": "新約",
+   "book": "馬可福音",
+   "abbrev": "可",
+   "book_order": 41,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "可 7-9"
+  },
+  {
+   "day_no": 296,
+   "testament": "新約",
+   "book": "馬可福音",
+   "abbrev": "可",
+   "book_order": 41,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "可 10-12"
+  },
+  {
+   "day_no": 297,
+   "testament": "新約",
+   "book": "馬可福音",
+   "abbrev": "可",
+   "book_order": 41,
+   "chapter_start": 13,
+   "chapter_end": 14,
+   "label": "可 13-14"
+  },
+  {
+   "day_no": 298,
+   "testament": "新約",
+   "book": "馬可福音",
+   "abbrev": "可",
+   "book_order": 41,
+   "chapter_start": 15,
+   "chapter_end": 16,
+   "label": "可 15-16"
+  },
+  {
+   "day_no": 299,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "路 1-3"
+  },
+  {
+   "day_no": 300,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "路 4-6"
+  },
+  {
+   "day_no": 301,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "路 7-9"
+  },
+  {
+   "day_no": 302,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "路 10-12"
+  },
+  {
+   "day_no": 303,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 13,
+   "chapter_end": 15,
+   "label": "路 13-15"
+  },
+  {
+   "day_no": 304,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 16,
+   "chapter_end": 18,
+   "label": "路 16-18"
+  },
+  {
+   "day_no": 305,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 19,
+   "chapter_end": 21,
+   "label": "路 19-21"
+  },
+  {
+   "day_no": 306,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 22,
+   "chapter_end": 23,
+   "label": "路 22-23"
+  },
+  {
+   "day_no": 307,
+   "testament": "新約",
+   "book": "路加福音",
+   "abbrev": "路",
+   "book_order": 42,
+   "chapter_start": 24,
+   "chapter_end": 24,
+   "label": "路 24"
+  },
+  {
+   "day_no": 308,
+   "testament": "新約",
+   "book": "約翰福音",
+   "abbrev": "約",
+   "book_order": 43,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "約 1-3"
+  },
+  {
+   "day_no": 309,
+   "testament": "新約",
+   "book": "約翰福音",
+   "abbrev": "約",
+   "book_order": 43,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "約 4-6"
+  },
+  {
+   "day_no": 310,
+   "testament": "新約",
+   "book": "約翰福音",
+   "abbrev": "約",
+   "book_order": 43,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "約 7-9"
+  },
+  {
+   "day_no": 311,
+   "testament": "新約",
+   "book": "約翰福音",
+   "abbrev": "約",
+   "book_order": 43,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "約 10-12"
+  },
+  {
+   "day_no": 312,
+   "testament": "新約",
+   "book": "約翰福音",
+   "abbrev": "約",
+   "book_order": 43,
+   "chapter_start": 13,
+   "chapter_end": 15,
+   "label": "約 13-15"
+  },
+  {
+   "day_no": 313,
+   "testament": "新約",
+   "book": "約翰福音",
+   "abbrev": "約",
+   "book_order": 43,
+   "chapter_start": 16,
+   "chapter_end": 18,
+   "label": "約 16-18"
+  },
+  {
+   "day_no": 314,
+   "testament": "新約",
+   "book": "約翰福音",
+   "abbrev": "約",
+   "book_order": 43,
+   "chapter_start": 19,
+   "chapter_end": 21,
+   "label": "約 19-21"
+  },
+  {
+   "day_no": 315,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "徒 1-3"
+  },
+  {
+   "day_no": 316,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "徒 4-6"
+  },
+  {
+   "day_no": 317,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "徒 7-9"
+  },
+  {
+   "day_no": 318,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "徒 10-12"
+  },
+  {
+   "day_no": 319,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 13,
+   "chapter_end": 15,
+   "label": "徒 13-15"
+  },
+  {
+   "day_no": 320,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 16,
+   "chapter_end": 18,
+   "label": "徒 16-18"
+  },
+  {
+   "day_no": 321,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 19,
+   "chapter_end": 21,
+   "label": "徒 19-21"
+  },
+  {
+   "day_no": 322,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 22,
+   "chapter_end": 24,
+   "label": "徒 22-24"
+  },
+  {
+   "day_no": 323,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 25,
+   "chapter_end": 26,
+   "label": "徒 25-26"
+  },
+  {
+   "day_no": 324,
+   "testament": "新約",
+   "book": "使徒行傳",
+   "abbrev": "徒",
+   "book_order": 44,
+   "chapter_start": 27,
+   "chapter_end": 28,
+   "label": "徒 27-28"
+  },
+  {
+   "day_no": 325,
+   "testament": "新約",
+   "book": "羅馬書",
+   "abbrev": "羅",
+   "book_order": 45,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "羅 1-4"
+  },
+  {
+   "day_no": 326,
+   "testament": "新約",
+   "book": "羅馬書",
+   "abbrev": "羅",
+   "book_order": 45,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "羅 5-8"
+  },
+  {
+   "day_no": 327,
+   "testament": "新約",
+   "book": "羅馬書",
+   "abbrev": "羅",
+   "book_order": 45,
+   "chapter_start": 9,
+   "chapter_end": 12,
+   "label": "羅 9-12"
+  },
+  {
+   "day_no": 328,
+   "testament": "新約",
+   "book": "羅馬書",
+   "abbrev": "羅",
+   "book_order": 45,
+   "chapter_start": 13,
+   "chapter_end": 16,
+   "label": "羅 13-16"
+  },
+  {
+   "day_no": 329,
+   "testament": "新約",
+   "book": "哥林多前書",
+   "abbrev": "林前",
+   "book_order": 46,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "林前 1-4"
+  },
+  {
+   "day_no": 330,
+   "testament": "新約",
+   "book": "哥林多前書",
+   "abbrev": "林前",
+   "book_order": 46,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "林前 5-8"
+  },
+  {
+   "day_no": 331,
+   "testament": "新約",
+   "book": "哥林多前書",
+   "abbrev": "林前",
+   "book_order": 46,
+   "chapter_start": 9,
+   "chapter_end": 16,
+   "label": "林前 9-16"
+  },
+  {
+   "day_no": 332,
+   "testament": "新約",
+   "book": "哥林多後書",
+   "abbrev": "林後",
+   "book_order": 47,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "林後 1-4"
+  },
+  {
+   "day_no": 333,
+   "testament": "新約",
+   "book": "哥林多後書",
+   "abbrev": "林後",
+   "book_order": 47,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "林後 5-8"
+  },
+  {
+   "day_no": 334,
+   "testament": "新約",
+   "book": "哥林多後書",
+   "abbrev": "林後",
+   "book_order": 47,
+   "chapter_start": 9,
+   "chapter_end": 11,
+   "label": "林後 9-11"
+  },
+  {
+   "day_no": 335,
+   "testament": "新約",
+   "book": "哥林多後書",
+   "abbrev": "林後",
+   "book_order": 47,
+   "chapter_start": 12,
+   "chapter_end": 13,
+   "label": "林後 12-13"
+  },
+  {
+   "day_no": 336,
+   "testament": "新約",
+   "book": "加拉太書",
+   "abbrev": "加拉太書",
+   "book_order": 48,
+   "chapter_start": 1,
+   "chapter_end": 6,
+   "label": "加拉太書"
+  },
+  {
+   "day_no": 337,
+   "testament": "新約",
+   "book": "以弗所書",
+   "abbrev": "以弗所書",
+   "book_order": 49,
+   "chapter_start": 1,
+   "chapter_end": 6,
+   "label": "以弗所書"
+  },
+  {
+   "day_no": 338,
+   "testament": "新約",
+   "book": "腓立比書",
+   "abbrev": "腓立比書",
+   "book_order": 50,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "腓立比書"
+  },
+  {
+   "day_no": 339,
+   "testament": "新約",
+   "book": "歌羅西書",
+   "abbrev": "歌羅西書",
+   "book_order": 51,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "歌羅西書"
+  },
+  {
+   "day_no": 340,
+   "testament": "新約",
+   "book": "帖撒羅尼迦前書",
+   "abbrev": "帖前",
+   "book_order": 52,
+   "chapter_start": 1,
+   "chapter_end": 5,
+   "label": "帖前"
+  },
+  {
+   "day_no": 341,
+   "testament": "新約",
+   "book": "帖撒羅尼迦後書",
+   "abbrev": "帖後",
+   "book_order": 53,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "帖後"
+  },
+  {
+   "day_no": 342,
+   "testament": "新約",
+   "book": "提摩太前書",
+   "abbrev": "提摩太前書",
+   "book_order": 54,
+   "chapter_start": 1,
+   "chapter_end": 6,
+   "label": "提摩太 前書"
+  },
+  {
+   "day_no": 343,
+   "testament": "新約",
+   "book": "提摩太後書",
+   "abbrev": "提摩太後書",
+   "book_order": 55,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "提摩太 後書"
+  },
+  {
+   "day_no": 344,
+   "testament": "新約",
+   "book": "提多書",
+   "abbrev": "提多書",
+   "book_order": 56,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "提多書"
+  },
+  {
+   "day_no": 345,
+   "testament": "新約",
+   "book": "腓利門書",
+   "abbrev": "腓力門書",
+   "book_order": 57,
+   "chapter_start": 1,
+   "chapter_end": 1,
+   "label": "腓力門書"
+  },
+  {
+   "day_no": 346,
+   "testament": "新約",
+   "book": "希伯來書",
+   "abbrev": "來",
+   "book_order": 58,
+   "chapter_start": 1,
+   "chapter_end": 4,
+   "label": "來 1-4"
+  },
+  {
+   "day_no": 347,
+   "testament": "新約",
+   "book": "希伯來書",
+   "abbrev": "來",
+   "book_order": 58,
+   "chapter_start": 5,
+   "chapter_end": 8,
+   "label": "來 5-8"
+  },
+  {
+   "day_no": 348,
+   "testament": "新約",
+   "book": "希伯來書",
+   "abbrev": "來",
+   "book_order": 58,
+   "chapter_start": 9,
+   "chapter_end": 11,
+   "label": "來 9-11"
+  },
+  {
+   "day_no": 349,
+   "testament": "新約",
+   "book": "希伯來書",
+   "abbrev": "來",
+   "book_order": 58,
+   "chapter_start": 12,
+   "chapter_end": 13,
+   "label": "來 12-13"
+  },
+  {
+   "day_no": 350,
+   "testament": "新約",
+   "book": "雅各書",
+   "abbrev": "雅各書",
+   "book_order": 59,
+   "chapter_start": 1,
+   "chapter_end": 5,
+   "label": "雅各書"
+  },
+  {
+   "day_no": 351,
+   "testament": "新約",
+   "book": "彼得前書",
+   "abbrev": "彼得前書",
+   "book_order": 60,
+   "chapter_start": 1,
+   "chapter_end": 5,
+   "label": "彼得前書"
+  },
+  {
+   "day_no": 352,
+   "testament": "新約",
+   "book": "彼得後書",
+   "abbrev": "彼得後書",
+   "book_order": 61,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "彼得後書"
+  },
+  {
+   "day_no": 353,
+   "testament": "新約",
+   "book": "約翰一書",
+   "abbrev": "約翰一書",
+   "book_order": 62,
+   "chapter_start": 1,
+   "chapter_end": 5,
+   "label": "約翰一書"
+  },
+  {
+   "day_no": 354,
+   "testament": "新約",
+   "book": "約翰二書",
+   "abbrev": "約翰二書",
+   "book_order": 63,
+   "chapter_start": 1,
+   "chapter_end": 1,
+   "label": "約翰二書"
+  },
+  {
+   "day_no": 355,
+   "testament": "新約",
+   "book": "約翰三書",
+   "abbrev": "約翰三書",
+   "book_order": 64,
+   "chapter_start": 1,
+   "chapter_end": 1,
+   "label": "約翰三書"
+  },
+  {
+   "day_no": 356,
+   "testament": "新約",
+   "book": "猶大書",
+   "abbrev": "猶大書",
+   "book_order": 65,
+   "chapter_start": 1,
+   "chapter_end": 1,
+   "label": "猶大書"
+  },
+  {
+   "day_no": 357,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 1,
+   "chapter_end": 3,
+   "label": "啟 1-3"
+  },
+  {
+   "day_no": 358,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 4,
+   "chapter_end": 6,
+   "label": "啟 4-6"
+  },
+  {
+   "day_no": 359,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 7,
+   "chapter_end": 9,
+   "label": "啟 7-9"
+  },
+  {
+   "day_no": 360,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 10,
+   "chapter_end": 12,
+   "label": "啟 10-12"
+  },
+  {
+   "day_no": 361,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 13,
+   "chapter_end": 15,
+   "label": "啟 13-15"
+  },
+  {
+   "day_no": 362,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 16,
+   "chapter_end": 18,
+   "label": "啟 16-18"
+  },
+  {
+   "day_no": 363,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 19,
+   "chapter_end": 20,
+   "label": "啟 19-20"
+  },
+  {
+   "day_no": 364,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 21,
+   "chapter_end": 21,
+   "label": "啟 21"
+  },
+  {
+   "day_no": 365,
+   "testament": "新約",
+   "book": "啟示錄",
+   "abbrev": "啟",
+   "book_order": 66,
+   "chapter_start": 22,
+   "chapter_end": 22,
+   "label": "啟 22"
+  }
+ ]
+}

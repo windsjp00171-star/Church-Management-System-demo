@@ -4,10 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>電子簽到</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            font-family: sans-serif;
+            font-family: "Noto Sans TC", "Inter", "PingFang TC", "Microsoft JhengHei", sans-serif;
             background: #f0f4f0;
             min-height: 100vh;
             display: flex;
@@ -65,7 +67,7 @@
             cursor: pointer;
             letter-spacing: 0.05em;
         }
-        .btn-checkin:disabled { background: #ccc; cursor: not-allowed; }
+        .btn-checkin:disabled { background: #06C755; cursor: wait; opacity: 0.75; }
         .icon { font-size: 4rem; margin-bottom: 16px; }
         .title { font-size: 1.3rem; font-weight: bold; margin-bottom: 8px; }
         .subtitle { color: #666; font-size: 0.95rem; line-height: 1.6; white-space: pre-wrap; }
@@ -173,6 +175,12 @@
     <div class="icon">⚠️</div>
     <div class="title" style="color:#c62828;">無法完成簽到</div>
     <p class="subtitle" style="margin-top:8px;">{{ error }}</p>
+    <a href="javascript:history.back()"
+       style="display:inline-block; margin-top:16px; padding:10px 24px;
+              background:#06C755; color:white; border-radius:10px;
+              font-size:1rem; font-weight:bold; text-decoration:none;">
+        返回
+    </a>
     {% if event %}
     <p style="margin-top:20px; font-size:0.8rem; color:#bbb;">活動：{{ event.title }}</p>
     {% endif %}
@@ -189,7 +197,7 @@
     </div>
 
     <div class="user-badge">
-        <span>{{ session.display_name }}</span>
+        <span>{{ session.real_name or session.display_name }}</span>
     </div>
 
     <p style="font-size:0.9rem; color:#555; margin-bottom:16px; text-align:left;">
@@ -246,7 +254,7 @@
         {% if session.picture_url %}
         <img src="{{ session.picture_url }}" alt="頭像">
         {% endif %}
-        <span>{{ session.display_name }}</span>
+        <span>{{ session.real_name or session.display_name }}</span>
     </div>
     <p style="font-size:0.85rem; color:#2e7d32; margin-top:8px; font-weight:bold;">歡迎出席！</p>
 </div>
@@ -263,7 +271,7 @@
         {% if session.picture_url %}
         <img src="{{ session.picture_url }}" alt="頭像">
         {% endif %}
-        <span>{{ session.display_name }}</span>
+        <span>{{ session.real_name or session.display_name }}</span>
     </div>
     <p style="font-size:0.8rem; color:#bbb; margin-top:4px;">歡迎您出席！</p>
 </div>
@@ -300,7 +308,7 @@
     </div>
 
     <div class="user-badge">
-        <span>{{ session.display_name }}</span>
+        <span>{{ session.real_name or session.display_name }}</span>
     </div>
 
     <button class="btn-checkin" id="checkin-btn" onclick="doCheckin()">
@@ -318,7 +326,7 @@
         {% if session.picture_url %}
         <img src="{{ session.picture_url }}" alt="頭像">
         {% endif %}
-        <span>{{ session.display_name }}</span>
+        <span>{{ session.real_name or session.display_name }}</span>
     </div>
     <p style="font-size:0.85rem; color:#2e7d32; margin-top:8px; font-weight:bold;">歡迎出席！</p>
 </div>
@@ -424,7 +432,7 @@ function spawnBalloon(name) {
 function doCheckin() {
     const btn = document.getElementById('checkin-btn');
     btn.disabled = true;
-    btn.textContent = '簽到中...';
+    btn.textContent = '⏳ 簽到中...';
 
     fetch('/checkin/{{ event.id }}/{{ event.checkin_token }}/confirm', {
         method: 'POST',
@@ -436,7 +444,7 @@ function doCheckin() {
         if (data.success) {
             document.getElementById('main-card').style.display = 'none';
             document.getElementById('success-card').style.display = 'block';
-            {% if event and event.party_animation %}launchParty('{{ session.display_name | default("") | e }}');{% endif %}
+            {% if event and event.party_animation %}launchParty('{{ (session.real_name or session.display_name) | default("") | e }}');{% endif %}
         } else {
             btn.disabled = false;
             btn.textContent = '我要簽到';
@@ -453,7 +461,7 @@ function doCheckin() {
 // 多筆：針對指定報名 ID 簽到
 function doCheckinItem(regId, btn) {
     btn.disabled = true;
-    btn.textContent = '簽到中...';
+    btn.textContent = '⏳ 簽到中...';
 
     fetch('/checkin/{{ event.id }}/{{ event.checkin_token }}/confirm', {
         method: 'POST',
@@ -474,7 +482,7 @@ function doCheckinItem(regId, btn) {
                 badge.textContent = '✅ 已簽到';
                 header.appendChild(badge);
             }
-            {% if event and event.party_animation %}launchParty('{{ session.display_name | default("") | e }}');{% endif %}
+            {% if event and event.party_animation %}launchParty('{{ (session.real_name or session.display_name) | default("") | e }}');{% endif %}
         } else {
             btn.disabled = false;
             btn.textContent = '簽到這一筆';
@@ -495,7 +503,7 @@ function showError(msg) {
 
 // ===== auto_checked_in 掃碼即簽到：頁面載入後自動觸發 =====
 {% if auto_checked_in and event and event.party_animation %}
-setTimeout(() => launchParty('{{ session.display_name | default("") | e }}'), 450);
+setTimeout(() => launchParty('{{ (session.real_name or session.display_name) | default("") | e }}'), 450);
 {% endif %}
 
 // ===== 同工 / 管理員 代簽 =====

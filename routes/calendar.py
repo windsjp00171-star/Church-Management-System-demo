@@ -1,3 +1,4 @@
+import logging
 # 教會行事曆路由
 from flask import Blueprint, session, request, jsonify, redirect, render_template, url_for
 from routes.decorators import login_required
@@ -8,6 +9,10 @@ import calendar as cal_module
 calendar_bp = Blueprint('calendar', __name__)
 
 TAIPEI_TZ = timezone(timedelta(hours=8))
+
+# 行事「提前幾天提醒」最多設多少天；查詢窗用它，所以設幾天就是幾天（窗寫死會讓設定靜默失效）
+MAX_REMIND_DAYS = 30
+
 
 def _to_taipei(s):
     """UTC ISO 字串 → 台灣時間 datetime"""
@@ -32,7 +37,17 @@ def _to_taipei(s):
 @login_required
 def calendar_page():
     is_admin = session.get('is_admin', False)
-    return render_template('calendar.html', is_admin=is_admin)
+    # 訂閱網址（.ics）：一定要是完整網址（日曆 App 是把它貼到別處去抓）；算不出來就空字串，
+    # 模板整塊不畫 —— 訂閱是附加的，不可以讓行事曆打不開。
+    feed_url = ''
+    try:
+        from flask import current_app
+        from routes.calendar_feed import feed_url_for
+        feed_url = feed_url_for(current_app.secret_key, session.get('user_id'),
+                                base=request.url_root.rstrip('/'))
+    except Exception:
+        pass
+    return render_template('calendar.html', is_admin=is_admin, feed_url=feed_url)
 
 
 # ── 行事曆資料 API ─────────────────────────────────────────────────────
@@ -202,5 +217,5 @@ def personal_event_edit(item_id):
             .eq('ref_type', 'personal_event')\
             .eq('ref_id', item_id).execute()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     return jsonify({'success': True})

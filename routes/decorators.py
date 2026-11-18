@@ -1,5 +1,5 @@
 from functools import wraps
-from flask import session, redirect, url_for, request, jsonify, abort
+from flask import session, redirect, url_for, request, jsonify, abort, render_template
 from urllib.parse import quote
 
 
@@ -8,7 +8,7 @@ def _is_json():
 
 
 def login_required(f):
-    """未登入導向登入頁，並記住原始路徑。"""
+    """未登入導向登入頁，並記住原始路徑。已封鎖帳號立即擋回。"""
     @wraps(f)
     def decorated(*args, **kwargs):
         if not session.get('user_id'):
@@ -19,6 +19,10 @@ def login_required(f):
             if _is_json():
                 return jsonify({'error': '請先登入'}), 401
             return redirect(url_for('auth.login_page') + '?next=' + quote(next_path, safe='/'))
+        if session.get('is_blocked'):
+            if _is_json():
+                return jsonify({'error': '此帳號已被封鎖'}), 403
+            return render_template('auth/blocked.html'), 403
         return f(*args, **kwargs)
     return decorated
 
@@ -38,14 +42,20 @@ def approved_required(f):
 
 
 def admin_required(f):
-    """需要管理員或超級管理員身分。"""
+    """需要管理員／超級管理員，或被權限矩陣授權該後台模塊的副標籤成員。
+
+    判定只有一份實作（routes.permissions.module_allows_path）：
+    副標籤的人只能進被授權的模塊；沒登記的後台路徑、後台以外的路徑一律拒絕。
+    """
     @wraps(f)
     @login_required
     def decorated(*args, **kwargs):
         if not (session.get('is_admin') or session.get('is_super_admin')):
-            if _is_json():
-                return jsonify({'error': '權限不足'}), 403
-            abort(403)
+            from routes.permissions import module_allows_path
+            if not module_allows_path(session, request.path):
+                if _is_json():
+                    return jsonify({'error': '權限不足'}), 403
+                abort(403)
         return f(*args, **kwargs)
     return decorated
 

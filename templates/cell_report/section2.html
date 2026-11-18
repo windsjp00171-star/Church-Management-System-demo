@@ -43,6 +43,13 @@
   width: 30px;
   flex-shrink: 0;
 }
+.att-fixed {
+  font-size: .82rem;
+  color: var(--text-2, #4A5568);
+  background: #EEF2FF;
+  border-radius: 8px;
+  padding: 4px 10px;
+}
 .att-btns {
   display: flex;
   gap: 5px;
@@ -151,6 +158,12 @@
           </div>
           {% for field, label in [('cell_status','小組'), ('sunday_status','主日'), ('rpg_status','靈修')] %}
           {% set cur = att.get(field, '') %}
+          {% if field == 'sunday_status' and rc_sunday.get(m.id|string) %}
+          <div class="att-row">
+            <span class="att-label">{{ label }}</span>
+            <span class="att-fixed" title="以聚會點名為準，要改請到點名單">點名：{{ display_map[m.id|string].sunday }}</span>
+          </div>
+          {% else %}
           <div class="att-row">
             <span class="att-label">{{ label }}</span>
             <div class="att-btns">
@@ -161,6 +174,7 @@
               {% endfor %}
             </div>
           </div>
+          {% endif %}
           {% endfor %}
         </div>
         {% endfor %}
@@ -274,15 +288,16 @@ async function addMember() {
 }
 
 async function removeMember(memberId, btn) {
-  if (!confirm('確定要從本小組移除此成員嗎？')) return;
-  try {
-    const res = await fetch(`/cell-report/${GROUP_ID}/ajax/remove-member/${memberId}`, {method: 'POST'});
-    const data = await res.json();
-    if (data.success) {
-      const card = document.querySelector(`.att-card[data-member-id="${memberId}"]`);
-      if (card) card.remove();
-    }
-  } catch(e) { console.error(e); }
+  openConfirm('確定要從本小組移除此成員嗎？', async () => {
+    try {
+      const res = await fetch(`/cell-report/${GROUP_ID}/ajax/remove-member/${memberId}`, {method: 'POST'});
+      const data = await res.json();
+      if (data.success) {
+        const card = document.querySelector(`.att-card[data-member-id="${memberId}"]`);
+        if (card) card.remove();
+      }
+    } catch(e) { console.error(e); }
+  });
 }
 
 // init: mark already-selected buttons and check completion

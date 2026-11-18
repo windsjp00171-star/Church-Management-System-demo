@@ -1,6 +1,7 @@
 # 福音探索系統路由
 from flask import Blueprint, render_template, request, session, jsonify
 from db import supabase
+from routes.decorators import admin_required, super_admin_required
 
 gospel_bp = Blueprint('gospel', __name__)
 
@@ -73,12 +74,8 @@ def inquiry():
 
 # ── 後台：詢問名單 ────────────────────────────────
 @gospel_bp.route('/admin/gospel')
+@admin_required
 def admin_index():
-    if not session.get('user_id'):
-        return jsonify({'error': '請先登入'}), 401
-    if not (session.get('is_super_admin') or session.get('is_admin')):
-        return render_template('admin/forbidden.html'), 403
-
     status_filter = request.args.get('status', 'all')
     try:
         q = supabase.table('gospel_inquiries').select('*').order('created_at', desc=True)
@@ -118,12 +115,8 @@ def admin_index():
 
 # ── 後台：更新狀態 / 指派 / 備註 ────────────────────────────────
 @gospel_bp.route('/admin/gospel/<inq_id>/update', methods=['POST'])
+@admin_required
 def admin_update(inq_id):
-    if not session.get('user_id'):
-        return jsonify({'success': False}), 401
-    if not (session.get('is_super_admin') or session.get('is_admin')):
-        return jsonify({'success': False, 'error': '無權限'}), 403
-
     data = request.get_json() or {}
     update = {}
     if 'status' in data and data['status'] in STATUS_LABELS:
@@ -158,9 +151,8 @@ def admin_update(inq_id):
 
 # ── 後台：刪除詢問 ────────────────────────────────
 @gospel_bp.route('/admin/gospel/<inq_id>/delete', methods=['POST'])
+@super_admin_required
 def admin_delete(inq_id):
-    if not session.get('user_id') or not session.get('is_super_admin'):
-        return jsonify({'success': False, 'error': '無權限'}), 403
     try:
         supabase.table('gospel_inquiries').delete().eq('id', inq_id).execute()
         return jsonify({'success': True})
@@ -170,17 +162,15 @@ def admin_delete(inq_id):
 
 # ── 後台：卡片管理 ────────────────────────────────
 @gospel_bp.route('/admin/gospel/cards')
+@super_admin_required
 def admin_cards():
-    if not session.get('is_super_admin'):
-        return render_template('admin/forbidden.html'), 403
     cards = supabase.table('gospel_cards').select('*').order('sort_order').execute().data or []
     return render_template('gospel/admin_cards.html', cards=cards)
 
 
 @gospel_bp.route('/admin/gospel/cards/create', methods=['POST'])
+@super_admin_required
 def admin_card_create():
-    if not session.get('is_super_admin'):
-        return jsonify({'success': False}), 403
     data = request.get_json() or {}
     question = (data.get('question') or '').strip()
     answer   = (data.get('answer') or '').strip()
@@ -203,9 +193,8 @@ def admin_card_create():
 
 
 @gospel_bp.route('/admin/gospel/cards/<card_id>/update', methods=['POST'])
+@super_admin_required
 def admin_card_update(card_id):
-    if not session.get('is_super_admin'):
-        return jsonify({'success': False}), 403
     data = request.get_json() or {}
     update = {}
     if 'question' in data: update['question'] = data['question']
@@ -221,9 +210,8 @@ def admin_card_update(card_id):
 
 # ── 後台：自訂表單問題管理 ────────────────────────────────
 @gospel_bp.route('/admin/gospel/form-questions')
+@admin_required
 def admin_form_questions():
-    if not session.get('is_admin'):
-        return render_template('admin/forbidden.html'), 403
     try:
         questions = supabase.table('gospel_form_questions')\
             .select('*').order('sort_order').execute().data or []
@@ -234,9 +222,8 @@ def admin_form_questions():
 
 
 @gospel_bp.route('/admin/gospel/form-questions/save', methods=['POST'])
+@admin_required
 def admin_form_questions_save():
-    if not session.get('is_admin'):
-        return jsonify({'error': '無權限'}), 403
     data = request.get_json() or {}
     action = data.get('action')
 

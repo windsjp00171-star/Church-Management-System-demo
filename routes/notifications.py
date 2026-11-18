@@ -1,3 +1,4 @@
+import logging
 # 站內通知系統路由
 from flask import Blueprint, session, request, jsonify, render_template, redirect, url_for
 from routes.decorators import login_required, admin_required, super_admin_required
@@ -25,7 +26,9 @@ def create_notification(user_id, title, body=None, type='info',
             'ref_id':   ref_id,
         }).execute()
     except Exception:
-        pass  # 通知失敗不影響主流程
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 通知失敗不影響主流程
+    # 站內通知已經寫好了，推播只是錦上添花（先站內、再推播；失敗不往上炸）
+    _push([user_id], title, body, link, type)
 
 
 def batch_notify(user_ids, title, body=None, type='info',
@@ -44,8 +47,101 @@ def batch_notify(user_ids, title, body=None, type='info',
         try:
             supabase.table('notifications').insert(rows[i:i+100]).execute()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+    _push(user_ids, title, body, link, type)
     return len(rows)
+
+
+def batch_notify_rows(rows):
+    """一次送出**內容各自不同**的通知。
+
+    `batch_notify` 是「同一則發給很多人」；這一支是「每個人一則不一樣的」。
+
+    ★ 為什麼需要它：候補遞補的通知要寫出**是誰**遞補上了
+      （代報者幫五個人報名，收到五則一樣的「你已經正式報名了」
+      看不出是哪一位）。但逐筆 create_notification 會變成 N 次來回 ——
+      調高人數上限一次遞補 20 人就是 20 次，而那是管理員按下去等著的。
+
+    rows: [{user_id, title, body, type, link, ref_type, ref_id}, ...]
+    回實際送出的筆數。
+    """
+    rows = [r for r in (rows or []) if r.get('user_id') and r.get('title')]
+    if not rows:
+        return 0
+    sent = 0
+    for i in range(0, len(rows), 100):
+        chunk = rows[i:i + 100]
+        try:
+            supabase.table('notifications').insert(chunk).execute()
+            sent += len(chunk)
+        except Exception:
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+    _push_rows(rows)
+    return sent
+
+
+def _push_rows(rows):
+    """一批內容各自不同的通知 → **一批推播**。
+
+    ★★ 這裡原本是 `for r in rows: _push([r['user_id']], …)` ——
+      而 `_push` 會開一條背景執行線。所以聚經速讀那一則
+      （114 個人）會在免費方案上瞬間開 **114 條執行線、
+      114 次資料庫查詢**，而 `push.send_in_background` 自己的
+      說明裡就寫著不可以這樣做（「119 條執行線會把免費
+      方案的記憶體吃掉」）。
+
+      失敗全部被背景執行線吃掉，所以症狀是
+      **站內通知全部都在、手機一則都沒響** ——
+      使用者：「推播測試鈕 有正確推播 但是沒有收到過
+      其他的東西」（測試鈕是同步送的，不走這條路）。
+
+    ★ 內容一樣的人先併成一組，一組只做一次 payload。
+    """
+    groups = {}
+    for r in rows or ():
+        if not r.get('user_id') or not should_push(r.get('type')):
+            continue
+        key = (r.get('title'), r.get('body'), r.get('link'))
+        groups.setdefault(key, []).append(r['user_id'])
+    jobs = [(uids, title, body or '', link or '/')
+            for (title, body, link), uids in groups.items()]
+    if not jobs:
+        return
+    try:
+        from routes.push import send_many_in_background
+        send_many_in_background(jobs)
+    except Exception:                                  # noqa: BLE001
+        pass
+
+
+
+def should_push(type_):
+    """推不推的規則只有一份（`routes/push.PUSH_TYPES`）。
+
+    ★ 這裡只是轉一手，不在這裡臨時判斷 ——
+      那張註冊表是使用者一項一項圈的。
+      沒設金鑰等等場合回 False 也是安全的方向。
+    """
+    try:
+        from routes.push import should_push as _sp
+        return _sp(type_)
+    except Exception:                                  # noqa: BLE001
+        return False
+
+
+def _push(user_ids, title, body, link, type=None):
+    """順便推播到手機。推不推由 `push.should_push(type)` 決定（註冊表，不認得的一律不推）。
+
+    ★ 整支包起來：推播壞掉不可以讓發通知失敗。送出丟到背景執行緒：全體廣播要打外部 HTTPS，
+      同步跑會讓同工按下「發送公告」後等二十幾秒、再按一次，全教會收到兩則。
+    """
+    try:
+        from routes.push import send_in_background, should_push
+        if not should_push(type):
+            return
+        send_in_background(list(user_ids), title, body or '', link or '/')
+    except Exception:
+        pass
 
 
 # ══════════════════════════════════════════
@@ -234,7 +330,7 @@ def api_check_reminders():
             )
             created += 1
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 4. 教會行事曆提醒 ──────────────────────────
     try:
@@ -268,7 +364,7 @@ def api_check_reminders():
             )
             created += 1
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return jsonify({'success': True, 'created': created})
 

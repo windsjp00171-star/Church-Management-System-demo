@@ -1,7 +1,10 @@
 # Flask 主程式 — 整合型教會行政系統
-from flask import Flask, session, request, redirect, url_for, jsonify
+from flask import Flask, session, request, redirect, url_for, jsonify, g
+import hmac
+import os
 import secrets
 import time
+import uuid
 from config import Config
 
 # 門戶卡片名稱快取（60 秒 TTL，跨請求共用）
@@ -51,31 +54,39 @@ def create_app():
     app.register_blueprint(checkin_bp)
     app.register_blueprint(profile_bp)
     app.register_blueprint(notifications_bp)
+    from routes.push import push_bp
+    app.register_blueprint(push_bp)  # 手機推播訂閱（Web Push）
+    from routes.sermons import sermons_bp
+    from routes.admin_sermons import admin_sermons_bp
+    app.register_blueprint(sermons_bp)          # 主日信息（影片在 YouTube）
+    app.register_blueprint(admin_sermons_bp)
+    from routes.group_compare import group_compare_bp
+    app.register_blueprint(group_compare_bp)  # 小組對照（標籤小組 vs 週間小組，只讀）
+    from routes.tasks import tasks_bp
+    app.register_blueprint(tasks_bp)  # 內建排程（到期任務自己跑）
 
-    # ── 可選模組（透過環境變數控制）──────────────────────────
-    if Config.ENABLE_COURSES:
-        from routes.courses import courses_bp
-        app.register_blueprint(courses_bp)
+    # ── 可選模組：一律註冊；要不要開放由功能模組登記表在執行時決定（routes/modules.py）──
+    # （原本用 ENABLE_* 環境變數在啟動時決定要不要註冊，關掉之後模板裡的連結會指向不存在的網址；
+    #   現在 ENABLE_* 只當作登記表的預設值，見 modules.ENV_DEFAULTS）
+    from routes.courses import courses_bp
+    app.register_blueprint(courses_bp)
 
-    if Config.ENABLE_CALENDAR:
-        from routes.calendar import calendar_bp
-        app.register_blueprint(calendar_bp)
+    from routes.calendar import calendar_bp
+    app.register_blueprint(calendar_bp)
+    from routes.calendar_feed import calendar_feed_bp
+    app.register_blueprint(calendar_feed_bp)  # 訂閱到自己的手機日曆（.ics，免登入、身分在網址簽章）
 
-    if Config.ENABLE_BULLETIN:
-        from routes.bulletin import bulletin_bp
-        app.register_blueprint(bulletin_bp)
+    from routes.bulletin import bulletin_bp
+    app.register_blueprint(bulletin_bp)
 
-    if Config.ENABLE_PRAYER:
-        from routes.prayer import prayer_bp
-        app.register_blueprint(prayer_bp)
+    from routes.prayer import prayer_bp
+    app.register_blueprint(prayer_bp)
 
-    if Config.ENABLE_GOSPEL:
-        from routes.gospel import gospel_bp
-        app.register_blueprint(gospel_bp)
+    from routes.gospel import gospel_bp
+    app.register_blueprint(gospel_bp)
 
-    if Config.ENABLE_VISITOR_FORMS:
-        from routes.visitor_forms import visitor_forms_bp
-        app.register_blueprint(visitor_forms_bp)
+    from routes.visitor_forms import visitor_forms_bp
+    app.register_blueprint(visitor_forms_bp)
 
     # ── 整合模組：檔案分享（church-data-hub）────────────────
     from routes.files import files_bp
@@ -104,12 +115,49 @@ def create_app():
     app.register_blueprint(changelog_bp)
 
     # ── 差勤系統 ──────────────────────────────────────────────
-    from routes.attendance import attendance_bp
-    app.register_blueprint(attendance_bp)
+    from routes.staff_leave import staff_leave_bp
+    app.register_blueprint(staff_leave_bp)
+
+    # ── PWA 續登：把 start_url 夾帶的 token 兌換成 session ──
+    # 必須排在其他 before_request 之前，否則會先被當成未登入而導去登入頁。
+    # on_problem：兌換沒成功時留一筆（三種原因處理方式完全不同，見 routes/auth.record_pwa_problem）。
+    from routes.pwa_session import init_pwa_session
+    from routes.auth import load_user_for_pwa, _populate_session, record_pwa_problem
+    init_pwa_session(app, load_user=load_user_for_pwa,
+                     on_login=_populate_session, on_problem=record_pwa_problem)
+
+    # ── 功能模組登記表（各教會自己選要用哪些功能）──────────────────
+    from routes.modules import modules_bp, enforce_modules, module_on
+    app.register_blueprint(modules_bp)
+    # ── 內建排程：有請求進來時順便看有沒有到期任務（背景執行，不阻塞請求）──
+    @app.before_request
+    def run_scheduled_tasks():
+        if app.config.get('TESTING'):
+            return
+        try:
+            from routes.tasks import maybe_run_scheduled_tasks
+            maybe_run_scheduled_tasks()
+        except Exception:
+            pass  # 排程問題絕不影響正常請求
+
+    app.before_request(enforce_modules)          # 關掉的模組，網址一律 404
+    app.jinja_env.globals['module_on'] = module_on
+
+    # ── 後台權限矩陣（副標籤 × 模塊）────────────────────────────
+    from routes.permissions import permissions_bp
+    app.register_blueprint(permissions_bp)
+
+    # ── 聚會點名（與使用者帳號脫鉤）────────────────────────────
+    from routes.roll_call import roll_call_bp
+    app.register_blueprint(roll_call_bp)
 
     # ── 資料匯出 / 匯入 ────────────────────────────────────────
     from routes.data_transfer import data_transfer_bp
     app.register_blueprint(data_transfer_bp)
+
+    # ── 數位遺囑備份模塊 ───────────────────────────────────────
+    from routes.backup import backup_bp
+    app.register_blueprint(backup_bp)
 
     # ── 禱讀本訂購 ─────────────────────────────────────────────
     from routes.devotional import devotional_bp
@@ -119,13 +167,19 @@ def create_app():
     from routes.payment import payment_bp
     app.register_blueprint(payment_bp)
 
+    from routes.bible_plan import bible_plan_bp
+    app.register_blueprint(bible_plan_bp)  # 365 天聖經速讀計畫
+
     # ── 強制補填個人資料 ──────────────────────────────────────
     SKIP_FORCE_SETUP = {
         'profile.setup',
+        'profile.onboarding',      # 首次登入引導頁（auth 登入後的導向目標）
+        'profile.merge_confirm',   # 自助帳號合併（發生在 real_name 尚未寫入前）
         'auth.login',
         'auth.callback',
         'auth.logout',
         'auth.login_page',
+        'auth.force_relogin',  # session 自救，避免重導死循環
         'static',
         'event.event_detail',
         'event.event_external_form',
@@ -143,14 +197,73 @@ def create_app():
         'setup_wizard.db_status',
     }
 
+    # ── 請求追蹤代碼（錯誤頁／log／Sentry 三方對應）──────────
+    @app.before_request
+    def assign_request_id():
+        g.request_id = uuid.uuid4().hex[:8]
+        if Config.SENTRY_DSN:
+            try:
+                import sentry_sdk
+                sentry_sdk.set_tag('error_code', g.request_id)
+            except Exception:
+                pass
+
+    # 伺服器端 callback 路徑豁免（ECPay/LinePay 由金流平台直接 POST）
+    _CSRF_EXEMPT_PREFIXES = (
+        '/payment/ecpay/return',
+        '/payment/linepay/',
+        '/auth/callback',
+        '/auth/liff-login',
+        '/auth/contact',
+    )
+
+    @app.before_request
+    def global_csrf_protect():
+        if request.method not in ('POST', 'PUT', 'DELETE', 'PATCH'):
+            return
+        if not session.get('user_id'):
+            return  # 公開端點（外部報名、金流回呼等）不強制 CSRF
+        path = request.path
+        if any(path.startswith(p) for p in _CSRF_EXEMPT_PREFIXES):
+            return
+        token = request.headers.get('X-CSRF-Token') or request.form.get('_csrf_token')
+        expected = session.get('_csrf_token')
+        if not expected or not token or not hmac.compare_digest(str(token), str(expected)):
+            if request.is_json or request.path.startswith('/api/'):
+                return jsonify({'error': 'CSRF token 驗證失敗，請重新整理頁面'}), 403
+            return redirect(request.referrer or '/')
+
+    # ── 權限撤銷立即生效（定期回資料庫重算 session 的權限）──────────
+    @app.before_request
+    def refresh_permissions():
+        if not session.get('user_id'):
+            return
+        if (request.endpoint or '').startswith('static'):
+            return
+        from routes.auth import refresh_session_permissions
+        refresh_session_permissions()      # 被清掉時交給後面的登入守衛處理
+
     @app.before_request
     def force_profile_setup():
         if not session.get('user_id'):
             return
-        if session.get('real_name'):
-            return
         endpoint = request.endpoint or ''
         if endpoint in SKIP_FORCE_SETUP or endpoint.startswith('static'):
+            return
+        # 帳號被刪除／合併後 session 殘留 → 導向自助重登
+        # _user_verified 旗標讓 DB 檢查每個 session 只跑一次
+        if not session.get('_user_verified'):
+            try:
+                from db import supabase as _sb
+                row = _sb.table('users').select('id')\
+                    .eq('id', session['user_id']).execute().data
+            except Exception:
+                row = [True]  # DB 暫時無法連線時不誤殺 session
+            if not row:
+                session.clear()
+                return redirect(url_for('auth.force_relogin'))
+            session['_user_verified'] = True
+        if session.get('real_name'):
             return
         return redirect(url_for('profile.setup'))
     # ──────────────────────────────────────────────────────────
@@ -162,10 +275,55 @@ def create_app():
         return session['_csrf_token']
 
     app.jinja_env.globals['csrf_token']        = get_csrf_token
+
+    def asset(path):
+        # shortcut: 以檔案修改時間當版本號（不算內容 hash），目前無 service worker 快取，夠用
+        try:
+            v = int(os.path.getmtime(os.path.join(app.static_folder, path)))
+        except OSError:
+            return url_for('static', filename=path)
+        return url_for('static', filename=path, v=v)
+    app.jinja_env.globals['asset'] = asset
+
+    # 報名表單：選項（含價格）解析、費用顯示、依生日自動判定的說明、民國年上限
+    from routes.event_fields import parse_options as _field_options
+    from routes.event_fields import fee_display as _fee_display, fee_range as _fee_range
+    from routes.auto_tier import describe as _at_describe
+    app.jinja_env.globals['field_options']      = _field_options
+    app.jinja_env.globals['fee_display']        = _fee_display
+    app.jinja_env.globals['fee_range']          = _fee_range
+    app.jinja_env.globals['auto_tier_describe'] = _at_describe
+
+    def this_roc_year():
+        """民國年輸入框的 max。台灣時間 —— 用 UTC 的話跨年那一刻會差一年。"""
+        from datetime import datetime, timedelta, timezone
+        return datetime.now(timezone(timedelta(hours=8))).year - 1911
+    app.jinja_env.globals['this_roc_year'] = this_roc_year
     app.jinja_env.globals['line_liff_id']      = Config.LINE_LIFF_ID
-    app.jinja_env.globals['church_name']       = Config.CHURCH_NAME
-    app.jinja_env.globals['church_short_name'] = Config.CHURCH_SHORT_NAME or Config.CHURCH_NAME
+    # 展示站：用品牌示範名稱，避免顯示佔位字「您的教會名稱」
+    _DEMO_CHURCH_NAME = '教會整合管理系統'
+    _DEMO_CHURCH_SHORT = '教會系統'
+    app.jinja_env.globals['church_name']       = _DEMO_CHURCH_NAME if Config.DEMO_MODE else Config.CHURCH_NAME
+    app.jinja_env.globals['church_short_name'] = _DEMO_CHURCH_SHORT if Config.DEMO_MODE else (Config.CHURCH_SHORT_NAME or Config.CHURCH_NAME)
     app.jinja_env.globals['privacy_policy_url'] = Config.PRIVACY_POLICY_URL
+
+    # ── Context processor：推播有沒有開（全域，不是每個 route 自己傳）──
+    # ★ Jinja 的 undefined 是假值：某個 route 忘了傳，那一塊會整塊安靜地不出現，看起來像推播沒開。
+    @app.context_processor
+    def _push_flag():
+        from routes.push import is_enabled
+        return {'push_enabled': is_enabled()}
+
+    # ── Service Worker 一定要從網站根目錄送出來 ───────────────
+    # ★ 掛在 /static/sw.js 的話 scope 是 /static/，不控制任何真正的頁面：
+    #   `navigator.serviceWorker.ready` 永遠不會 resolve，使用者看到「處理中…」卡住，沒有任何錯誤。
+    @app.route('/sw.js')
+    def service_worker():
+        from flask import send_from_directory
+        resp = send_from_directory(app.static_folder, 'sw.js', mimetype='application/javascript')
+        resp.headers['Cache-Control'] = 'no-cache'          # 瀏覽器靠重抓這支檔案判斷要不要更新
+        resp.headers['Service-Worker-Allowed'] = '/'
+        return resp
 
     # ── Context processor：門戶卡片名稱（全域可用） ───────────
     @app.context_processor
@@ -217,6 +375,12 @@ def create_app():
 
     app.jinja_env.filters['taipei_time'] = _taipei_time
 
+    def _roc_short(iso):
+        """西元 'YYYY-MM-DD' → '077/09/06'（給名冊表格、給保險公司）。認不出來原樣印回去。"""
+        from routes.roc import to_roc
+        return to_roc(iso) or (iso or '')
+    app.jinja_env.filters['roc_short'] = _roc_short
+
     # ── 錯誤頁面 ──────────────────────────────────────────────
     @app.errorhandler(404)
     def not_found(e):
@@ -226,7 +390,29 @@ def create_app():
     @app.errorhandler(500)
     def server_error(e):
         from flask import render_template as _rt
-        return _rt('errors/500.html'), 500
+        code = getattr(g, 'request_id', '')
+        # 把錯誤代碼與完整 traceback 一起寫入 log，方便用代碼直接搜尋
+        app.logger.error(
+            '[500] 錯誤代碼=%s path=%s method=%s',
+            code, request.path, request.method, exc_info=True,
+        )
+        return _rt('errors/500.html', error_code=code), 500
+
+    # ── 健康檢查（供 Render / 監控使用）──────────────────────
+    @app.route('/health')
+    def health():
+        return jsonify({'status': 'ok'})
+
+    # ── 健康檢查（保溫用，不查 DB / 不打 API）─────────────────
+    @app.route('/ping')
+    def ping():
+        return 'ok', 200
+
+    # ── robots.txt（私有系統，全站禁止爬蟲索引）────────────────
+    @app.route('/robots.txt')
+    def robots_txt():
+        from flask import Response
+        return Response('User-agent: *\nDisallow: /\n', mimetype='text/plain')
 
     # ── 健康檢查（保溫用，不查 DB / 不打 API）─────────────────
     @app.route('/ping')
@@ -242,13 +428,18 @@ def create_app():
     # ── PWA manifest ─────────────────────────────────────────
     @app.route('/manifest.json')
     def pwa_manifest():
+        from routes.pwa_session import start_url_for
         name = Config.CHURCH_NAME
         short = Config.CHURCH_SHORT_NAME or name
-        return jsonify({
+        # 已登入時把身分夾帶進 start_url：iOS 的 PWA 有獨立 cookie 容器，裝好第一次打開會是未登入，
+        # 接著被丟去 LINE 網頁登入頁要求輸入註冊 email 與密碼（幾乎沒有人記得）。帶了 token，
+        # PWA 首次啟動就直接登入（需要 base.html 的 manifest link 加 crossorigin="use-credentials"）。
+        start_url = start_url_for(app.secret_key, session.get('user_id'))
+        resp = jsonify({
             'name': name,
             'short_name': short,
             'description': f'{name} 整合型教會行政系統',
-            'start_url': '/',
+            'start_url': start_url,
             'display': 'standalone',
             'background_color': '#f5f5f5',
             'theme_color': '#06C755',
@@ -262,6 +453,16 @@ def create_app():
                 }
             ],
         })
+        # 內容依登入狀態而異，絕不能被快取：快取到未登入版的 start_url，使用者安裝後打開就是未登入，
+        # 接著被 LINE 要求輸入註冊 email 與密碼 —— 就是要避免的那個 bug。
+        resp.headers['Cache-Control'] = 'no-store, no-cache, must-revalidate'
+        resp.headers['Vary'] = 'Cookie'
+        return resp
+
+    # ── 健康檢查端點（UptimeRobot 保活 / 監控用，不查資料庫）──────
+    @app.route('/healthz')
+    def healthz():
+        return jsonify({'status': 'ok'}), 200
 
     return app
 

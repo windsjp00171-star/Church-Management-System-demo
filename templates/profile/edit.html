@@ -21,6 +21,56 @@
             </div>
         </div>
 
+        {# ════ 手機通知（Web Push）════
+           ★★ **排在最上面**，而且沒開的時候要看得出來是一件待辦的事。
+              使用者的原話：「這一塊拉到頁面最上方好了 不然基本不會滑下來」。
+              它原本排在儲存鈕上面 —— 那是整頁最底下，而這一頁多數人
+              是為了改小組或補姓名才進來的，改完就按儲存走了，
+              **那一塊等於不存在**（而「沒有人開」跟「壞掉」在數據上一樣）。
+
+           ★ 這是「這台裝置的設定」，不是一個模塊，所以留在個人資料頁。
+           ★ 沒設金鑰時整塊不畫 —— 畫一顆按了一定失敗的按鈕比不畫更糟。
+           ★ 文案要講**收得到什麼**，不是「啟用推播功能」——
+             沒有人為了「啟用功能」按一顆會跳系統對話框的按鈕。
+           ★ 開好之後那一塊會**自己安靜下來**（`data-on`）：已經做完的事
+             還在頁首喊，下次他就不會再相信頁首那一塊了。 #}
+        {% if push_enabled %}
+        <div id="push-block" style="margin-bottom:24px; padding:16px 18px; border-radius:12px;
+                                    background:var(--info-bg); border:1.5px solid var(--info-border);">
+            <label style="font-weight:bold; display:block; margin-bottom:6px;">
+                📲 手機通知
+            </label>
+            <p style="font-size:0.9rem; color:var(--text-3); line-height:1.8; margin:0 0 10px;">
+                開啟之後，<strong>公告、活動通知、讀經提醒</strong>這些提醒
+                會直接跳到你手機上 —— 不用特地回來看。
+                <br><span style="font-size:0.9rem; color:var(--text-4);">
+                    這是<strong>這一台裝置</strong>的設定，換手機要再開一次。
+                </span>
+            </p>
+            <button type="button" id="push-optin" class="btn btn-sm"
+                style="background:var(--green); color:white; border-color:var(--green);">
+                開啟手機通知
+            </button>
+            {# ★★ 「傳一則測試通知」—— 推播是這個系統裡唯一一件
+                 「沒消息」和「壞掉了」長得一模一樣的事。
+                 使用者：「手機只看到這樣 沒有推播內容」。那天他的裝置
+                 其實是好的，只是那一天沒有任何事要通知他。
+               ★ 只有已經開啟的那台才畫得出來（`data-on`）—— 還沒開啟就
+                 按的話一定失敗，而「按了說沒有裝置」看起來像壞掉。 #}
+            <button type="button" id="push-test" class="btn btn-sm"
+                style="display:none; margin-left:6px; background:var(--surface);
+                       color:var(--info); border-color:var(--info-border);">
+                傳一則測試通知
+            </button>
+            <p id="push-msg" style="font-size:0.9rem; color:var(--text-4);
+                                    line-height:1.8; margin:8px 0 0;"></p>
+        </div>
+        <style>
+            /* 已經開好的那一台：收成一條安靜的線，不再佔頁首的注意力 */
+            #push-block[data-on="1"] { background:var(--surface); border-color:var(--border); }
+        </style>
+        {% endif %}
+
         <!-- 真實姓名 -->
         <div style="margin-bottom:20px;">
             <label style="font-weight:bold; display:block; margin-bottom:6px;">
@@ -115,6 +165,7 @@
 
         {% set grant_count = granted_map|length %}
         <form method="post" action="{{ url_for('diary.grant') }}" style="display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:16px;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="entry_date" value="">
             <select name="pastor_line_user_id" style="flex:1; min-width:180px; padding:10px; border:1px solid #ddd; border-radius:8px; font-size:0.9rem;">
                 <option value="">— 選擇牧者 / 小組長 —</option>
@@ -124,7 +175,7 @@
             </select>
             <button type="submit" name="action" value="grant"
                 style="padding:10px 18px; background:#06C755; color:white; border:none; border-radius:8px; font-size:0.9rem; cursor:pointer;"
-                onclick="var sel=this.form.querySelector('select');if(!sel.value){showToast('❌ 請先選擇對象', 'error');return false;}return confirm('確定授權嗎？')">
+                onclick="var sel=this.form.querySelector('select');if(!sel.value){showToast('❌ 請先選擇對象', 'error');return false;}var f=this.form;openConfirm('確定授權嗎？',()=>f.submit());return false;">
                 授權
             </button>
         </form>
@@ -137,11 +188,13 @@
                 <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;">
                     <span style="font-size:0.9rem;">{{ p.display_name }}</span>
                     <form method="post" action="{{ url_for('diary.grant') }}">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="entry_date" value="">
                         <input type="hidden" name="pastor_line_user_id" value="{{ p.line_user_id }}">
-                        <button type="submit" name="action" value="revoke"
+                        <input type="hidden" name="action" value="revoke">
+                        <button type="submit"
                             style="padding:5px 12px; background:#fff0f0; color:#c62828; border:1px solid #fca5a5; border-radius:6px; font-size:0.82rem; cursor:pointer;"
-                            onclick="return confirm('確定取消授權嗎？')">取消授權</button>
+                            onclick="var f=this.form;openConfirm('確定取消授權嗎？',()=>f.submit());return false;">取消授權</button>
                     </form>
                 </div>
                 {% endif %}

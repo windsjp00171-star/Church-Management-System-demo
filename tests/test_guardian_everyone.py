@@ -1,0 +1,351 @@
+"""「這一題每個人都要填」—— 一個以前表達不出來的答案
+
+## 這一條在解什麼
+
+監護人欄位的預設是「只問未滿 18 歲的人」，而那條條件是**伺服器在存檔時
+自動補的**（`_apply_guardian_conditions`）：沒有 `condition_json` 就補。
+
+所以「兒童營全部都要填」這種活動，管理員唯一想得到的做法是**把條件清掉**
+—— 而清掉正是「沒有 condition_json」，存檔時系統把「未滿18歲」補回去。
+
+    他清掉 → 存檔成功 → 後台看起來設好了 → 預覽也正常（預覽補同一條）
+    → 只有 18 歲以上的人打開報名表時那一題不出現
+
+**沒有人會發現。** 沒有任何一個畫面會說「這場活動有 40 個成人跳過了監護人」。
+而後台那一頁、預覽、報名表，三個地方各自看都完全正常。
+
+★ 更糟的是後台的說明文字**明講**「要換成別的規則（例如全部都要填）就照
+  下面的跳題面板設」—— 而跳題面板只能設「比答案」和「比年齡」兩種條件，
+  兩種都不是「所有人」。系統在教管理員做一件做不到的事。
+
+## 做法：一個存得下來的印記
+
+`{"auto": "everyone"}`（`routes/guardian.everyone_condition`）。它沒有
+trigger，所以求值器**就算不認得它也會顯示** —— 但兩邊仍各寫一條明確的
+分支，理由寫在那兩個地方：靠「壞掉時的預設剛好正確」跟「刻意這樣做」
+在程式碼裡長得一模一樣，而收緊那個預設是一個看起來很合理的改動。
+
+★ mutation 驗過（實際測到的，不是預期的）：
+  - `needs_auto` 的 `== MINOR` 放寬成「有 auto 印記就重新產生」
+    → 印記被蓋掉那兩條紅
+  - `form-fields.js` 的分支改成 `display='none'`、或整條刪掉 → JS 那兩條紅
+  - 模板不存印記（回空字串）→ 「勾了要存下去」那條紅
+  - 編輯頁不還原勾勾 → 對應那條紅
+  - `conditions.py` 拿掉明確分支 → **行為測試全綠**（沒有 trigger 的條件
+    本來就落到「維持顯示」）。所以另外寫了
+    `test_both_evaluators_name_the_mark_explicitly` 守它 —— 那一條是唯一
+    會紅的。理由見那條的 docstring。
+
+★ 我第一版在 `needs_auto` 開頭加了一段「是 everyone 就 return False」，
+  mutation 一跑才發現**那是死程式碼**：everyone 本來就不等於 minor，
+  既有的「只重新產生自己補的那條」已經涵蓋了。刪掉了。
+"""
+import json
+from pathlib import Path
+
+import pytest
+
+from routes.admin_events import _apply_guardian_conditions
+from routes.conditions import missing_required, visibility
+from routes.guardian import (EVERYONE, MINOR, condition_mark,
+                             everyone_condition)
+
+ROOT = Path(__file__).resolve().parent.parent
+FORM = ROOT / 'templates' / 'admin' / 'event_form.html'
+JS = ROOT / 'static' / 'js' / 'form-fields.js'
+
+
+def _guardian(cond=None, required=True):
+    return {'id': 'f-guard', 'label': '緊急聯絡人', 'field_type': 'guardian',
+            'sort_order': 1, 'is_required': required,
+            'condition_json': cond}
+
+
+def _birthday():
+    return {'id': 'f-birth', 'label': '出生年月日', 'field_type': 'birthday',
+            'sort_order': 0, 'is_required': True}
+
+
+# ══ 一、印記本身 ═══════════════════════════════════
+
+def test_the_two_marks_are_different_things():
+    assert MINOR != EVERYONE
+
+
+def test_the_mark_reads_back_from_both_shapes():
+    """★ 資料庫拿回來的是**字串**，前端送上來的是 dict —— 兩種都要認得。
+
+    只認 dict 的話，編輯一場已經存好的活動時印記讀不出來，
+    而症狀是「打開編輯頁、什麼都沒動、存檔，它就變回未滿18歲」。
+    """
+    cond = everyone_condition()
+    assert condition_mark(cond) == EVERYONE
+    assert condition_mark(json.dumps(cond)) == EVERYONE
+
+
+@pytest.mark.parametrize('raw', [
+    None, '', '{}', 'not json', '[]',
+    json.dumps({'trigger_sort_order': 0, 'trigger_value': '孩童'}),
+])
+def test_anything_else_is_not_a_mark(raw):
+    assert condition_mark(raw) is None
+
+
+def test_the_mark_has_no_trigger():
+    """★ 「每個人都問」在資料上就是「沒有條件」。多帶一個假的 trigger
+    的話，那個 index 會在欄位順序改過之後指到別的問題上。"""
+    cond = everyone_condition()
+    assert 'trigger_sort_order' not in cond
+    assert 'trigger_value' not in cond
+    assert 'op' not in cond
+
+
+# ══ 二、存檔時不可以被蓋掉 ═══════════════════════════
+
+def test_the_mark_survives_saving():
+    """★★★ 這一份的核心。
+
+    蓋掉的症狀：他勾了「每個人都要填」、存檔、後台看起來設好了，
+    而 18 歲以上的人看不到那一題。
+    """
+    fields = [_birthday(), _guardian(json.dumps(everyone_condition()))]
+    assert _apply_guardian_conditions(fields) is None
+    assert condition_mark(fields[1]['condition_json']) == EVERYONE
+
+
+def test_it_survives_even_without_a_birthday_field():
+    """★★ 勾了「每個人都要填」就不需要出生日期 ——
+    而擋下來的話，兒童營會為了過這一關加一題他不需要的問題。"""
+    fields = [_guardian(json.dumps(everyone_condition()))]
+    assert _apply_guardian_conditions(fields) is None, \
+        '勾了「每個人都要填」還被要求加出生日期欄位'
+    assert condition_mark(fields[0]['condition_json']) == EVERYONE
+
+
+def test_a_blank_guardian_still_gets_the_minor_default():
+    """★ 反面：沒設的還是要自動補 —— 不然預設行為就沒了。"""
+    fields = [_birthday(), _guardian(None)]
+    assert _apply_guardian_conditions(fields) is None
+    assert condition_mark(fields[1]['condition_json']) == MINOR
+
+
+def test_a_blank_guardian_without_a_birthday_is_still_blocked():
+    """★ 沒勾「每個人都要填」又沒有生日欄位 → 照樣要擋
+    （那題會永遠不出現，而後台看起來設好了）。"""
+    fields = [_guardian(None)]
+    msg = _apply_guardian_conditions(fields)
+    assert msg and '出生日期' in msg
+
+
+def test_that_message_names_the_new_way_out():
+    """★★ 訊息要講「該做什麼」，而現在有兩條路。
+
+    只講「請加一個出生日期欄位」的話，兒童營的人會照做 ——
+    加一題他不需要、而且會被填錯的問題。
+    """
+    msg = _apply_guardian_conditions([_guardian(None)])
+    assert '每個人都要填' in msg, f'訊息沒有指出另一條路：{msg}'
+
+
+def test_an_admin_condition_is_still_untouched():
+    """★ 自己設的一個字都不動（既有規則，不可以被這次的改動弄壞）。"""
+    own = json.dumps({'trigger_sort_order': 0, 'trigger_value': '要'})
+    fields = [_birthday(), _guardian(own)]
+    _apply_guardian_conditions(fields)
+    assert fields[1]['condition_json'] == own
+
+
+# ══ 三、伺服器求值：每個人都看得到 ═══════════════════
+
+EVENT = {'event_start': '2026-10-09T01:00:00+00:00'}
+
+
+def _seen(cond, birthday_answer):
+    fields = [_birthday(), _guardian(json.dumps(cond))]
+    answers = [{'field_id': 'f-birth', 'answer': birthday_answer}]
+    return visibility(fields, answers, EVENT)['f-guard']
+
+
+def test_the_adult_sees_it():
+    """★★ 這就是它跟預設那條的差別 —— 預設那條對成人是不顯示的。"""
+    assert _seen(everyone_condition(), '1980-01-01') is True
+
+
+def test_the_child_sees_it_too():
+    assert _seen(everyone_condition(), '2018-01-01') is True
+
+
+def test_someone_with_no_birthday_at_all_sees_it():
+    """★★★ 最重要的一條。
+
+    年齡算不出來時，年齡條件的行為是**藏起來**（兩邊都是）。
+    「每個人都問」如果走年齡那條路（例如用 0～200 歲的假範圍去模擬），
+    沒填生日的人就會看不到那一題 —— 而那正是最需要留監護人的那種資料
+    不齊的報名。所以它一定不能是年齡條件。
+    """
+    assert _seen(everyone_condition(), '') is True
+
+
+def test_the_default_really_does_hide_it_from_adults():
+    """★ 對照組。這條要是也回 True，上面那幾條就什麼都沒驗到。"""
+    minor = {'trigger_sort_order': 0, 'op': 'age_between',
+             'min': None, 'max': 17, 'auto': MINOR}
+    assert _seen(minor, '1980-01-01') is False
+
+
+def test_required_is_then_enforced_on_the_adult():
+    """★★ 看得見才有必填。這一條把兩件事接起來：
+    勾了「每個人都要填」的活動，成人沒填監護人**送不出去**。"""
+    fields = [_birthday(), _guardian(json.dumps(everyone_condition()))]
+    answers = [{'field_id': 'f-birth', 'answer': '1980-01-01'}]
+    assert '緊急聯絡人' in missing_required(fields, answers, EVENT)
+
+
+def test_the_name_only_answer_is_still_not_enough():
+    """★ 監護人要姓名＋電話都有（既有規則，順便確認沒被繞過）。"""
+    fields = [_birthday(), _guardian(json.dumps(everyone_condition()))]
+    answers = [{'field_id': 'f-birth', 'answer': '1980-01-01'},
+               {'field_id': 'f-guard', 'answer': '王小明'}]
+    assert '緊急聯絡人' in missing_required(fields, answers, EVENT)
+
+
+# ══ 四、兩邊都要有**明確**的分支 ═════════════════════
+
+def test_both_evaluators_name_the_mark_explicitly():
+    """★★★ 這一條守的是「為什麼要多寫一行」。
+
+    印記沒有 trigger，所以求值器**就算不認得它，也會落到
+    「找不到觸發問題 → 維持顯示」而給出正確答案**。
+    實際 mutation 的結果：把 `conditions.py` 那一段刪掉，
+    **所有行為測試都還是綠的** —— 只有這一條會紅。
+
+    但那代表這個功能是**靠壞掉時的預設行為活著**的。而「一個指向空氣的
+    條件應該藏起來」是一個看起來很合理的收緊 —— 那天兒童營的監護人
+    會從報名表上整個消失，而後台完全看不出來。
+    """
+    py = (ROOT / 'routes' / 'conditions.py').read_text(encoding='utf-8')
+    fn = py[py.index('def _is_visible'):py.index('def visibility')]
+    assert 'EVERYONE' in fn, 'conditions.py 沒有「每個人都問」的明確分支'
+
+    js = JS.read_text(encoding='utf-8')
+    ev = js[js.index('window.evaluateConditions'):]
+    ev = ev[:ev.index('window.clearWrapper')]
+    assert "cond.auto === 'everyone'" in ev, \
+        'form-fields.js 沒有「每個人都問」的明確分支'
+
+
+def test_the_shape_of_the_mark_is_not_retyped_in_python():
+    """★ 形狀只有一份（`everyone_condition`）。抄一份的話兩邊遲早不一樣，
+    而症狀是「勾了沒用」。"""
+    for name in ('conditions.py', 'admin_events.py'):
+        src = (ROOT / 'routes' / name).read_text(encoding='utf-8')
+        assert "'auto': 'everyone'" not in src, \
+            f'{name} 自己拼了一份印記'
+
+
+# ══ 五、表單上的即時提示要跟著改口 ═══════════════════
+
+def _ctx(fields):
+    return {'event': {}, 'fields': fields, 'primary_groups': ['小組A']}
+
+
+def test_the_form_hint_stops_asking_for_a_birthday():
+    """★★★ 提示和伺服器不可以講不同的話。
+
+    `guardian_needs_birthday` 是**唯一擋存檔**的一條，所以它跳出來時是
+    紅色的、寫著「會擋下來」。勾了「每個人都要填」之後伺服器其實讓他
+    存了 —— 這時還跳的話，他會為了消掉那行紅字，
+    **加一題他不需要的出生日期**（而那一題還會被填錯）。
+    """
+    from routes.setting_deps import unmet
+    fields = [_guardian(json.dumps(everyone_condition()))]
+    keys = {d.key for d in unmet('events', _ctx(fields))}
+    assert 'guardian_needs_birthday' not in keys
+
+
+def test_it_still_asks_when_the_default_is_in_play():
+    """★ 對照組：沒勾的照樣要提醒（而且照樣擋）。"""
+    from routes.setting_deps import blocking, unmet
+    fields = [_guardian(None)]
+    keys = {d.key for d in unmet('events', _ctx(fields))}
+    assert 'guardian_needs_birthday' in keys
+    assert blocking('events', _ctx(fields)), '這條本來就是擋存檔的那一條'
+
+
+def test_one_marked_everyone_does_not_cover_for_another_one():
+    """★★ 兩題監護人、只有一題勾了「每個人都要填」——
+    另一題還是靠年齡判斷，所以提醒要照跳。
+
+    `any()` 寫成「全部都勾了才不提醒」跟「有一題勾了就不提醒」差一個字，
+    而後者的症狀是**那一題永遠不出現**，沒有任何地方會紅。
+    """
+    from routes.setting_deps import unmet
+    other = dict(_guardian(None), id='f-guard2', label='家長聯絡方式')
+    fields = [_guardian(json.dumps(everyone_condition())), other]
+    keys = {d.key for d in unmet('events', _ctx(fields))}
+    assert 'guardian_needs_birthday' in keys
+
+
+# ══ 六、後台設得起來（不然上面全部是死程式碼）═════════
+
+CODE = FORM.read_text(encoding='utf-8')
+
+
+def test_the_admin_has_a_checkbox_for_it():
+    """★★★ 表達不出來的功能等於不存在。
+
+    伺服器認得這個印記，但如果後台沒有地方勾，那管理員還是只能
+    「把條件清掉」—— 也就是這一整份要修的那個 bug。
+    """
+    assert 'f-guardian-everyone' in CODE
+    assert '每個人都要填' in CODE
+
+
+def test_the_checkbox_actually_produces_the_mark():
+    """★★ 勾了要**存下去**。回空字串的話伺服器會把「未滿18歲」補回去，
+    而畫面上他明明勾了。"""
+    fn = CODE.split('function conditionJsonFromRow')[1].split('\n}\n')[0]
+    assert 'f-guardian-everyone' in fn, '存檔時沒有讀那個勾勾'
+    assert "auto: 'everyone'" in fn, '勾了沒有存成印記'
+
+
+def test_the_saved_mark_is_restored_when_editing():
+    """★★ 打開編輯頁要把勾勾還原。
+
+    不還原的症狀最陰：看起來像沒設過，他什麼都沒動、按一下儲存，
+    就變回「未滿18歲才問」了。
+    """
+    block = CODE.split('data-saved-condition')[-1]
+    assert "cond.auto === 'everyone'" in block, '編輯頁沒有還原那個勾勾'
+
+
+def test_the_two_answers_are_mutually_exclusive():
+    """★ 「每個人都問」和「自己設條件」不可以同時打勾 ——
+    兩個都勾的話畫面上有兩個互相矛盾的設定，而只有一個會生效。"""
+    fn = CODE.split('function syncGuardianWhen')[1].split('\n}\n')[0]
+    assert 'f-has-condition' in fn
+    fn2 = CODE.split('function toggleConditionPanel')[1].split('\n}\n')[0]
+    assert 'f-guardian-everyone' in fn2, '反方向沒有互斥'
+
+
+def test_the_condition_panel_is_still_there():
+    """★ 既有規則：面板不可以因為多了這個勾勾就被拿掉 ——
+    「選了獨木舟才問」那種活動還是要設得起來。"""
+    assert 'condition-section' in CODE
+    assert 'f-has-condition' in CODE
+
+
+def test_the_admin_is_told_the_birthday_field_is_not_needed():
+    """★ 勾了之後那個「請先加出生日期」的擋不會出現，
+    但他不會知道 —— 除非那句話寫在勾勾旁邊。"""
+    note = CODE.split('function applyGuardianRow')[1].split('\n}\n')[0]
+    assert '不需要出生日期' in note
+
+
+def test_the_check_stops_nagging_about_birthdays():
+    """★★ 勾了「每個人都要填」之後，前端那個「這場活動還沒有出生日期
+    欄位」的提醒不可以再跳 —— 它的前提在那種活動上是假的。"""
+    fn = CODE.split('function conditionProblem')[1].split('\n}\n')[0]
+    head = fn[:fn.index("f-required")]
+    assert 'f-guardian-everyone' in head, \
+        'conditionProblem 沒有先讓「每個人都要填」通過'

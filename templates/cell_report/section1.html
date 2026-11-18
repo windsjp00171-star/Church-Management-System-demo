@@ -45,6 +45,7 @@
     {% endif %}
 
     <form method="post">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
       <!-- 聚會日期 -->
       <div class="form-group">
         <label class="form-label form-label-required">聚會日期</label>

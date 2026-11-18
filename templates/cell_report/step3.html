@@ -52,6 +52,7 @@
     {% endif %}
 
     <form method="post" style="display:flex; flex-direction:column; gap:0;">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
       <!-- 四大面向自評 -->
       {% if module_cfg.get('show_self_assessment', True) %}

@@ -1,0 +1,31 @@
+{# 監護人：姓名＋電話 —— 三個報名入口共用這一份
+
+   ★ 抽成 partial 的理由跟 _auto_tier_field.html 一樣：這個專案反覆被
+     「同一件事有三份實作」咬到。三份各寫的話，其中一份的 class 打錯
+     就會變成「那個入口的監護人永遠存不進去」，而畫面完全正常。
+
+   ★ 真正被送出的是隱藏的 .gd-value（帶 data-field-id），格式是
+     「姓名／電話」。收值邏輯（getWrapperValue 的預設分支）因此不用改，
+     名冊、匯出、我的報名也全部照舊直接印出來就對了。
+
+   ★ 這一題只會出現在未滿18歲的人面前 —— 條件是伺服器存活動時自動掛的
+     （routes/admin_events.py 的 _apply_guardian_conditions），
+     管理員不用設。 #}
+<div class="guardian-field">
+    <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <input aria-label="監護人姓名" type="text" class="gd-name" oninput="syncGuardian(this)"
+            placeholder="監護人姓名" autocomplete="name"
+            style="flex:1 1 140px; min-width:0; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:1rem; box-sizing:border-box;">
+        {# type=tel 讓手機跳數字鍵盤。不用 type=number —— 那會吃掉開頭的 0 #}
+        <input aria-label="聯絡電話" type="tel" class="gd-phone" oninput="syncGuardian(this)"
+            placeholder="聯絡電話" inputmode="tel" autocomplete="tel"
+            style="flex:1 1 140px; min-width:0; padding:10px; border:1px solid var(--border); border-radius:var(--radius); font-size:1rem; box-sizing:border-box;">
+    </div>
+    {# 只填一半等於沒填 —— 出事那天光有名字打不到人。
+       這句要在填的當下就講，不要等按送出才說「還沒填」。 #}
+    <p class="gd-hint" style="margin:6px 0 0; font-size:0.9rem; color:var(--orange); display:none;">
+        姓名和電話都要填 —— 只有名字的話，真的有狀況時聯絡不到人。
+    </p>
+    <input type="hidden" data-field-id="{{ field.id }}" class="gd-value"
+        {% if field.is_required %}data-required="true"{% endif %}>
+</div>

@@ -121,15 +121,14 @@ function saveSections() {
 }
 
 function resetSections() {
-    if (!confirm('確定要恢復區塊預設設定？')) return;
-    fetch('/profile/homepage', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ action: 'sections', hidden: [] })
-    })
-    .then(r => r.json())
-    .then(d => {
-        if (d.success) location.reload();
+    openConfirm('確定要恢復區塊預設設定？', () => {
+        fetch('/profile/homepage', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ action: 'sections', hidden: [] })
+        })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); });
     });
 }
 
@@ -176,11 +175,10 @@ function saveLayout() {
 }
 
 function resetLayout() {
-    if (!confirm('確定要恢復預設排列？')) return;
-    fetch('/profile/homepage/reset', { method: 'POST' })
-    .then(r => r.json())
-    .then(d => {
-        if (d.success) location.reload();
+    openConfirm('確定要恢復預設排列？', () => {
+        fetch('/profile/homepage/reset', { method: 'POST' })
+        .then(r => r.json())
+        .then(d => { if (d.success) location.reload(); });
     });
 }
 

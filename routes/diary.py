@@ -1,3 +1,5 @@
+import logging
+import re
 """
 天父日記 Blueprint
 整合自 tianfu-diary/app.py，以 Blueprint 模組化方式掛入整合系統。
@@ -15,10 +17,11 @@ import requests
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from flask import (
     Blueprint, render_template, request, redirect, url_for,
-    session, flash, jsonify, current_app
+    session, flash, jsonify, current_app, Response
 )
 
 from db import supabase as sb
+from extensions import limiter
 
 diary_bp = Blueprint('diary', __name__, template_folder='../templates/diary')
 
@@ -50,13 +53,6 @@ _PLAN_CACHE: Optional[Dict[str, Dict[str, str]]] = None
 _PLAN_CACHE_TS: float = 0.0   # DB cache 時間戳
 _PLAN_MTIME: Optional[float] = None  # xlsx mtime fallback
 _PLAN_CACHE_TTL = 300  # 5 分鐘
-
-# =========================
-# 日記後台白名單快取
-# =========================
-_ADMIN_WL_CACHE: Optional[set] = None
-_ADMIN_WL_CACHE_TS: float = 0.0
-_ADMIN_WL_TTL = 120  # 2 分鐘
 
 # =========================
 # 時區
@@ -118,22 +114,6 @@ def _get_user() -> Dict[str, Any]:
     }
 
 
-def _get_admin_whitelist() -> set:
-    global _ADMIN_WL_CACHE, _ADMIN_WL_CACHE_TS
-    now = time.time()
-    if _ADMIN_WL_CACHE is not None and (now - _ADMIN_WL_CACHE_TS) < _ADMIN_WL_TTL:
-        return _ADMIN_WL_CACHE
-    if not sb:
-        return set()
-    try:
-        rows = sb.table('admin_whitelist').select('line_user_id').eq('is_active', True).execute().data or []
-        _ADMIN_WL_CACHE = {r['line_user_id'] for r in rows}
-        _ADMIN_WL_CACHE_TS = now
-        return _ADMIN_WL_CACHE
-    except Exception:
-        return _ADMIN_WL_CACHE or set()
-
-
 def _is_diary_admin(line_user_id: str) -> bool:
     if session.get('is_admin'):
         return True
@@ -141,7 +121,9 @@ def _is_diary_admin(line_user_id: str) -> bool:
     admin_ids = {s.strip() for s in admin_ids_raw.split(',') if s.strip()}
     if line_user_id in admin_ids:
         return True
-    return line_user_id in _get_admin_whitelist()
+    #  原本還有一張 admin_whitelist（沒有任何畫面，只能用 SQL 改）；已併進後台權限矩陣的「天父日記後台」
+    from routes.permissions import can_access_module
+    return can_access_module(session, 'diary')
 
 
 def _invalidate_plan_cache() -> None:
@@ -170,7 +152,7 @@ def load_plan_map() -> Dict[str, Dict[str, str]]:
                 _PLAN_CACHE_TS = now
                 return _PLAN_CACHE
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 2. Fallback: 讀 xlsx（DB 是空的時候）
     if not os.path.exists(PLAN_PATH):
@@ -193,6 +175,59 @@ def load_plan_map() -> Dict[str, Dict[str, str]]:
         return _PLAN_CACHE
     except Exception:
         return {}
+
+
+FOLLOW_READING_KEY = 'diary_follows_reading'     # settings：'true'＝日記經文跟著聖經速讀
+
+
+def _reading_on() -> bool:
+    """日記經文要不要跟著聖經速讀（選項，預設不跟）。
+
+    有的教會讀經和靈修是兩份進度（日記照自己的讀經進度）；有的想合成一套（想讀的讀、想寫的寫下來）。
+    由日記後台切換；速讀模組關掉時一律不跟。
+    """
+    from routes.modules import is_enabled
+    if not is_enabled('reading'):
+        return False
+    try:
+        import settings_store
+        return (settings_store.get(FOLLOW_READING_KEY) or '') == 'true'
+    except Exception:                                        # noqa: BLE001
+        return False
+
+
+def _reading_plan(d: str, day_param=None) -> Optional[Dict[str, Any]]:
+    """聖經速讀開著時，日記的經文就是速讀那一格（只有一套計畫：想讀的讀、想寫的寫下來）。
+
+    哪一格：網址指定的（從讀經頁按「寫下來」）→ 那天打勾的那一格 → 今天的話是下一格沒讀的。
+    """
+    from routes import bible_plan as bp
+    by_no = {x['day_no']: x for x in bp.days()}
+    day = by_no.get(int(day_param)) if str(day_param or '').isdigit() else None
+    uid = session.get('user_id')
+    if not day and uid:
+        on = [n for n, dt in bp.read_dates(uid).items() if dt.isoformat() == d]
+        if on:
+            day = by_no.get(max(on))
+        elif d == _today_str():
+            day = bp.next_unread(bp.done_days(uid))
+    if not day or day['book'] not in BIBLE:
+        return None
+    cs, ce = day['chapter_start'], day['chapter_end']
+    m = re.search(r'[：:]\s*(\d+)-(\d+)', day['label'])     # 詩 119 拆成兩格：「詩 119： 1-88」
+    if m:
+        rng = f'{cs}:{m.group(1)}-{cs}:{m.group(2)}'
+    else:
+        last = max(map(int, BIBLE[day['book']].get(str(ce), {'1': ''})))
+        rng = f'{cs}:1-{ce}:{last}'
+    return {'book': day['book'], 'range': rng, 'label': day['label'], 'day_no': day['day_no']}
+
+
+def _plan_for(d: str, day_param=None) -> Optional[Dict[str, Any]]:
+    """這一天日記要配的經文：速讀開著就用速讀（天父日記自己的讀經進度不再用）。"""
+    if _reading_on():
+        return _reading_plan(d, day_param)
+    return load_plan_map().get(d)
 
 
 def _parse_range(rng: str) -> Tuple[int, int, int, int]:
@@ -316,8 +351,20 @@ def sb_list_month_entries(line_user_id: str, y: int, m: int) -> Dict[str, bool]:
 
 
 def sb_is_pastor(line_user_id: str) -> bool:
-    """從 session 讀取牧者身分（登入時已由 auth.py 統一寫入）。"""
-    return bool(session.get('is_pastor'))
+    """確認指定 LINE user ID 是否有牧者/小組長資格（查 DB，不依賴 session）。"""
+    if not line_user_id or not sb:
+        return False
+    try:
+        res = sb.table('users').select('id,is_pastor').eq('line_id', line_user_id).limit(1).execute()
+        if not res.data:
+            return False
+        user = res.data[0]
+        if user.get('is_pastor'):
+            return True
+        leader_res = sb.table('cell_group_leaders').select('user_id').eq('user_id', user['id']).limit(1).execute()
+        return bool(leader_res.data)
+    except Exception:
+        return False
 
 
 def sb_list_pastors() -> List[Dict[str, Any]]:
@@ -507,7 +554,7 @@ def index():
     else:
         cy, cm = selected.year, selected.month
 
-    plan = load_plan_map().get(d)
+    plan = _plan_for(d, request.args.get('day'))
     verses = get_scripture(plan['book'], plan['range']) if plan else []
 
     try:
@@ -571,6 +618,15 @@ def save():
         return redirect(url_for('diary.index', d=d))
 
     sb_save_entry(uid, d, content)
+    #  寫下來＝也讀過了：順手在速讀打勾（已經打過的不動，免得改掉原本的打勾日期）
+    rd = request.form.get('reading_day', '')
+    if rd.isdigit() and _reading_on() and session.get('user_id'):
+        from routes import bible_plan as bp
+        try:
+            if int(rd) not in bp.done_days(session['user_id']):
+                bp.mark(session['user_id'], int(rd), today=d)
+        except Exception:
+            logging.getLogger(__name__).warning('日記存好了，速讀打勾失敗', exc_info=True)
     flash('已儲存並鎖定', 'ok')
     return redirect(url_for('diary.index', d=d))
 
@@ -603,6 +659,64 @@ def grant():
         flash('已授權（之後會自動延續）', 'ok')
 
     return redirect(url_for('diary.index', d=d))
+
+
+def export_own_entries(line_user_id: str) -> List[Dict[str, Any]]:
+    """讀出「自己的」全部日記（分頁，一次最多 1000 筆）。
+    讀取失敗就丟例外——寧可讓人知道沒匯出成功，也不要給一份缺頁的備份。
+    """
+    rows: List[Dict[str, Any]] = []
+    page, offset = 1000, 0
+    while True:
+        res = (
+            sb.table('diary_entries')
+            .select('entry_date,content')
+            .eq('line_user_id', line_user_id)
+            .order('entry_date')
+            .range(offset, offset + page - 1)
+            .execute()
+        )
+        batch = res.data or []
+        rows.extend(batch)
+        if len(batch) < page:
+            return rows
+        offset += page
+
+
+def render_own_export(name: str, rows: List[Dict[str, Any]]) -> str:
+    lines = [f'{name or "我"} 的天父日記', f'共 {len(rows)} 篇', '=' * 24, '']
+    for r in rows:
+        lines += [str(r.get('entry_date', '')), (r.get('content') or '').strip(), '', '-' * 24, '']
+    return '\r\n'.join(lines)
+
+
+@diary_bp.get('/diary/export')
+def export_mine():
+    """每個人只能匯出自己的日記（鍵是 session 裡的 LINE id，不接受任何參數指定別人）。"""
+    if not _require_login():
+        return redirect(url_for('auth.login_page'))
+    user = _get_user()
+    uid = user.get('line_user_id', '')
+    if not uid or not sb:
+        flash('目前無法匯出，請重新登入後再試', 'error')
+        return redirect(url_for('diary.history'))
+    try:
+        rows = export_own_entries(uid)
+    except Exception:
+        current_app.logger.warning('個人日記匯出失敗', exc_info=True)
+        flash('匯出失敗（資料庫暫時連不上），沒有產生檔案，請稍後再試', 'error')
+        return redirect(url_for('diary.history'))
+
+    from routes.audit import log_action
+    log_action('diary.export_self', target_type='diary_export', detail={'entries': len(rows)})  # 只記篇數，不記內容
+    body = '\ufeff' + render_own_export(_safe_display_name(user), rows)   # BOM：Windows 記事本才不會亂碼
+    stamp = datetime.now(timezone(timedelta(hours=8))).strftime('%Y%m%d')
+    return Response(
+        body.encode('utf-8'),
+        mimetype='text/plain; charset=utf-8',
+        headers={'Content-Disposition': f'attachment; filename=diary_{stamp}.txt',
+                 'Cache-Control': 'no-store'},
+    )
 
 
 @diary_bp.get('/diary/history')
@@ -741,7 +855,8 @@ def pastor_view(owner_uid: str):
     else:
         cy, cm = selected.year, selected.month
 
-    plan = load_plan_map().get(d)
+    #  速讀開著時經文跟著「那個人」讀的那一格，牧者這邊算不到（session 是牧者），寧可不顯示也不要顯示錯的
+    plan = None if _reading_on() else load_plan_map().get(d)
     verses = get_scripture(plan['book'], plan['range']) if plan else []
 
     try:
@@ -831,6 +946,7 @@ def admin():
 
     return render_template(
         'diary/admin.html',
+        follows_reading=_reading_on(),
         display_name=_safe_display_name(user),
         stats=stats,
         upcoming=upcoming,
@@ -1018,51 +1134,20 @@ def admin_update_whitelist():
     return redirect(url_for('diary.admin'))
 
 
-@diary_bp.post('/diary/admin/admin_whitelist/add')
-def admin_whitelist_add():
+@diary_bp.post('/diary/admin/follow-reading')
+def admin_follow_reading():
     if not _require_login():
-        return jsonify({'error': '請先登入'}), 401
-    user = _get_user()
-    if not _is_diary_admin(user.get('line_user_id', '')):
-        return jsonify({'error': '無權限'}), 403
-    if not sb:
-        return jsonify({'error': 'DB unavailable'}), 503
-    target = (request.json or {}).get('line_user_id', '').strip()
-    note = (request.json or {}).get('note', '').strip()
-    if not target:
-        return jsonify({'error': '缺少 line_user_id'}), 400
-    try:
-        sb.table('admin_whitelist').upsert(
-            {'line_user_id': target, 'note': note, 'is_active': True},
-            on_conflict='line_user_id'
-        ).execute()
-        global _ADMIN_WL_CACHE
-        _ADMIN_WL_CACHE = None  # invalidate cache
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@diary_bp.post('/diary/admin/admin_whitelist/remove')
-def admin_whitelist_remove():
-    if not _require_login():
-        return jsonify({'error': '請先登入'}), 401
-    user = _get_user()
-    if not _is_diary_admin(user.get('line_user_id', '')):
-        return jsonify({'error': '無權限'}), 403
-    if not sb:
-        return jsonify({'error': 'DB unavailable'}), 503
-    target = (request.json or {}).get('line_user_id', '').strip()
-    if not target:
-        return jsonify({'error': '缺少 line_user_id'}), 400
-    try:
-        sb.table('admin_whitelist').update({'is_active': False})\
-            .eq('line_user_id', target).execute()
-        global _ADMIN_WL_CACHE
-        _ADMIN_WL_CACHE = None  # invalidate cache
-        return jsonify({'ok': True})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        return redirect(url_for('auth.login_page'))
+    if not _is_diary_admin(_get_user().get('line_user_id', '')):
+        flash('你沒有後台權限', 'error')
+        return redirect(url_for('diary.index'))
+    on = request.form.get('on') == 'true'
+    import settings_store
+    settings_store.set(FOLLOW_READING_KEY, 'true' if on else 'false')
+    from routes.audit import log_action
+    log_action('diary.follow_reading', 'settings', FOLLOW_READING_KEY, {'on': on})
+    flash('日記經文改成跟著聖經速讀' if on else '日記經文改回用日記自己的讀經進度', 'ok')
+    return redirect(url_for('diary.admin'))
 
 
 @diary_bp.get('/diary/stars')
@@ -1093,12 +1178,13 @@ def stars():
 # =========================
 
 @diary_bp.get('/api/diary/guide')
+@limiter.limit("15 per minute")
 def api_guide():
     if not _require_login():
         return jsonify({'error': '未登入'}), 401
 
     d = request.args.get('d') or _today_str()
-    plan = load_plan_map().get(d)
+    plan = _plan_for(d, request.args.get('day'))
     if not plan:
         return jsonify({'error': '今日無讀經進度'}), 404
 
@@ -1148,12 +1234,13 @@ def api_guide():
 
 
 @diary_bp.get('/api/diary/passage-intro')
+@limiter.limit("15 per minute")
 def api_passage_intro():
     if not _require_login():
         return jsonify({'error': '未登入'}), 401
 
     d = request.args.get('d') or _today_str()
-    plan = load_plan_map().get(d)
+    plan = _plan_for(d, request.args.get('day'))
     if not plan:
         return jsonify({'error': '今日無讀經進度'}), 404
 
@@ -1189,7 +1276,7 @@ def api_passage_intro():
 
 
 def _get_ai_clients():
-    """動態取得 AI 客戶端（避免啟動時強制依賴）"""
+    """動態取得 AI 客戶端（Groq 主、Gemini 備，兩者皆嘗試初始化）"""
     groq_client = None
     gemini_model = None
 
@@ -1199,32 +1286,36 @@ def _get_ai_clients():
             from groq import Groq
             groq_client = Groq(api_key=groq_key)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
-    if not groq_client:
-        gemini_key = os.environ.get('GEMINI_API_KEY', '')
-        if gemini_key:
-            try:
-                import google.generativeai as genai
-                genai.configure(api_key=gemini_key)
-                gemini_model = genai.GenerativeModel('gemini-2.0-flash')
-            except Exception:
-                pass
+    # 永遠嘗試初始化 Gemini，讓 runtime 錯誤時仍能備援
+    gemini_key = os.environ.get('GEMINI_API_KEY', '')
+    if gemini_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            gemini_model = genai.GenerativeModel('gemini-2.0-flash')
+        except Exception:
+            logging.getLogger(__name__).warning('Gemini 初始化失敗', exc_info=True)
 
     return groq_client, gemini_model
 
 
 def _call_ai(groq_client, gemini_model, system_prompt: str, content: str, max_tokens: int = 400) -> str:
     if groq_client:
-        resp = groq_client.chat.completions.create(
-            model='llama-3.3-70b-versatile',
-            messages=[
-                {'role': 'system', 'content': system_prompt},
-                {'role': 'user', 'content': content},
-            ],
-            max_tokens=max_tokens,
-        )
-        return resp.choices[0].message.content.strip()
-    else:
+        try:
+            resp = groq_client.chat.completions.create(
+                model='llama-3.3-70b-versatile',
+                messages=[
+                    {'role': 'system', 'content': system_prompt},
+                    {'role': 'user', 'content': content},
+                ],
+                max_tokens=max_tokens,
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception:
+            pass  # Groq 呼叫失敗，fall through 到 Gemini
+    if gemini_model:
         resp = gemini_model.generate_content(f'{system_prompt}\n\n{content}')
         return resp.text.strip()
+    raise RuntimeError('無可用的 AI 服務（Groq 與 Gemini 均無法使用）')

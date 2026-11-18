@@ -5,14 +5,16 @@
 <div class="page-header">
     <div class="page-header-left">
         <div class="page-title">🛠 後台管理</div>
-        <div class="page-subtitle">{{ church_name }} 教會入口整合系統</div>
+        <div class="page-subtitle">{{ church_name or '教會' }} 入口整合系統</div>
     </div>
 </div>
 
-<!-- 主要功能（一般管理員） -->
-<div class="section-label">活動管理 / 福音</div>
-<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+<!-- 依「要做的事」分區；每張卡各自判斷權限，整區都看不到時標題一起藏（.admin-section:has） -->
+<section class="admin-section">
+<div class="section-label">活動與報名</div>
+<div class="admin-grid">
 
+    {% if can_see('/admin/events') %}
     <a href="/admin/events" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎉</div>
@@ -20,7 +22,9 @@
             <div class="admin-card-desc">建立、編輯教會活動</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/calendar') %}
     <a href="/admin/calendar" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fff7ed; color:#ea580c;">📅</div>
@@ -28,82 +32,17 @@
             <div class="admin-card-desc">教會行事管理</div>
         </div>
     </a>
-
-    <a href="/admin/gospel" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fdf6ec; color:#8b5a2b;">✝️</div>
-            <div class="admin-card-name">福音關懷</div>
-            <div class="admin-card-desc">詢問紀錄與跟進管理</div>
-        </div>
-    </a>
-
-    <a href="/admin/gospel/cards" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fff7ed; color:#c2410c;">❓</div>
-            <div class="admin-card-name">福音探索問題</div>
-            <div class="admin-card-desc">自訂福音探索 Q&amp;A 內容</div>
-        </div>
-    </a>
-
-    <a href="/admin/visitor-forms" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fff0f6; color:#c2185b;">📋</div>
-            <div class="admin-card-name">留名單</div>
-            <div class="admin-card-desc">新朋友留名單照片管理</div>
-        </div>
-    </a>
+    {% endif %}
 
 </div>
-
-<div class="section-label">學程與認證</div>
-<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
-
-    <a href="/admin/courses" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fdf5ee; color:#1d6fe5;">📚</div>
-            <div class="admin-card-name">門訓課程</div>
-            <div class="admin-card-desc">課程管理與出席追蹤</div>
-        </div>
-    </a>
-
-    <a href="/admin/courses/group-overview" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#e3f2fd; color:#1565c0;">📋</div>
-            <div class="admin-card-name">小組總覽</div>
-            <div class="admin-card-desc">各小組門訓出席狀況</div>
-        </div>
-    </a>
-
-    <a href="/admin/certifications" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎓</div>
-            <div class="admin-card-name">學程認證管理</div>
-            <div class="admin-card-desc">查看及補登認證記錄</div>
-        </div>
-    </a>
-
-    <a href="/admin/materials" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fff8e1; color:#f57f17;">📦</div>
-            <div class="admin-card-name">教材庫存</div>
-            <div class="admin-card-desc">進銷存追蹤與記錄</div>
-        </div>
-    </a>
-
-    <a href="/admin/devotional" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#eef2ff; color:#4338ca;">📖</div>
-            <div class="admin-card-name">禱讀本管理</div>
-            <div class="admin-card-desc">訂購、登記與簽收管理</div>
-        </div>
-    </a>
-
-</div>
+</section>
 
 {% if has_finance_access %}
-<div class="section-label">財務管理</div>
-<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+<section class="admin-section">
+<div class="section-label">活動收費</div>
+<div class="admin-grid">
 
+    {% if module_on('/admin/settings/payment') %}
     <a href="/admin/settings/payment" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#f0fff4; color:#15803d;">💳</div>
@@ -111,7 +50,9 @@
             <div class="admin-card-desc">綠界 / LINE Pay / 手動繳費設定</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if module_on('/admin/payments') %}
     <a href="/admin/payments" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">🧾</div>
@@ -119,101 +60,141 @@
             <div class="admin-card-desc">付款明細、手續費估算、匯出 CSV</div>
         </div>
     </a>
+    {% endif %}
 
 </div>
+</section>
 {% endif %}
 
-{% if session.get('is_super_admin') %}
-<div class="section-label">會員管理 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
-<p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
-<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
+<section class="admin-section">
+<div class="section-label">牧養與小組</div>
+<div class="admin-grid">
 
-    <a href="/admin/users" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fdf4ff; color:#9333ea;">👥</div>
-            <div class="admin-card-name">會員管理</div>
-            <div class="admin-card-desc">查看所有會員資料</div>
-        </div>
-    </a>
-
-</div>
-
-<div class="section-label">系統設定 <span class="permission-badge" style="font-size: 0.75rem; color: #718096; background: #EDF2F7; padding: 2px 8px; border-radius: 4px; margin-left: 8px;">🔒 需超級管理員</span></div>
-<p style="font-size: 0.8rem; color: #A0AEC0; margin-top: 4px; margin-bottom: 12px;">若需存取此功能，請聯繫主任牧師。</p>
-<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px;">
-
-    <a href="/admin/groups" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎼</div>
-            <div class="admin-card-name">服事團隊</div>
-            <div class="admin-card-desc">管理教會各服事部門分類</div>
-        </div>
-    </a>
-
+    {% if can_see('/admin/cell-groups') %}
     <a href="/admin/cell-groups" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">🏠</div>
             <div class="admin-card-name">牧養小組</div>
-            <div class="admin-card-desc">小組長回報與牧者查閱用的小組</div>
+            <div class="admin-card-desc">建立週間小組、設定組長與組員（小組都在這裡）</div>
         </div>
     </a>
+    {% endif %}
 
-    <a href="/diary/admin" style="text-decoration:none;">
+    {% if can_see('/admin/roll-call') %}
+    <a href="/admin/roll-call" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fdf4ff; color:#7c3aed;">📖</div>
-            <div class="admin-card-name">{{ card_names.get('diary', '天父日記') }}後台</div>
-            <div class="admin-card-desc">管理牧者白名單與讀經計畫</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">📝</div>
+            <div class="admin-card-name">聚會點名</div>
+            <div class="admin-card-desc">名冊、場次、點名與出席率</div>
         </div>
     </a>
+    {% endif %}
 
-    <a href="/admin/verses" style="text-decoration:none;">
+    {% if can_see('/admin/groups') %}
+    <a href="/admin/groups" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#f5f3ff; color:#7c3aed;">🎴</div>
-            <div class="admin-card-name">每日經文</div>
-            <div class="admin-card-desc">管理每日祝福經文庫</div>
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎼</div>
+            <div class="admin-card-name">服事團隊</div>
+            <div class="admin-card-desc">服事角色標籤（敬拜團、招待…），不是小組</div>
         </div>
     </a>
+    {% endif %}
 
-    <a href="/admin/portal-cards" style="text-decoration:none;">
+    {% if can_see('/admin/groups/compare') %}
+    <a href="/admin/groups/compare" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🏠</div>
-            <div class="admin-card-name">首頁內容</div>
-            <div class="admin-card-desc">系統功能卡片與快捷連結</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">🔀</div>
+            <div class="admin-card-name">小組對照</div>
+            <div class="admin-card-desc">標籤小組和週間小組差在哪裡（只看，不改資料）</div>
         </div>
     </a>
+    {% endif %}
 
-    <a href="/admin/portal-cards/group-defaults" style="text-decoration:none;">
+    {% if can_see('/admin/visitor-forms') %}
+    <a href="/admin/visitor-forms" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">👥</div>
-            <div class="admin-card-name">小組首頁預設</div>
-            <div class="admin-card-desc">各小組的區塊與卡片顯示預設</div>
+            <div class="admin-card-icon" style="background:#fff0f6; color:#c2185b;">📋</div>
+            <div class="admin-card-name">留名單</div>
+            <div class="admin-card-desc">新朋友留名單照片管理</div>
         </div>
     </a>
+    {% endif %}
 
-    <a href="/admin/files" style="text-decoration:none;">
+    {% if can_see('/admin/gospel') %}
+    <a href="/admin/gospel" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fff7ed; color:#ea580c;">🗄</div>
-            <div class="admin-card-name">資料交換中心</div>
-            <div class="admin-card-desc">儲存空間監控與檔案管理</div>
+            <div class="admin-card-icon" style="background:#fdf6ec; color:#8b5a2b;">✝️</div>
+            <div class="admin-card-name">福音關懷</div>
+            <div class="admin-card-desc">詢問紀錄與跟進管理</div>
         </div>
     </a>
+    {% endif %}
 
-    <a href="/admin/bulletins" style="text-decoration:none;">
+    {% if can_see('/admin/gospel/cards') %}
+    <a href="/admin/gospel/cards" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fff8e1; color:#f59e0b;">📰</div>
-            <div class="admin-card-name">週報管理</div>
-            <div class="admin-card-desc">上傳與管理每週週報 PDF</div>
+            <div class="admin-card-icon" style="background:#fff7ed; color:#c2410c;">❓</div>
+            <div class="admin-card-name">福音探索問題</div>
+            <div class="admin-card-desc">自訂福音探索 Q&amp;A 內容</div>
         </div>
     </a>
+    {% endif %}
 
-    <a href="/admin/group-discussions" style="text-decoration:none;">
+</div>
+</section>
+
+<section class="admin-section">
+<div class="section-label">門訓與學程</div>
+<div class="admin-grid">
+
+    {% if can_see('/admin/courses') %}
+    <a href="/admin/courses" style="text-decoration:none;">
         <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">▶</div>
-            <div class="admin-card-name">小組討論</div>
-            <div class="admin-card-desc">排程本週影片與討論問題</div>
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">📚</div>
+            <div class="admin-card-name">門訓課程</div>
+            <div class="admin-card-desc">課程管理與出席追蹤</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/courses/group-overview') %}
+    <a href="/admin/courses/group-overview" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#5c3528;">📋</div>
+            <div class="admin-card-name">門訓出席（依小組）</div>
+            <div class="admin-card-desc">各小組在門訓課程的出席狀況</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/certifications') %}
+    <a href="/admin/certifications" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🎓</div>
+            <div class="admin-card-name">學程認證管理</div>
+            <div class="admin-card-desc">查看及補登認證記錄</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/materials') %}
+    <a href="/admin/materials" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fff8e1; color:#f57f17;">📦</div>
+            <div class="admin-card-name">教材庫存</div>
+            <div class="admin-card-desc">進銷存追蹤與記錄</div>
+        </div>
+    </a>
+    {% endif %}
+
+</div>
+</section>
+
+<section class="admin-section">
+<div class="section-label">內容與公告</div>
+<div class="admin-grid">
+
+    {% if can_see('/admin/announcements') %}
     <a href="/admin/announcements" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fef2f2; color:#ef4444;">📢</div>
@@ -221,7 +202,173 @@
             <div class="admin-card-desc">發送站內通知給全體會員</div>
         </div>
     </a>
+    {% endif %}
 
+    {% if can_see('/admin/bulletins') %}
+    <a href="/admin/bulletins" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fff8e1; color:#f59e0b;">📰</div>
+            <div class="admin-card-name">週報管理</div>
+            <div class="admin-card-desc">上傳與管理每週週報 PDF</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/sermons') %}
+    <a href="/admin/sermons" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#ecfdf5; color:#047857;">📺</div>
+            <div class="admin-card-name">主日信息</div>
+            <div class="admin-card-desc">影片從 YouTube 自動抓，這裡看抓得順不順</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/group-discussions') %}
+    <a href="/admin/group-discussions" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">▶</div>
+            <div class="admin-card-name">小組討論</div>
+            <div class="admin-card-desc">排程本週影片與討論問題</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/verses') %}
+    <a href="/admin/verses" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f5f3ff; color:#7c3aed;">🎴</div>
+            <div class="admin-card-name">每日經文</div>
+            <div class="admin-card-desc">管理每日祝福經文庫</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/devotional') %}
+    <a href="/admin/devotional" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">📖</div>
+            <div class="admin-card-name">禱讀本管理</div>
+            <div class="admin-card-desc">訂購、登記與簽收管理</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/diary/admin') %}
+    <a href="/diary/admin" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf4ff; color:#7c3aed;">📖</div>
+            <div class="admin-card-name">{{ card_names.get('diary', '天父日記') }}後台</div>
+            <div class="admin-card-desc">讀經進度與牧者白名單（誰能進來，在權限矩陣設定）</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/files') %}
+    <a href="/admin/files" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fff7ed; color:#ea580c;">🗄</div>
+            <div class="admin-card-name">資料交換中心</div>
+            <div class="admin-card-desc">儲存空間監控與檔案管理</div>
+        </div>
+    </a>
+    {% endif %}
+
+</div>
+</section>
+
+<section class="admin-section">
+<div class="section-label">人員與同工</div>
+<div class="admin-grid">
+
+    {% if can_see('/admin/users') %}
+    <a href="/admin/users" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf4ff; color:#9333ea;">👥</div>
+            <div class="admin-card-name">會員管理</div>
+            <div class="admin-card-desc">查看所有會員資料</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/staff-leave') %}
+    <a href="/admin/staff-leave" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f5f3ff; color:#6d28d9;">🗓</div>
+            <div class="admin-card-name">全職同工差勤</div>
+            <div class="admin-card-desc">同工請假與加班審核</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/logs') %}
+    <a href="/admin/logs" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#166534;">📋</div>
+            <div class="admin-card-name">稽核日誌</div>
+            <div class="admin-card-desc">帳號整合、權限異動等操作記錄</div>
+        </div>
+    </a>
+    {% endif %}
+
+</div>
+</section>
+
+<section class="admin-section">
+<div class="section-label">首頁與系統</div>
+<div class="admin-grid">
+
+    {% if can_see('/admin/portal-cards') %}
+    <a href="/admin/portal-cards" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">🏠</div>
+            <div class="admin-card-name">首頁內容</div>
+            <div class="admin-card-desc">系統功能卡片與快捷連結</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/portal-cards/group-defaults') %}
+    <a href="/admin/portal-cards/group-defaults" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">👥</div>
+            <div class="admin-card-name">首頁版面（依小組）</div>
+            <div class="admin-card-desc">各小組首頁預設顯示哪些區塊與卡片</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if session.get('is_super_admin') %}
+    <a href="/admin/modules" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#ecfdf5; color:#047857;">🧩</div>
+            <div class="admin-card-name">選用功能模組</div>
+            <div class="admin-card-desc">這間教會要用哪些功能</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if session.get('is_super_admin') %}
+    <a href="/admin/permissions" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">🔐</div>
+            <div class="admin-card-name">權限矩陣</div>
+            <div class="admin-card-desc">副標籤能進哪些後台功能</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/backup') %}
+    <a href="{{ url_for('backup.index') }}" style="text-decoration:none;">
+        <div class="admin-card">
+            <div class="admin-card-icon" style="background:#0f2027; color:#fff;">🗄</div>
+            <div class="admin-card-name">資料備份與搬家</div>
+            <div class="admin-card-desc">分類 CSV、離線閱讀器；超管另有整包匯出／還原</div>
+        </div>
+    </a>
+    {% endif %}
+
+    {% if can_see('/admin/changelogs') %}
     <a href="/admin/changelogs" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#fdf5ee; color:#7c4b3a;">📋</div>
@@ -229,31 +376,9 @@
             <div class="admin-card-desc">發布系統更新通知給所有教會</div>
         </div>
     </a>
+    {% endif %}
 
-    <a href="/admin/attendance" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#f5f3ff; color:#6d28d9;">🗓</div>
-            <div class="admin-card-name">差勤管理</div>
-            <div class="admin-card-desc">同工請假與加班審核</div>
-        </div>
-    </a>
-
-    <a href="{{ url_for('data_transfer.data_export') }}" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#f0fdf4; color:#16a34a;">📤</div>
-            <div class="admin-card-name">資料匯出</div>
-            <div class="admin-card-desc">備份或遷移至新教會（ZIP）</div>
-        </div>
-    </a>
-
-    <a href="{{ url_for('data_transfer.data_import') }}" style="text-decoration:none;">
-        <div class="admin-card">
-            <div class="admin-card-icon" style="background:#fef2f2; color:#dc2626;">📥</div>
-            <div class="admin-card-name">資料匯入</div>
-            <div class="admin-card-desc">從 ZIP 還原資料至新系統</div>
-        </div>
-    </a>
-
+    {% if session.get('is_super_admin') %}
     <a href="/setup-wizard" style="text-decoration:none;">
         <div class="admin-card" style="background:linear-gradient(135deg,#0f2027,#203a43); border-color:rgba(255,255,255,.1);">
             <div class="admin-card-icon" style="background:rgba(255,255,255,.12); color:white;">🧙</div>
@@ -261,8 +386,10 @@
             <div class="admin-card-desc" style="color:rgba(255,255,255,.6);">環境設定與資料表狀態</div>
         </div>
     </a>
+    {% endif %}
 
     {% if config.DEMO_MODE or config.CONTACT_EMAIL %}
+    {% if can_see('/admin/contact-leads') %}
     <a href="/admin/contact-leads" style="text-decoration:none;">
         <div class="admin-card">
             <div class="admin-card-icon" style="background:#ecfdf5; color:#059669;">📩</div>
@@ -271,11 +398,14 @@
         </div>
     </a>
     {% endif %}
+    {% endif %}
 
 </div>
-{% endif %}
+</section>
 
 <style>
+.admin-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:14px; margin-bottom:28px; }
+.admin-section:not(:has(.admin-card)) { display:none; }
 .admin-card {
     background: var(--surface);
     border-radius: var(--radius-lg);

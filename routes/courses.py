@@ -1,3 +1,4 @@
+import logging
 # 門訓學程模組路由
 from flask import Blueprint, session, redirect, url_for, render_template, request, jsonify, Response
 from db import supabase
@@ -84,7 +85,7 @@ def _material_auto_out(course_id, enrollment_id):
             'transaction_date': datetime.now(TAIPEI_TZ).date().isoformat(),
         }).execute()
     except Exception:
-        pass  # 庫存扣除失敗不阻斷報名
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 庫存扣除失敗不阻斷報名
 
 
 def _material_auto_return(enrollment_id):
@@ -98,7 +99,7 @@ def _material_auto_return(enrollment_id):
             supabase.table('material_transactions').delete()\
                 .eq('id', txn.data[0]['id']).execute()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
 
 def search_users(q, extra_fields='', limit=20):
@@ -211,7 +212,7 @@ def auto_close_expired_courses():
             .lt('reg_deadline', now_iso)\
             .execute()
     except Exception:
-        pass  # 失敗靜默，下次再試
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)  # 失敗靜默，下次再試
 
 
 @courses_bp.route('/admin/courses')
@@ -540,9 +541,9 @@ def admin_course_roster(course_id):
                 material_stock_info = mat.data[0]
                 material_stock_info['demand'] = material_count
 
-        # 主標籤小組名稱集合（供名單顯示用）
-        groups_raw = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
-        primary_group_names = {g['name'] for g in groups_raw if g.get('is_primary', True)}
+        # 每個人的牧養小組（供名單顯示用；「哪一組」只有一份：routes/my_group.py）
+        from routes import my_group
+        group_of = my_group.of_users(list(user_map))
 
         return render_template('courses/admin_roster.html',
             course=course,
@@ -559,7 +560,7 @@ def admin_course_roster(course_id):
             material_count=material_count,
             confirmed_material_count=confirmed_material_count,
             material_stock_info=material_stock_info,
-            primary_group_names=primary_group_names,
+            group_of=group_of,
         )
     except Exception:
         return '名單頁載入失敗，請稍後再試', 500
@@ -800,8 +801,8 @@ def admin_roster_export(course_id):
 
     att_map = get_attendance_map([s['id'] for s in sessions])
 
-    groups_raw = supabase.table('groups').select('name, is_primary').order('sort_order').execute().data or []
-    primary_group_names = {g['name'] for g in groups_raw if g.get('is_primary', True)}
+    from routes import my_group
+    group_of = my_group.of_users([e['user_id'] for e in enrolled_raw])
 
     wb = Workbook()
     ws = wb.active
@@ -826,12 +827,7 @@ def admin_roster_export(course_id):
 
     for idx, enroll in enumerate(enrolled_raw, 1):
         u = user_map.get(enroll['user_id'], {})
-        tags = u.get('group_tags') or []
-        if isinstance(tags, str):
-            import json
-            try: tags = json.loads(tags)
-            except: tags = [tags]
-        primary_group = next((t for t in tags if t in primary_group_names), '')
+        primary_group = group_of.get(enroll['user_id'], '')
 
         attended = sum(1 for s in sessions if enroll['user_id'] in att_map.get(s['id'], []))
         total = len(sessions)
@@ -1374,7 +1370,7 @@ def admin_cert_batch_add():
                 }).execute()
             success_count += 1
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return jsonify({'success': True, 'count': success_count})
 
@@ -1422,14 +1418,14 @@ def admin_cert_bulk_save():
                 ).execute()
             add_count += 1
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     for cert_id in deletes:
         try:
             supabase.table('course_certificates').delete().eq('id', cert_id).execute()
             del_count += 1
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     return jsonify({'success': True, 'added': add_count, 'deleted': del_count})
 
@@ -1933,7 +1929,7 @@ def admin_materials():
         for r in rows:
             r['cover_url'] = cover_map.get(r['id'])
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     try:
         categories = supabase.table('course_categories').select('id, name')\
             .eq('is_active', True).order('sort_order').execute().data or []

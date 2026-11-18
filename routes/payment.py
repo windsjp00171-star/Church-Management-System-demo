@@ -201,10 +201,13 @@ def ecpay_return():
     """ECPay server-to-server callback (background notify)"""
     data = request.form.to_dict()
     cfg = _get_gateway_settings()
+    # 沒設金鑰就不接受回呼：金鑰是空字串時，任何人都算得出同一個簽章，等於沒有驗證
+    if not cfg['ecpay_hash_key'] or not cfg['ecpay_hash_iv']:
+        return '0|Error', 200
     received_mac = data.pop('CheckMacValue', '')
     expected_mac = _ecpay_checksum(data, cfg['ecpay_hash_key'], cfg['ecpay_hash_iv'])
 
-    if received_mac.upper() != expected_mac.upper():
+    if not hmac.compare_digest(received_mac.upper(), expected_mac.upper()):
         return '0|Error', 200
 
     trade_no = data.get('MerchantTradeNo', '')
@@ -218,10 +221,9 @@ def ecpay_return():
 
 @payment_bp.route('/payment/ecpay/result/<event_id>/<reg_id>')
 def ecpay_result(event_id, reg_id):
-    """ECPay redirect back to user after payment"""
-    rtn = request.args.get('RtnCode') or request.form.get('RtnCode', '')
-    if rtn == '1':
-        supabase.table('registrations').update({'payment_status': 'paid'}).eq('id', reg_id).execute()
+    """ECPay 付款後的瀏覽器導回頁面。
+    不在此更新付款狀態 — 付款確認已由 HMAC 驗證的 ecpay_return 伺服器回呼處理。
+    """
     return redirect(url_for('event.event_detail', event_id=event_id))
 
 

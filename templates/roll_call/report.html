@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% block title %}出席統計{% endblock %}
+{% block content %}
+<div style="max-width:1000px; margin:0 auto; padding:16px 12px 60px;">
+  <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
+    <h2 style="margin:0;">📊 出席統計</h2>
+    <a href="/roll-call" style="padding:10px 14px; border:1px solid #c7d2fe; background:#eef2ff; border-radius:8px; text-decoration:none; color:#4338ca;">‹ 回點名單</a>
+  </div>
+
+  <form method="get" data-tour="range" style="display:flex; gap:8px; flex-wrap:wrap; align-items:flex-end; padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fff; margin-bottom:12px;">
+    <label style="display:flex; flex-direction:column; font-size:.85rem; color:#374151;">從
+      <input type="date" name="from" value="{{ start.isoformat() }}" style="padding:10px; font-size:1rem; border:1px solid #d1d5db; border-radius:8px;">
+    </label>
+    <label style="display:flex; flex-direction:column; font-size:.85rem; color:#374151;">到
+      <input type="date" name="to" value="{{ end.isoformat() }}" style="padding:10px; font-size:1rem; border:1px solid #d1d5db; border-radius:8px;">
+    </label>
+    {% if types|length > 1 %}
+    <label style="display:flex; flex-direction:column; font-size:.85rem; color:#374151;">聚會
+      <select name="type" style="padding:10px; font-size:1rem; border:1px solid #d1d5db; border-radius:8px;">
+        {% for t in types %}<option value="{{ t.id }}" {{ 'selected' if mtype and t.id == mtype.id }}>{{ t.name }}</option>{% endfor %}
+      </select>
+    </label>
+    {% endif %}
+    <button type="submit" style="padding:12px 18px; border:0; background:#4F46E5; color:#fff; border-radius:8px; font-weight:bold; font-size:1rem;">查詢</button>
+  </form>
+
+  <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:12px;">
+    {% for label, a, b in presets %}
+    <a href="/roll-call/report?from={{ a.isoformat() }}&to={{ b.isoformat() }}{% if mtype %}&type={{ mtype.id }}{% endif %}" style="padding:10px 14px; border:1px solid #c7d2fe; border-radius:999px; text-decoration:none; color:#4338ca; background:#fff;">{{ label }}</a>
+    {% endfor %}
+    {% if is_admin and data and data.people %}
+    <a href="/roll-call/report?from={{ start.isoformat() }}&to={{ end.isoformat() }}{% if mtype %}&type={{ mtype.id }}{% endif %}&format=csv" style="padding:10px 14px; border:1px solid #d1d5db; border-radius:999px; text-decoration:none; color:#374151; background:#fff;">⬇️ 匯出 CSV</a>
+    {% endif %}
+  </div>
+
+  {% if not data %}
+    <div style="padding:20px; border:1px dashed #c7d2fe; border-radius:12px; background:#fff;">還沒有點名資料。到 <a href="/roll-call">點名單</a> 開始第一次點名。</div>
+  {% elif not data.total %}
+    <div style="padding:20px; border:1px dashed #fcd34d; border-radius:12px; background:#fffbeb;">{{ start.strftime('%Y/%-m/%-d') }} 到 {{ end.strftime('%Y/%-m/%-d') }} 之間沒有{{ mtype.name }}的點名紀錄。</div>
+  {% else %}
+  <p style="margin:0 0 8px; color:#374151;">{{ start.strftime('%Y/%-m/%-d') }} ～ {{ end.strftime('%Y/%-m/%-d') }}，共 <strong>{{ data.total }}</strong> 次{{ mtype.name }}。出席率＝到的次數 ÷ {{ data.total }}，沒打勾算沒來。</p>
+  <div data-tour="report" style="overflow-x:auto; -webkit-overflow-scrolling:touch; border:1px solid #e5e7eb; border-radius:12px; background:#fff;">
+    <table style="border-collapse:separate; border-spacing:0; width:100%; min-width:{{ 260 + data.total * 54 }}px;">
+      <thead>
+        <tr>
+          <th style="position:sticky; left:0; z-index:2; background:#f9fafb; text-align:left; padding:10px 12px; border-bottom:1px solid #e5e7eb; min-width:100px;">姓名</th>
+          {% for s in data.sessions %}<th style="background:#f9fafb; padding:8px 4px; border-bottom:1px solid #e5e7eb; text-align:center; font-weight:600; min-width:48px;">{{ s._local.strftime('%-m/%-d') }}</th>{% endfor %}
+          <th style="background:#f9fafb; padding:8px; border-bottom:1px solid #e5e7eb; text-align:center; min-width:56px;">到</th>
+          <th style="background:#f9fafb; padding:8px; border-bottom:1px solid #e5e7eb; text-align:center; min-width:72px;">出席率</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in data.people %}
+        <tr>
+          <td style="position:sticky; left:0; background:#fff; padding:8px 12px; border-bottom:1px solid #f3f4f6; font-size:1.05rem;">{{ p.name }}{% if p.left %} <span style="color:#9ca3af; font-size:.8rem;">（已離開）</span>{% endif %}</td>
+          {% for c in p.cells %}<td style="text-align:center; border-bottom:1px solid #f3f4f6; color:#15803d; font-size:1.2rem;{{ ' background:#f0fdf4;' if c }}">{{ '✓' if c else '' }}</td>{% endfor %}
+          <td style="text-align:center; border-bottom:1px solid #f3f4f6; font-weight:600;">{{ p.present }}/{{ p.total }}</td>
+          <td style="text-align:center; border-bottom:1px solid #f3f4f6; font-weight:700; color:{{ '#15803d' if p.percent is not none and p.percent >= 75 else '#b45309' if p.percent is not none and p.percent >= 40 else '#b91c1c' }};">{{ '%g' % p.percent ~ '%' if p.percent is not none else '—' }}</td>
+        </tr>
+        {% endfor %}
+        <tr>
+          <td style="position:sticky; left:0; background:#f9fafb; padding:10px 12px; font-weight:700;">人數</td>
+          {% for n in data.per_session %}<td style="background:#f9fafb; text-align:center; font-weight:700;">{{ n }}</td>{% endfor %}
+          <td colspan="2" style="background:#f9fafb;"></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block extra_js %}
+<script src="/static/tour.js"></script>
+{% endblock %}

@@ -1,3 +1,4 @@
+import logging
 from flask import Blueprint, session, request, jsonify, render_template, redirect, url_for
 from db import supabase
 from routes.decorators import login_required, admin_required
@@ -121,6 +122,6 @@ def admin_delete_visitor_form(record_id):
         try:
             supabase.storage.from_('visitor-forms').remove([row.data[0]['image_path']])
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         supabase.table('visitor_forms').delete().eq('id', record_id).execute()
     return jsonify({'success': True})

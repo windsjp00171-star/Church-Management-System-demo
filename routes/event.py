@@ -1,4 +1,6 @@
+import logging
 # 活動相關路由
+from routes.modules import is_enabled
 from flask import Blueprint, render_template, session, redirect, url_for, request, jsonify, flash
 from db import supabase
 from datetime import datetime, timezone, date, timedelta
@@ -6,6 +8,15 @@ import random
 import re
 from routes.notifications import create_notification
 from routes.decorators import login_required
+from routes.guard import looks_automated, rate_limited
+from routes import cache as _cache
+
+# 兩支「填表時一直打」的計算端點（compute-tier / compute-age）的上限。
+# 跟報名端點不一樣：報名是一個人一次，這兩支是打字的時候打的（改一次生日就一次）。
+# ★ 要開很寬：行動網路多半走 CGNAT，公告完一整群人同時填表，在伺服器眼裡是同一個 IP。
+#   撞到的後果不是「慢一點」而是「填不出去」（年齡拿不到 → 監護人欄位消失 → 送出時被伺服器擋），
+#   所以這條線畫在「一支腳本才做得到」的量級。
+CALC_LIMITS = [(600, 60), (6000, 3600)]
 
 
 def _extract_youtube_id(url: str) -> str | None:
@@ -147,6 +158,13 @@ def is_registration_open(event):
     return True
 
 
+def _custom_themes():
+    """啟用中的自訂經文底圖（整張小表；首頁與經文頁都問它，所以快取。後台新增／刪除時 bust）。"""
+    return _cache.get('verse_custom_themes_active', lambda: supabase.table('verse_custom_themes')
+        .select('name,image_url,symbol,text_mode')
+        .eq('is_active', True).order('sort_order').execute().data or [])
+
+
 @event_bp.route('/')
 @login_required
 def portal():
@@ -171,7 +189,7 @@ def portal():
             .not_.is_('reg_deadline', 'null')\
             .lt('reg_deadline', now_tw).execute()
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 撈現正開放報名的門訓課程
     try:
@@ -186,8 +204,8 @@ def portal():
 
     # 快捷連結從 DB 載入
     try:
-        portal_links = supabase.table('portal_links')\
-            .select('*').eq('is_active', True).order('sort_order').execute().data or []
+        portal_links = _cache.get('portal_links_active', lambda: supabase.table('portal_links')
+            .select('*').eq('is_active', True).order('sort_order').execute().data or [])
     except Exception:
         portal_links = []
 
@@ -214,28 +232,18 @@ def portal():
         if bl.data:
             latest_bulletin = bl.data[0]
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
-    # 撈使用者自己的近期已報名活動
-    # 利用已撈到的 all_events，只需一個額外的 registrations query
-    my_upcoming: list = []
+    # ── 我的近期提醒：報名的活動、上的課、有設提醒的行事（只看得到自己的；時間過了自動消失）──
+    # ★ 之前只有「活動」，而且報名一截止那張卡就不見；正在上的課、快到的行事完全沒有出現在首頁。
+    my_todos: list = []
     uid = session.get('user_id')
     if uid:
         try:
-            my_regs = supabase.table('registrations')\
-                .select('event_id')\
-                .eq('user_id', uid)\
-                .eq('status', 'registered')\
-                .execute().data or []
-            my_event_ids = {r['event_id'] for r in my_regs}
-            today = now[:10]  # YYYY-MM-DD
-            my_upcoming = [
-                e for e in all_events
-                if e['id'] in my_event_ids
-                and (e.get('event_end') or e.get('event_start') or '') >= now
-            ][:3]
+            from routes.my_todos import collect_my_todos
+            my_todos = collect_my_todos(uid)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 本週小組討論（當週有排程才顯示）──
     group_discussion = None
@@ -262,18 +270,19 @@ def portal():
                     item['questions'] = []
             group_discussion = item
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 門戶卡片設定（超管可控）──
     is_super = session.get('is_super_admin', False)
     # 嘗試從 portal_cards 表載入（新系統）；失敗時回退到舊 portal_card_settings
     portal_cards_config = {}
     try:
-        pc_rows = supabase.table('portal_cards').select('*').order('sort_order').execute().data or []
+        pc_rows = _cache.get('portal_cards', lambda: supabase.table('portal_cards')
+            .select('*').order('sort_order').execute().data or [])
         if pc_rows:
             portal_cards_config = {r['key']: r for r in pc_rows}
     except Exception:
-        pass
+        logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 使用者 / 小組首頁個人化設定 ──
     import json as _json
@@ -294,7 +303,7 @@ def portal():
                 _user_hidden = _ucfg.get('hidden', [])
                 _user_order  = _ucfg.get('order', [])
             except Exception:
-                pass
+                logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
         # 個人首頁區塊設定
         _raw_user_sec = _ss.get(f'portal_sections_user_{uid}')
         if _raw_user_sec:
@@ -302,10 +311,11 @@ def portal():
                 _usec = _json.loads(_raw_user_sec)
                 _user_hidden_sections = _usec.get('hidden', [])
             except Exception:
-                pass
-        # 小組預設（取第一個有設定的小組）
-        _user_group_tags = session.get('group_tags') or []
-        for _gtag in _user_group_tags:
+                logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+        # 小組預設：依牧養小組（routes/my_group.py；「哪一組」只有一份）
+        from routes import my_group as _mg
+        _my_cell = _mg.mine()
+        for _gtag in ([_my_cell] if _my_cell else []):
             _raw_grp = _ss.get(f'portal_group_{_gtag}')
             if _raw_grp:
                 try:
@@ -314,7 +324,7 @@ def portal():
                     _group_hidden = _gcfg.get('hidden', [])
                     break
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
             # 小組區塊預設
             _raw_grp_sec = _ss.get(f'portal_sections_group_{_gtag}')
             if _raw_grp_sec:
@@ -323,7 +333,7 @@ def portal():
                     _group_hidden_sections = _gsec.get('hidden', [])
                     break
                 except Exception:
-                    pass
+                    logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 套用排序：個人 order > 小組 pinned > 預設
     if portal_cards_config and (_user_order or _group_pinned):
@@ -352,20 +362,21 @@ def portal():
             card_settings[key] = base_active and (key not in _effective_hidden)
     else:
         try:
-            rows = supabase.table('portal_card_settings').select('*').execute().data or []
+            rows = _cache.get('portal_card_settings', lambda: supabase.table('portal_card_settings')
+                .select('*').execute().data or [])
             for r in rows:
                 card_settings[r['key']] = r['is_visible']
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # 超管看全部連結（含隱藏的），一般人只看 is_active=True
     all_portal_links = portal_links
     if is_super:
         try:
-            all_portal_links = supabase.table('portal_links')\
-                .select('*').order('sort_order').execute().data or []
+            all_portal_links = _cache.get('portal_links_all', lambda: supabase.table('portal_links')
+                .select('*').order('sort_order').execute().data or [])
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 角色判斷：牧者、小組長、待辦週報 ──
     # 每次載入 portal 時從 DB 刷新 is_pastor / is_staff / is_super_admin，
@@ -382,7 +393,7 @@ def portal():
                 session['is_staff']       = bool(role_row.data.get('is_staff', False))
                 session['is_super_admin'] = bool(role_row.data.get('is_super_admin', False))
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
     is_group_leader = False
     pending_report = False
     leader_groups = []
@@ -424,7 +435,7 @@ def portal():
                         pending_report = True
                         break
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── 聚會人數（牧者/同工/管理員在首頁顯示）──
     attendance_summary = None
@@ -456,15 +467,20 @@ def portal():
                 'prayer':   _by_date('prayer_reports',          prayer_date,   'date','attendance_count'),
                 'morning':  _by_date('morning_prayer_reports',  morning_date,  'date','attendance_count'),
             }
+            # 以點名為準：點名那邊有數字就蓋上去（沒連結／還沒點就是原本手填的）
+            from routes.roll_call_link import overlay as _rc_overlay
+            for _k, _key, _d in (('sunday', 'adult_sunday', sunday_date), ('children', 'children_sunday', children_date),
+                                 ('prayer', 'prayer', prayer_date), ('morning', 'morning_prayer', morning_date)):
+                attendance_summary[_k] = _rc_overlay(_key, _d, attendance_summary[_k], cfg=mcfg.get(_key, {}))
+                # 這個聚會有沒有連結點名（沒數字時畫面也要知道，才寫「尚未點名」而不是「尚未填報」）
+                attendance_summary[_k]['_rc'] = bool(mcfg.get(_key, {}).get('rc_type_id'))
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     # ── Hero 主題（與今日經文同步）──
     today_tw = datetime.now(timezone(timedelta(hours=8))).date().isoformat()
     try:
-        _hc_raw = supabase.table('verse_custom_themes')\
-            .select('name,image_url,symbol,text_mode')\
-            .eq('is_active', True).order('sort_order').execute().data or []
+        _hc_raw = _custom_themes()
         _hero_custom = [{'name': t['name'], 'image_url': t['image_url'],
                          'symbol': t['symbol'], 'text_mode': t['text_mode']} for t in _hc_raw]
     except Exception:
@@ -489,9 +505,16 @@ def portal():
                 .eq('user_id', uid).eq('is_active', True).limit(1).execute().data
             is_fulltime_staff = bool(sp)
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
+
+    try:
+        from routes.sermons import is_configured as _sermons_on
+        sermons_on = _sermons_on()
+    except Exception:
+        sermons_on = False
 
     return render_template('portal.html',
+        sermons_on=sermons_on,
         open_events=open_events,
         open_courses=open_courses,
         portal_links=all_portal_links,
@@ -499,7 +522,7 @@ def portal():
         latest_bulletin=latest_bulletin,
         is_admin=session.get('is_admin', False),
         is_super_admin=is_super,
-        my_upcoming=my_upcoming,
+        my_todos=my_todos,
         group_discussion=group_discussion,
         card_settings=card_settings,
         portal_cards_config=portal_cards_config,
@@ -516,11 +539,28 @@ def portal():
     )
 
 
+@event_bp.route('/guide')
+@event_bp.route('/tutorial')
+def old_help_pages():
+    """舊的「功能導覽」「互動式教學」已併進使用手冊；留著轉址，舊書籤不會斷。"""
+    return redirect('/manual', code=301)
+
+
 @event_bp.route('/manual')
 @login_required
 def manual():
-    """使用手冊"""
-    return render_template('manual.html')
+    """使用手冊（依登入者角色自動聚焦，並可跳轉到來源頁對應的功能說明）"""
+    roles = ['member']  # 所有登入者皆具備一般會友功能
+    if session.get('cell_group_ids'):
+        roles.append('leader')
+    if session.get('is_staff'):
+        roles.append('staff')
+    if session.get('is_pastor'):
+        roles.append('pastor')
+    if session.get('is_admin') or session.get('is_super_admin'):
+        roles.append('admin')
+    from_path = request.args.get('from', '')
+    return render_template('manual.html', user_roles=roles, from_path=from_path)
 
 
 @event_bp.route('/product-spec')
@@ -643,13 +683,11 @@ def daily_verse():
                 'verse_index': verse_index,
             }).execute()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     verse = verses[verse_index % len(verses)]
     try:
-        raw_custom = supabase.table('verse_custom_themes')\
-            .select('name,image_url,symbol,text_mode')\
-            .eq('is_active', True).order('sort_order').execute().data or []
+        raw_custom = _custom_themes()
     except Exception:
         raw_custom = []
     custom_themes = [{'name': t['name'], 'image_url': t['image_url'],
@@ -692,13 +730,11 @@ def api_verse_data():
                 'user_id': uid, 'drawn_date': today, 'verse_index': verse_index,
             }).execute()
         except Exception:
-            pass
+            logging.getLogger(__name__).warning('忽略非關鍵錯誤', exc_info=True)
 
     verse = verses[verse_index % len(verses)]
     try:
-        raw_custom = supabase.table('verse_custom_themes')\
-            .select('name,image_url,symbol,text_mode').eq('is_active', True)\
-            .order('sort_order').execute().data or []
+        raw_custom = _custom_themes()
     except Exception:
         raw_custom = []
     custom_themes = [{'name': t['name'], 'image_url': t['image_url'],
@@ -924,6 +960,173 @@ def event_detail(event_id):
         return f'<pre>活動詳情頁錯誤：\n{traceback.format_exc()}</pre>', 500
 
 
+def _enforce_auto_tiers(event, answers):
+    """把開了「依生日自動判定」的欄位，用伺服器算出來的結果**覆蓋掉**。
+
+    ★ 為什麼一定要在伺服器端再算一次
+
+      身分別決定金額。前端送什麼就存什麼的話，任何人都能把
+      「成人 $800」改成「國小以下孩童 $500」—— 而畫面上完全正常、
+      名冊上完全正常，只是那個人少付了 300 塊。
+
+      前端算是為了「填的當下看得到」，這裡算才是真的。
+
+    ★ 使用者勾的「特殊身分別」是唯一要沿用前端的東西 ——
+      那是本人申報，系統算不出來。從送上來的答案是不是等於
+      special_label 反推。
+
+    answers : [{field_id, answer}]（會就地修改）
+    回 [(欄位標籤, 前端送的, 伺服器算的)] —— 不一致的那幾筆，給呼叫端記錄。
+    """
+    from routes.auto_tier import is_enabled, resolve
+    from routes.event_fields import parse_options
+
+    fields = supabase.table('event_fields').select('*')\
+        .eq('event_id', event['id']).eq('is_archived', False).execute().data or []
+    auto = [f for f in fields if is_enabled(f.get('auto_tier'))]
+    if not auto:
+        return []
+
+    by_id = {a.get('field_id'): a for a in answers if a.get('field_id')}
+
+    # 生日：一份表單通常只有一個生日欄位
+    birthday = None
+    for f in fields:
+        if f.get('field_type') == 'birthday':
+            got = by_id.get(f['id'])
+            if got and got.get('answer'):
+                birthday = str(got['answer']).strip()
+                break
+
+    changed = []
+    for f in auto:
+        options = parse_options(f.get('options'))
+        special_label = (f.get('auto_tier') or {}).get('special_label')
+        sent = str((by_id.get(f['id']) or {}).get('answer') or '').strip()
+        has_special = bool(special_label and sent == special_label)
+        label, _age, _note = resolve(f, options, birthday, event,
+                                     has_special=has_special)
+        final = label or ''
+        if sent != final:
+            changed.append((f.get('label'), sent, final))
+        if f['id'] in by_id:
+            by_id[f['id']]['answer'] = final
+        elif final:
+            answers.append({'field_id': f['id'], 'answer': final})
+    return changed
+
+
+def _reject_bad_id_numbers(event_id, answers):
+    """身分證字號欄位：後端也要驗一次。
+
+    前端擋得掉手誤，但擋不掉「JS 沒跑」「有人直接打 API」這兩種 ——
+    而一個錯的證號在名冊上看起來跟對的一模一樣，要等出事才發現
+    那個人根本沒被保到。
+
+    回錯誤訊息字串，沒問題回 None。
+    """
+    from routes.tw_id import is_valid, normalize
+    id_fields = {f['id'] for f in (supabase.table('event_fields')
+                 .select('id, field_type').eq('event_id', event_id)
+                 .eq('field_type', 'id_number').execute().data or [])}
+    if not id_fields:
+        return None
+    for ans in answers or []:
+        if ans.get('field_id') in id_fields:
+            raw = str(ans.get('answer') or '')
+            if raw and not is_valid(raw):
+                return f'身分證字號「{normalize(raw)}」的檢查碼不對，請再核對一次'
+    return None
+
+
+def _reject_duplicate_person(event_id, answers):
+    """同一場活動、同一個身分證字號，只能有一筆。回錯誤訊息，沒問題回 None。
+
+    ★ 身分證字號是最好的鑰匙：它有唯一性、系統本來就在收也在驗檢查碼，所以同一個人報兩次一定撞在一起，
+      要灌 500 筆假資料得先生出 500 個通過檢查碼的號碼。
+    ★ 寧可少擋、不要擋錯人：沒有身分證欄位的活動就不做這道檢查，**不退回比姓名或電話**
+      （同名的人不少；一支手機幫全家報名是正常的）。
+    ★ 擋下來要給下一步：多數撞到的人不是壞人，是以為自己沒送出去（手滑連按、想改資料卻重填一份）。
+    # shortcut: 成熟版沒有身分證的活動會退回「姓名＋電話都一樣」；這個 repo 外部報名沒有電話欄位，先不搬。
+    """
+    from routes.tw_id import normalize as _norm_id
+    id_fields = {f['id'] for f in (supabase.table('event_fields').select('id')
+                 .eq('event_id', event_id).eq('field_type', 'id_number').execute().data or [])}
+    if not id_fields:
+        return None
+    mine = next((_norm_id(a.get('answer')) for a in (answers or [])
+                 if a.get('field_id') in id_fields and a.get('answer')), '')
+    if not mine:
+        return None
+    regs = supabase.table('registrations').select('id')\
+        .eq('event_id', event_id).neq('status', 'cancelled').execute().data or []
+    ids = [r['id'] for r in regs]
+    if not ids:
+        return None
+    rows = supabase.table('registration_answers').select('field_id, answer')\
+        .in_('registration_id', ids).in_('field_id', list(id_fields)).execute().data or []
+    if any(_norm_id(r.get('answer')) == mine for r in rows):
+        return '這個身分證字號已經報名過這場活動了。要查看、修改或取消，請回到活動頁面看你的報名。'
+    return None
+
+
+def _normalize_guardian_answers(event_id, answers):
+    """監護人欄位：把送上來的東西重新正規化成「姓名／電話」。
+
+    ★ 跟 _enforce_auto_tiers 同一個做法：伺服器覆蓋，不是「檢查對不對」。
+
+      前端送什麼就存什麼的話，只要有人直接打 API，那一格就可能是
+      任意字串（多一個斜線、整串 JSON、或前後一堆空白）——
+      而名冊、Excel 匯出、我的報名都是**直接把那一格印出來**，
+      所以壞掉的格式會一路長到每一個看得到的地方。
+
+    answers : [{field_id, answer}]（會就地修改）
+    """
+    from routes.guardian import compose, parse
+
+    gd = {f['id'] for f in (supabase.table('event_fields')
+          .select('id, field_type').eq('event_id', event_id)
+          .eq('field_type', 'guardian').execute().data or [])}
+    if not gd:
+        return
+    for ans in answers or []:
+        if ans.get('field_id') in gd:
+            ans['answer'] = compose(*parse(ans.get('answer')))
+
+
+def _reject_missing_required(event, answers):
+    """必填欄位：後端也要驗一次。
+
+    ★ 為什麼非有不可
+
+      `is_required` 原本只走到畫面上 —— 伺服器從來沒看過它。於是
+      「未成年要填監護人」這種規則，只要 JS 沒跑、或有人直接打 API，
+      就完全不存在。而名冊上那一格是空的，看起來就像那個人不用填。
+
+      跟身分證字號同一個理由：前端擋得掉手誤，擋不掉「前端根本沒跑」。
+
+    ★ 要不要填由**活動自己定**（欄位的必填勾勾），不是寫死的規則。
+      教會旅遊會把監護人設成必填；一場只是報名參加的聚會可能不會。
+
+    ★ 被跳題藏起來的必填欄位不算 —— 那一題報名者看不到。所以這裡要
+      先把跳題條件重新求一次值（routes/conditions.py），而年齡是伺服器
+      自己從生日算的，不看送上來的任何東西。
+
+    回錯誤訊息字串，沒問題回 None。
+    """
+    from routes.conditions import missing_required
+
+    fields = supabase.table('event_fields').select('*')\
+        .eq('event_id', event['id']).eq('is_archived', False)\
+        .order('sort_order').execute().data or []
+    missing = missing_required(fields, answers, event)
+    if not missing:
+        return None
+    # 講出是哪幾題 —— 只說「請填寫所有必填欄位」的話，畫面上那一題
+    # 可能是剛剛才因為年齡跳出來的，使用者根本不知道在講哪一格。
+    return '還沒填：' + '、'.join(missing)
+
+
 @event_bp.route('/event/<event_id>/register', methods=['POST'])
 @login_required
 def event_register(event_id):
@@ -997,6 +1200,17 @@ def _do_event_register(event_id):
             }).execute()
         return jsonify({'success': True, 'waitlisted': True})
 
+    # 答案檢查一律在寫入之前：先 insert 再擋的話，被擋下的那一筆已經在名單上佔著名額
+    answers = (request.get_json() or {}).get('answers', [])
+    _enforce_auto_tiers(event, answers)
+    _bad = _reject_bad_id_numbers(event_id, answers) or _reject_duplicate_person(event_id, answers)
+    if _bad:
+        return jsonify({'success': False, 'error': _bad}), 400
+    _normalize_guardian_answers(event_id, answers)
+    _bad = _reject_missing_required(event, answers)
+    if _bad:
+        return jsonify({'success': False, 'error': _bad}), 400
+
     if event.get('allow_multiple'):
         # 允許重複報名：直接建立新紀錄
         reg_result = supabase.table('registrations').insert({
@@ -1006,6 +1220,14 @@ def _do_event_register(event_id):
             'checked_in': False,
         }).execute()
         reg_id = reg_result.data[0]['id']
+        # 插入後重新計數防止 TOCTOU 競態（補償交易）
+        if event.get('capacity'):
+            recheck = supabase.table('registrations')\
+                .select('id', count='exact')\
+                .eq('event_id', event_id).eq('status', 'registered').execute()
+            if (recheck.count or 0) > event['capacity']:
+                supabase.table('registrations').delete().eq('id', reg_id).execute()
+                return jsonify({'error': '報名人數已達上限，請稍後再試'}), 400
     else:
         # 不允許重複報名：檢查是否已有紀錄（優先找 registered/waitlisted，其次最新 cancelled）
         existing = supabase.table('registrations')\
@@ -1039,10 +1261,17 @@ def _do_event_register(event_id):
                 'checked_in': False,
             }).execute()
             reg_id = reg_result.data[0]['id']
+            # 插入後重新計數防止 TOCTOU 競態（補償交易）
+            if event.get('capacity'):
+                recheck = supabase.table('registrations')\
+                    .select('id', count='exact')\
+                    .eq('event_id', event_id).eq('status', 'registered').execute()
+                if (recheck.count or 0) > event['capacity']:
+                    supabase.table('registrations').delete().eq('id', reg_id).execute()
+                    return jsonify({'error': '報名人數已達上限，請稍後再試'}), 400
 
     # 寫入自訂欄位答案
     data = request.get_json() or {}
-    answers = data.get('answers', [])  # [{ field_id, answer }]
     for ans in answers:
         if ans.get('field_id') and ans.get('answer', '') != '':
             supabase.table('registration_answers').insert({
@@ -1161,6 +1390,19 @@ def event_external_register(event_id):
         return jsonify({'error': '系統錯誤，請稍後再試'}), 500
 
 def _do_external_register(event_id):
+    # ── 這一支是公開的（免登入、連結到處貼）──
+    # 真正會痛的不是資料庫塞不塞得下，是名額：80 個位子被腳本幾秒佔滿，真的要報名的人就報不進來，
+    # 而畫面上完全正常（就是額滿）。三層，職責不同（見 routes/guard.py）：
+    #   蜜罐 → 笨機器人；速率限制 → 手滑連按、隨手寫的迴圈；重複檢查 → 同一個人報兩次（見 _reject_duplicate_person）
+    # 放在查資料庫之前：擋的就是「一直打」，擋之前先查資料庫等於沒擋。
+    _payload = request.get_json(silent=True) or {}
+    if looks_automated(_payload):
+        return jsonify({'error': '表單驗證沒通過，請重新整理頁面再送一次'}), 400
+    # 開得很寬（理由同 CALC_LIMITS）
+    _busy = rate_limited('external-register', [(60, 600), (200, 3600)])
+    if _busy:
+        return jsonify({'error': _busy}), 429
+
     event_result = supabase.table('events').select('*').eq('id', event_id).execute()
     if not event_result.data:
         return jsonify({'error': '找不到此活動'}), 404
@@ -1176,6 +1418,16 @@ def _do_external_register(event_id):
     guest_name = (data.get('guest_name') or '').strip()
     if not guest_name:
         return jsonify({'error': '請填寫姓名'}), 400
+
+    _ext_answers = data.get('answers') or []
+    _enforce_auto_tiers(event, _ext_answers)
+    _bad = _reject_bad_id_numbers(event_id, _ext_answers) or _reject_duplicate_person(event_id, _ext_answers)
+    if _bad:
+        return jsonify({'success': False, 'error': _bad}), 400
+    _normalize_guardian_answers(event_id, _ext_answers)
+    _bad = _reject_missing_required(event, _ext_answers)
+    if _bad:
+        return jsonify({'success': False, 'error': _bad}), 400
 
     # 檢查人數上限，決定狀態
     reg_status = 'registered'
@@ -1206,7 +1458,7 @@ def _do_external_register(event_id):
     reg_id = reg_result.data[0]['id']
 
     # 寫入自訂欄位答案
-    for ans in (data.get('answers') or []):
+    for ans in _ext_answers:
         if ans.get('field_id') and ans.get('answer', '') != '':
             supabase.table('registration_answers').insert({
                 'registration_id': reg_id,
@@ -1232,3 +1484,103 @@ def event_cancel_waitlist(event_id):
     supabase.table('registrations').update({'status': 'cancelled'})\
         .eq('id', result.data[0]['id']).execute()
     return jsonify({'success': True})
+
+
+@event_bp.route('/event/<event_id>/compute-tier', methods=['POST'])
+def compute_tier(event_id):
+    """依生日算出身分別與金額。給前台即時顯示用。
+
+    ★ 免登入：外部報名頁也要用，而且它只回傳「這份表單本來就看得到的
+      選項」對應到哪一個，沒有多洩漏任何東西。
+    """
+    _busy = rate_limited('compute-tier', CALC_LIMITS)
+    if _busy:
+        return jsonify({'error': _busy}), 429
+
+    data = request.get_json() or {}
+    ev = supabase.table('events').select('id, event_start, fee').eq('id', event_id).execute().data
+    if not ev:
+        return jsonify({'error': '找不到此活動'}), 404
+    event = ev[0]
+
+    fields = supabase.table('event_fields').select('*')\
+        .eq('event_id', event_id).eq('is_archived', False)\
+        .order('sort_order').execute().data or []
+
+    from routes.auto_tier import is_enabled, resolve
+    from routes.event_fields import parse_options
+
+    birthday = (data.get('birthday') or '').strip() or None
+    specials = data.get('specials') or {}      # {field_id: true/false}
+
+    out = {}
+    for f in fields:
+        if not is_enabled(f.get('auto_tier')):
+            continue
+        options = parse_options(f.get('options'))
+        label, age, note = resolve(f, options, birthday, event,
+                                   has_special=bool(specials.get(f['id'])))
+        price = next((o['price'] for o in options if o['label'] == label), None)
+        # ★ note ＝「你勾的那一項比較貴，系統讓開了」。一定要回給畫面 ——
+        #   不講的話他勾了什麼都沒變，看起來像勾選框壞了。
+        out[f['id']] = {'label': label, 'price': price, 'age': age, 'note': note}
+    return jsonify({'tiers': out})
+
+
+@event_bp.route('/compute-age', methods=['POST'])
+def compute_age():
+    """一批生日 → 一批年齡。給「依年齡的跳題條件」用。
+
+    ## 為什麼是伺服器算，明明前端減一下就有了
+
+    因為基準日的規則不只是「今天」：年齡基準是**活動當日**（跨日活動用
+    第一天），而且 2/29 出生的人在平年要落在 3/1 才算生日。這些規則已經
+    在 `routes/roc.age_on` 裡了，也是 `auto_tier` 判身分別用的同一支。
+
+    前端自己減一份的話，兩份會開始各自演化 —— 而症狀是「身分別算成人、
+    監護人欄位卻跳出來」，兩邊都看起來完全正常。這個專案已經被
+    「同一件事有兩份實作」咬過好幾次。
+
+    ## 為什麼跟 compute-tier 分開
+
+    不是每場活動都有分級收費欄位。合併的話，一場只想問「未滿18歲要填
+    監護人」的活動得先建一個它不需要的收費欄位才算得出年齡。
+
+    ## 基準日
+
+    帶 `event_id` → 基準日一律由伺服器從活動撈（權威）。
+    只帶 `basis` → 給後台預覽用，那時候活動還沒存，日期只在表單裡。
+
+    ★ 免登入，跟 compute-tier 一樣：它只是日期算術，回傳的東西
+      呼叫端本來就有（生日是他自己填的）。
+    """
+    from routes.roc import age_on
+    from routes.auto_tier import event_basis_date
+    _busy = rate_limited('compute-age', CALC_LIMITS)
+    if _busy:
+        return jsonify({'error': _busy}), 429
+    data = request.get_json() or {}
+    birthdays = data.get('birthdays') or {}
+    if not isinstance(birthdays, dict):
+        return jsonify({'error': 'birthdays 要是物件'}), 400
+    if len(birthdays) > 50:
+        return jsonify({'error': '一次最多 50 筆'}), 400
+
+    basis = None
+    event_id = (data.get('event_id') or '').strip()
+    if event_id:
+        ev = supabase.table('events').select('id, event_start')\
+            .eq('id', event_id).execute().data
+        if not ev:
+            return jsonify({'error': '找不到此活動'}), 404
+        basis = event_basis_date(ev[0])
+    else:
+        basis = (data.get('basis') or '').strip() or None
+
+    ages = {}
+    for fid, iso in birthdays.items():
+        value = str(iso or '').strip()
+        # age_on 算不出來就回 None —— 呼叫端不可以當成 0 或猜一個，
+        # 前端拿到 null 的處理是「這個條件不成立」，不是「0 歲」。
+        ages[str(fid)] = age_on(value, basis) if value else None
+    return jsonify({'ages': ages, 'basis': basis})
