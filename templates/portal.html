@@ -1,27 +1,28 @@
 {% extends "base.html" %}
 {% block title %}{{ church_name }}{% endblock %}
+{% block main_class %}{% endblock %}
 {% block content %}
 
 {% if unread_changelog %}
-<div id="changelog-banner" style="background:linear-gradient(90deg,#7c4b3a,#9c6150); color:white;
-     padding:12px 20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+<div id="changelog-banner" style="background:#f5e8da; color:#5c3528; border-bottom:1px solid #ece4d9;
+     padding:10px clamp(16px,4vw,64px); display:flex; align-items:center; gap:12px; flex-wrap:wrap;
      animation:slideDown .4s ease;">
     <span style="font-size:1.1rem;">🆕</span>
     <div style="flex:1; min-width:0;">
         {% if unread_changelog.version %}
-        <span style="font-size:0.75rem; background:rgba(255,255,255,0.2); border-radius:10px; padding:1px 8px; margin-right:6px;">{{ unread_changelog.version }}</span>
+        <span style="font-size:0.75rem; background:#7c4b3a; color:#fff; border-radius:10px; padding:1px 8px; margin-right:6px;">{{ unread_changelog.version }}</span>
         {% endif %}
         <strong>{{ unread_changelog.title }}</strong>
         <span style="font-size:0.83rem; opacity:0.85; margin-left:8px;">{{ unread_changelog.published_at }}</span>
     </div>
     <div style="display:flex; gap:8px; flex-shrink:0;">
         <button onclick="showChangelog()"
-            style="padding:5px 14px; background:rgba(255,255,255,0.2); color:white; border:1px solid rgba(255,255,255,0.4);
+            style="padding:5px 14px; background:#fff; color:#5c3528; border:1px solid #e8d4c0;
                    border-radius:6px; cursor:pointer; font-size:0.85rem;">
             查看詳情
         </button>
         <button onclick="dismissChangelog()"
-            style="padding:5px 14px; background:rgba(255,255,255,0.15); color:white; border:none;
+            style="padding:5px 14px; background:#7c4b3a; color:#fff; border:none;
                    border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
             知道了 ✕
         </button>
@@ -44,7 +45,7 @@
         </div>
         <div style="font-size:0.92rem; color:#374151; white-space:pre-wrap; line-height:1.7; margin-bottom:20px;">{{ unread_changelog.content }}</div>
         <button onclick="dismissChangelog()"
-            style="width:100%; padding:12px; background:#3b82f6; color:white; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer;">
+            style="width:100%; padding:12px; background:#7c4b3a; color:white; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer;">
             知道了！
         </button>
     </div>
@@ -88,18 +89,43 @@ function dismissChangelog() {
    Hero
 ═══════════════════════════════════════════ */
 .portal-hero {
-    margin: 16px 0 16px;
-    border-radius: 20px;
-    min-height: 0;
+    margin: 20px 0 24px;
+    border-radius: 24px;
     position: relative;
     overflow: hidden;
-    display: flex;
-    align-items: flex-start;
+    display: grid;
+    grid-template-columns: 1fr;
+    background:
+        radial-gradient(ellipse at 0% 0%, rgba(201,149,106,.16) 0%, transparent 55%),
+        linear-gradient(160deg, #fffaf4 0%, #f7ece1 100%);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+}
+.hero-art {
+    position: relative; overflow: hidden;
+    order: -1;
+    min-height: 120px;
+    margin: 10px 10px 0;
+    border-radius: 18px;
     {% if hero_theme.image_url %}
     background: url('{{ hero_theme.image_url }}') center/cover no-repeat;
     {% else %}
     background: {{ hero_theme.gradient }};
     {% endif %}
+    display: flex; align-items: flex-end;
+}
+.hero-art-sym {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.6rem; color: rgba(255,255,255,.9);
+    text-shadow: 0 4px 24px rgba(0,0,0,.25);
+    z-index: 2;
+}
+.hero-art-cap {
+    position: relative; z-index: 2;
+    margin: 0 0 12px 14px;
+    font-size: .72rem; font-weight: 600; letter-spacing: .08em;
+    color: rgba(255,255,255,.85);
 }
 .hero-glow {
     position: absolute; inset: 0;
@@ -126,51 +152,50 @@ function dismissChangelog() {
 }
 .hero-body {
     position: relative; z-index: 2;
-    padding: 32px 24px 28px;
-    width: 100%; box-sizing: border-box;
+    padding: 22px 22px 24px;
+    box-sizing: border-box;
 }
 .hero-eyebrow {
-    font-size: .7rem; font-weight: 600; letter-spacing: .08em;
-    color: rgba(255,255,255,.6);
-    margin-bottom: 12px;
-    text-transform: uppercase;
+    font-size: .74rem; font-weight: 600; letter-spacing: .1em;
+    color: var(--color-accent-dark);
+    margin-bottom: 10px;
 }
 .hero-title {
-    font-size: 2.1rem; font-weight: 800; line-height: 1.18;
-    letter-spacing: -.025em;
-    color: white;
-    text-shadow: 0 2px 24px rgba(0,0,0,.18);
+    font-family: var(--font-serif);
+    font-size: clamp(1.8rem, 3.2vw, 2.6rem); font-weight: 700; line-height: 1.25;
+    color: var(--color-text);
     margin: 0 0 10px;
 }
 .hero-sub {
-    font-size: .88rem; color: rgba(255,255,255,.7);
+    font-family: var(--font-serif);
+    font-size: .98rem; color: var(--color-text-muted);
     margin: 0 0 22px;
 }
 .hero-cta {
     display: inline-flex; align-items: center; gap: 8px;
-    background: rgba(255,255,255,.18);
-    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
-    border: 1px solid rgba(255,255,255,.32);
+    background: var(--color-primary);
     border-radius: 100px;
-    padding: 11px 22px;
-    color: white; font-weight: 700; font-size: .88rem;
+    padding: 12px 22px;
+    color: #fff; font-weight: 700; font-size: .9rem;
     text-decoration: none;
     position: relative; overflow: hidden;
+    box-shadow: 0 6px 18px rgba(124,75,58,.28);
     transition: background .2s, transform .15s;
 }
+.hero-cta:hover { background: var(--color-primary-dark); color: #fff; }
 .hero-cta::after {
     content: '';
     position: absolute; top: 0; left: -100%; width: 60%; height: 100%;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.22), transparent);
     animation: heroShimmer 4.5s 1.5s infinite;
 }
 .hero-cta:active { transform: scale(.96); }
-.hero-cta-sym { font-size: 1rem; opacity: .88; }
-.hero-fade {
-    position: absolute; bottom: 0; left: 0; right: 0;
-    height: 56px;
-    background: linear-gradient(to bottom, transparent, var(--bg,#f8fafc));
-    pointer-events: none; z-index: 1;
+.hero-cta-sym { font-size: 1rem; opacity: .9; }
+@media (min-width: 768px) {
+    .portal-hero { grid-template-columns: minmax(0,1.5fr) minmax(240px,1fr); align-items: stretch; }
+    .hero-body { padding: 44px 40px 40px; }
+    .hero-art { order: 0; min-height: 230px; margin: 12px; }
+    .hero-art-sym { font-size: 3.6rem; }
 }
 
 /* ═══════════════════════════════════════════
@@ -200,42 +225,53 @@ function dismissChangelog() {
     gap: 10px;
 }
 .fi-wrap { position: relative; }
+.fi-wrap > a { height: 100%; }
 
 .fg-tile {
-    background: var(--surface);
+    background: var(--color-surface);
     border-radius: 16px;
     padding: 16px 14px 14px;
     text-decoration: none;
-    border: 1px solid rgba(0,0,0,.05);
-    box-shadow: 0 2px 10px rgba(0,0,0,.048);
-    display: flex; flex-direction: column; gap: 5px;
-    transition: transform .18s, box-shadow .18s;
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-xs);
+    display: flex; flex-direction: column; gap: 4px;
+    height: 100%; box-sizing: border-box;
+    transition: transform .18s, box-shadow .18s, border-color .18s;
+    --ic-bg: #f3e6dc; --ic-fg: #7c4b3a;
 }
-.fg-tile:active { transform: scale(.955); box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+.fg-tile:hover { border-color: #e2cdb8; box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.fg-tile:active { transform: scale(.97); box-shadow: var(--shadow-xs); }
 .fg-icon {
-    width: 40px; height: 40px; border-radius: 11px;
+    width: 42px; height: 42px; border-radius: 12px;
     display: flex; align-items: center; justify-content: center;
-    margin-bottom: 4px; flex-shrink: 0;
+    margin-bottom: 6px; flex-shrink: 0;
+    background: var(--ic-bg); color: var(--ic-fg);
+    font-size: 1.2rem; line-height: 1;
 }
 .fg-icon svg { width: 20px; height: 20px; }
-.fg-name { font-size: .9rem; font-weight: 700; color: var(--text-1); }
-.fg-sub  { font-size: .72rem; color: var(--text-3); line-height: 1.4; }
+.fg-text { min-width: 0; }
+.fg-name { font-size: .92rem; font-weight: 700; color: var(--color-text); }
+.fg-sub  { font-size: .74rem; color: var(--color-text-muted); line-height: 1.45; }
 
-/* tile colour variants */
-.fg-events   .fg-icon { background: var(--green-bg);  color: #16a34a; }
-.fg-calendar .fg-icon { background: #f3e8ff; color: #7c3aed; }
-.fg-courses  .fg-icon { background: var(--blue-bg);   color: var(--blue); }
-.fg-prayer { background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 60%, #fde68a 100%); border: 1px solid rgba(210,160,30,0.25); }
-.fg-prayer   .fg-icon { background: linear-gradient(135deg, #d97706, #b45309); color: white; box-shadow: 0 3px 10px rgba(180,83,9,0.35); }
-.fg-prayer   .fg-name { color: #92400e; }
-.fg-prayer   .fg-sub  { color: #b45309; font-weight: 500; }
-.fg-bulletin .fg-icon { background: #fff7ed; color: #d97706; }
-.fg-verse    .fg-icon { background: linear-gradient(135deg,#4a148c,#e91e63); color: white; }
-.fg-link     .fg-icon { background: #f3f4f6; font-size: 1.25rem; line-height: 1; }
-.fg-devotional { background: linear-gradient(135deg, #eef2ff 0%, #e0e7ff 60%, #c7d2fe 100%); border: 1px solid rgba(99,102,241,0.2); }
-.fg-devotional .fg-icon { background: linear-gradient(135deg, #4338ca, #6366f1); color: white; box-shadow: 0 3px 10px rgba(99,102,241,0.35); }
-.fg-devotional .fg-name { color: #312e81; }
-.fg-devotional .fg-sub  { color: #4338ca; font-weight: 500; }
+/* 圖示色：同一個暖色家族，靠色相區分功能 */
+.fg-tile[href^="/events"], .fg-tile[href^="/sermons"], .fg-tile[href^="/visitor-form"]   { --ic-bg:#f9e4d8; --ic-fg:#b4532a; }
+.fg-tile[href^="/calendar"], .fg-tile[href^="/diary/pastor"], .fg-tile[href^="/staff-leave"] { --ic-bg:#f2e2e8; --ic-fg:#8a4060; }
+.fg-tile[href^="/bulletins"], .fg-tile[href^="/files"]                                  { --ic-bg:#f8ebcf; --ic-fg:#9a6410; }
+.fg-tile[href^="/courses"], .fg-tile[href^="/reading"], .fg-tile[href^="/roll-call"],
+.fg-tile[href^="/cell-report/portal"], .fg-tile[href="/staff"]                          { --ic-bg:#e6eddb; --ic-fg:#566a2a; }
+.fg-tile[href^="/my-history"]                                                           { --ic-bg:#dfeceb; --ic-fg:#3b6a65; }
+.fg-tile[href^="/devotional"], .fg-tile[href^="/cell-report/pastor"],
+.fg-tile[href^="/cell-report/staff"]                                                    { --ic-bg:#f3e6dc; --ic-fg:#7c4b3a; }
+.fg-link .fg-icon { --ic-bg: #f5ede4; }
+.fg-tile.fg-admin { background: linear-gradient(140deg,#3a2620,#5a382b); border-color: transparent; --ic-bg: rgba(255,255,255,.12); --ic-fg: #f3d9b8; }
+.fg-tile.fg-admin .fg-name { color: #fff; }
+.fg-tile.fg-admin .fg-sub  { color: rgba(255,240,225,.6); }
+
+@media (min-width: 640px) {
+    .fg-grid { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+    .fg-tile { flex-direction: row; align-items: center; gap: 14px; padding: 16px; }
+    .fg-icon { margin: 0; }
+}
 
 /* 超管 edit mode */
 .fi-toggle-btn {
@@ -287,24 +323,24 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
    小組討論卡片
 ═══════════════════════════════════════════ */
 .gd-card {
-    background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 45%,#1e40af 100%);
+    background:linear-gradient(135deg,#2a1b16 0%,#45291f 50%,#6b4234 100%);
     border-radius:var(--radius-xl);padding:20px 18px 22px;
     overflow:hidden;position:relative;
-    border-top:1px solid rgba(96,165,250,.2);
-    border-bottom:1px solid rgba(96,165,250,.2);
-    border-left:4px solid rgba(96,165,250,.55);
-    border-right:4px solid rgba(96,165,250,.55);
-    box-shadow:0 4px 24px rgba(30,64,175,.25);
+    border-top:1px solid rgba(214,170,120,.2);
+    border-bottom:1px solid rgba(214,170,120,.2);
+    border-left:4px solid rgba(214,170,120,.55);
+    border-right:4px solid rgba(214,170,120,.55);
+    box-shadow:0 4px 24px rgba(60,30,20,.28);
 }
-.gd-card::after { content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(96,165,250,.15) 0%,transparent 70%);border-radius:50%;pointer-events:none; }
+.gd-card::after { content:'';position:absolute;top:-60px;right:-60px;width:200px;height:200px;background:radial-gradient(circle,rgba(214,170,120,.15) 0%,transparent 70%);border-radius:50%;pointer-events:none; }
 .gd-card-head { display:flex;align-items:center;gap:10px;margin-bottom:14px; }
-.gd-card-icon { width:34px;height:34px;border-radius:8px;background:rgba(96,165,250,.2);display:flex;align-items:center;justify-content:center;color:#93c5fd;flex-shrink:0; }
+.gd-card-icon { width:34px;height:34px;border-radius:8px;background:rgba(214,170,120,.2);display:flex;align-items:center;justify-content:center;color:#ecc89c;flex-shrink:0; }
 .gd-card-title { font-size:1rem;font-weight:800;color:white;letter-spacing:-.01em;flex:1; }
 .gd-video-wrap { width:100%;border-radius:10px;overflow:hidden;aspect-ratio:16/9;background:#0a0a1a;margin-bottom:16px;position:relative;z-index:1; }
 .gd-video-wrap iframe { width:100%;height:100%;border:none;display:block; }
-.gd-questions-label { font-size:.75rem;font-weight:700;color:rgba(147,197,253,.8);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px; }
+.gd-questions-label { font-size:.75rem;font-weight:700;color:rgba(236,200,156,.8);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px; }
 .gd-question { display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;position:relative;z-index:1; }
-.gd-q-num { width:22px;height:22px;border-radius:50%;background:rgba(96,165,250,.25);color:#93c5fd;font-size:.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px; }
+.gd-q-num { width:22px;height:22px;border-radius:50%;background:rgba(214,170,120,.25);color:#ecc89c;font-size:.72rem;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px; }
 .gd-q-text { font-size:1.05rem;color:white;line-height:1.6;flex:1;font-weight:500; }
 
 /* ═══════════════════════════════════════════
@@ -398,9 +434,56 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     flex-direction: column; align-items: center; justify-content: center;
     gap: 16px; padding: 24px; box-sizing: border-box;
 }
+
+/* ═══════════════════════════════════════════
+   版面：桌機兩欄（主內容＋右側欄）；手機照原順序單欄
+═══════════════════════════════════════════ */
+@media (min-width: 1024px) {
+    .portal-layout {
+        display: grid;
+        grid-template-columns: minmax(0,1fr) 340px;
+        grid-template-rows: auto auto 1fr;
+        column-gap: 32px;
+        align-items: start;
+    }
+    .pl-main        { grid-column: 1; grid-row: 1 / span 3; }
+    .pl-rail-top    { grid-column: 2; grid-row: 1; }
+    .pl-rail-bottom { grid-column: 2; grid-row: 2; }
+    .portal-layout:not(:has(.pl-rail > *)) { grid-template-columns: minmax(0,1fr); }
+    .pl-rail .role-widget { padding: 18px !important; }
+    .pl-rail-bottom > .pa {
+        background: var(--color-surface); border: 1px solid var(--color-border);
+        border-radius: 18px; padding: 18px 18px 8px;
+    }
+}
+.portal-page .section-label,
+.portal-page .section-label-sm {
+    font-family: var(--font-serif);
+    font-size: 1.08rem; font-weight: 700;
+    color: var(--color-text) !important;
+    letter-spacing: 0; text-transform: none;
+}
+.portal-page .section-label::before { display: none; }
+
+.engage-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (min-width: 900px) { .engage-grid { grid-template-columns: repeat(4, 1fr); } }
+.engage-grid > .fi-wrap > .engage-card { height: 100%; }
+.engage-card {
+    border: 1px solid var(--color-border) !important;
+    background: var(--color-surface);
+    padding: 20px 18px;
+    box-sizing: border-box;
+    transition: transform .18s, box-shadow .18s;
+}
+.engage-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.engage-card-title { font-family: var(--font-serif); font-size: 1.02rem; }
+.engage-card[href="/diary"]  { background: linear-gradient(160deg,#fbf3ea,#f3e3d3); }
+.engage-card[href="/verse"]  { background: linear-gradient(160deg,#fbf0ef,#f2dedb); }
+.engage-card[href="/prayer"] { background: linear-gradient(160deg,#fcf6e6,#f5e8c6); }
+.engage-card[href="/gospel"] { background: linear-gradient(160deg,#f2f5ea,#e2e9d4); }
 </style>
 
-<div style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,64px);">
+<div class="portal-page" style="max-width:1280px;margin:0 auto;padding:0 clamp(16px,4vw,64px);">
 
 {# ════ 未完成設定提示橫幅 ════ #}
 {% if not session.real_name %}
@@ -416,11 +499,9 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {# ════ HERO ════ #}
 {% if 'hero' not in hidden_sections %}
 <div class="portal-hero">
-    <div class="hero-glow"></div>
-    <div id="hero-ptcl"></div>
     <div class="hero-body pa" style="--d:0ms">
         <div class="hero-eyebrow">{{ church_short_name or church_name }} &nbsp;·&nbsp; {{ today_tw }}</div>
-        <h1 class="hero-title">{{ user_name }}，<br>平安 🕊</h1>
+        <h1 class="hero-title">{{ user_name }}，平安</h1>
         <p class="hero-sub">願祂的話語今天臨到你</p>
         <div style="width:100%;max-width:320px;">
             {% if module_on('/verse') %}<a href="/verse" id="verse-cta" class="hero-cta"
@@ -434,7 +515,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
             </a>{% endif %}
         </div>
     </div>
-    <div class="hero-fade"></div>
+    <div class="hero-art pa" style="--d:80ms" aria-hidden="true">
+        <div class="hero-glow"></div>
+        <div id="hero-ptcl"></div>
+        <div class="hero-art-sym">{{ hero_theme.symbol }}</div>
+        <div class="hero-art-cap">今日經文卡</div>
+    </div>
 </div>
 {% endif %}{# /hero #}
 {# ════ 自訂首頁小連結 ════ #}
@@ -446,6 +532,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 </div>
 {% endif %}
 
+<div class="portal-layout">
+<div class="pl-rail pl-rail-top">
 {# ════ 角色任務小工具 ════ #}
 {# ════ 小組回報提醒 ════ #}
 {% if 'cell_report_reminder' not in hidden_sections %}
@@ -577,6 +665,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
    ★ 活動那一行留「已報名 ✓」：這一區跟下面「開放報名」是互斥的，這張卡是全首頁唯一提到「你已經報名了」的地方，
      拿掉的話他會把它讀成「有一場活動」而再報一次。
    ★ 這裡不講缺席、不講還能缺幾堂、不講錢（不催繳是使用者定的）。 #}
+</div>{# /pl-rail-top #}
+<div class="pl-main">
 {% if 'upcoming_events' not in hidden_sections %}
 {% if my_todos %}
 <div class="pa" style="--d:60ms; margin-bottom:28px;" data-tour="my-todos">
@@ -697,12 +787,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 {% if session.user_id or session.line_id %}
 <div class="pa" style="--d:160ms; margin-bottom:44px;">
     <p class="section-label-sm" style="margin:0 0 16px;">靈修空間</p>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+    <div class="engage-grid">
 
         {# 天父日記 #}
         {% if card_settings.get('diary', true) or is_super_admin %}
         <div class="fi-wrap{% if not card_settings.get('diary', true) %} fi-hidden{% endif %}" data-key="diary" data-type="fixed">
-        {% if module_on('/diary') %}<a href="/diary" class="engage-card" style="background:linear-gradient(135deg,rgba(102,126,234,.13),rgba(118,75,162,.13));">
+        {% if module_on('/diary') %}<a href="/diary" class="engage-card">
             <span class="engage-card-icon">📖</span>
             <p class="engage-card-title">{{ cn('diary', '天父日記') }}</p>
             <p class="engage-card-sub">{{ cs('diary', '今天的靈修寫了嗎？') }}</p>
@@ -712,7 +802,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% endif %}
 
         {# 抽經文卡 #}
-        {% if module_on('/verse') %}<a id="verse-engagement-cta" href="/verse" class="engage-card" style="background:linear-gradient(135deg,rgba(233,30,99,.1),rgba(74,20,140,.12));">
+        {% if module_on('/verse') %}<a id="verse-engagement-cta" href="/verse" class="engage-card">
             <span class="engage-card-icon">✨</span>
             <p class="engage-card-title">抽經文卡</p>
             <p class="engage-card-sub">今日經文祝福</p>
@@ -721,7 +811,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {# 代禱麥田 #}
         {% if card_settings.get('prayer', true) or is_super_admin %}
         <div class="fi-wrap{% if not card_settings.get('prayer', true) %} fi-hidden{% endif %}" data-key="prayer" data-type="fixed">
-        {% if module_on('/prayer') %}<a href="/prayer" class="engage-card" style="background:linear-gradient(135deg,rgba(245,158,11,.1),rgba(180,83,9,.1));">
+        {% if module_on('/prayer') %}<a href="/prayer" class="engage-card">
             <span class="engage-card-icon">🙏</span>
             <p class="engage-card-title">{{ cn('prayer', '代禱牆') }}</p>
             <p class="engage-card-sub">{{ cs('prayer', '代禱牆') }}</p>
@@ -732,7 +822,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
         {# 福音探索（若存在） #}
         {% if card_settings.get('gospel', true) %}
-        {% if module_on('/gospel') %}<a href="/gospel" class="engage-card" style="background:linear-gradient(135deg,rgba(16,185,129,.1),rgba(5,150,105,.1));">
+        {% if module_on('/gospel') %}<a href="/gospel" class="engage-card">
             <span class="engage-card-icon">🕊</span>
             <p class="engage-card-title">{{ cn('gospel', '福音探索') }}</p>
             <p class="engage-card-sub">{{ cs('gospel', '認識信仰的起點') }}</p>
@@ -767,8 +857,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
                 </div>
-                <div class="fg-name">{{ cn('events', '活動報名') }}</div>
-                <div class="fg-sub">{{ cs('events', '教會各項活動') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('events', '活動報名') }}</div>
+                <div class="fg-sub">{{ cs('events', '教會各項活動') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -781,8 +871,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
                 </div>
-                <div class="fg-name">{{ cn('calendar', '行事曆') }}</div>
-                <div class="fg-sub" id="cal-count-sub">本月教會行程</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('calendar', '行事曆') }}</div>
+                <div class="fg-sub" id="cal-count-sub">本月教會行程</div></div>
             </a>{% endif %}
         </div>
         {% endif %}
@@ -795,8 +885,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></svg>
                 </div>
-                <div class="fg-name">{{ cn('bulletin', '教會週報') }}</div>
-                <div class="fg-sub">{% if latest_bulletin %}{{ latest_bulletin.bulletin_date }}{% else %}{{ cs('bulletin', '最新週報與公告') }}{% endif %}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('bulletin', '教會週報') }}</div>
+                <div class="fg-sub">{% if latest_bulletin %}{{ latest_bulletin.bulletin_date }}{% else %}{{ cs('bulletin', '最新週報與公告') }}{% endif %}</div></div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -811,8 +901,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 </div>
-                <div class="fg-name">{{ cn('courses', '門訓學程') }}</div>
-                <div class="fg-sub">{{ cs('courses', '報名及追蹤進度') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('courses', '門訓學程') }}</div>
+                <div class="fg-sub">{{ cs('courses', '報名及追蹤進度') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -826,8 +916,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
                 </div>
-                <div class="fg-name">禱讀本訂購</div>
-                <div class="fg-sub">小組登記購買數量</div>
+                <div class="fg-text"><div class="fg-name">禱讀本訂購</div>
+                <div class="fg-sub">小組登記購買數量</div></div>
             </a>{% endif %}
         </div>
         {% endif %}
@@ -840,8 +930,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="3"/><path d="m10 9 5 3-5 3z" fill="currentColor" stroke="none"/></svg>
                 </div>
-                <div class="fg-name">主日信息</div>
-                <div class="fg-sub">錯過了可以再聽一次</div>
+                <div class="fg-text"><div class="fg-name">主日信息</div>
+                <div class="fg-sub">錯過了可以再聽一次</div></div>
             </a>{% endif %}
         </div>
         {% endif %}
@@ -853,8 +943,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                 <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
                 </div>
-                <div class="fg-name">聖經速讀</div>
-                <div class="fg-sub">365 天，讀完就打勾</div>
+                <div class="fg-text"><div class="fg-name">聖經速讀</div>
+                <div class="fg-sub">365 天，讀完就打勾</div></div>
             </a>{% endif %}
         </div>
         {% endif %}
@@ -863,12 +953,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% if session.user_id or session.line_id %}
         {% if card_settings.get('my_history', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('my_history', true) %} fi-hidden{% endif %}" data-key="my_history" data-type="fixed" style="--d:{{ base_d + 270 }}ms">
-            {% if module_on('/my-history') %}<a href="/my-history" class="fg-tile" style="background:linear-gradient(135deg,#f0f9ff,#e0f2fe);">
-                <div class="fg-icon" style="background:#e0f2fe;color:#0369a1;">
+            {% if module_on('/my-history') %}<a href="/my-history" class="fg-tile">
+                <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
                 </div>
-                <div class="fg-name" style="color:#0c4a6e;">{{ cn('my_history', '電子簽到') }}</div>
-                <div class="fg-sub">{{ cs('my_history', '我的活動出席紀錄') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('my_history', '電子簽到') }}</div>
+                <div class="fg-sub">{{ cs('my_history', '我的活動出席紀錄') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -883,8 +973,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
             <a href="{{ link.url }}" {% if link.is_external %}target="_blank" rel="noopener"{% endif %}
                class="fg-tile fg-link">
                 <div class="fg-icon" style="color:{{ link.border_color or '#6b7280' }};">{{ link.emoji or '🔗' }}</div>
-                <div class="fg-name">{{ link.title }}</div>
-                {% if link.subtitle %}<div class="fg-sub">{{ link.subtitle }}</div>{% endif %}
+                <div class="fg-text"><div class="fg-name">{{ link.title }}</div>
+                {% if link.subtitle %}<div class="fg-sub">{{ link.subtitle }}</div>{% endif %}</div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -896,22 +986,22 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% if session.cell_group_ids or is_super_admin %}
         {% if is_fulltime_staff %}
         <div class="fi-wrap ti" style="--d:{{ base_d + 460 }}ms">
-            {% if module_on('/staff-leave') %}<a href="/staff-leave" class="fg-tile" style="background:linear-gradient(135deg,#f5f3ff,#ede9fe);">
-                <div class="fg-icon" style="background:#ede9fe;color:#6d28d9;">🗓</div>
-                <div class="fg-name" style="color:#4c1d95;">我的差勤</div>
-                <div class="fg-sub">特休、補休、加班登錄</div>
+            {% if module_on('/staff-leave') %}<a href="/staff-leave" class="fg-tile">
+                <div class="fg-icon">🗓</div>
+                <div class="fg-text"><div class="fg-name">我的差勤</div>
+                <div class="fg-sub">特休、補休、加班登錄</div></div>
             </a>{% endif %}
         </div>
         {% endif %}
 
         {% if card_settings.get('cell_report', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('cell_report', true) %} fi-hidden{% endif %}" data-key="cell_report" data-type="fixed" style="--d:{{ base_d + 480 }}ms">
-            {% if module_on('/cell-report/portal') %}<a href="/cell-report/portal" class="fg-tile" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
-                <div class="fg-icon" style="background:#dcfce7;color:#16a34a;">
+            {% if module_on('/cell-report/portal') %}<a href="/cell-report/portal" class="fg-tile">
+                <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                 </div>
-                <div class="fg-name" style="color:#166534;">{{ cn('cell_report', '小組回報') }}</div>
-                <div class="fg-sub">{{ cs('cell_report', '填寫本週小組聚會回報') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('cell_report', '小組回報') }}</div>
+                <div class="fg-sub">{{ cs('cell_report', '填寫本週小組聚會回報') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -922,12 +1012,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% if session.is_pastor or is_super_admin %}
         {% if card_settings.get('pastor_report', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('pastor_report', true) %} fi-hidden{% endif %}" data-key="pastor_report" data-type="fixed" style="--d:{{ base_d + 550 }}ms">
-            {% if module_on('/cell-report/pastor-dashboard') %}<a href="/cell-report/pastor-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#fff7ed,#fed7aa);">
-                <div class="fg-icon" style="background:#fed7aa;color:#c2410c;">
+            {% if module_on('/cell-report/pastor-dashboard') %}<a href="/cell-report/pastor-dashboard" class="fg-tile">
+                <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
                 </div>
-                <div class="fg-name" style="color:#7c2d12;">{{ cn('pastor_report', '各組回報（牧者）') }}</div>
-                <div class="fg-sub">{{ cs('pastor_report', '查看各小組回報與統計') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('pastor_report', '各組回報（牧者）') }}</div>
+                <div class="fg-sub">{{ cs('pastor_report', '查看各小組回報與統計') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -935,12 +1025,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
         {% if card_settings.get('pastor_diary', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('pastor_diary', true) %} fi-hidden{% endif %}" data-key="pastor_diary" data-type="fixed" style="--d:{{ base_d + 620 }}ms">
-            {% if module_on('/diary/pastor') %}<a href="/diary/pastor" class="fg-tile" style="background:linear-gradient(135deg,#fdf4ff,#f3e8ff);">
-                <div class="fg-icon" style="background:#f3e8ff;color:#9333ea;">
+            {% if module_on('/diary/pastor') %}<a href="/diary/pastor" class="fg-tile">
+                <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
                 </div>
-                <div class="fg-name" style="color:#6b21a8;">{{ cn('pastor_diary', '查閱日記') }}</div>
-                <div class="fg-sub">{{ cs('pastor_diary', '已授權的會友日記') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('pastor_diary', '查閱日記') }}</div>
+                <div class="fg-sub">{{ cs('pastor_diary', '已授權的會友日記') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -951,39 +1041,39 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% if (is_staff and not session.is_pastor) or is_super_admin %}
         {# 同工首頁卡片 #}
         <div class="fi-wrap ti" style="--d:{{ base_d + 685 }}ms">
-            <a href="/staff" class="fg-tile" style="background:linear-gradient(135deg,#ecfdf5,#d1fae5);">
-                <div class="fg-icon" style="background:#a7f3d0;color:#065f46;">🙋</div>
-                <div class="fg-name" style="color:#064e3b;">同工服務</div>
-                <div class="fg-sub">門口簽到、活動名單</div>
+            <a href="/staff" class="fg-tile">
+                <div class="fg-icon">🙋</div>
+                <div class="fg-text"><div class="fg-name">同工服務</div>
+                <div class="fg-sub">門口簽到、活動名單</div></div>
             </a>
         </div>
         <div class="fi-wrap ti" style="--d:{{ base_d + 688 }}ms">
-            {% if module_on('/visitor-form/upload') %}<a href="/visitor-form/upload" class="fg-tile" style="background:linear-gradient(135deg,#f0fdf4,#d1fae5);">
-                <div class="fg-icon" style="background:#bbf7d0;color:#15803d;">📋</div>
-                <div class="fg-name" style="color:#14532d;">上傳留名單</div>
-                <div class="fg-sub">紙本留名單拍照上傳</div>
+            {% if module_on('/visitor-form/upload') %}<a href="/visitor-form/upload" class="fg-tile">
+                <div class="fg-icon">📋</div>
+                <div class="fg-text"><div class="fg-name">上傳留名單</div>
+                <div class="fg-sub">紙本留名單拍照上傳</div></div>
             </a>{% endif %}
         </div>
         {% if card_settings.get('staff_report', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('staff_report', true) %} fi-hidden{% endif %}" data-key="staff_report" data-type="fixed" style="--d:{{ base_d + 690 }}ms">
-            {% if module_on('/cell-report/staff-dashboard') %}<a href="/cell-report/staff-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#fdf5ee,#f5e8da);">
-                <div class="fg-icon" style="background:#f5e8da;color:#7c4b3a;">
+            {% if module_on('/cell-report/staff-dashboard') %}<a href="/cell-report/staff-dashboard" class="fg-tile">
+                <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </div>
-                <div class="fg-name" style="color:#5c3528;">{{ cn('staff_report', '各組回報（同工）') }}</div>
-                <div class="fg-sub">{{ cs('staff_report', '各區小組回報總覽') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('staff_report', '各組回報（同工）') }}</div>
+                <div class="fg-sub">{{ cs('staff_report', '各區小組回報總覽') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
         {% endif %}
         {% if card_settings.get('roll_call', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('roll_call', true) %} fi-hidden{% endif %}" data-key="roll_call" data-type="fixed" style="--d:{{ base_d + 700 }}ms">
-            {% if module_on('/roll-call') %}<a href="/roll-call" class="fg-tile" style="background:linear-gradient(135deg,#f0fdf4,#dcfce7);">
-                <div class="fg-icon" style="background:#dcfce7;color:#15803d;">
+            {% if module_on('/roll-call') %}<a href="/roll-call" class="fg-tile">
+                <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
                 </div>
-                <div class="fg-name" style="color:#14532d;">{{ cn('roll_call', '聚會點名') }}</div>
-                <div class="fg-sub">{{ cs('roll_call', '主日與各聚會的點名單') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('roll_call', '聚會點名') }}</div>
+                <div class="fg-sub">{{ cs('roll_call', '主日與各聚會的點名單') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -994,12 +1084,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% if session.is_admin %}
         {% if card_settings.get('files', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('files', true) %} fi-hidden{% endif %}" data-key="files" data-type="fixed" style="--d:{{ base_d + 760 }}ms">
-            {% if module_on('/files') %}<a href="/files" class="fg-tile" style="background:linear-gradient(135deg,#fffbeb,#fef3c7);">
-                <div class="fg-icon" style="background:#fef3c7;color:#d97706;">
+            {% if module_on('/files') %}<a href="/files" class="fg-tile">
+                <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
                 </div>
-                <div class="fg-name" style="color:#92400e;">{{ cn('files', '檔案管理') }}</div>
-                <div class="fg-sub">{{ cs('files', '教會資料夾與檔案') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('files', '檔案管理') }}</div>
+                <div class="fg-sub">{{ cs('files', '教會資料夾與檔案') }}</div></div>
             </a>{% endif %}
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -1007,12 +1097,12 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
 {% if card_settings.get('admin', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('admin', true) %} fi-hidden{% endif %}" data-key="admin" data-type="fixed" style="--d:{{ base_d + 830 }}ms">
-            <a href="/admin" class="fg-tile" style="background:linear-gradient(135deg,#1e1e2e,#16213e);border-color:rgba(255,255,255,.1);">
-                <div class="fg-icon" style="background:rgba(255,255,255,.12);color:white;">
+            <a href="/admin" class="fg-tile fg-admin">
+                <div class="fg-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M4.93 4.93a10 10 0 0 0 0 14.14"/></svg>
                 </div>
-                <div class="fg-name" style="color:white;">{{ cn('admin', '後台管理') }}</div>
-                <div class="fg-sub" style="color:rgba(255,255,255,.55);">{{ cs('admin', '使用者、活動、系統設定') }}</div>
+                <div class="fg-text"><div class="fg-name">{{ cn('admin', '後台管理') }}</div>
+                <div class="fg-sub">{{ cs('admin', '使用者、活動、系統設定') }}</div></div>
             </a>
             <button class="fi-toggle-btn" onclick="toggleCard(this)"></button>
         </div>
@@ -1042,7 +1132,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
                 </svg>
             </div>
             <div class="gd-card-title">{{ gd.title or '本週小組討論' }}</div>
-            <span style="font-size:.72rem;background:rgba(96,165,250,.2);color:#93c5fd;padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;">本週</span>
+            <span style="font-size:.72rem;background:rgba(214,170,120,.2);color:#ecc89c;padding:3px 10px;border-radius:20px;font-weight:600;white-space:nowrap;">本週</span>
         </div>
 
         {% if gd.video_id %}
@@ -1066,13 +1156,15 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         </div>
         {% endif %}
 
-        <p style="font-size:.72rem;color:rgba(147,197,253,.5);margin:12px 0 0;position:relative;z-index:1;">
+        <p style="font-size:.72rem;color:rgba(236,200,156,.5);margin:12px 0 0;position:relative;z-index:1;">
             {{ gd.week_label or (gd.created_at | taipei_time('%Y-%m-%d')) }}
         </p>
     </div>
 </div>
 {% endif %}
 
+</div>{# /pl-main #}
+<div class="pl-rail pl-rail-bottom">
 {# ════════════════════════════════════════════
    資訊層 — 本週資訊（週報 + 公告，低視覺重量）
 ════════════════════════════════════════════ #}
@@ -1119,6 +1211,8 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     </div>
 </div>
 {% endif %}
+</div>{# /pl-rail-bottom #}
+</div>{# /portal-layout #}
 
 {# 抽卡閃光層（獨立於 modal 之外，蓋在最上層）#}
 
