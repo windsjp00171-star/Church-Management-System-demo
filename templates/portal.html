@@ -34,7 +34,7 @@
         <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:16px;">
             <div>
                 {% if unread_changelog.version %}
-                <span style="font-size:0.8rem; background:#f5ede4; color:#7c4b3a; border-radius:10px; padding:2px 9px; font-weight:600;">{{ unread_changelog.version }}</span>
+                <span style="font-size:0.8rem; background:#fdf5ee; color:#7c4b3a; border-radius:10px; padding:2px 9px; font-weight:600;">{{ unread_changelog.version }}</span>
                 {% endif %}
                 <h3 style="margin:6px 0 0; font-size:1.05rem;">{{ unread_changelog.title }}</h3>
                 <p style="color:#9ca3af; font-size:0.8rem; margin:2px 0 0;">{{ unread_changelog.published_at }}</p>
@@ -44,7 +44,7 @@
         </div>
         <div style="font-size:0.92rem; color:#374151; white-space:pre-wrap; line-height:1.7; margin-bottom:20px;">{{ unread_changelog.content }}</div>
         <button onclick="dismissChangelog()"
-            style="width:100%; padding:12px; background:#7c4b3a; color:white; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer;">
+            style="width:100%; padding:12px; background:#3b82f6; color:white; border:none; border-radius:10px; font-size:1rem; font-weight:bold; cursor:pointer;">
             知道了！
         </button>
     </div>
@@ -72,19 +72,6 @@ function dismissChangelog() {
 {% macro cs(key, default) %}{{ portal_cards_config.get(key, {}).get('subtitle', default) }}{% endmacro %}
 
 <style>
-/* 溫暖信仰感 — portal 局部變數，對齊 main.css 新 token */
-:root {
-  --surface:  #ffffff;
-  --border:   #ece4d9;
-  --text-1:   #2d1f1a;
-  --text-3:   #8c7066;
-  --green:    #16a34a;
-  --green-bg: #e8f5e9;
-  --blue:     #1565c0;
-  --blue-bg:  #e3f2fd;
-  --bg:       #faf7f3;
-}
-
 /* ═══════════════════════════════════════════
    動畫
 ═══════════════════════════════════════════ */
@@ -182,7 +169,7 @@ function dismissChangelog() {
 .hero-fade {
     position: absolute; bottom: 0; left: 0; right: 0;
     height: 56px;
-    background: linear-gradient(to bottom, transparent, var(--bg,#faf7f3));
+    background: linear-gradient(to bottom, transparent, var(--bg,#f8fafc));
     pointer-events: none; z-index: 1;
 }
 
@@ -469,11 +456,11 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
   {% if module_on('/cell-report/portal') %}<a href="/cell-report/portal" class="callout callout-neutral" style="text-decoration: none;">
     <span style="font-size: 1.25rem;">📋</span>
     <div>
-      <p style="font-weight: 600; color: #5c4035; font-size: 0.9rem; margin: 0;">本週小組回報單還沒填喔</p>
-      <p style="color: #8c7066; font-size: 0.78rem; margin: 2px 0 0;">有空的時候記得填一下 ☺</p>
+      <p style="font-weight: 600; color:#5c4035; font-size: 0.9rem; margin: 0;">本週小組回報單還沒填喔</p>
+      <p style="color:#a89080; font-size: 0.78rem; margin: 2px 0 0;">有空的時候記得填一下 ☺</p>
     </div>
-    <span style="margin-left: auto; color: #c8b4a0;">›</span>
-  </a>
+    <span style="margin-left: auto; color:#c8b4a0;">›</span>
+  </a>{% endif %}
   {% else %}
   <div class="callout callout-success">
     <span style="font-size: 1.25rem;">✅</span>
@@ -571,11 +558,11 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <span style="margin-left:auto;color:#D97706;">›</span>
   </a>{% endif %}
   {% else %}
-  <a href="/cell-report/staff-dashboard" style="display:flex;align-items:center;gap:10px;background:#fdf5ee;border:1px solid #e8d4c0;border-radius:10px;padding:12px 14px;text-decoration:none;">
+  {% if module_on('/cell-report/staff-dashboard') %}<a href="/cell-report/staff-dashboard" style="display:flex;align-items:center;gap:10px;background:#fdf5ee;border:1px solid #e8d4c0;border-radius:10px;padding:12px 14px;text-decoration:none;">
     <span style="font-size:1.2rem;">📋</span>
-    <p style="font-weight:600;color:#5c4035;font-size:.9rem;margin:0;">同工查閱</p>
-    <span style="margin-left:auto;color:#9c6150;">›</span>
-  </a>
+    <p style="font-weight:600;color:#5c3528;font-size:.9rem;margin:0;">同工查閱</p>
+    <span style="margin-left:auto;color:#3B82F6;">›</span>
+  </a>{% endif %}
   {% endif %}
 </div>
 {% endif %}
@@ -662,15 +649,15 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         {% for c in open_courses %}
         {% if module_on('/courses/x') %}<a href="/courses/{{ c.id }}" style="display:block;text-decoration:none;
             background:white;border-radius:16px;padding:16px 18px;
-            border:1.5px solid rgba(124,75,58,.25);
-            box-shadow:0 2px 16px rgba(100,50,30,.09);
+            border:1.5px solid rgba(59,130,246,.25);
+            box-shadow:0 2px 16px rgba(59,130,246,.1);
             position:relative;overflow:hidden;
             transition:transform .15s,box-shadow .15s;">
-            <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#9c6150;border-radius:4px 0 0 4px;"></div>
+            <div style="position:absolute;left:0;top:0;bottom:0;width:4px;background:#3b82f6;border-radius:4px 0 0 4px;"></div>
             <div style="padding-left:4px;">
                 <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;margin-bottom:8px;">
                     <div style="font-weight:700;font-size:.98rem;color:#2d1f1a;line-height:1.3;">{{ c.title }}</div>
-                    <span style="flex-shrink:0;background:#9c6150;color:white;font-size:.73rem;font-weight:700;
+                    <span style="flex-shrink:0;background:#3b82f6;color:white;font-size:.73rem;font-weight:700;
                         padding:4px 12px;border-radius:100px;white-space:nowrap;">立即報名</span>
                 </div>
                 <div style="display:flex;flex-wrap:wrap;gap:10px;font-size:.78rem;color:#8c7066;">
@@ -767,7 +754,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
     <div class="pa" style="--d:{{ base_d }}ms; display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
         <button onclick="toggleFgGrid()" style="display:flex;align-items:center;gap:6px;background:none;border:none;cursor:pointer;padding:8px 0;min-height:44px;">
             <div class="section-label" style="margin:0;">更多功能</div>
-            <svg id="fg-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8b4a0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .25s;"><path d="M6 9l6 6 6-6"/></svg>
+            <svg id="fg-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8b4a0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition:transform .25s;transform:rotate(180deg);"><path d="M6 9l6 6 6-6"/></svg>
         </button>
     </div>
 
@@ -979,7 +966,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
         </div>
         {% if card_settings.get('staff_report', true) or is_super_admin %}
         <div class="fi-wrap ti{% if not card_settings.get('staff_report', true) %} fi-hidden{% endif %}" data-key="staff_report" data-type="fixed" style="--d:{{ base_d + 690 }}ms">
-            <a href="/cell-report/staff-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#fdf5ee,#f5e8da);">
+            {% if module_on('/cell-report/staff-dashboard') %}<a href="/cell-report/staff-dashboard" class="fg-tile" style="background:linear-gradient(135deg,#fdf5ee,#f5e8da);">
                 <div class="fg-icon" style="background:#f5e8da;color:#7c4b3a;">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
                 </div>
@@ -1097,29 +1084,30 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
 
         {# 本週週報 #}
         {% if latest_bulletin %}
-        <a href="/bulletins/{{ latest_bulletin.id }}" class="info-row">
+        {% if module_on('/bulletins/x') %}<a href="/bulletins/{{ latest_bulletin.id }}" class="info-row">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8b4a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M4 22h16a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H8a2 2 0 0 0-2 2v16a2 2 0 0 1-2 2Zm0 0a2 2 0 0 1-2-2v-9c0-1.1.9-2 2-2h2"/><path d="M18 14h-8M15 18h-5M10 6h8v4h-8V6Z"/></svg>
             <span class="info-row-label">本週週報</span>
             <span class="info-row-value">{{ latest_bulletin.bulletin_date }}</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c8b4a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
-        </a>
+        </a>{% endif %}
         {% endif %}
 
         {# 行事曆 #}
         {% if not is_visitor %}
-        <a href="/calendar" class="info-row">
+        {% if module_on('/calendar') %}<a href="/calendar" class="info-row">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8b4a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
             <span class="info-row-label">教會行事曆</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c8b4a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
-        </a>
+        </a>{% endif %}
         {% endif %}
 
         {# 所有活動入口 #}
-        <a href="/events" class="info-row">
+        {% if module_on('/events') %}<a href="/events" class="info-row">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#c8b4a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z"/><path d="M13 5v2M13 17v2M13 11v2"/></svg>
             <span class="info-row-label">所有活動日程</span>
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#c8b4a0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;"><path d="M9 18l6-6-6-6"/></svg>
-        </a>
+        </a>{% endif %}
+
 
         {# 使用手冊 #}
         <a href="/manual" class="info-row">

@@ -9,7 +9,7 @@
             <h2 style="margin:6px 0 2px;">📋 差勤管理</h2>
         </div>
         <button onclick="showAddStaff()"
-            style="padding:9px 18px; background:#7c4b3a; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
+            style="padding:9px 18px; background:#1d4ed8; color:white; border:none; border-radius:8px; cursor:pointer; font-weight:bold;">
             ＋ 新增同工
         </button>
     </div>
@@ -53,7 +53,7 @@
         </div>
         <div style="display:flex; gap:8px; justify-content:flex-end;">
             <button onclick="submitAddStaff()"
-                style="padding:8px 20px; background:#7c4b3a; color:white; border:none; border-radius:7px; cursor:pointer; font-weight:bold;">新增</button>
+                style="padding:8px 20px; background:#1d4ed8; color:white; border:none; border-radius:7px; cursor:pointer; font-weight:bold;">新增</button>
             <button onclick="document.getElementById('add-staff-form').style.display='none'"
                 style="padding:8px 14px; background:#f5f5f5; color:#666; border:none; border-radius:7px; cursor:pointer;">取消</button>
         </div>
@@ -127,8 +127,8 @@
             <span style="font-weight:bold;">{{ p._user.get('real_name') or p._user.get('display_name') or '（未知）' }}</span>
             <span style="font-size:0.82rem; color:#888; margin-left:10px;">入職 {{ p.hire_date }} · {{ '週年制' if p.leave_cycle == 'anniversary' else '曆年制' }}</span>
         </div>
-        <a href="/admin/attendance/staff/{{ p.user_id }}"
-            style="font-size:0.82rem; color:#9c6150; text-decoration:none;">查看明細 →</a>
+        <a href="/admin/staff-leave/staff/{{ p.user_id }}"
+            style="font-size:0.82rem; color:#3b82f6; text-decoration:none;">查看明細 →</a>
     </div>
     {% endfor %}
     </div>
