@@ -13,7 +13,9 @@ import pytest
 ROOT = Path(__file__).resolve().parent.parent
 # 刻意的 5xx：沒設定 R2 時，檔案分享頁回 503「功能不可用」說明頁（不是錯誤）
 # /tasks/tick：沒設 TASK_TOKEN 時手動觸發端點停用，回 503 是刻意的（排程本身照跑）
-EXPECTED = {('GET', '/files', 503), ('GET', '/tasks/tick', 503), ('POST', '/tasks/tick', 503)}
+# 日記 AI：沒設 GROQ／GEMINI 金鑰時回 503「AI 服務未設定」（速讀開著時今天一定有經文，所以走得到這一步）
+EXPECTED = {('GET', '/files', 503), ('GET', '/tasks/tick', 503), ('POST', '/tasks/tick', 503),
+            ('GET', '/api/diary/guide', 503), ('GET', '/api/diary/passage-intro', 503)}
 
 
 @pytest.fixture(scope='module')

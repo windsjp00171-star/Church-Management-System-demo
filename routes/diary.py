@@ -1,4 +1,5 @@
 import logging
+import re
 """
 天父日記 Blueprint
 整合自 tianfu-diary/app.py，以 Blueprint 模組化方式掛入整合系統。
@@ -174,6 +175,45 @@ def load_plan_map() -> Dict[str, Dict[str, str]]:
         return _PLAN_CACHE
     except Exception:
         return {}
+
+
+def _reading_on() -> bool:
+    from routes.modules import is_enabled
+    return is_enabled('reading')
+
+
+def _reading_plan(d: str, day_param=None) -> Optional[Dict[str, Any]]:
+    """聖經速讀開著時，日記的經文就是速讀那一格（只有一套計畫：想讀的讀、想寫的寫下來）。
+
+    哪一格：網址指定的（從讀經頁按「寫下來」）→ 那天打勾的那一格 → 今天的話是下一格沒讀的。
+    """
+    from routes import bible_plan as bp
+    by_no = {x['day_no']: x for x in bp.days()}
+    day = by_no.get(int(day_param)) if str(day_param or '').isdigit() else None
+    uid = session.get('user_id')
+    if not day and uid:
+        on = [n for n, dt in bp.read_dates(uid).items() if dt.isoformat() == d]
+        if on:
+            day = by_no.get(max(on))
+        elif d == _today_str():
+            day = bp.next_unread(bp.done_days(uid))
+    if not day or day['book'] not in BIBLE:
+        return None
+    cs, ce = day['chapter_start'], day['chapter_end']
+    m = re.search(r'[：:]\s*(\d+)-(\d+)', day['label'])     # 詩 119 拆成兩格：「詩 119： 1-88」
+    if m:
+        rng = f'{cs}:{m.group(1)}-{cs}:{m.group(2)}'
+    else:
+        last = max(map(int, BIBLE[day['book']].get(str(ce), {'1': ''})))
+        rng = f'{cs}:1-{ce}:{last}'
+    return {'book': day['book'], 'range': rng, 'label': day['label'], 'day_no': day['day_no']}
+
+
+def _plan_for(d: str, day_param=None) -> Optional[Dict[str, Any]]:
+    """這一天日記要配的經文：速讀開著就用速讀（天父日記自己的讀經進度不再用）。"""
+    if _reading_on():
+        return _reading_plan(d, day_param)
+    return load_plan_map().get(d)
 
 
 def _parse_range(rng: str) -> Tuple[int, int, int, int]:
@@ -500,7 +540,7 @@ def index():
     else:
         cy, cm = selected.year, selected.month
 
-    plan = load_plan_map().get(d)
+    plan = _plan_for(d, request.args.get('day'))
     verses = get_scripture(plan['book'], plan['range']) if plan else []
 
     try:
@@ -564,6 +604,15 @@ def save():
         return redirect(url_for('diary.index', d=d))
 
     sb_save_entry(uid, d, content)
+    #  寫下來＝也讀過了：順手在速讀打勾（已經打過的不動，免得改掉原本的打勾日期）
+    rd = request.form.get('reading_day', '')
+    if rd.isdigit() and _reading_on() and session.get('user_id'):
+        from routes import bible_plan as bp
+        try:
+            if int(rd) not in bp.done_days(session['user_id']):
+                bp.mark(session['user_id'], int(rd), today=d)
+        except Exception:
+            logging.getLogger(__name__).warning('日記存好了，速讀打勾失敗', exc_info=True)
     flash('已儲存並鎖定', 'ok')
     return redirect(url_for('diary.index', d=d))
 
@@ -792,7 +841,8 @@ def pastor_view(owner_uid: str):
     else:
         cy, cm = selected.year, selected.month
 
-    plan = load_plan_map().get(d)
+    #  速讀開著時經文跟著「那個人」讀的那一格，牧者這邊算不到（session 是牧者），寧可不顯示也不要顯示錯的
+    plan = None if _reading_on() else load_plan_map().get(d)
     verses = get_scripture(plan['book'], plan['range']) if plan else []
 
     try:
@@ -1103,7 +1153,7 @@ def api_guide():
         return jsonify({'error': '未登入'}), 401
 
     d = request.args.get('d') or _today_str()
-    plan = load_plan_map().get(d)
+    plan = _plan_for(d, request.args.get('day'))
     if not plan:
         return jsonify({'error': '今日無讀經進度'}), 404
 
@@ -1159,7 +1209,7 @@ def api_passage_intro():
         return jsonify({'error': '未登入'}), 401
 
     d = request.args.get('d') or _today_str()
-    plan = load_plan_map().get(d)
+    plan = _plan_for(d, request.args.get('day'))
     if not plan:
         return jsonify({'error': '今日無讀經進度'}), 404
 
