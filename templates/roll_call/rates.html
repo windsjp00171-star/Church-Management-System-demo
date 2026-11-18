@@ -9,23 +9,55 @@
   </div>
   <p id="msg" role="status" style="min-height:1.4em; color:#b91c1c;"></p>
 
+  <div style="background:#f0fdf4; border:1px solid #bbf7d0; color:#166534; border-radius:12px; padding:12px 14px; margin-bottom:16px; line-height:1.6;">
+    只想看「誰常來、誰最近沒來」？用 <a href="/roll-call/report" style="color:#15803d; font-weight:700;">📊 出席統計</a> 就好，不用設定（到的次數 ÷ 聚會次數）。<br>
+    這一頁是給<strong>要固定算法、事後能核對</strong>的時候用（例如同工遴選、年度統計）。
+  </div>
+
   <section data-tour="rule-form" style="border:1px solid #ddd; border-radius:12px; padding:14px; margin-bottom:16px; background:#fff;">
-    <h3 style="margin-top:0;">新增規則（規則不可修改，同名再送出就是新版本）</h3>
-    <p style="color:#666; margin-top:0;">請假、遲到、中途加入的算法由教會決定，系統不預設，每一項都要選。</p>
-    <input id="r-name" placeholder="規則名稱" style="width:100%; padding:10px; margin-bottom:8px; box-sizing:border-box;">
-    <div style="margin-bottom:8px;">納入的聚會類型：
-      {% for t in types %}<label style="margin-right:12px;"><input type="checkbox" class="r-type" value="{{ t.id }}"> {{ t.name }}</label>{% endfor %}</div>
-    <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
-      <label>起 <input id="r-start" type="date"></label><label>迄 <input id="r-end" type="date"></label></div>
-    <select id="r-leave" style="padding:10px; margin-bottom:8px;"><option value="">請假怎麼算？</option>{% for k, v in leave_labels.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
-    <select id="r-late" style="padding:10px; margin-bottom:8px;"><option value="">遲到怎麼算？</option>{% for k, v in late_labels.items() %}<option value="{{ k }}">{{ v }}</option>{% endfor %}</select>
-    <select id="r-window" style="padding:10px; margin-bottom:8px;"><option value="">中途加入／離開者？</option><option value="true">只算在籍期間內的場次</option><option value="false">範圍內所有場次都算</option></select>
-    <div><button type="button" onclick="addRule()" style="padding:10px 16px; background:#4F46E5; color:#fff; border:0; border-radius:8px;">儲存規則</button></div>
+    <h3 style="margin-top:0;">算一份出席率</h3>
+    <fieldset style="border:0; padding:0; margin:0 0 14px;">
+      <legend style="font-weight:700; margin-bottom:6px;">1. 算哪一段時間、哪些聚會？</legend>
+      <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:8px;">
+        <label>從 <input id="r-start" type="date" style="padding:8px;"></label><label>到 <input id="r-end" type="date" style="padding:8px;"></label></div>
+      {% for t in types %}<label style="margin-right:12px;"><input type="checkbox" class="r-type" value="{{ t.id }}" checked> {{ t.name }}</label>{% endfor %}
+    </fieldset>
+    <fieldset style="border:0; padding:0; margin:0 0 14px;">
+      <legend style="font-weight:700; margin-bottom:6px;">2. 有人請假，怎麼算？</legend>
+      <label style="display:block; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:6px; cursor:pointer;">
+        <input type="radio" name="r-leave" value="exclude"> <strong>那次不算進去</strong><br><span style="color:#666; font-size:.88rem; margin-left:22px;">請假那次當作沒有這場聚會，不影響出席率</span></label>
+      <label style="display:block; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:6px; cursor:pointer;">
+        <input type="radio" name="r-leave" value="absent"> <strong>算沒來</strong><br><span style="color:#666; font-size:.88rem; margin-left:22px;">請假跟缺席一樣</span></label>
+      <label style="display:block; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:6px; cursor:pointer;">
+        <input type="radio" name="r-leave" value="present"> <strong>算有來</strong><br><span style="color:#666; font-size:.88rem; margin-left:22px;">有請假就當作有出席</span></label>
+    </fieldset>
+    <fieldset style="border:0; padding:0; margin:0 0 14px;">
+      <legend style="font-weight:700; margin-bottom:6px;">3. 有人遲到，怎麼算？</legend>
+      <label style="display:block; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:6px; cursor:pointer;">
+        <input type="radio" name="r-late" value="present"> <strong>算有來</strong><br><span style="color:#666; font-size:.88rem; margin-left:22px;">人有到就算</span></label>
+      <label style="display:block; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:6px; cursor:pointer;">
+        <input type="radio" name="r-late" value="absent"> <strong>算沒來</strong><br><span style="color:#666; font-size:.88rem; margin-left:22px;">遲到跟缺席一樣</span></label>
+      <label style="display:block; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:6px; cursor:pointer;">
+        <input type="radio" name="r-late" value="half"> <strong>算半次</strong><br><span style="color:#666; font-size:.88rem; margin-left:22px;">來一次遲到＝0.5 次</span></label>
+    </fieldset>
+    <fieldset style="border:0; padding:0; margin:0 0 14px;">
+      <legend style="font-weight:700; margin-bottom:6px;">4. 中間才加入（或已經離開）的人？</legend>
+      <label style="display:block; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:6px; cursor:pointer;">
+        <input type="radio" name="r-window" value="true"> <strong>只算他在的期間</strong><br><span style="color:#666; font-size:.88rem; margin-left:22px;">10 月才來的新朋友，不會因為 7–9 月「沒來」被拉低</span></label>
+      <label style="display:block; padding:10px 12px; border:1px solid #e5e7eb; border-radius:10px; margin-bottom:6px; cursor:pointer;">
+        <input type="radio" name="r-window" value="false"> <strong>整段時間都算</strong><br><span style="color:#666; font-size:.88rem; margin-left:22px;">整段的每一場都算進他的分母</span></label>
+    </fieldset>
+    <details style="margin-bottom:12px; color:#555;"><summary>規則名稱（可不填，會自動取名）</summary>
+      <input id="r-name" placeholder="例：2026 第四季主日" style="width:100%; padding:10px; margin-top:8px; box-sizing:border-box;">
+      <p style="font-size:.85rem; margin:6px 0 0;">存好的規則不能改，同一個名稱再存一次就是新的一版——之前算過的數字都查得回來。</p>
+    </details>
+    <div><button type="button" onclick="addRule()" style="padding:12px 18px; background:#4F46E5; color:#fff; border:0; border-radius:8px; font-size:1rem;">存好並計算</button></div>
   </section>
 
   <section data-tour="rule-list" style="border:1px solid #ddd; border-radius:12px; padding:14px; margin-bottom:16px; background:#fff;">
-    <h3 style="margin-top:0;">選擇規則計算</h3>
-    {% for r in rules %}<div style="padding:6px 0;"><a href="/admin/roll-call/rates?rule_id={{ r.id }}">{{ r.name }}　第 {{ r.version }} 版</a></div>
+    <h3 style="margin-top:0;">之前存的規則（點一下重新計算）</h3>
+    {% for r in rules %}<div style="padding:6px 0;"><a href="/admin/roll-call/rates?rule_id={{ r.id }}">{{ r.name }}{% if r.version > 1 %}　第 {{ r.version }} 版{% endif %}</a>
+      <span style="color:#888; font-size:.82rem;">{{ r.range_start }}～{{ r.range_end }}</span></div>
     {% else %}<p style="color:#666;">尚未建立規則。</p>{% endfor %}
   </section>
 
@@ -44,20 +76,30 @@
 {% block extra_js %}
 <script src="/static/tour.js"></script>
 <script>
+(function () {                       // 預設：這一季
+  const now = new Date(), q = Math.floor(now.getMonth() / 3);
+  const pad = n => String(n).padStart(2, '0'), ymd = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  const st = document.getElementById('r-start'), en = document.getElementById('r-end');
+  if (st && !st.value) st.value = ymd(new Date(now.getFullYear(), q * 3, 1));
+  if (en && !en.value) en.value = ymd(new Date(now.getFullYear(), q * 3 + 3, 0));
+})();
 async function addRule() {
   const v = id => document.getElementById(id).value;
-  const w = v('r-window');
-  const body = { name: v('r-name'), type_ids: [...document.querySelectorAll('.r-type:checked')].map(c => c.value),
-    range_start: v('r-start'), range_end: v('r-end'), leave_mode: v('r-leave') || null, late_mode: v('r-late') || null,
-    respect_membership_window: w === '' ? null : w === 'true' };
+  const pick = n => (document.querySelector(`input[name="${n}"]:checked`) || {}).value || null;
+  const w = pick('r-window');
+  const name = v('r-name').trim() || `${v('r-start')}～${v('r-end')} 出席率`;
+  const body = { name, type_ids: [...document.querySelectorAll('.r-type:checked')].map(c => c.value),
+    range_start: v('r-start'), range_end: v('r-end'), leave_mode: pick('r-leave'), late_mode: pick('r-late'),
+    respect_membership_window: w === null ? null : w === 'true' };
   const r = await fetch('/api/admin/roll-call/rules', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
   const j = await r.json().catch(() => ({ error: '連線失敗' }));
-  if (!r.ok || j.error) { document.getElementById('msg').textContent = j.error || '操作失敗'; return; }
-  location.reload();
+  if (!r.ok || j.error) { const m = document.getElementById('msg'); m.textContent = j.error || '操作失敗'; m.scrollIntoView({ block: 'center' }); return; }
+  const id = (j.data || {}).id;
+  location.href = id ? `/admin/roll-call/rates?rule_id=${id}` : location.href;
 }
 function startTour() {
   RollTour.start([
-    { target: 'rule-form', text: '先設定規則：納入哪些聚會、日期範圍，以及請假、遲到、中途加入怎麼算。' },
+    { target: 'rule-form', text: '照順序回答四個問題：哪段時間、請假怎麼算、遲到怎麼算、中途加入的人怎麼算。按「存好並計算」就會算出來。' },
     { target: 'rule-list', text: '點一條規則，系統會在伺服器上重新計算。' },
     { target: 'result', text: '這裡是計算結果，上方會寫明用了哪一版規則。' }
   ]);
