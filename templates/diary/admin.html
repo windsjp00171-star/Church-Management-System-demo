@@ -1,6 +1,11 @@
 {% extends "base.html" %}
 {% block title %}天父日記後台{% endblock %}
 {% block content %}
+{% if module_on('reading') %}
+<div style="background:#eef2ff; color:#3730a3; border-radius:10px; padding:12px 16px; margin:12px 0; font-size:.9rem; line-height:1.6;">
+  📖 目前日記的經文跟著<strong>聖經速讀</strong>（同一套計畫：想讀的讀、想寫的寫下來）。下面的「讀經進度」只有在後台把聖經速讀關掉時才會用到。
+</div>
+{% endif %}
 
 <div class="page-header">
   <div class="page-header-left">

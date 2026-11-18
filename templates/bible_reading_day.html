@@ -248,6 +248,16 @@
       **真的頁面**（`/reading` 全部進度）—— 不寫 `href="#"`：
       JS 沒載齊那一次按下去會停在原地，而畫面上完全正常。 #}
 <div class="rd-nav">
+    {% if module_on('diary') %}
+    <a class="card-sm rd-navcard" data-tour="rd-write" href="/diary?day={{ day.day_no }}">
+        <span class="rd-navicon">✍️</span>
+        <span class="rd-navtext">
+            <span class="rd-navtitle">寫下來（{{ card_names.get('diary', '天父日記') }}）</span>
+            <span class="rd-navsub">想寫的話，把今天讀到的感動記下來；存好就算讀完這一格</span>
+        </span>
+        <span class="rd-navgo">›</span>
+    </a>
+    {% endif %}
     {# ★★ 重讀：回頭讀已經讀過的範圍時，「接下來」不可以直接跳到最前面還沒讀
          的地方 —— 他要的是這一段**接著往下重讀**。所以這一格和下一格都讀過時，
          多一張「重讀下一格」；原本那張退成「回到我的進度」。
