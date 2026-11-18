@@ -6,11 +6,11 @@
     <title>{% block title %}{{ church_name or '教會行政系統' }}{% endblock %}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     {# ★ crossorigin="use-credentials" 一定要有：瀏覽器抓 manifest 預設不帶 cookie，後端讀不到登入狀態、
      start_url 就不會夾帶續登 token —— 整套 PWA 續登靜默失效，而且沒有任何錯誤訊息 #}
     <link rel="manifest" href="/manifest.json" crossorigin="use-credentials">
-    <meta name="theme-color" content="#1a3a5c">
+    <meta name="theme-color" content="#7c4b3a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="default">
     <meta name="apple-mobile-web-app-title" content="{{ church_name or '教會行政系統' }}">
@@ -91,7 +91,7 @@
                 <div class="notif-panel" id="notifPanel" style="display:none;">
                     <div class="notif-header">
                         <span>通知</span>
-                        <button onclick="markAllRead()" style="font-size:0.78rem;color:#1d4ed8;background:none;border:none;cursor:pointer;">全部已讀</button>
+                        <button onclick="markAllRead()" style="font-size:0.78rem;color:#7c4b3a;background:none;border:none;cursor:pointer;">全部已讀</button>
                     </div>
                     <div id="notifList" class="notif-list">
                         <p style="text-align:center;color:#aaa;padding:20px;font-size:0.85rem;">載入中…</p>
@@ -446,7 +446,7 @@ function openExternalBrowser() {
 .notif-list{max-height:320px;overflow-y:auto;}
 .notif-item{padding:12px 16px;border-bottom:1px solid #f7f7f7;cursor:pointer;transition:background .15s;}
 .notif-item:hover{background:#f9fafb;}
-.notif-item.unread{background:#eff6ff;}
+.notif-item.unread{background:#fdf5ee;}
 .notif-item-title{font-size:0.88rem;font-weight:600;color:#1e293b;margin:0 0 2px;}
 .notif-item-body{font-size:0.8rem;color:#64748b;margin:0 0 4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .notif-item-time{font-size:0.72rem;color:#94a3b8;}

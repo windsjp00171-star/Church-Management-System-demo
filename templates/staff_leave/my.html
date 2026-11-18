@@ -10,7 +10,7 @@
 
     <!-- 時數餘額卡 -->
     <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:20px;">
-        <div style="background:linear-gradient(135deg,#1d4ed8,#3b82f6); color:white; border-radius:14px; padding:20px;">
+        <div style="background:linear-gradient(135deg,#7c4b3a,#9c6150); color:white; border-radius:14px; padding:20px;">
             <p style="margin:0 0 4px; font-size:0.8rem; opacity:0.85;">特休剩餘</p>
             <p style="margin:0; font-size:2rem; font-weight:800;">{{ '%.1f'|format(annual_left) }}</p>
             <p style="margin:4px 0 0; font-size:0.78rem; opacity:0.75;">小時（本週期共 {{ '%.0f'|format(entitlement) }} 小時）</p>
@@ -64,7 +64,7 @@
                 style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:7px; font-size:0.9rem; box-sizing:border-box;">
         </div>
         <button onclick="submitLeave()"
-            style="width:100%; padding:11px; background:#1d4ed8; color:white; border:none; border-radius:8px; font-size:0.95rem; font-weight:bold; cursor:pointer;">
+            style="width:100%; padding:11px; background:#7c4b3a; color:white; border:none; border-radius:8px; font-size:0.95rem; font-weight:bold; cursor:pointer;">
             送出申請
         </button>
     </div>

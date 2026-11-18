@@ -20,7 +20,7 @@
                 <option value="5">星期五</option>
                 <option value="6">星期六</option>
             </select>
-            <button onclick="createGroup()" style="padding:8px 20px; background:#1d4ed8; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.95rem;">新增</button>
+            <button onclick="createGroup()" style="padding:8px 20px; background:#7c4b3a; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.95rem;">新增</button>
         </div>
     </div>
 
@@ -38,7 +38,7 @@
         </select>
         <div style="display:flex; gap:10px; justify-content:flex-end;">
             <button onclick="closeLeaderModal()" style="padding:8px 18px; border:1px solid #ddd; border-radius:8px; background:white; cursor:pointer;">取消</button>
-            <button onclick="addLeader()" style="padding:8px 18px; background:#1d4ed8; color:white; border:none; border-radius:8px; cursor:pointer;">確認指定</button>
+            <button onclick="addLeader()" style="padding:8px 18px; background:#7c4b3a; color:white; border:none; border-radius:8px; cursor:pointer;">確認指定</button>
         </div>
     </div>
 </div>
@@ -102,7 +102,7 @@ async function loadGroups() {
                 </div>
                 <div style="display:flex; gap:8px;">
                     <button onclick="openLeaderModal('${g.id}', '${g.name}')"
-                        style="padding:6px 14px; background:#eff6ff; color:#1d4ed8; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
+                        style="padding:6px 14px; background:#fdf5ee; color:#7c4b3a; border:none; border-radius:6px; cursor:pointer; font-size:0.85rem;">
                         + 指定小組長
                     </button>
                     <button onclick="toggleActive('${g.id}', this)"
