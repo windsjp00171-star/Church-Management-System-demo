@@ -1,6 +1,22 @@
 {% extends "base.html" %}
 {% block title %}使用者管理{% endblock %}
 {% block content %}
+<style>
+/* 權限開關收進選單：手機上「取消超管」就貼在「取消牧者」旁邊，太容易誤按 */
+.role-menu { position: relative; }
+.role-menu > summary {
+    list-style: none; cursor: pointer; user-select: none;
+    padding: 6px 14px; border-radius: 6px; font-size: 0.85rem;
+    background: var(--color-border-light); color: var(--color-text-light); border: 1px solid var(--color-border);
+}
+.role-menu > summary::-webkit-details-marker { display: none; }
+.role-menu[open] > summary { background: #fff; color: var(--color-primary-dark); }
+.role-menu-body {
+    display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px;
+    padding: 10px; border-radius: 10px; background: #fff; border: 1px solid var(--color-border);
+}
+</style>
+
 
 <div class="page-header">
     <div class="page-header-left">
@@ -266,6 +282,9 @@ function renderUsers(rawUsers) {
                         color:${u.is_super_admin ? '#e65100' : u.is_admin ? '#2e7d32' : '#999'};">
                         ${u.is_super_admin ? '⭐ 超管' : u.is_admin ? '管理員' : '一般用戶'}
                     </span>
+                    <details class="role-menu">
+                    <summary>⚙ 權限設定</summary>
+                    <div class="role-menu-body">
                     <button id="admin-btn-${u.id}" onclick="toggleAdmin('${u.id}', this)"
                         style="padding:6px 14px; border-radius:6px; border:none; cursor:pointer; font-size:0.85rem;
                                background:${u.is_admin ? '#ffebee' : '#e3f2fd'};
@@ -300,6 +319,8 @@ function renderUsers(rawUsers) {
                                color:${u.is_blocked ? '#c62828' : '#bbb'};">
                         ${u.is_blocked ? '🚫 已封鎖' : '封鎖'}
                     </button>
+                    </div>
+                    </details>
                 </div>
             </div>
         </div>`;

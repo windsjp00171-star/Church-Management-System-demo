@@ -1,7 +1,7 @@
 import logging
 from flask import Blueprint, session, request, jsonify, render_template, redirect, url_for
 from db import supabase
-from routes.decorators import login_required, admin_required
+from routes.decorators import login_required, admin_required, staff_group_required
 from datetime import datetime, timezone, timedelta
 import uuid
 
@@ -11,38 +11,17 @@ TAIPEI_TZ = timezone(timedelta(hours=8))
 
 
 @visitor_forms_bp.route('/visitor-form/upload', methods=['GET'])
-@login_required
+@staff_group_required
 def upload_visitor_form_page():
     """同工上傳留名單的前端頁面"""
-    uid = session['user_id']
-    allowed = session.get('is_admin', False)
-    if not allowed:
-        try:
-            user = supabase.table('users').select('group_tags').eq('id', uid).single().execute()
-            tags = (user.data or {}).get('group_tags') or []
-        except Exception:
-            tags = []
-        allowed = '同工' in tags
-    if not allowed:
-        return render_template('admin/forbidden.html'), 403
     return render_template('visitor_forms/upload.html')
 
 
 @visitor_forms_bp.route('/visitor-form/upload', methods=['POST'])
-@login_required
+@staff_group_required
 def upload_visitor_form():
     """同工上傳留名單照片"""
     uid = session['user_id']
-
-    # 同工或管理員驗證
-    if not session.get('is_admin'):
-        try:
-            user = supabase.table('users').select('group_tags').eq('id', uid).single().execute()
-            tags = (user.data or {}).get('group_tags') or []
-        except Exception:
-            tags = []
-        if '同工' not in tags:
-            return jsonify({'error': '無同工權限'}), 403
 
     file = request.files.get('image')
     if not file:

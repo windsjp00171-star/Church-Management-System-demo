@@ -99,6 +99,31 @@ def staff_required(f):
     return decorated
 
 
+def in_staff_group(group_tags):
+    """副標籤裡有沒有被標成同工的群組（groups.is_staff）。首頁的同工卡片與留名單上傳共用這一份判定。"""
+    if not group_tags:
+        return False
+    from db import supabase
+    try:
+        rows = supabase.table('groups').select('name').eq('is_staff', True).execute().data or []
+        return bool({g['name'] for g in rows} & set(group_tags))
+    except Exception:
+        return '同工' in group_tags
+
+
+def staff_group_required(f):
+    """需要同工群組的副標籤（或管理員）。與首頁顯示同工卡片的條件一致，看得到卡片就進得去。"""
+    @wraps(f)
+    @login_required
+    def decorated(*args, **kwargs):
+        if not (session.get('is_admin') or in_staff_group(session.get('group_tags'))):
+            if _is_json() or request.method != 'GET':
+                return jsonify({'error': '無同工權限'}), 403
+            return render_template('admin/forbidden.html'), 403
+        return f(*args, **kwargs)
+    return decorated
+
+
 def cell_leader_required(f):
     """需要至少負責一個小組（cell_group_ids 非空），牧者和管理員自動通過。"""
     @wraps(f)

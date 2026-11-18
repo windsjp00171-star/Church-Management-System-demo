@@ -55,6 +55,6 @@
     "routes/reading_nudge.py": 1,
     "routes/staff_leave.py": 3,
     "routes/user_merge.py": 5,
-    "routes/visitor_forms.py": 3
+    "routes/visitor_forms.py": 1
   }
 }

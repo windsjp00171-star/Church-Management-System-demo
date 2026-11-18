@@ -209,17 +209,9 @@ def portal():
     except Exception:
         portal_links = []
 
-    # 同工判斷：查 user 的 group_tags 是否包含任何 is_staff=true 的小組
-    group_tags = session.get('group_tags') or []
-    is_staff = False
-    if group_tags:
-        try:
-            staff_groups = supabase.table('groups')\
-                .select('name').eq('is_staff', True).execute().data or []
-            staff_names = {g['name'] for g in staff_groups}
-            is_staff = bool(staff_names & set(group_tags))
-        except Exception:
-            is_staff = '同工' in group_tags  # fallback
+    # 同工判斷：與留名單上傳頁共用同一份（看得到卡片就進得去）
+    from routes.decorators import in_staff_group
+    is_staff = in_staff_group(session.get('group_tags'))
 
     # 撈最新一份週報
     latest_bulletin = None

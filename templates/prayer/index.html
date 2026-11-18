@@ -19,7 +19,7 @@
 /* ── 麥田整體背景 ───────────────────────────────── */
 .wheat-world {
     min-height: 100vh;
-    background: #4A8ABE;
+    background: #c99a6a;
     margin: -28px -16px 0;
     padding: 28px 0 80px;
     position: relative;
@@ -42,6 +42,13 @@
     background: linear-gradient(to bottom, transparent, rgba(80,45,0,0.82));
     pointer-events: none;
     z-index: 2;
+}
+/* 影片原本是大藍天，加上溫暖的調色（夕照金），跟全站暖色系一致 */
+.wheat-bg-fixed video { filter: sepia(.42) saturate(.95) brightness(1.03); }
+.wheat-bg-fixed::before {
+    content: ''; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+    background: linear-gradient(to bottom, rgba(214,150,90,.38) 0%, rgba(240,190,120,.18) 45%, transparent 70%);
+    mix-blend-mode: soft-light;
 }
 .wheat-bg-fixed svg {
     width: 100%;
