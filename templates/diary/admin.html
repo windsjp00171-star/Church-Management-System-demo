@@ -2,9 +2,18 @@
 {% block title %}天父日記後台{% endblock %}
 {% block content %}
 {% if module_on('reading') %}
-<div style="background:#eef2ff; color:#3730a3; border-radius:10px; padding:12px 16px; margin:12px 0; font-size:.9rem; line-height:1.6;">
-  📖 目前日記的經文跟著<strong>聖經速讀</strong>（同一套計畫：想讀的讀、想寫的寫下來）。下面的「讀經進度」只有在後台把聖經速讀關掉時才會用到。
-</div>
+<form method="post" action="/diary/admin/follow-reading"
+      style="background:#eef2ff; color:#3730a3; border-radius:10px; padding:12px 16px; margin:12px 0; font-size:.9rem; line-height:1.6; display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+  <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+  <input type="hidden" name="on" value="{{ 'false' if follows_reading else 'true' }}">
+  <span style="flex:1; min-width:220px;">
+    {% if follows_reading %}📖 目前日記的經文<strong>跟著聖經速讀</strong>（同一套：想讀的讀、想寫的寫下來）；下面的「讀經進度」暫時不用。
+    {% else %}📖 目前日記用<strong>自己的讀經進度</strong>（跟聖經速讀是兩份）。想合成一套的話可以切換。{% endif %}
+  </span>
+  <button type="submit" style="padding:8px 14px; border-radius:8px; border:1px solid #6366f1; background:#fff; color:#4338ca; font-weight:700; cursor:pointer;">
+    {{ '改回日記自己的進度' if follows_reading else '改成跟著聖經速讀' }}
+  </button>
+</form>
 {% endif %}
 
 <div class="page-header">

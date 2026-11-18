@@ -52,6 +52,21 @@ def test_reading_off_falls_back_to_the_diary_plan(fake_db):
     assert _plan(fake_db, '2026-11-18', on=False) == {'book': '舊的', 'range': '1:1'}
 
 
+def test_it_is_an_option_off_by_default(fake_db):
+    """有的教會讀經和靈修是兩份進度：預設不跟，日記後台切換才跟。"""
+    import routes.diary as dy
+    import settings_store
+    with patch('routes.modules.is_enabled', return_value=True):
+        with patch.object(settings_store, 'get', return_value=None):
+            assert dy._reading_on() is False
+        with patch.object(settings_store, 'get', return_value='true'):
+            assert dy._reading_on() is True
+    with patch('routes.modules.is_enabled', return_value=False), patch.object(settings_store, 'get', return_value='true'):
+        assert dy._reading_on() is False                                # 速讀關掉：一律不跟
+    rd = (ROOT / 'templates' / 'bible_reading_day.html').read_text(encoding='utf-8')
+    assert "module_on('diary') and diary_follows" in rd                 # 不跟的時候讀經頁沒有「寫下來」
+
+
 def test_wiring():
     src = (ROOT / 'routes' / 'diary.py').read_text(encoding='utf-8')
     assert src.count("_plan_for(d, request.args.get('day'))") == 3      # 日記頁＋兩支 AI
