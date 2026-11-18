@@ -20,3 +20,4 @@ Thumbs.db
 
 # 暫存文字檔（排除 requirements.txt）
 專案架構.txt
+.codegraph/
