@@ -494,7 +494,7 @@ body.edit-mode .fi-wrap.fi-hidden .fg-tile { opacity:.38; filter:grayscale(.5); 
             <div class="vf-actions" id="vf-actions">
                 <button type="button" class="vf-btn vf-btn-main" onclick="downloadVerseCard(this)">存到手機</button>
                 <button type="button" class="vf-btn" onclick="shareVerseCard(this)">分享</button>
-                <a class="vf-btn" href="/verse">完整頁面 →</a>
+                {% if module_on('/verse') %}<a class="vf-btn" href="/verse">完整頁面 →</a>{% endif %}
             </div>{% endif %}
         </div>
     </div>
