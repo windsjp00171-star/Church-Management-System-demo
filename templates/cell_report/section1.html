@@ -83,9 +83,9 @@
       <div id="attendance_block" class="form-group"
            style="display:{% if report and report.get('no_meeting') %}none{% else %}block{% endif %};">
         <label class="form-label">出席人數（含組長）</label>
-        <input type="number" name="attendance_count" min="0" class="form-control"
+        <input type="number" name="attendance_count" min="0" inputmode="numeric" class="form-control"
                value="{{ (report.attendance_count if report and report.get('attendance_count') is not none else '') }}"
-               placeholder="0"
+               placeholder="請輸入人數"
                style="padding:11px 13px; font-size:.95rem; border-radius:10px;">
         <p class="form-hint">請填寫本次小組聚會實際出席人數</p>
       </div>

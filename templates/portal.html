@@ -4,30 +4,33 @@
 {% block content %}
 
 {% if unread_changelog %}
-<div id="changelog-banner" style="background:#f5e8da; color:#5c3528; border-bottom:1px solid #ece4d9;
-     padding:10px clamp(16px,4vw,64px); display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-     animation:slideDown .4s ease;">
-    <span style="font-size:1.1rem;">🆕</span>
-    <div style="flex:1; min-width:0;">
-        {% if unread_changelog.version %}
-        <span style="font-size:0.75rem; background:#7c4b3a; color:#fff; border-radius:10px; padding:1px 8px; margin-right:6px;">{{ unread_changelog.version }}</span>
-        {% endif %}
+<div id="changelog-banner" class="cl-banner">
+    <span class="cl-ico">🆕</span>
+    <button type="button" class="cl-title" onclick="showChangelog()">
+        {% if unread_changelog.version %}<span class="cl-ver">{{ unread_changelog.version }}</span>{% endif %}
         <strong>{{ unread_changelog.title }}</strong>
-        <span style="font-size:0.83rem; opacity:0.85; margin-left:8px;">{{ unread_changelog.published_at }}</span>
-    </div>
-    <div style="display:flex; gap:8px; flex-shrink:0;">
-        <button onclick="showChangelog()"
-            style="padding:5px 14px; background:#fff; color:#5c3528; border:1px solid #e8d4c0;
-                   border-radius:6px; cursor:pointer; font-size:0.85rem;">
-            查看詳情
-        </button>
-        <button onclick="dismissChangelog()"
-            style="padding:5px 14px; background:#7c4b3a; color:#fff; border:none;
-                   border-radius:6px; cursor:pointer; font-size:0.85rem; font-weight:bold;">
-            知道了 ✕
-        </button>
-    </div>
+        <span class="cl-date">{{ unread_changelog.published_at }}</span>
+    </button>
+    <button type="button" class="cl-more" onclick="showChangelog()">查看詳情</button>
+    <button type="button" class="cl-close" onclick="dismissChangelog()" aria-label="知道了，關閉">知道了 ✕</button>
 </div>
+<style>
+.cl-banner { background:#f5e8da; color:#5c3528; border-bottom:1px solid #ece4d9; padding:10px clamp(16px,4vw,64px);
+    display:flex; align-items:center; gap:10px; animation:slideDown .4s ease; }
+.cl-ico { font-size:1.05rem; flex-shrink:0; }
+.cl-title { flex:1; min-width:0; background:none; border:none; padding:0; text-align:left; color:inherit; font:inherit; cursor:pointer;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.cl-ver { font-size:.75rem; background:#7c4b3a; color:#fff; border-radius:10px; padding:1px 8px; margin-right:6px; }
+.cl-date { font-size:.83rem; opacity:.8; margin-left:8px; }
+.cl-more, .cl-close { flex-shrink:0; padding:6px 14px; border-radius:8px; font-size:.85rem; cursor:pointer; font-family:inherit; min-height:36px; }
+.cl-more  { background:#fff; color:#5c3528; border:1px solid #e8d4c0; }
+.cl-close { background:#7c4b3a; color:#fff; border:none; font-weight:700; }
+@media (max-width: 640px) {
+    .cl-date, .cl-more { display:none; }
+    .cl-close { font-size:0; padding:6px 12px; }
+    .cl-close::after { content:'✕'; font-size:.95rem; }
+}
+</style>
 
 <!-- Changelog 詳情 Modal -->
 <div id="changelog-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.45); z-index:2000; align-items:center; justify-content:center; padding:16px;">
@@ -147,6 +150,7 @@ function dismissChangelog() {
     text-shadow: {{ 'none' if hero_theme.text_mode == 'dark' else '0 1px 12px rgba(0,0,0,.25)' }};
 }
 .vf-ref { font-size: .8rem; opacity: .85; margin: 0; text-align: right; letter-spacing: .05em; }
+.vf-hint { margin-top: 14px; font-size: .7rem; letter-spacing: .1em; opacity: .6; }
 .hero-art.vf-loading .hero-art-sym { animation: heroBreathe 1s ease-in-out infinite; }
 .vf-actions { display: none; flex-wrap: wrap; gap: 10px; }
 .vf-btn {
@@ -1301,12 +1305,13 @@ async function flipVerseCard(animate) {
     document.getElementById('vf-back').innerHTML =
         `<div class="vf-kicker">今日經文 · ${_esc(d.today)}</div>` +
         `<p class="vf-text">「${_esc(d.verse.text)}」</p>` +
-        `<p class="vf-ref">— ${_esc(d.verse.ref)}</p>`;
+        `<p class="vf-ref">— ${_esc(d.verse.ref)}</p>` +
+        `<div class="vf-hint">點一下蓋回去</div>`;
     art.classList.toggle('vf-instant', !animate);
     requestAnimationFrame(() => {
         art.classList.remove('vf-loading');
         art.classList.add('flipped');
-        art.removeAttribute('role'); art.removeAttribute('tabindex');
+        art.setAttribute('aria-label', '蓋回今日經文卡');
     });
     const cta = document.getElementById('verse-cta');
     if (cta) cta.style.display = 'none';
@@ -1316,12 +1321,26 @@ async function flipVerseCard(animate) {
     if (animate && navigator.vibrate) navigator.vibrate(12);
 }
 
+/* 再點一次蓋回去；蓋回去後當天也維持蓋著 */
+function unflipVerseCard() {
+    const art = document.getElementById('verse-flip');
+    if (!art || !art.classList.contains('flipped')) return;
+    art.classList.remove('vf-instant', 'flipped');
+    art.setAttribute('aria-label', '翻開今日經文卡');
+    const cta = document.getElementById('verse-cta');
+    if (cta) cta.style.display = '';
+    const acts = document.getElementById('vf-actions');
+    if (acts) acts.style.display = 'none';
+    try { localStorage.removeItem(_VF_KEY); } catch (e) {}
+}
+
 (function () {
     const art = document.getElementById('verse-flip');
     if (!art || art.getAttribute('aria-hidden') === 'true') return;
     const go = e => { e.preventDefault(); flipVerseCard(true); };
-    art.addEventListener('click', go);
-    art.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') go(e); });
+    const toggle = e => { e.preventDefault(); art.classList.contains('flipped') ? unflipVerseCard() : flipVerseCard(true); };
+    art.addEventListener('click', toggle);
+    art.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') toggle(e); });
     const cta = document.getElementById('verse-cta');
     if (cta) cta.addEventListener('click', go);
     /* 靈修空間的「抽經文卡」：首頁上方有卡就捲上去翻開，沒有（Hero 被隱藏）就照連結去 /verse */

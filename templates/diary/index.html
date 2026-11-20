@@ -91,7 +91,7 @@
 
   {% else %}
     <div class="scripture-content">
-      <p class="muted">（今日尚未設定讀經進度）</p>
+      <p class="muted">今天沒有指定的讀經段落，可以自由選一段經文默想（右上角「書卷瀏覽」），寫下你的回應。</p>
     </div>
   {% endif %}
 </section>
@@ -174,7 +174,7 @@ function loadGuide() {
   <h2>靈修書寫</h2>
   <div class="diary-date">日期：{{ entry_date }}</div>
 
-  {% if completed %}
+  {% if completed and not is_today %}
     <div class="locked-hint">
       這一天內容已鎖定（可複製，不能再修改）。
     </div>
@@ -260,8 +260,14 @@ function loadGuide() {
 
       <input type="hidden" name="entry_date" value="{{ entry_date }}">
       {% if plan and plan.day_no %}<input type="hidden" name="reading_day" value="{{ plan.day_no }}">{% endif %}
+      {% if is_today %}
+      <p class="diary-save-note">{% if completed %}今天已經寫過了，今天之內都可以修改。{% else %}今天之內都可以修改，過了今天就會鎖定。{% endif %}</p>
+      <button type="submit" class="primary-btn">{{ '更新今天的日記' if completed else '儲存' }}</button>
+      {% else %}
+      <p class="diary-save-note">補寫過去的日子：儲存後就會鎖定，不能再修改。</p>
       <button type="submit" class="primary-btn"
-        onclick="var f=this.form;openConfirm('確定要儲存並鎖定嗎？鎖定後內容就無法再修改了。',()=>f.submit());return false;">儲存並鎖定</button>
+        onclick="var f=this.form;openConfirm('確定要儲存嗎？補寫的日記儲存後就會鎖定，不能再修改。',()=>f.submit(),{confirmText:'儲存',danger:false});return false;">儲存並鎖定</button>
+      {% endif %}
     </form>
   {% endif %}
 </section>
