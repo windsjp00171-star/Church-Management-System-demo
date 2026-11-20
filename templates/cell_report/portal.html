@@ -33,9 +33,9 @@
                                 background:#fef9c3; color:#854d0e; white-space:nowrap;">待回報</span>
                 {% endif %}
               </div>
-              {% if g.get('weekly_gather_day') %}
+              {% if g.get('weekly_gather_day') | gather_day %}
                 <p style="font-size:.82rem; color:var(--color-text-muted); margin:0 0 4px;">
-                  每週{{ g.weekly_gather_day }}聚會
+                  每{{ g.weekly_gather_day | gather_day }}聚會
                 </p>
               {% endif %}
               <p style="font-size:.8rem; color:var(--color-text-muted); margin:0; display:flex; align-items:center; gap:4px;">

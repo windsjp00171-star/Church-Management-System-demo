@@ -25,7 +25,7 @@
     {% for c in cards %}
     <div class="bg-card">
         <div style="font-weight:bold; font-size:1.05rem; margin-bottom:6px;">
-            {{ c.group.name }}{% if c.group.weekly_gather_day %}<span style="color:var(--text-4); font-weight:normal; font-size:0.9rem;">（週{{ c.group.weekly_gather_day }}）</span>{% endif %}
+            {{ c.group.name }}{% if c.group.weekly_gather_day | gather_day %}<span style="color:var(--text-4); font-weight:normal; font-size:0.9rem;">（{{ c.group.weekly_gather_day | gather_day }}）</span>{% endif %}
         </div>
         {% for m in c.members %}
         <div class="bg-row">
