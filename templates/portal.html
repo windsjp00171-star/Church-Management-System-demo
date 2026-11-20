@@ -150,6 +150,7 @@ function dismissChangelog() {
     text-shadow: {{ 'none' if hero_theme.text_mode == 'dark' else '0 1px 12px rgba(0,0,0,.25)' }};
 }
 .vf-ref { font-size: .8rem; opacity: .85; margin: 0; text-align: right; letter-spacing: .05em; }
+.vf-hint { margin-top: 14px; font-size: .7rem; letter-spacing: .1em; opacity: .6; }
 .hero-art.vf-loading .hero-art-sym { animation: heroBreathe 1s ease-in-out infinite; }
 .vf-actions { display: none; flex-wrap: wrap; gap: 10px; }
 .vf-btn {
@@ -1304,12 +1305,13 @@ async function flipVerseCard(animate) {
     document.getElementById('vf-back').innerHTML =
         `<div class="vf-kicker">今日經文 · ${_esc(d.today)}</div>` +
         `<p class="vf-text">「${_esc(d.verse.text)}」</p>` +
-        `<p class="vf-ref">— ${_esc(d.verse.ref)}</p>`;
+        `<p class="vf-ref">— ${_esc(d.verse.ref)}</p>` +
+        `<div class="vf-hint">點一下蓋回去</div>`;
     art.classList.toggle('vf-instant', !animate);
     requestAnimationFrame(() => {
         art.classList.remove('vf-loading');
         art.classList.add('flipped');
-        art.removeAttribute('role'); art.removeAttribute('tabindex');
+        art.setAttribute('aria-label', '蓋回今日經文卡');
     });
     const cta = document.getElementById('verse-cta');
     if (cta) cta.style.display = 'none';
@@ -1319,12 +1321,26 @@ async function flipVerseCard(animate) {
     if (animate && navigator.vibrate) navigator.vibrate(12);
 }
 
+/* 再點一次蓋回去；蓋回去後當天也維持蓋著 */
+function unflipVerseCard() {
+    const art = document.getElementById('verse-flip');
+    if (!art || !art.classList.contains('flipped')) return;
+    art.classList.remove('vf-instant', 'flipped');
+    art.setAttribute('aria-label', '翻開今日經文卡');
+    const cta = document.getElementById('verse-cta');
+    if (cta) cta.style.display = '';
+    const acts = document.getElementById('vf-actions');
+    if (acts) acts.style.display = 'none';
+    try { localStorage.removeItem(_VF_KEY); } catch (e) {}
+}
+
 (function () {
     const art = document.getElementById('verse-flip');
     if (!art || art.getAttribute('aria-hidden') === 'true') return;
     const go = e => { e.preventDefault(); flipVerseCard(true); };
-    art.addEventListener('click', go);
-    art.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') go(e); });
+    const toggle = e => { e.preventDefault(); art.classList.contains('flipped') ? unflipVerseCard() : flipVerseCard(true); };
+    art.addEventListener('click', toggle);
+    art.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') toggle(e); });
     const cta = document.getElementById('verse-cta');
     if (cta) cta.addEventListener('click', go);
     /* 靈修空間的「抽經文卡」：首頁上方有卡就捲上去翻開，沒有（Hero 被隱藏）就照連結去 /verse */

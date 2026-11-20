@@ -137,11 +137,29 @@ VERSE_THEMES = [
      "symbol": "✝", "deco": "stars"},
 ]
 
+def _theme_cycle(user_id: str, n: int, k: int) -> list:
+    """這個人第 k 輪的配色順序（每輪把 n 種顏色各用一次，順序每輪重新洗）。"""
+    order = list(range(n))
+    random.Random(f"{user_id}:theme-cycle:{k}").shuffle(order)
+    return order
+
+
 def _pick_theme(user_id: str, today_str: str, extra: list = None) -> dict:
-    """每天每人得到獨立且固定的主題；extra 為後台上傳的自訂主題清單"""
+    """每天每人得到固定的主題，而且**連續兩天一定不同色**；extra 為後台上傳的自訂主題清單。
+
+    以前是 hash(人, 日期) % 種數，連續兩天抽到同一色的機率約十幾分之一，看起來像「今天沒換」。
+    改成每人一份洗過的順序：一輪內每色各一次，跨輪時若接縫撞色就把新一輪前兩個對調。
+    """
     pool = VERSE_THEMES + (extra or [])
-    h = int(_hashlib.md5(f"{user_id}:{today_str}".encode()).hexdigest(), 16)
-    return pool[h % len(pool)]
+    n = len(pool)
+    if n == 1:
+        return pool[0]
+    day = date.fromisoformat(today_str).toordinal()
+    k, i = divmod(day, n)
+    order = _theme_cycle(user_id, n, k)
+    if order[0] == _theme_cycle(user_id, n, k - 1)[-1]:
+        order[0], order[1] = order[1], order[0]
+    return pool[order[i]]
 
 event_bp = Blueprint('event', __name__)
 
