@@ -250,7 +250,7 @@ def test_the_home_summary_uses_the_overlay_too():
 
 # ── 首頁「聚會人數總覽」：連結了點名，就不叫人去「填報」 ──────────────
 
-def _render_summary(summary):
+def _render_summary(summary, meeting_show=None):
     """只切出首頁那一塊、用真的模板語法 render（整頁要的 context 太多）。"""
     import jinja2
     src = (ROOT / 'templates' / 'portal.html').read_text(encoding='utf-8')
@@ -258,7 +258,7 @@ def _render_summary(summary):
     b = src.index('</a>{% endif %}', src.index('🌅 晨禱', a)) + len('</a>{% endif %}')
     env = jinja2.Environment()
     env.globals['module_on'] = lambda *_: True
-    return env.from_string(src[a:b]).render(attendance_summary=summary)
+    return env.from_string(src[a:b]).render(attendance_summary=summary, meeting_show=meeting_show or {})
 
 
 def test_a_linked_card_goes_to_the_roll_call_and_says_so():
@@ -275,6 +275,19 @@ def test_a_linked_card_goes_to_the_roll_call_and_says_so():
 def test_every_card_follows_its_own_link_flag():
     html = _render_summary({k: {'date': D, '_rc': True} for k in ('sunday', 'children', 'prayer', 'morning')})
     assert html.count('href="/roll-call"') == 4 and '填報' not in html
+
+
+def test_meetings_switched_off_in_settings_are_not_on_the_home_page():
+    """使用者回報：聚會設定把兒童主日／禱告會／晨禱關掉，首頁仍然顯示。"""
+    summ = {k: {'date': D} for k in ('sunday', 'children', 'prayer', 'morning')}
+    html = _render_summary(summ, {'sunday': True, 'children': False, 'prayer': False, 'morning': False})
+    assert '⛪ 成人主日' in html
+    assert '🧒 兒童主日' not in html and '🙏 禱告會' not in html and '🌅 晨禱' not in html
+    assert '🙏 禱告會' in _render_summary(summ)                      # 沒讀到開關：照舊全部顯示
+    code = _code('routes/event.py')
+    assert "_ms.get(f'show_{key}', True)" in code and 'meeting_show=meeting_show' in code
+    src = (ROOT / 'templates' / 'portal.html').read_text(encoding='utf-8')
+    assert "(_ms.values()|select|list)" in src                        # 全部關掉：整塊不畫
 
 
 def test_the_home_summary_marks_which_meetings_are_linked():
