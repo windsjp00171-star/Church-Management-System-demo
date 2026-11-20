@@ -728,8 +728,11 @@ select.form-control { cursor: pointer; }
    ============================================================ */
 @media (max-width: 768px) {
   .navbar-nav { display: none; }
-  .navbar-user { display: none; }
-  .hamburger { display: flex; margin-left: auto; }
+  /* 手機版：這一區只留通知鈴鐺（以前整區隱藏，手機上完全看不到站內通知；其餘項目在選單裡） */
+  .navbar-user { border-left: none; margin-left: 0; padding-left: 0; }
+  .navbar-user > :not(.notif-wrap) { display: none !important; }  /* 頭像連結與齒輪有行內 display:flex */
+  .hamburger { display: flex; margin-left: 4px; }
+  .notif-panel { max-width: calc(100vw - 24px); }
 
   .card-grid   { grid-template-columns: 1fr 1fr; gap: 12px; }
   .card-grid-2 { grid-template-columns: 1fr; }

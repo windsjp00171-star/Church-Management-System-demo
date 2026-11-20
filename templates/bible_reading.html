@@ -67,6 +67,8 @@ window.PAGE_TOUR_STEPS = [
 .br-toggle::after { content: ""; position: absolute; top: 3px; left: 3px;
                     width: 22px; height: 22px; border-radius: 50%; background: white;
                     box-shadow: 0 1px 3px rgba(0,0,0,.25); transition: transform .18s ease; }
+/* 看得到的開關維持 46×28，手指點得到的範圍往外多 8px（365 列一路往下滑，太小容易點到隔壁或點不到） */
+.br-toggle::before { content: ""; position: absolute; inset: -8px; }
 .br-toggle[aria-pressed="true"] { background: var(--green); }
 .br-toggle[aria-pressed="true"]::after { transform: translateX(18px); }
 

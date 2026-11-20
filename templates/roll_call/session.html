@@ -5,7 +5,7 @@
   <a href="/roll-call" style="color:#666; text-decoration:none;">← 返回場次</a>
   <div style="display:flex; justify-content:space-between; align-items:center; gap:8px; margin:6px 0 4px;">
     <h2 style="margin:0;">{{ s._type.name }}</h2>
-    <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:10px 14px; border:1px solid #c7d2fe; background:#eef2ff; border-radius:8px;">？ 教學</button>
+    <button type="button" data-tour="help-btn" onclick="startTour()" style="padding:10px 14px; border:1px solid #e8d4c0; background:#fdf5ee; border-radius:8px;">？ 教學</button>
   </div>
   <p style="color:#666; margin:0 0 12px;">{{ s._local.strftime('%Y/%m/%d %H:%M') }}
     {% if locked %}<strong style="color:#b45309;">　已鎖定（修改須由管理員填寫原因）</strong>{% endif %}</p>
@@ -29,7 +29,7 @@
         {% for key, label in labels.items() %}
           <button type="button" class="rc-btn" data-status="{{ key }}" {% if not editable %}disabled{% endif %}
             onclick="mark(this.closest('.rc-row'), '{{ key }}')"
-            style="min-height:48px; font-size:1rem; border-radius:10px; border:2px solid {{ '#4F46E5' if r and r.status == key else '#ddd' }}; background:{{ '#eef2ff' if r and r.status == key else '#fff' }}; font-weight:{{ 'bold' if r and r.status == key else 'normal' }};">{{ label }}</button>
+            style="min-height:48px; font-size:1rem; border-radius:10px; border:2px solid {{ '#7c4b3a' if r and r.status == key else '#ddd' }}; background:{{ '#fdf5ee' if r and r.status == key else '#fff' }}; font-weight:{{ 'bold' if r and r.status == key else 'normal' }};">{{ label }}</button>
         {% endfor %}
         </div>
       </div>
@@ -42,7 +42,7 @@
       <label style="font-weight:bold;">本次聚會人數</label>
       <input id="headcount" type="number" min="0" inputmode="numeric" value="{{ s.headcount if s.headcount is not none else '' }}" placeholder="請輸入人數（空白不會被當成 0）"
         {% if not editable %}disabled{% endif %} style="width:100%; padding:12px; font-size:1.1rem; margin:8px 0; box-sizing:border-box;">
-      {% if editable %}<button type="button" onclick="saveCount('headcount','headcount')" style="padding:12px 18px; background:#4F46E5; color:#fff; border:0; border-radius:10px; font-weight:bold;">儲存人數</button>{% endif %}
+      {% if editable %}<button type="button" onclick="saveCount('headcount','headcount')" style="padding:12px 18px; background:#7c4b3a; color:#fff; border:0; border-radius:10px; font-weight:bold;">儲存人數</button>{% endif %}
     </div>
   {% endif %}
 
@@ -50,7 +50,7 @@
     <label style="font-weight:bold;">名冊外訪客人數</label>
     <input id="guest" type="number" min="0" inputmode="numeric" value="{{ guest if guest is not none else '' }}" placeholder="只計人數，不建立資料"
       {% if not editable %}disabled{% endif %} style="width:100%; padding:12px; font-size:1.1rem; margin:8px 0; box-sizing:border-box;">
-    {% if editable %}<button type="button" onclick="saveCount('guest_count','guest')" style="padding:12px 18px; background:#4F46E5; color:#fff; border:0; border-radius:10px; font-weight:bold;">儲存訪客人數</button>{% endif %}
+    {% if editable %}<button type="button" onclick="saveCount('guest_count','guest')" style="padding:12px 18px; background:#7c4b3a; color:#fff; border:0; border-radius:10px; font-weight:bold;">儲存訪客人數</button>{% endif %}
   </div>
   <p id="msg" role="status" style="min-height:1.5em; color:#b91c1c; margin-top:12px;"></p>
 </div>
@@ -70,7 +70,7 @@ async function post(url, body) {
 }
 async function mark(row, status) {
   if (row.dataset.busy) return;                       // 連點保護：同一列處理中不重複送出
-  const current = row.querySelector('.rc-btn[style*="#4F46E5"]');
+  const current = row.querySelector('.rc-btn[style*="#7c4b3a"]');
   if (current && current.dataset.status === status) return;
   let reason = null;
   if (current || LOCKED) {
@@ -84,7 +84,7 @@ async function mark(row, status) {
     await post(`/api/roll-call/session/${SID}/mark`, { member_id: row.dataset.member, status, reason, backfill: BACKFILL });
     row.querySelectorAll('.rc-btn').forEach(b => {
       const on = b.dataset.status === status;
-      b.style.borderColor = on ? '#4F46E5' : '#ddd'; b.style.background = on ? '#eef2ff' : '#fff';
+      b.style.borderColor = on ? '#7c4b3a' : '#ddd'; b.style.background = on ? '#fdf5ee' : '#fff';
       b.style.fontWeight = on ? 'bold' : 'normal';
     });
   } catch (e) { say(e.message); }

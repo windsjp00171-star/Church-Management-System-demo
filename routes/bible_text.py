@@ -38,6 +38,7 @@
 外部服務一定會有抓不到的時候。那時候要**照實說**，並且把「去那個站看」
 的連結給他 —— 一片空白跟「這一章沒有經文」長得一模一樣。
 """
+import logging
 import re
 import time
 from html.parser import HTMLParser
@@ -314,8 +315,10 @@ def fetch_chapter(book, chapter, fetch=None, sb=None, timeout=INLINE_TIMEOUT):
         return [], '還沒有設定經文來源網址'
     try:
         html = (fetch or _http_get)(url, timeout=timeout)
-    except Exception as e:
-        return [], f'連不到經文來源（{type(e).__name__}）'
+    except Exception:
+        # 錯誤種類留在伺服器日誌給維護的人看；會友只需要知道「暫時讀不到、可以去聖經站看」
+        logging.getLogger(__name__).warning('連不到經文來源 %s', url, exc_info=True)
+        return [], '暫時連不到經文來源，請稍後再試'
 
     verses = parse_chapter(html)
     if not verses:

@@ -123,6 +123,8 @@ def _app():
         csrf_token=lambda: 't', module_on=lambda *_: True, church_name='測', church_short_name='測',
         line_liff_id='', privacy_policy_url='', card_names={}, can_see=lambda *_: True,
         asset=lambda p: '/static/' + p, push_enabled=False, assistant_name='小助手')
+    from routes.gather_day import label
+    a.jinja_env.filters['gather_day'] = label          # 與 app.py 同一份
     a.register_blueprint(B.bible_plan_bp)
     return a
 

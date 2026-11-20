@@ -12,13 +12,13 @@
         <div style="display:flex; gap:10px; flex-wrap:wrap;">
             <input id="new-group-name" type="text" placeholder="小組名稱" style="flex:1; min-width:160px; padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
             <select id="new-group-day" style="padding:8px 12px; border:1px solid #ddd; border-radius:8px; font-size:0.95rem;">
-                <option value="0">日曜日（週日）</option>
-                <option value="1">星期一</option>
-                <option value="2">星期二</option>
-                <option value="3">星期三</option>
-                <option value="4">星期四</option>
-                <option value="5">星期五</option>
-                <option value="6">星期六</option>
+                <option value="日">星期日</option>
+                <option value="一">星期一</option>
+                <option value="二">星期二</option>
+                <option value="三">星期三</option>
+                <option value="四">星期四</option>
+                <option value="五">星期五</option>
+                <option value="六">星期六</option>
             </select>
             <button onclick="createGroup()" style="padding:8px 20px; background:#7c4b3a; color:white; border:none; border-radius:8px; cursor:pointer; font-size:0.95rem;">新增</button>
         </div>
@@ -67,6 +67,13 @@
 
 <script>
 const DAYS = ['週日','週一','週二','週三','週四','週五','週六'];
+// 聚會日有兩種寫法：中文（「五」「週五」）與舊的數字（"5"）；看不懂就顯示「未設定」，不再出現 undefined
+function dayLabel(v) {
+    const s = String(v ?? '').trim();
+    if (/^[0-6]$/.test(s)) return DAYS[+s];
+    const ch = ['日','一','二','三','四','五','六'].find(c => s.includes(c)) || (s.includes('天') ? '日' : '');
+    return ch ? '週' + ch : '未設定';
+}
 let currentGroupId = null;
 let currentMemberId = null;
 let currentMemberHasUser = false;
@@ -94,7 +101,7 @@ async function loadGroups() {
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
                 <div>
                     <span style="font-weight:bold; font-size:1rem;">${g.name}</span>
-                    <span style="margin-left:10px; font-size:0.85rem; color:#888;">聚會日：${DAYS[g.weekly_gather_day ?? 0]}</span>
+                    <span style="margin-left:10px; font-size:0.85rem; color:#888;">聚會日：${dayLabel(g.weekly_gather_day)}</span>
                     <span id="active-badge-${g.id}" style="margin-left:8px; padding:2px 8px; border-radius:20px; font-size:0.78rem;
                         background:${g.is_active ? '#dcfce7' : '#fee2e2'}; color:${g.is_active ? '#16a34a' : '#dc2626'};">
                         ${g.is_active ? '啟用中' : '已停用'}
@@ -169,7 +176,7 @@ async function loadGroups() {
 
 async function createGroup() {
     const name = document.getElementById('new-group-name').value.trim();
-    const day = parseInt(document.getElementById('new-group-day').value);
+    const day = document.getElementById('new-group-day').value;
     if (!name) { showToast('請輸入小組名稱', 'warning'); document.getElementById('new-group-name').focus(); return; }
     const res = await fetch('/admin/api/cell-groups', {
         method: 'POST', headers: {'Content-Type': 'application/json'},

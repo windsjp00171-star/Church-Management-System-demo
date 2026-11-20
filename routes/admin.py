@@ -785,7 +785,8 @@ def create_cell_group():
     name = data.get('name', '').strip()
     if not name:
         return jsonify({'error': '名稱不能為空'}), 400
-    gather_day = data.get('weekly_gather_day', 0)
+    from routes.gather_day import day_char
+    gather_day = day_char(data.get('weekly_gather_day')) or '日'   # 一律存中文字，與其他頁面同一種寫法
     result = supabase.table('cell_groups').insert({
         'name': name, 'weekly_gather_day': gather_day, 'is_active': True
     }).execute()

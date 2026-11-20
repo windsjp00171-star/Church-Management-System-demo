@@ -184,17 +184,8 @@ def _get_last_meeting_date_for_group(group: Dict, ref_date=None) -> datetime.dat
     if ref_date is None:
         ref_date = datetime.date.today()
 
-    day_str = (group.get('weekly_gather_day') or '').strip()
-    if not day_str:
-        return _get_last_sunday(ref_date)
-
-    weekday_map = {'一': 0, '二': 1, '三': 2, '四': 3, '五': 4, '六': 5, '日': 6}
-    target_weekday = None
-    for ch, w in weekday_map.items():
-        if ch in day_str:
-            target_weekday = w
-            break
-
+    from routes.gather_day import weekday
+    target_weekday = weekday(group.get('weekly_gather_day'))
     if target_weekday is None:
         return _get_last_sunday(ref_date)
 

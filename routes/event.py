@@ -418,15 +418,10 @@ def portal():
                 leader_groups = leader_result.data
                 # 依各組實際聚會日計算本週日期，再精確查詢
                 today_date = date.today()
-                weekday_map = {'一': 0, '二': 1, '三': 2, '四': 3, '五': 4, '六': 5, '日': 6}
+                from routes.gather_day import weekday
 
                 def _meeting_date(group_data, ref):
-                    day_str = (group_data.get('weekly_gather_day') or '').strip()
-                    target = None
-                    for ch, w in weekday_map.items():
-                        if ch in day_str:
-                            target = w
-                            break
+                    target = weekday(group_data.get('weekly_gather_day'))
                     if target is None:
                         target = 6  # 預設週日
                     return ref - timedelta(days=(ref.weekday() - target) % 7)
