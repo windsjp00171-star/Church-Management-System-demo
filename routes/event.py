@@ -449,7 +449,16 @@ def portal():
 
     # ── 聚會人數（牧者/同工/管理員在首頁顯示）──
     attendance_summary = None
+    meeting_show = {}          # 「聚會設定」逐項開關：關掉的聚會首頁不顯示
     if is_pastor or is_staff or session.get('is_admin'):
+        try:
+            from routes.cell_report import _get_module_settings
+            _ms = _get_module_settings()
+            meeting_show = {k: _ms.get(f'show_{key}', True) for k, key in (
+                ('sunday', 'adult_sunday'), ('children', 'children_sunday'),
+                ('prayer', 'prayer'), ('morning', 'morning_prayer'))}
+        except Exception:
+            logging.getLogger(__name__).warning('讀聚會開關失敗，全部顯示', exc_info=True)
         try:
             from routes.cell_report import _get_meeting_settings, _get_last_weekday_date
             mcfg = _get_meeting_settings()
@@ -543,6 +552,7 @@ def portal():
         pending_report=pending_report,
         leader_groups=leader_groups,
         attendance_summary=attendance_summary,
+        meeting_show=meeting_show,
         unread_changelog=unread_changelog,
         is_fulltime_staff=is_fulltime_staff,
         hidden_sections=hidden_sections,
