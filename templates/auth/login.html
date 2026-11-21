@@ -126,6 +126,13 @@
     </p>
     {% endif %}
 
+    {% if config.DEMO_MODE %}
+    <p class="privacy-note" style="margin-top:12px;">
+        還沒有帳號？先看
+        <a href="https://windsjp00171-star.github.io/church-admin/" target="_blank" rel="noopener">系統介紹與實際畫面 →</a>
+    </p>
+    {% endif %}
+
     {% if line_liff_id %}
     <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
     {% endif %}
