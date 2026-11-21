@@ -458,14 +458,21 @@ def seed():
     ])
     ids['cmids'] = cmids
 
-    # 過去3週的週報（每組各3筆）
-    week_dates = [(today - datetime.timedelta(weeks=i, days=today.weekday())).isoformat() for i in range(1, 4)]
+    # 最近一次「星期幾」的日期（0=週一…6=週日），規則同 routes/cell_report.py 的 _get_last_weekday_date
+    def last_weekday(weekday, weeks_ago=0):
+        ref = today - datetime.timedelta(weeks=weeks_ago)
+        return (ref - datetime.timedelta(days=(ref.weekday() - weekday) % 7)).isoformat()
+
+    # 最近3週的週報（每組各3筆）；week_date 要對到各小組的聚會日，牧者查閱才找得到
+    gather_weekday = {'一': 0, '二': 1, '三': 2, '四': 3, '五': 4, '六': 5, '日': 6}
+    groups = [(cgids['olive'], '三'), (cgids['grape'], '五'), (cgids['water'], '四'), (cgids['immanuel'], '二')]
     crids = {f'cr{i}': g() for i in range(1, 13)}
     cr_list = []
     i = 1
-    for wdate in week_dates:
-        for gid in [cgids['olive'], cgids['grape'], cgids['water'], cgids['immanuel']]:
-            cr_list.append({'id': crids[f'cr{i}'], 'group_id': gid, 'week_date': wdate, 'is_complete': True, 'no_meeting': False})
+    for w in range(3):
+        for gid, day in groups:
+            cr_list.append({'id': crids[f'cr{i}'], 'group_id': gid, 'week_date': last_weekday(gather_weekday[day], w),
+                            'is_complete': True, 'no_meeting': False})
             i += 1
     safe_insert('cell_reports', cr_list)
     ids['crids'] = crids
@@ -476,15 +483,19 @@ def seed():
     prayer_nums   = [28,  33,  31,  25,  35,  29,  27,  30,  26,  32,  34,  28]
     morning_nums  = [12,  16,  15,  11,  18,  14,  13,  15,  12,  17,  16,  14]
 
-    sr_ids  = [g() for _ in range(12)]
-    chr_ids = [g() for _ in range(12)]
-    pr_ids  = [g() for _ in range(12)]
-    mr_ids  = [g() for _ in range(12)]
+    # 聚會人數以「日期」為單位（各表 date UNIQUE），星期幾用 MEETING_DEFAULTS 的預設：主日=日、禱告會=三、晨禱=五
+    weeks = 4
+    sr_ids  = [g() for _ in range(weeks)]
+    chr_ids = [g() for _ in range(weeks)]
+    pr_ids  = [g() for _ in range(weeks)]
+    mr_ids  = [g() for _ in range(weeks)]
 
-    safe_insert('sunday_reports',          [{'id': sr_ids[i],  'report_id': crids[f'cr{i+1}'], 'attendance_count': adult_nums[i]}    for i in range(12)])
-    safe_insert('children_sunday_reports', [{'id': chr_ids[i], 'report_id': crids[f'cr{i+1}'], 'attendance_count': children_nums[i]} for i in range(12)])
-    safe_insert('prayer_reports',          [{'id': pr_ids[i],  'report_id': crids[f'cr{i+1}'], 'attendance_count': prayer_nums[i]}   for i in range(12)])
-    safe_insert('morning_prayer_reports',  [{'id': mr_ids[i],  'report_id': crids[f'cr{i+1}'], 'attendance_count': morning_nums[i]}  for i in range(12)])
+    safe_insert('sunday_reports', [{'id': sr_ids[w], 'date': last_weekday(6, w),
+                                    'first_service_count': round(adult_nums[w] * 0.6),
+                                    'second_service_count': adult_nums[w] - round(adult_nums[w] * 0.6)} for w in range(weeks)])
+    safe_insert('children_sunday_reports', [{'id': chr_ids[w], 'date': last_weekday(6, w), 'attendance_count': children_nums[w]} for w in range(weeks)])
+    safe_insert('prayer_reports',          [{'id': pr_ids[w],  'date': last_weekday(2, w), 'attendance_count': prayer_nums[w]}   for w in range(weeks)])
+    safe_insert('morning_prayer_reports',  [{'id': mr_ids[w],  'date': last_weekday(4, w), 'attendance_count': morning_nums[w]}  for w in range(weeks)])
 
     ids.update({'sr_ids': sr_ids, 'chr_ids': chr_ids, 'pr_ids': pr_ids, 'mr_ids': mr_ids})
     ok(f'4 個小組、{len(cr_list)} 筆週報（成人主日 {adult_nums[0]} 人、兒童 {children_nums[0]} 人）')
