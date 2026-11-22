@@ -355,7 +355,7 @@ def sb_is_pastor(line_user_id: str) -> bool:
     if not line_user_id or not sb:
         return False
     try:
-        res = sb.table('users').select('id,is_pastor').eq('line_id', line_user_id).limit(1).execute()
+        res = sb.table('users').select('id,is_pastor').eq('line_user_id', line_user_id).limit(1).execute()
         if not res.data:
             return False
         user = res.data[0]
@@ -374,30 +374,27 @@ def sb_list_pastors() -> List[Dict[str, Any]]:
     # is_pastor=True 的人
     pastor_res = (
         sb.table('users')
-        .select('line_id,display_name,picture_url,is_pastor')
+        .select('line_user_id,display_name,picture_url,is_pastor')
         .eq('is_pastor', True)
         .execute()
     )
-    pastor_ids = {r['line_id'] for r in (pastor_res.data or []) if r.get('line_id')}
+    pastor_ids = {r['line_user_id'] for r in (pastor_res.data or []) if r.get('line_user_id')}
     # 小組長
     leader_res = sb.table('cell_group_leaders').select('user_id').execute()
     leader_user_ids = [r['user_id'] for r in (leader_res.data or [])]
     if leader_user_ids:
         leader_users = (
             sb.table('users')
-            .select('line_id,display_name,picture_url,is_pastor')
+            .select('line_user_id,display_name,picture_url,is_pastor')
             .in_('id', leader_user_ids)
             .execute()
         )
         for u in (leader_users.data or []):
-            if u.get('line_id') and u['line_id'] not in pastor_ids:
-                pastor_ids.add(u['line_id'])
+            if u.get('line_user_id') and u['line_user_id'] not in pastor_ids:
+                pastor_ids.add(u['line_user_id'])
                 pastor_res.data.append(u)
-    result = [r for r in (pastor_res.data or []) if r.get('line_id') in pastor_ids]
-    # 統一欄位名稱供 template 使用
-    for r in result:
-        r.setdefault('line_user_id', r.get('line_id', ''))
-    result.sort(key=lambda x: x.get('display_name', ''))
+    result = [r for r in (pastor_res.data or []) if r.get('line_user_id') in pastor_ids]
+    result.sort(key=lambda x: x.get('display_name') or '')
     return result
 
 
@@ -406,15 +403,13 @@ def sb_list_users(limit: int = 500) -> List[Dict[str, Any]]:
         return []
     res = (
         sb.table('users')
-        .select('line_id,display_name,picture_url,created_at')
+        .select('line_user_id,display_name,picture_url,created_at')
         .order('created_at', desc=True)
         .limit(limit)
         .execute()
     )
-    rows = list(res.data or [])
-    for r in rows:
-        r.setdefault('line_user_id', r.get('line_id', ''))
-    return rows
+    # 還沒綁 LINE 的空殼帳號沒有日記，也不能設成查閱者
+    return [r for r in (res.data or []) if r.get('line_user_id')]
 
 
 def sb_set_pastor_whitelist(line_user_id: str, display_name: str, picture_url: str, active: bool) -> None:
@@ -422,7 +417,7 @@ def sb_set_pastor_whitelist(line_user_id: str, display_name: str, picture_url: s
     if not sb:
         return
     sb.table('users').update({'is_pastor': bool(active)})\
-        .eq('line_id', line_user_id)\
+        .eq('line_user_id', line_user_id)\
         .execute()
 
 

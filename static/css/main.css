@@ -1005,6 +1005,15 @@ select.form-control { cursor: pointer; }
 .pastor-banner-label { font-size: 11px; font-weight: 700; letter-spacing: 0.1em; color: #b8956a; margin-bottom: 2px; }
 .pastor-banner-name { font-family: var(--font-serif); font-size: 18px; font-weight: 700; color: #fff; }
 .pastor-back-btn { padding: 8px 14px; border: 1px solid rgba(255,255,255,0.3); border-radius: 20px; color: #fff; font-size: 13px; font-weight: 600; text-decoration: none; }
+.pastor-banner-divider { border-top: 1px solid rgba(255,255,255,0.12); margin: 12px 0 8px; }
+.pastor-switch-hint { font-size: 14px; font-weight: 700; letter-spacing: 0.06em; color: #b8956a; margin-bottom: 8px; }
+.pastor-member-switcher-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; padding-bottom: 2px; }
+.pastor-member-switcher { display: flex; gap: 8px; min-width: max-content; }
+.pastor-member-chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 10px; border-radius: 12px; border: 1px solid transparent; text-decoration: none; background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.75); font-size: 14px; font-weight: 600; white-space: nowrap; transition: background 0.15s; }
+.pastor-member-chip img, .pastor-member-avatar-placeholder { width: 32px; height: 32px; border-radius: 50%; object-fit: cover; }
+.pastor-member-avatar-placeholder { background: rgba(255,255,255,0.2); }
+.pastor-member-chip.active { background: rgba(255,255,255,0.2); color: #fff; border-color: rgba(255,255,255,0.4); }
+.pastor-member-chip:not(.active):hover { background: rgba(255,255,255,0.15); color: #fff; }
 .member-switcher-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 12px; }
 .member-switcher { display: flex; gap: 8px; min-width: max-content; }
 .member-chip { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 12px; border-radius: 14px; text-decoration: none; background: #ede8e0; color: #3a3530; font-size: 12px; font-weight: 600; }

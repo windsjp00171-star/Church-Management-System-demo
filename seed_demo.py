@@ -296,17 +296,17 @@ def seed():
             'id': cids['new_life'],
             'title': '新生命課程',
             'description': '專為初信者設計，幫助你建立信仰基礎、認識教會、開始屬靈操練。共六堂，每週日下午。',
-            'instructor_id': uids['pastor'],
+            'location': '教會多功能教室',
             'category_id': cat_ids['new_life'],
-            'is_open': True, 'has_material': True, 'material_fee': 200, 'capacity': 20, 'reminder_days': 3,
+            'is_open': True, 'has_material': True, 'material_fee': 200, 'reminder_days': 3,
         },
         {
             'id': cids['disciple'],
             'title': '門徒訓練班',
             'description': '針對想要更深委身的弟兄姊妹，透過聖經研讀、禱告操練、服事學習，成為能帶領他人的門徒。共十堂。',
-            'instructor_id': uids['admin1'],
+            'location': '教會小教室',
             'category_id': cat_ids['disciple'],
-            'is_open': True, 'has_material': False, 'material_fee': 0, 'capacity': 15, 'reminder_days': 3,
+            'is_open': True, 'has_material': False, 'material_fee': 0, 'reminder_days': 3,
             'prerequisite_category_id': cat_ids['new_life'],
         },
     ])
@@ -324,14 +324,12 @@ def seed():
                          'session_number': i + 1,
                          'title': f'第 {i+1} 堂',
                          'scheduled_at': dt_str(7 * i - 35, 14, 0),
-                         'location': '教會多功能教室',
                          'checkin_token': secrets.token_urlsafe(12)})
     for i, sid in enumerate(sess_disc):
         sessions.append({'id': sid, 'course_id': cids['disciple'],
                          'session_number': i + 1,
                          'title': f'第 {i+1} 堂',
                          'scheduled_at': dt_str(7 * i - 28, 19, 0),
-                         'location': '教會小教室',
                          'checkin_token': secrets.token_urlsafe(12)})
     safe_insert('course_sessions', sessions)
     ids['sess_nl'] = sess_nl
@@ -354,7 +352,7 @@ def seed():
         for uid in [uids['u1'], uids['u2'], uids['u3']]:
             aid = g()
             att_ids.append(aid)
-            safe_insert('session_attendance', {'id': aid, 'session_id': sid, 'user_id': uid, 'status': 'present'})
+            safe_insert('session_attendance', {'id': aid, 'session_id': sid, 'user_id': uid, 'method': 'manual'})
     ids['att_ids'] = att_ids
     ok(f'2 門課程、{len(sessions)} 堂次、{len(enroll_ids)} 筆選課、{len(att_ids)} 筆出席')
 

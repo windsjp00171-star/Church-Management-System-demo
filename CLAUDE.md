@@ -313,6 +313,7 @@ python app.py      # debug=True, port 5000
 | 019 | `migrations/019_roll_call_open_edit_no_reason.sql` | `rc_save_record`：場次還沒鎖定時改打勾不用原因（點名單「取消打勾」才不會被擋），鎖定後仍要原因，每次修改仍寫稽核 |
 | 018 | `migrations/018_event_field_types.sql` | `event_fields` 允許 birthday／id_number／fee／guardian 四種欄位型別，並新增 `auto_tier`（報名表單強化、引導式開活動的前置） |
 | 020 | `migrations/020_bible_reading.sql` | 365 天聖經速讀：`bible_reading_progress`（每個人的打勾）、`bible_chapters`（經文快取） |
+| 025 | `migrations/025_material_stock_view.sql` | 教材庫存由異動紀錄計算（原本讀沒有人更新的 `materials.stock`，庫存永遠是 0） |
 | 017 | `migrations/017_users_line_user_id_nullable.sql` | `users.line_user_id` 允許為空（手動建立的會員、合併後清空 LINE 身分的列；舊 schema 寫成 NOT NULL 會讓兩者失敗） |
 
 新專案只需執行整份 `schema.sql`（已含 012～020）。**程式寫入的每個欄位 `schema.sql` 都必須有**（`tests/test_schema_guards.py` 掃 AST 守著；新增欄位要同時補 schema 與 migration）。
