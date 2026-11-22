@@ -702,11 +702,6 @@ CREATE TABLE IF NOT EXISTS materials (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- material_stock 是 materials 的視圖別名
-CREATE OR REPLACE VIEW material_stock AS
-    SELECT id, name, description, unit, selling_price, category_id, stock, is_active, created_at
-    FROM materials WHERE is_active = TRUE;
-
 -- 教材進出記錄
 CREATE TABLE IF NOT EXISTS material_transactions (
     id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -721,6 +716,18 @@ CREATE TABLE IF NOT EXISTS material_transactions (
     transaction_date DATE NOT NULL DEFAULT CURRENT_DATE,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+
+-- 庫存由異動紀錄計算（沒有程式會更新 materials.stock；migrations/025）
+CREATE OR REPLACE VIEW material_stock AS
+    SELECT m.id, m.name, m.description, m.unit, m.selling_price, m.category_id,
+           COALESCE(SUM(CASE t.type WHEN 'in' THEN t.quantity WHEN 'out' THEN -t.quantity
+                                    WHEN 'adjust' THEN t.quantity END), 0)::int AS stock,
+           m.is_active, m.created_at,
+           COALESCE(SUM(CASE WHEN t.type = 'in' THEN t.total_cost END), 0)::int AS total_purchased_cost,
+           COALESCE(SUM(CASE WHEN t.type = 'out' THEN t.quantity END), 0)::int AS total_sold_qty
+    FROM materials m LEFT JOIN material_transactions t ON t.material_id = m.id
+    WHERE m.is_active = TRUE
+    GROUP BY m.id;
 
 -- 洽詢（示範站的洽詢表單）
 CREATE TABLE IF NOT EXISTS contact_leads (
