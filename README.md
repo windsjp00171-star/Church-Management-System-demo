@@ -154,3 +154,7 @@ python app.py          # http://localhost:5000
 ## License
 
 本專案為教會內部使用系統，未授權商業轉售。
+
+---
+
+作者 EMMARK 的其他作品與履歷：[作品集](https://windsjp00171-star.github.io/CLAUDE-DESIGN/)
