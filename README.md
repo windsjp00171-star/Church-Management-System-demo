@@ -1,3 +1,5 @@
+[![RepoDoctor](https://repodoctor-psi.vercel.app/badge/c1e71030-3906-40db-830b-4180a1c84c46.svg)](https://repodoctor-psi.vercel.app/?ref=badge)
+
 # ⛪ 整合型教會行政系統
 
 > 以 LINE Login 為核心的台灣本土教會管理平台，整合活動報名、小組牧養、靈修日記、差勤管理等功能於單一系統。
