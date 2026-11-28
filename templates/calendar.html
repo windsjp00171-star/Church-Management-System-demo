@@ -443,13 +443,13 @@ function showDetail(dateStr, items) {
         const label = isChurch ? '教會行事' : item.type === 'event' ? '活動' : item.type === 'course' ? '門訓' : '個人行程';
 
         const titleHtml = item.link
-            ? `<a href="${item.link}" style="font-weight:bold; font-size:0.95rem; color:#333; text-decoration:none;">${item.title}</a>`
-            : `<span style="font-weight:bold; font-size:0.95rem;">${item.title}</span>`;
+            ? `<a href="${escHtml(item.link)}" style="font-weight:bold; font-size:0.95rem; color:#333; text-decoration:none;">${escHtml(item.title || '')}</a>`
+            : `<span style="font-weight:bold; font-size:0.95rem;">${escHtml(item.title || '')}</span>`;
 
         // 個人行程：本人可編輯/刪除
         const personalBtns = isPersonal ? `
             <div style="display:flex; gap:6px; margin-top:8px;">
-                <button onclick="openEditPersonal('${item.id}','${(item.title||'').replace(/'/g,"\\'")}','${item.date}','${(item.description||'').replace(/'/g,"\\'")}','${item.color||'#e65100'}',event)"
+                <button onclick="openEditPersonal('${item.id}','${escHtml((item.title||'').replace(/'/g,"\\'"))}','${item.date}','${escHtml((item.description||'').replace(/'/g,"\\'"))}','${item.color||'#e65100'}',event)"
                     style="padding:8px 14px; background:#fff3e0; color:#e65100; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; min-height:44px;">編輯</button>
                 <button onclick="deletePersonal('${item.id}',event)"
                     style="padding:8px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; min-height:44px;">刪除</button>
@@ -458,7 +458,7 @@ function showDetail(dateStr, items) {
         // 教會行事：管理員可編輯/刪除
         const churchBtns = (IS_ADMIN && isChurch) ? `
             <div style="display:flex; gap:6px; margin-top:8px;">
-                <button onclick="openEditChurch('${item.id}','${(item.title||'').replace(/'/g,"\\'")}','${item.date}','${(item.description||'').replace(/'/g,"\\'")}','${item.color||'#7b1fa2'}',event)"
+                <button onclick="openEditChurch('${item.id}','${escHtml((item.title||'').replace(/'/g,"\\'"))}','${item.date}','${escHtml((item.description||'').replace(/'/g,"\\'"))}','${item.color||'#7b1fa2'}',event)"
                     style="padding:8px 14px; background:#f0f0f0; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; min-height:44px;">編輯</button>
                 <button onclick="deleteChurch('${item.id}',event)"
                     style="padding:8px 14px; background:#ffebee; color:#c62828; border:none; border-radius:6px; cursor:pointer; font-size:0.82rem; min-height:44px;">刪除</button>
@@ -473,7 +473,7 @@ function showDetail(dateStr, items) {
                     background:${dot}22; color:${dot};">${label}</span>
             </div>
             ${item.time ? `<div style="font-size:0.8rem; color:#888; margin-top:3px;">${item.time.slice(0,5)}</div>` : ''}
-            ${item.description ? `<div style="font-size:0.8rem; color:#888; margin-top:2px;">${item.description}</div>` : ''}
+            ${item.description ? `<div style="font-size:0.8rem; color:#888; margin-top:2px;">${escHtml(item.description)}</div>` : ''}
             ${personalBtns}${churchBtns}
         </div>`;
     }).join('') : `<p style="color:#aaa; font-size:0.9rem; margin:0 0 8px;">這天還沒有任何行程</p>`;

@@ -528,7 +528,9 @@ function markAllRead() {
 }
 
 function escHtml(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    // 引號也要跳脫，屬性值（href、onclick）裡才安全
+    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // 頁面載入時靜默更新未讀數
